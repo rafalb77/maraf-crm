@@ -1,0 +1,65 @@
+version: '3.9'
+
+services:
+  # ─── Aplikacja Next.js ────────────────────────────────────────
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: codecrm_app
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?schema=public
+      - NEXTAUTH_URL=${NEXTAUTH_URL}
+    volumes:
+      # Pliki rysunków — trwały wolumen
+      - uploads_data:/app/public/uploads/rysunki
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - internal
+
+  # ─── PostgreSQL ────────────────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    container_name: codecrm_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER:     ${POSTGRES_USER:-codecrm}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+      POSTGRES_DB:       ${POSTGRES_DB:-codecrm}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-codecrm}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - internal
+
+  # ─── Nginx (reverse proxy + HTTPS ready) ──────────────────────
+  nginx:
+    image: nginx:alpine
+    container_name: codecrm_nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/certs:/etc/nginx/certs:ro
+    depends_on:
+      - app
+    networks:
+      - internal
+
+volumes:
+  pg_data:
+  uploads_data:
+
+networks:
+  internal:
+    driver: bridge

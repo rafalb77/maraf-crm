@@ -1,0 +1,44 @@
+# Build artefacts
+.next/
+out/
+build/
+dist/
+
+# Dependencies
+node_modules/
+
+# Bazy danych lokalne
+*.db
+*.db-journal
+*.sqlite
+*.sqlite-journal
+
+# Sekrety — NIGDY nie commitować
+.env
+.env.local
+.env.development.local
+.env.production.local
+.env.test.local
+
+# Uploady (na dysku serwera, nie w repo)
+/public/uploads/
+/uploads/
+/tmp/
+
+# Archiwum migracji SQLite (zachowane lokalnie dla referencji, niepotrzebne w repo)
+prisma/migrations-sqlite-archived/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.swp
+*~
+
+# Prisma — wygenerowany klient
+node_modules/.prisma/

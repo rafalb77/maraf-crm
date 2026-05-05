@@ -1,0 +1,586 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String?
+  createdAt DateTime @default(now())
+}
+
+// status: ZAPYTANIE | OFERTA | REZERWACJA | UMOWA | ODBIOR
+model Client {
+  id         String   @id @default(cuid())
+  firstName  String
+  lastName   String
+  email      String?
+  phone      String?
+  phone2     String?
+  pesel      String?
+  nip        String?
+  idNumber   String?
+  fatherName String?
+  motherName String?
+  address    String?
+  city       String?
+  zipCode    String?
+  status     String   @default("ZAPYTANIE")
+  source     String?
+  notes      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  activities       Activity[]
+  clientUnits      ClientUnit[]
+  serviceRequests  ServiceRequest[]
+  contracts        Contract[]
+  contractClients  ContractClient[]
+  offers           Offer[]
+}
+
+// type: MIESZKALNY | USLUGOWY | PARKING | GARAZ | KOMORKA
+// status: WOLNY | ZAREZERWOWANY | SPRZEDANY | NIEDOSTEPNY
+// reservationType: null | MIEKKA | REZERWACJA
+model Unit {
+  id                   String    @id @default(cuid())
+  number               String    @unique
+  type                 String
+  area                 Float
+  pricePerSqmNet       Float     @default(0)
+  pricePerSqmGross     Float     @default(0)
+  priceNet             Float
+  priceGross           Float
+  vatRate              Int       @default(8)
+  floor                Int?
+  building             String?
+  description          String?
+  status               String    @default("WOLNY")
+  floorPlanUrl         String?
+  reservationType      String?
+  reservationExpiresAt DateTime?
+  reservedById         String?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  clientUnits     ClientUnit[]
+  serviceRequests ServiceRequest[]
+  contractUnits   ContractUnit[]
+  offerItems      OfferItem[]
+}
+
+model ClientUnit {
+  id         String   @id @default(cuid())
+  clientId   String
+  unitId     String
+  assignedAt DateTime @default(now())
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  unit   Unit   @relation(fields: [unitId], references: [id], onDelete: Cascade)
+
+  @@unique([clientId, unitId])
+}
+
+// type: NOTATKA | TELEFON | EMAIL | SPOTKANIE | DOKUMENT
+model Activity {
+  id        String   @id @default(cuid())
+  clientId  String
+  type      String   @default("NOTATKA")
+  title     String
+  content   String?
+  date      DateTime @default(now())
+  createdAt DateTime @default(now())
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+}
+
+// status: ZGLOSZONO | W_TOKU | ZAKONCZONE
+// priority: NISKA | SREDNIA | WYSOKA
+model ServiceRequest {
+  id          String    @id @default(cuid())
+  clientId    String
+  unitId      String?
+  title       String
+  description String?
+  status      String    @default("ZGLOSZONO")
+  priority    String    @default("SREDNIA")
+  resolvedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  unit   Unit?  @relation(fields: [unitId], references: [id], onDelete: SetNull)
+}
+
+model CalendarToken {
+  id           String    @id @default(cuid())
+  accessToken  String
+  refreshToken String?
+  expiresAt    DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+model Settings {
+  id    String @id @default(cuid())
+  key   String @unique
+  value String
+}
+
+// type: REZERWACYJNA | DEWELOPERSKA | PRZENIESIENIA
+// status: W_PRZYGOTOWANIU | PODPISANA | ROZWIAZANA | ANULOWANA
+model Contract {
+  id                 String    @id @default(cuid())
+  number             String    @unique
+  type               String
+  status             String    @default("W_PRZYGOTOWANIU")
+  investmentName     String    @default("Inwestycja")
+  clientId           String
+  introducedAt       DateTime  @default(now())
+  plannedSignDate    DateTime?
+  signedAt           DateTime?
+  form               String?
+  maxReservationFee  Float?
+  reservationFee     Float?
+  maxDiscount        Float?
+  discount           Float?
+  valueNet           Float?
+  valueGross         Float?
+  landSharePrice     Float?
+  salesChance        Int?
+  caretaker          String?
+  notes              String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  client          Client               @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  contractClients ContractClient[]
+  contractUnits   ContractUnit[]
+  attachments     ContractAttachment[]
+  history         ContractHistory[]
+}
+
+model ContractClient {
+  id         String @id @default(cuid())
+  contractId String
+  clientId   String
+  position   Int    @default(1)
+
+  contract Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  client   Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@unique([contractId, clientId])
+}
+
+model ContractUnit {
+  id         String @id @default(cuid())
+  contractId String
+  unitId     String
+
+  contract Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  unit     Unit     @relation(fields: [unitId], references: [id], onDelete: Cascade)
+
+  @@unique([contractId, unitId])
+}
+
+// =============================================================
+// MODUŁ: OBMIARY Z RYSUNKÓW (DXF/PDF)
+// =============================================================
+
+// Projekt rysunkowy (np. "Budynek A – Kondygnacja 0")
+model DrawingProject {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  type        String   @default("KONSTRUKCYJNY") // ARCHITEKTONICZNY | KONSTRUKCYJNY | INSTALACYJNY
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  drawings Drawing[]
+}
+
+// Rysunek (plik DXF/PDF/DWG)
+model Drawing {
+  id           String   @id @default(cuid())
+  projectId    String?
+  name         String
+  originalName String
+  fileType     String            // DXF | PDF | DWG | IMAGE
+  filePath     String
+  fileSize     Int?
+  scaleLabel   String   @default("1:50") // np. "1:50", "1:100"
+  pixelsPerMeter Float?                   // kalibracja: ile px = 1m
+  pageWidth    Int?
+  pageHeight   Int?
+  status       String   @default("UPLOADED") // UPLOADED | READY | ERROR
+  aiAnalyzed   Boolean  @default(false)
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  project  DrawingProject? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  elements DrawingElement[]
+}
+
+// Typ elementu: konstrukcyjny lub architektoniczny
+// KONSTRUKCYJNY: STROP | PODCIAG | SLUP | WIENIEC | SCIANA_ZB | LAW_FUND | STOP_FUND | NADPROZ
+// ARCHITEKTONICZNY: ELEWACJA | TYNK_ZEW | TYNK_WEW | POSADZKA | DACH | OKNO | DRZWI | OCIEPLENIE
+model DrawingElement {
+  id          String   @id @default(cuid())
+  drawingId   String
+  type        String            // patrz komentarz wyżej
+  label       String            // np. "Strop nad parterem", "Słup S-01"
+  floor       String?           // "PIWNICA" | "PARTER" | "PIETRO_1" | ...
+  geometry    String            // JSON: [{x,y},...] punkty w px na canvas
+  // Przeliczone wymiary (w metrach)
+  lengthM     Float?
+  widthM      Float?
+  heightM     Float?
+  perimeterM  Float?
+  areaM2      Float?
+  volumeM3    Float?
+  // Szacunki materiałowe
+  concreteM3  Float?            // beton wg normy
+  steelKg     Float?            // stal wg wskaźnika kg/m³ lub kg/m²
+  // Rozliczenie
+  unit        String   @default("M2") // M2 | M3 | MB | SZT | KG | T
+  qty         Float    @default(0)
+  notes       String?
+  verified    Boolean  @default(false)
+  source      String   @default("MANUAL") // MANUAL | AI | DXF_AUTO
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  drawing Drawing @relation(fields: [drawingId], references: [id], onDelete: Cascade)
+}
+
+model ContractAttachment {
+  id         String   @id @default(cuid())
+  contractId String
+  filename   String
+  url        String
+  size       Int?
+  createdAt  DateTime @default(now())
+
+  contract Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+}
+
+model ContractHistory {
+  id         String   @id @default(cuid())
+  contractId String
+  event      String
+  details    String?
+  createdAt  DateTime @default(now())
+
+  contract Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+}
+
+// =============================================================
+// MODUŁ: PRZEROBY (kontroling protokołów przerobowych)
+// =============================================================
+
+// Podwykonawca — firma wykonawcza
+model Subcontractor {
+  id           String   @id @default(cuid())
+  name         String
+  nip          String?
+  regon        String?
+  address      String?
+  city         String?
+  zipCode      String?
+  contactName  String?
+  email        String?
+  phone        String?
+  bankAccount  String?
+  notes        String?
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  contracts        SubContract[]
+  protocols        Protocol[]
+}
+
+// Umowa z podwykonawcą — kosztorys umowny w pozycjach (ContractWorkItem)
+model SubContract {
+  id              String   @id @default(cuid())
+  subcontractorId String
+  number          String?
+  title           String
+  scopeText       String?  // np. "Roboty konstrukcyjne"
+  signedAt        DateTime?
+  startDate       DateTime?
+  endDate         DateTime?
+  valueNet        Float?
+  retentionPct    Float    @default(0)
+  status          String   @default("AKTYWNA") // AKTYWNA | ZAKONCZONA | ANULOWANA
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  subcontractor Subcontractor      @relation(fields: [subcontractorId], references: [id], onDelete: Cascade)
+  workItems     ContractWorkItem[]
+  protocols     Protocol[]
+}
+
+// Pozycja umowna (kosztorys) — jedna linia w protokole przerobowym.
+// Np. "Zaszalowanie i zabetonowanie ław fundamentowych" m³ 540 zł/m³, plan 76,55.
+model ContractWorkItem {
+  id          String   @id @default(cuid())
+  contractId  String
+  section     String?           // "FUNDAMENTY", "PARTER", "I Piętro" (kondygnacja)
+  position    Int      @default(0)  // numer w sekcji
+  globalOrder Int      @default(0)  // globalny porządek w umowie
+  name        String              // opis prac
+  unit        String              // m3 | m2 | T | kpl | mb | stopni | kg
+  unitPrice   Float    @default(0)
+  plannedQty  Float    @default(0)  // ilość planowana
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  contract       SubContract     @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  protocolItems  ProtocolItem[]
+
+  @@index([contractId, globalOrder])
+}
+
+// Zakres robót — branża/etap (np. Konstrukcja żelbetowa, Prace murarskie, Tynki...)
+// Każdy zakres ma własny obmiar i własne kategorie.
+model WorkScope {
+  id          String   @id @default(cuid())
+  name        String   @unique  // "Konstrukcja żelbetowa"
+  slug        String   @unique  // "konstrukcja-zelbetowa"
+  order       Int      @default(0)
+  description String?
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  categories     WorkCategory[]
+  floorSummaries FloorSummary[]
+}
+
+// Kategoria robót = jeden arkusz Excela (Fundamenty, Piony 0, Belki nad 0...)
+// należy do konkretnego zakresu (WorkScope).
+model WorkCategory {
+  id            String   @id @default(cuid())
+  scopeId       String
+  name          String
+  slug          String
+  order         Int      @default(0)
+  primaryUnit   String   @default("M3")  // M3 | M2 | SZT
+  description   String?
+  createdAt     DateTime @default(now())
+
+  scope WorkScope  @relation(fields: [scopeId], references: [id], onDelete: Cascade)
+  items WorkItem[]
+
+  @@unique([scopeId, slug])
+}
+
+// Powiązanie odwrotne — WorkScope ma summaries
+// (Prisma wymaga relacji w obie strony)
+
+
+// Podsumowanie kondygnacji — agregat kierownika łączący obmiar inżynierski
+// z pozycjami umownymi (i protokołami). Per kondygnacja: PARTER, I_PIETRO, ...
+model FloorSummary {
+  id          String   @id @default(cuid())
+  scopeId     String                       // np. konstrukcja-zelbetowa
+  floor       String                       // "PARTER", "I_PIETRO", "II_PIETRO", "DACH"
+  source      String?                       // ścieżka pliku xlsx
+  importedAt  DateTime @default(now())
+  notes       String?
+
+  scope WorkScope          @relation(fields: [scopeId], references: [id], onDelete: Cascade)
+  items FloorSummaryItem[]
+
+  @@unique([scopeId, floor])
+}
+
+// Pojedyncza pozycja w podsumowaniu kondygnacji (np. „Zaszalowanie ścian parteru").
+// matchMode określa czy porównanie z obmiarem inżynierskim jest automatyczne czy ręczne.
+//   AUTO_OK            — reguła mapowania działa, wartość liczona z obmiaru
+//   MANUAL_FLOOR_SPLIT — element rozpięty na kilku kondygnacjach (ściany, słupy, trzpienie)
+//   MANUAL_DIFF_UNIT   — różna jednostka (np. schody kpl vs szt biegów)
+//   MANUAL_OUT_OF_SCOPE— poza zakresem ŻB (murowanie, łączniki)
+//   MANUAL_NOT_FOUND   — pozycja nieobecna w obmiarze inżynierskim (np. daszki)
+//   MANUAL_OVERRIDE    — użytkownik świadomie nadpisał wartość
+model FloorSummaryItem {
+  id            String   @id @default(cuid())
+  summaryId     String
+  position      Int      @default(0)
+  name          String
+  unit          String                  // m3, m2, mb, kpl, szt, T, kg
+  laborQty      Float    @default(0)    // "Robocizny" — to co rozliczane w protokole
+  concreteVol   Float    @default(0)    // m³ betonu C25/30
+  rebarMass     Float    @default(0)    // kg zbrojenia
+
+  matchMode     String   @default("AUTO_OK")
+  matchReason   String?                 // automatyczny opis dlaczego nie matchuje
+  mappingRule   String?                 // JSON: { categoryName, elementType?, floorName?, namePattern? }
+  manualValue   Float?                  // ręczna wartość inżynierska wpisana przez kierownika
+  manualNote    String?                 // komentarz kierownika
+  accepted      Boolean  @default(false) // kierownik świadomie zaakceptował różnicę (poza tolerancją)
+  acceptedAt    DateTime?
+  acceptedNote  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  summary FloorSummary             @relation(fields: [summaryId], references: [id], onDelete: Cascade)
+  history FloorSummaryItemHistory[]
+
+  @@index([summaryId])
+}
+
+// Historia zmian per pozycja podsumowania — auditing dla ręcznych decyzji kierownika
+// (akceptacja różnicy, wpis ręcznej wartości Marafa, komentarze).
+model FloorSummaryItemHistory {
+  id        String   @id @default(cuid())
+  itemId    String
+  action    String   // ACCEPT | UNACCEPT | SET_MANUAL_VALUE | CLEAR_MANUAL_VALUE | EDIT_NOTE
+  oldValue  String?  // poprzednia wartość (JSON serialized)
+  newValue  String?  // nowa wartość (JSON serialized)
+  note      String?  // komentarz / uzasadnienie z formularza
+  userEmail String?  // email użytkownika z sesji
+  createdAt DateTime @default(now())
+
+  item FloorSummaryItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([itemId, createdAt])
+}
+
+// Pozycja obmiaru (master, niezmienna po imporcie)
+// primaryUnit dziedziczy z kategorii ale może być nadpisana per pozycja
+model WorkItem {
+  id           String   @id @default(cuid())
+  categoryId   String
+  floor        String?           // "Kondygnacja 0", "+1", "Dach"
+  elementType  String?           // "Ławy fund.", "Słupy 0", "Belki stropu K0"
+  name         String             // "Łf-01", "S-P.01"
+  count        Int?               // liczba sztuk
+  lengthM      Float?
+  widthM       Float?
+  heightM      Float?
+  areaM2       Float?
+  volumeM3     Float?
+  primaryUnit  String   @default("M3") // którą wartością rozliczamy
+  primaryQty   Float    @default(0)    // wartość w primaryUnit (np. V dla M3, A dla M2)
+  notes        String?
+  sourceRow    Int?                    // numer wiersza w Excelu (debug)
+
+  category      WorkCategory   @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+}
+
+// Protokół przerobowy — okres rozliczeniowy (od/do), powiązany z umową
+// status: SZKIC | ZATWIERDZONY | ZAFAKTUROWANY | ANULOWANY
+model Protocol {
+  id              String   @id @default(cuid())
+  number          String?
+  subcontractorId String
+  contractId      String
+  periodFrom      DateTime
+  periodTo        DateTime
+  // Cache miesiąca/roku do sortowania i list (= miesiąc/rok periodTo)
+  periodYear      Int
+  periodMonth     Int
+  status          String   @default("SZKIC")
+  issuedAt        DateTime @default(now())
+  approvedAt      DateTime?
+  invoicedAt      DateTime?
+  notes           String?
+  totalNet        Float    @default(0)   // suma w tym okresie
+  retentionAmount Float    @default(0)
+  payableNet      Float    @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  subcontractor Subcontractor  @relation(fields: [subcontractorId], references: [id], onDelete: Cascade)
+  contract      SubContract    @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  items         ProtocolItem[]
+}
+
+// Pozycja w protokole — odnosi się do pozycji umownej (ContractWorkItem).
+// qty = ilość wykonana w TYM okresie (delta).
+model ProtocolItem {
+  id                  String   @id @default(cuid())
+  protocolId          String
+  contractWorkItemId  String
+  qty                 Float    @default(0)
+  unit                String   @default("m3")
+  unitPrice           Float    @default(0)
+  amountNet           Float    @default(0)
+  note                String?
+
+  protocol         Protocol         @relation(fields: [protocolId], references: [id], onDelete: Cascade)
+  contractWorkItem ContractWorkItem @relation(fields: [contractWorkItemId], references: [id], onDelete: Restrict)
+
+  @@index([protocolId])
+  @@index([contractWorkItemId])
+}
+
+// =============================================================
+// MODUŁ: KALKULATOR OFERTY (CRM)
+// =============================================================
+// status: SZKIC | WYSLANA | ZAAKCEPTOWANA | ODRZUCONA | ANULOWANA
+model Offer {
+  id          String    @id @default(cuid())
+  number      String?   @unique
+  clientId    String?
+  title       String?
+  validUntil  DateTime?
+  status      String    @default("SZKIC")
+  notes       String?
+  // Sumy snapshot (przeliczane przy każdej zmianie pozycji)
+  subtotalNet         Float @default(0)  // suma netto przed rabatem
+  subtotalGross       Float @default(0)  // suma brutto przed rabatem
+  totalDiscountNet    Float @default(0)
+  totalDiscountGross  Float @default(0)
+  totalNet            Float @default(0)  // po rabacie
+  totalGross          Float @default(0)  // po rabacie
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  client Client?     @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  items  OfferItem[]
+}
+
+// Pozycja oferty — lokal/parking/komórka itp. Snapshot cen z chwili dodania.
+// discountType: PCT (procent) | AMOUNT_NET (kwota netto)
+model OfferItem {
+  id          String  @id @default(cuid())
+  offerId     String
+  unitId      String?
+  position    Int     @default(0)
+  // Snapshot z Unit (lub custom)
+  label       String  // np. "M-01" lub własny opis
+  unitType    String  // MIESZKALNY | USLUGOWY | PARKING | GARAZ | KOMORKA
+  area        Float   @default(0)
+  pricePerSqmNet   Float @default(0)
+  pricePerSqmGross Float @default(0)
+  priceNet    Float   @default(0)  // cena całkowita pozycji netto (przed rabatem)
+  priceGross  Float   @default(0)
+  vatRate     Int     @default(8)
+  // Rabat
+  discountType  String @default("PCT")
+  discountValue Float  @default(0)  // w PCT albo w zł netto
+  discountNet   Float  @default(0)  // wyliczony rabat netto
+  discountGross Float  @default(0)
+  // Wartości końcowe
+  finalNet    Float   @default(0)
+  finalGross  Float   @default(0)
+  notes       String?
+
+  offer Offer @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  unit  Unit? @relation(fields: [unitId], references: [id], onDelete: SetNull)
+
+  @@index([offerId])
+  @@index([unitId])
+}

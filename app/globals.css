@@ -1,0 +1,149 @@
+@import "tailwindcss";
+
+/* Class-based dark mode (Tailwind v4) */
+@variant dark (&:where(.dark, .dark *));
+
+/* ===== Brand tokens ===== */
+@theme {
+  --color-brand-navy: #2C3E54;
+  --color-brand-navy-deep: #1F2D3F;
+  --color-brand-gold: #C9A37A;
+  --color-brand-gold-light: #E8D0B0;
+  --color-brand-gold-dark: #8B6F47;
+}
+
+/* ===== Light theme (default) ===== */
+:root {
+  --background: #F7F5F1;
+  --surface: #FFFFFF;
+  --surface-alt: #F1EEE7;
+  --surface-hover: #ECE6DA;
+  --border: #E2DCD0;
+  --border-soft: #EFEBE2;
+  --text-primary: #2C3E54;
+  --text-secondary: #4A5A70;
+  --text-muted: #8896A8;
+  --accent: #B8895A;
+  --accent-soft: #F4E8D8;
+  --ring: #C9A37A;
+}
+
+/* ===== Dark theme ===== */
+.dark {
+  --background: #161E2B;
+  --surface: #1F2A3A;
+  --surface-alt: #1A2230;
+  --surface-hover: #283449;
+  --border: #324358;
+  --border-soft: #283449;
+  --text-primary: #F2E8D6;
+  --text-secondary: #C9D1DD;
+  --text-muted: #8090A4;
+  --accent: #D4A574;
+  --accent-soft: rgba(212, 165, 116, 0.12);
+  --ring: #D4A574;
+}
+
+html, body {
+  background: var(--background);
+  color: var(--text-primary);
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+* { box-sizing: border-box; }
+
+/* Form fields keep readable colors in both modes */
+input, textarea, select {
+  color: var(--text-primary);
+  background-color: var(--surface);
+}
+input::placeholder, textarea::placeholder { color: var(--text-muted); }
+
+/* ===== Dark-mode global overrides for legacy Tailwind utility classes =====
+   This keeps existing pages (.bg-white, .text-gray-900, .border-gray-200…)
+   themed without editing every component. */
+.dark .bg-white { background-color: var(--surface) !important; }
+.dark .bg-gray-50 { background-color: var(--surface-alt) !important; }
+.dark .bg-gray-100 { background-color: var(--surface-alt) !important; }
+.dark .bg-gray-900 { background-color: var(--brand-navy-deep, #1F2D3F) !important; }
+
+.dark .text-gray-900 { color: var(--text-primary) !important; }
+.dark .text-gray-800 { color: var(--text-primary) !important; }
+.dark .text-gray-700 { color: var(--text-secondary) !important; }
+.dark .text-gray-600 { color: var(--text-secondary) !important; }
+.dark .text-gray-500 { color: var(--text-muted) !important; }
+.dark .text-gray-400 { color: var(--text-muted) !important; }
+.dark .text-gray-300 { color: var(--text-secondary) !important; }
+
+.dark .border-gray-200 { border-color: var(--border) !important; }
+.dark .border-gray-100 { border-color: var(--border-soft) !important; }
+.dark .border-gray-300 { border-color: var(--border) !important; }
+.dark .divide-gray-100 > * + * { border-color: var(--border-soft) !important; }
+
+.dark .hover\:bg-gray-50:hover { background-color: var(--surface-hover) !important; }
+.dark .hover\:bg-gray-100:hover { background-color: var(--surface-hover) !important; }
+.dark .hover\:bg-gray-800:hover { background-color: var(--surface-hover) !important; }
+
+/* Soft tinted backgrounds — fade to a subtle dark version */
+.dark .bg-blue-50 { background-color: rgba(96, 165, 250, 0.08) !important; }
+.dark .bg-blue-100 { background-color: rgba(96, 165, 250, 0.16) !important; }
+.dark .border-blue-100 { border-color: rgba(96, 165, 250, 0.24) !important; }
+.dark .text-blue-600 { color: #D4A574 !important; }
+.dark .text-blue-700 { color: #E8D0B0 !important; }
+.dark .hover\:text-blue-600:hover { color: #E8D0B0 !important; }
+.dark .hover\:text-blue-700:hover { color: #F0DCC0 !important; }
+.dark .text-blue-500 { color: #D4A574 !important; }
+
+.dark .bg-green-50 { background-color: rgba(34, 197, 94, 0.08) !important; }
+.dark .border-green-100 { border-color: rgba(34, 197, 94, 0.24) !important; }
+.dark .bg-yellow-50 { background-color: rgba(250, 204, 21, 0.08) !important; }
+.dark .border-yellow-100 { border-color: rgba(250, 204, 21, 0.24) !important; }
+.dark .bg-red-50 { background-color: rgba(248, 113, 113, 0.08) !important; }
+
+/* Accent (gold) buttons — replace blue primary in dark mode */
+.dark .bg-blue-600 { background-color: var(--accent) !important; color: #1A1F28 !important; }
+.dark .bg-blue-600:hover, .dark .hover\:bg-blue-700:hover { background-color: var(--brand-gold-light, #E8D0B0) !important; }
+.dark .bg-blue-400 { background-color: rgba(212, 165, 116, 0.5) !important; }
+.dark .disabled\:bg-blue-400:disabled { background-color: rgba(212, 165, 116, 0.4) !important; }
+.dark .focus\:ring-blue-500:focus { --tw-ring-color: var(--ring) !important; }
+
+.dark .text-red-500 { color: #F87171 !important; }
+
+/* Smooth transitions on theme-affected surfaces */
+.bg-white, .bg-gray-50, .border-gray-200, .border-gray-100 {
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+/* ===== Tiptap editor content (mailing) ===== */
+.ProseMirror { outline: none; }
+.ProseMirror p { margin: 0 0 0.5em 0; }
+.ProseMirror p:last-child { margin-bottom: 0; }
+.ProseMirror h2 { font-size: 1.25rem; font-weight: 600; margin: 0.75em 0 0.4em; color: var(--text-primary); }
+.ProseMirror h3 { font-size: 1.05rem; font-weight: 600; margin: 0.6em 0 0.3em; color: var(--text-primary); }
+.ProseMirror ul { list-style: disc; padding-left: 1.5rem; margin: 0.5em 0; }
+.ProseMirror ol { list-style: decimal; padding-left: 1.5rem; margin: 0.5em 0; }
+.ProseMirror li { margin: 0.15em 0; }
+.ProseMirror li > p { margin: 0; }
+.ProseMirror blockquote {
+  border-left: 3px solid var(--border);
+  padding-left: 0.75rem;
+  color: var(--text-secondary);
+  margin: 0.5em 0;
+}
+.ProseMirror hr { border: 0; border-top: 1px solid var(--border); margin: 0.75em 0; }
+.ProseMirror a { color: #2563eb; text-decoration: underline; }
+.ProseMirror strong { font-weight: 600; }
+
+/* Placeholder for empty editor */
+.ProseMirror p.is-editor-empty:first-child::before,
+.ProseMirror:empty::before {
+  content: attr(data-placeholder);
+  color: #9ca3af;
+  pointer-events: none;
+  float: left;
+  height: 0;
+}
