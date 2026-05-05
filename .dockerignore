@@ -1,0 +1,55 @@
+# Build artefakty
+.next/
+out/
+build/
+dist/
+node_modules/
+
+# Środowiska
+.env
+.env.local
+.env.development
+.env.development.local
+.env.test
+.env.test.local
+.env.production
+.env.production.local
+
+# Bazy lokalne
+*.db
+*.db-journal
+*.sqlite
+*.sqlite-journal
+
+# Uploady (idą na volume w produkcji)
+public/uploads/
+uploads/
+tmp/
+
+# Migracje archiwalne SQLite
+prisma/migrations-sqlite-archived/
+
+# Edytor / OS
+.git/
+.github/
+.gitignore
+.gitattributes
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Dokerfile-y i compose pomocnicze
+docker-compose.yml
+nginx/
+
+# Logi
+*.log
+npm-debug.log*
+
+# Testy / dokumentacja
+README.md
+*.md
+
+# Plany / sesje Claude
+.claude/

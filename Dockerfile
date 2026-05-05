@@ -1,49 +1,79 @@
-# ── Etap 1: zależności ──────────────────────────────────────────
-FROM node:20-alpine AS deps
-WORKDIR /app
-COPY package.json package-lock.json ./
-RUN npm ci --legacy-peer-deps
+# syntax=docker/dockerfile:1.6
 
-# ── Etap 2: build ───────────────────────────────────────────────
-FROM node:20-alpine AS builder
+# ============= Stage 1: deps =============
+FROM node:20-bookworm-slim AS deps
 WORKDIR /app
+
+# Prisma wymaga OpenSSL i CA certs
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    openssl ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY package.json package-lock.json ./
+COPY prisma ./prisma
+
+# Instalacja bez postinstall (--ignore-scripts), prisma generate uruchamiamy ręcznie
+RUN npm ci --production=false --ignore-scripts --legacy-peer-deps
+RUN npx prisma generate
+
+# ============= Stage 2: builder =============
+FROM node:20-bookworm-slim AS builder
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    openssl ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+ENV NEXT_TELEMETRY_DISABLED=1
+
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Generuj klienta Prisma
-RUN npx prisma generate
+# Klient Prismy z deps stage (już wygenerowany)
+COPY --from=deps /app/node_modules/.prisma ./node_modules/.prisma
 
-# Build Next.js (standalone output)
-ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
-# ── Etap 3: runtime ─────────────────────────────────────────────
-FROM node:20-alpine AS runner
+# ============= Stage 3: runner (production) =============
+FROM node:20-bookworm-slim AS runner
 WORKDIR /app
+
+# OpenSSL dla Prismy w runtime + tini do prawidłowego sygnałowania (graceful shutdown)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    openssl ca-certificates tini \
+    && rm -rf /var/lib/apt/lists/*
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
 
-RUN addgroup --system --gid 1001 nodejs && \
-    adduser  --system --uid 1001 nextjs
+# Niesetowy user dla bezpieczeństwa
+RUN groupadd --system --gid 1001 nodejs && \
+    useradd --system --uid 1001 --gid nodejs nextjs
 
-# Skopiuj pliki produkcyjne
+# Next.js standalone build
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+# Prisma — pełny zestaw potrzebny do migracji w runtime
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
+COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
+COPY --from=builder /app/package.json ./package.json
 
-# Katalog na przesłane pliki (montowany jako volume)
+# Persistent katalog na uploady (montowany przez Coolify volume)
 RUN mkdir -p /app/public/uploads/rysunki && \
     chown -R nextjs:nodejs /app/public/uploads
 
 USER nextjs
 
 EXPOSE 3000
-ENV PORT=3000
-ENV HOSTNAME="0.0.0.0"
 
-# Uruchom migracje i start
-CMD ["sh", "-c", "npx prisma migrate deploy && node server.js"]
+# tini = init system w kontenerze (poprawne sygnałowanie SIGTERM/SIGINT)
+ENTRYPOINT ["/usr/bin/tini", "--"]
+
+# Migracje przed startem (idempotent), potem start aplikacji
+CMD ["sh", "-c", "node node_modules/prisma/build/index.js migrate deploy && node server.js"]
