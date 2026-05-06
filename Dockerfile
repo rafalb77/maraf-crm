@@ -64,6 +64,12 @@ COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
 COPY --from=builder /app/package.json ./package.json
 
+# Scripts importowe (xlsx → DB) i ich zależności runtime
+COPY --from=builder /app/scripts ./scripts
+COPY --from=builder /app/node_modules/xlsx ./node_modules/xlsx
+COPY --from=builder /app/node_modules/dotenv ./node_modules/dotenv
+COPY --from=builder /app/node_modules/bcryptjs ./node_modules/bcryptjs
+
 # Persistent katalog na uploady (montowany przez Coolify volume)
 RUN mkdir -p /app/public/uploads/rysunki && \
     chown -R nextjs:nodejs /app/public/uploads
