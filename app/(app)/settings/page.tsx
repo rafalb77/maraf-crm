@@ -8,7 +8,16 @@ export default async function SettingsPage({
 }) {
   const calendarToken = await prisma.calendarToken.findFirst()
   const googleConfigured = !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET)
-  const smtpConfigured = !!(process.env.SMTP_USER && process.env.SMTP_PASS)
+
+  // Sprawdź konfigurację SMTP z bazy (Settings) lub env vars (fallback)
+  const smtpRows = await prisma.settings.findMany({
+    where: { key: { in: ['smtpHost', 'smtpUser', 'smtpPass'] } },
+  })
+  const smtpDbMap = Object.fromEntries(smtpRows.map((r) => [r.key, r.value]))
+  const smtpConfigured = !!(
+    (smtpDbMap.smtpHost && smtpDbMap.smtpUser && smtpDbMap.smtpPass) ||
+    (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS)
+  )
 
   return (
     <div className="p-8 max-w-3xl">
@@ -48,7 +57,7 @@ export default async function SettingsPage({
               <p className="mb-3">Aby włączyć integrację, uzupełnij w pliku <code className="bg-yellow-100 px-1 rounded">.env.local</code>:</p>
               <pre className="bg-white border border-yellow-100 rounded p-2 text-xs text-gray-700 overflow-x-auto">{`GOOGLE_CLIENT_ID="..."
 GOOGLE_CLIENT_SECRET="..."
-GOOGLE_REDIRECT_URI="http://localhost:3000/api/calendar/callback"`}</pre>
+GOOGLE_REDIRECT_URI="https://crm.maraf.pl/api/calendar/callback"`}</pre>
               <p className="mt-3 text-xs">
                 Klucze uzyskasz w <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener noreferrer" className="underline">Google Cloud Console</a>.
                 Włącz API „Google Calendar API" i dodaj URL przekierowania.
@@ -65,44 +74,24 @@ GOOGLE_REDIRECT_URI="http://localhost:3000/api/calendar/callback"`}</pre>
           )}
         </div>
 
-        {/* SMTP */}
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
-          <div className="flex items-start justify-between mb-4">
-            <div>
-              <h2 className="font-semibold text-gray-900">Serwer email (SMTP)</h2>
-              <p className="text-sm text-gray-500 mt-1">Wysyłka maili z modułu mailingu</p>
-            </div>
-            {smtpConfigured ? (
-              <span className="px-2 py-1 bg-green-50 text-green-700 text-xs font-medium rounded-full">
-                ✓ Skonfigurowano
-              </span>
-            ) : (
-              <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs font-medium rounded-full">
-                Nie skonfigurowano
-              </span>
-            )}
-          </div>
-          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-sm text-gray-700">
-            <p className="mb-2">Konfiguracja przez zmienne środowiskowe w <code className="bg-gray-100 px-1 rounded">.env.local</code>:</p>
-            <pre className="bg-white border border-gray-100 rounded p-2 text-xs overflow-x-auto">{`SMTP_HOST="smtp.gmail.com"
-SMTP_PORT="587"
-SMTP_USER="twoj@gmail.com"
-SMTP_PASS="hasło lub klucz aplikacji"
-SMTP_FROM="CRM <noreply@twojafirma.pl>"`}</pre>
-            <p className="mt-3 text-xs">
-              Dla Gmaila: włącz 2FA i wygeneruj <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener noreferrer" className="underline">hasło aplikacji</a>.
+        {/* Status SMTP — formularz konfiguracji jest w SettingsForm poniżej */}
+        {!smtpConfigured && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-800">
+            <p className="font-medium mb-1">SMTP nieskonfigurowany</p>
+            <p className="text-blue-700">
+              Wypełnij dane serwera poczty w sekcji „Serwer poczty (SMTP)" poniżej. Dla home.pl użyj presetu — automatycznie ustawi host/port/szyfrowanie.
             </p>
           </div>
-        </div>
+        )}
 
-        {/* App settings */}
+        {/* App settings — dane firmy + SMTP + test mail */}
         <SettingsForm />
 
         {/* Info about app */}
         <div className="bg-white rounded-xl border border-gray-200 p-6">
           <h2 className="font-semibold text-gray-900 mb-3">Informacje o aplikacji</h2>
           <div className="text-sm text-gray-600 space-y-1">
-            <p>• Baza danych: SQLite (<code className="bg-gray-100 px-1 rounded">prisma/dev.db</code>)</p>
+            <p>• Baza danych: PostgreSQL</p>
             <p>• Uploadowane rzuty: <code className="bg-gray-100 px-1 rounded">public/uploads/floorplans/</code></p>
             <p>• Środowisko: {process.env.NODE_ENV}</p>
           </div>
