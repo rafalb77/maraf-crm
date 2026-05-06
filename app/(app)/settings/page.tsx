@@ -1,11 +1,16 @@
+import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/prisma'
+import { authOptions } from '@/lib/auth'
 import { SettingsForm } from '@/components/settings/SettingsForm'
+import { UsersSection } from '@/components/settings/UsersSection'
 
 export default async function SettingsPage({
   searchParams,
 }: {
   searchParams: { success?: string; error?: string }
 }) {
+  const session = await getServerSession(authOptions)
+  const currentUserEmail = session?.user?.email || ''
   const calendarToken = await prisma.calendarToken.findFirst()
   const googleConfigured = !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET)
 
@@ -33,6 +38,9 @@ export default async function SettingsPage({
       )}
 
       <div className="space-y-5">
+        {/* Users management — pełen UI w kliencie (lista + add + delete + reset) */}
+        <UsersSection currentUserEmail={currentUserEmail} />
+
         {/* Google Calendar */}
         <div className="bg-white rounded-xl border border-gray-200 p-6">
           <div className="flex items-start justify-between mb-4">
