@@ -25,6 +25,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 ENV NEXT_TELEMETRY_DISABLED=1
+# Wiecej pamieci dla Node podczas `next build` — bez tego Coolify potrafi OOM
+# w fazie "Generating static pages" przy wiekszej ilosci stron.
+ENV NODE_OPTIONS="--max-old-space-size=4096"
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
