@@ -138,6 +138,7 @@ export function Sidebar() {
                   <li key={item.href}>
                     <Link
                       href={item.href}
+                      prefetch={false}
                       className={itemBase}
                       style={
                         active
