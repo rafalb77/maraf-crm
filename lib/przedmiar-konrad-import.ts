@@ -483,7 +483,7 @@ export async function buildPreview(buffer: Buffer): Promise<PreviewResult> {
 // Commit
 // =====================================================================
 
-export async function commitImport(buffer: Buffer): Promise<CommitResult> {
+export async function commitImport(buffer: Buffer, userEmail: string | null = null): Promise<CommitResult> {
   const preview = await buildPreview(buffer)
   if (preview.workScopeMissing) {
     throw new Error(
@@ -497,28 +497,57 @@ export async function commitImport(buffer: Buffer): Promise<CommitResult> {
   const { sections: parsedSections } = parseSheet(buffer)
   const allSections = buildAllSections(parsedSections)
 
-  // Mapa do zachowania manualValue/note/accepted
+  // Mapa do zachowania manualValue/note/accepted + poprzednia wartość Konrada
+  // (do log REIMPORT) + historia (do odtworzenia po cascade delete)
   type PreservedItem = {
     manualValue: number | null
     manualNote: string | null
     accepted: boolean
     acceptedAt: Date | null
     acceptedNote: string | null
+    prevKonradValue: number // poprzednia wartość Konrada (m² lub m³, w zależności od unit)
+    prevUnit: string
+    history: Array<{
+      action: string
+      oldValue: string | null
+      newValue: string | null
+      note: string | null
+      userEmail: string | null
+      createdAt: Date
+    }>
   }
   const preserveMap = new Map<string, PreservedItem>()
   const existingForPreserve = await prisma.floorSummary.findMany({
     where: { scopeId: scope.id },
-    include: { items: true },
+    include: {
+      items: {
+        include: {
+          history: { orderBy: { createdAt: 'asc' } },
+        },
+      },
+    },
   })
   for (const s of existingForPreserve) {
     for (const it of s.items) {
       const key = `${s.floor}||${normalizeName(it.name)}`
+      // Poprzednia wartość Konrada — zależy od jednostki
+      const prevKonrad = it.unit === 'm2' ? it.laborQty : it.concreteVol
       preserveMap.set(key, {
         manualValue: it.manualValue,
         manualNote: it.manualNote,
         accepted: it.accepted,
         acceptedAt: it.acceptedAt,
         acceptedNote: it.acceptedNote,
+        prevKonradValue: prevKonrad,
+        prevUnit: it.unit,
+        history: it.history.map((h) => ({
+          action: h.action,
+          oldValue: h.oldValue,
+          newValue: h.newValue,
+          note: h.note,
+          userEmail: h.userEmail,
+          createdAt: h.createdAt,
+        })),
       })
     }
   }
@@ -552,7 +581,7 @@ export async function commitImport(buffer: Buffer): Promise<CommitResult> {
 
       for (let i = 0; i < positions.length; i++) {
         const pos = positions[i]
-        const { value: konradValue, note: konradNote } = computeKonradValue(pos, sec)
+        const { value: konradValue } = computeKonradValue(pos, sec)
 
         // Zachowanie manualValue/note/accepted z poprzedniego importu
         const preserveKey = `${sec.meta.floor}||${normalizeName(pos.name)}`
@@ -567,28 +596,54 @@ export async function commitImport(buffer: Buffer): Promise<CommitResult> {
           position: i + 1,
           name: pos.name,
           unit: pos.unit,
-          // Wartości Konrada — laborQty dla m², concreteVol dla m³
           laborQty: isM2 ? konradValue : 0,
           concreteVol: !isM2 ? konradValue : 0,
           rebarMass: 0,
           matchMode: pos.matchMode,
           matchReason: pos.matchReason || null,
           mappingRule: JSON.stringify(pos.rule),
-          // Zachowane z poprzedniego importu:
           manualValue: preserved?.manualValue ?? null,
           manualNote: preserved?.manualNote ?? null,
           accepted: preserved?.accepted ?? false,
           acceptedAt: preserved?.acceptedAt ?? null,
           acceptedNote: preserved?.acceptedNote ?? null,
         }
-        // Konrad note (m² × grubość = m³) dodaj do manualNote jeśli puste
-        if (konradNote && !data.manualNote) {
-          // Nie nadpisuje user'a — tylko jeśli puste. Komentarz informacyjny.
-          // (Nie zapisujemy do manualNote bo to może mylić — lepiej zostawić)
+
+        const created = await tx.floorSummaryItem.create({ data })
+        itemsCreated++
+
+        // Odtwórz historię z poprzedniego itemu (cascade delete by ją skasował)
+        if (preserved && preserved.history.length > 0) {
+          await tx.floorSummaryItemHistory.createMany({
+            data: preserved.history.map((h) => ({
+              itemId: created.id,
+              action: h.action,
+              oldValue: h.oldValue,
+              newValue: h.newValue,
+              note: h.note,
+              userEmail: h.userEmail,
+              createdAt: h.createdAt,
+            })),
+          })
         }
 
-        await tx.floorSummaryItem.create({ data })
-        itemsCreated++
+        // Wpis REIMPORT — jeśli wartość Konrada się zmieniła w stosunku do poprzedniej
+        if (preserved) {
+          const prev = preserved.prevKonradValue
+          const curr = konradValue
+          if (Math.abs(prev - curr) > 0.01 || preserved.prevUnit !== pos.unit) {
+            await tx.floorSummaryItemHistory.create({
+              data: {
+                itemId: created.id,
+                action: 'REIMPORT',
+                oldValue: JSON.stringify({ value: prev, unit: preserved.prevUnit }),
+                newValue: JSON.stringify({ value: curr, unit: pos.unit }),
+                note: 'Reimport pliku Konrada — wartość zaktualizowana',
+                userEmail,
+              },
+            })
+          }
+        }
       }
     }
   })

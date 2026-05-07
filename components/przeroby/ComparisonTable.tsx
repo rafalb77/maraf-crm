@@ -42,12 +42,14 @@ const ACTION_LABEL: Record<string, string> = {
   SET_MANUAL_VALUE: '✏ Ustawiono ręczną wartość Marafa',
   CLEAR_MANUAL_VALUE: '🗑 Wyczyszczono ręczną wartość Marafa',
   EDIT_NOTE: '📝 Zmieniono komentarz',
+  REIMPORT: '🔄 Reimport — zaktualizowano wartość Konrada',
 }
 const ACTION_COLOR: Record<string, string> = {
   ACCEPT: 'text-green-700',
   UNACCEPT: 'text-amber-700',
   SET_MANUAL_VALUE: 'text-blue-700',
   CLEAR_MANUAL_VALUE: 'text-gray-600',
+  REIMPORT: 'text-purple-700',
   EDIT_NOTE: 'text-gray-700',
 }
 

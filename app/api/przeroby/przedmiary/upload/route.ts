@@ -52,7 +52,8 @@ export async function POST(req: NextRequest) {
 
   try {
     if (mode === 'commit') {
-      const result = await commitImport(buffer)
+      const userEmail = (session.user as any)?.email || null
+      const result = await commitImport(buffer, userEmail)
       return NextResponse.json(result)
     }
     const result = await buildPreview(buffer)
