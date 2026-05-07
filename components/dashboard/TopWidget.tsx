@@ -99,16 +99,6 @@ export function TopWidget() {
         borderColor: 'var(--border)',
       }}
     >
-      {/* Subtelny pattern w tle (kropki) */}
-      <div
-        className="absolute inset-0 opacity-30 pointer-events-none"
-        style={{
-          backgroundImage: 'radial-gradient(circle, var(--accent) 1px, transparent 1px)',
-          backgroundSize: '24px 24px',
-          maskImage: 'linear-gradient(to right, black, transparent 70%)',
-        }}
-      />
-
       <div className="relative grid grid-cols-1 lg:grid-cols-[auto_1fr_auto] gap-5 items-start">
         {/* LEWA: Powitanie */}
         <GreetingCard greeting={data.greeting} />

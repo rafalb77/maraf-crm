@@ -49,23 +49,23 @@ export function getTopicForToday(date = new Date()): Topic {
 // Zaprojektowane jako lista — losujemy/wybieramy 1 zgodnie z dniem.
 // ===================================================================
 
+// Polskie RSS — preferowane.
+// Dla motivation/biohacking PL feedy sa rzadkie wiec mamy mocniejszy fallback.
 const FEEDS: Record<Topic, { url: string; source: string }[]> = {
   tech: [
-    { url: 'https://hnrss.org/frontpage', source: 'Hacker News' },
-    { url: 'https://feeds.arstechnica.com/arstechnica/index', source: 'Ars Technica' },
+    { url: 'https://www.spidersweb.pl/feed', source: "Spider's Web" },
+    { url: 'https://antyweb.pl/feed', source: 'Antyweb' },
+    { url: 'https://niebezpiecznik.pl/feed/', source: 'Niebezpiecznik' },
   ],
   world: [
-    { url: 'https://feeds.bbci.co.uk/news/world/rss.xml', source: 'BBC World' },
-    { url: 'https://www.aljazeera.com/xml/rss/all.xml', source: 'Al Jazeera' },
+    { url: 'https://tvn24.pl/najwazniejsze.xml', source: 'TVN24' },
+    { url: 'https://wiadomosci.onet.pl/.feed', source: 'Onet Wiadomości' },
+    { url: 'https://wiadomosci.wp.pl/wszystkie.feed', source: 'WP Wiadomości' },
   ],
-  motivation: [
-    { url: 'https://jamesclear.com/feed', source: 'James Clear' },
-    { url: 'https://markmanson.net/feed', source: 'Mark Manson' },
-  ],
-  biohacking: [
-    { url: 'https://daveasprey.com/feed/', source: 'Dave Asprey' },
-    { url: 'https://bengreenfieldlife.com/feed/', source: 'Ben Greenfield' },
-  ],
+  // Dla motivation i biohacking polskich RSS jest niewiele. Pozostaje
+  // pusta lista → automatyczny fallback do lokalnej bazy cytatów (po PL).
+  motivation: [],
+  biohacking: [],
 }
 
 // ===================================================================
@@ -75,18 +75,24 @@ const FEEDS: Record<Topic, { url: string; source: string }[]> = {
 
 const FALLBACK: Record<Topic, string[]> = {
   tech: [
-    'Pierwszy komputer na świecie ENIAC ważył 30 ton i miał moc obliczeniową słabszą od dzisiejszego kalkulatora.',
-    'GPT-4 ma ~1,76 biliona parametrów — to ~10× więcej niż GPT-3 z 2020 r.',
-    'Chip M-class Apple\'a wykonuje 11 bilionów operacji na sekundę przy zużyciu 5W energii.',
-    'Każda sekunda na YouTube to 500 godzin nowego materiału.',
-    'Fotony z czarnej dziury M87 dotarły do nas po 53 milionach lat.',
+    'Pierwszy komputer ENIAC ważył 30 ton i zajmował 167 m² — Twój smartfon jest milion razy szybszy.',
+    'GPT-4 ma ~1,76 biliona parametrów — 10× więcej niż GPT-3 z 2020.',
+    'Chip M-class Apple wykonuje 11 bilionów operacji na sekundę przy zużyciu 5 W.',
+    'Każdej sekundy na YouTube ładowane jest 500 godzin nowego wideo.',
+    'Pierwsze zdjęcie czarnej dziury M87 wymagało teleskopu wielkości Ziemi i 4 PB danych.',
+    'Pierwsza wiadomość przez ARPANET (1969) miała brzmieć "LOGIN" — system padł po "LO".',
+    'Linuks działa dziś na 96% top serwerów świata oraz na ~70% smartfonów (Android).',
+    'JavaScript powstał w 10 dni. Brendan Eich napisał pierwszy prototyp w maju 1995.',
   ],
   world: [
-    'Co minutę na świecie rodzi się 250 dzieci, a 100 osób umiera.',
+    'Co minutę na świecie rodzi się 250 dzieci, a około 100 osób umiera.',
     'Oceany pochłaniają około 30% CO₂ wyemitowanego przez ludzkość.',
-    'Według WHO 99% ludności oddycha powietrzem niezgodnym z normami czystości.',
-    'Najbogatszy 1% ludności świata posiada więcej majątku niż reszta razem wzięta.',
+    'Według WHO 99% ludności świata oddycha powietrzem niezgodnym z normami czystości.',
+    'Najbogatszy 1% ludności posiada więcej majątku niż reszta razem wzięta.',
     'Jeden lot transatlantycki to średnio 1 tona CO₂ na pasażera.',
+    'Lasy Amazonii produkują 6% światowego tlenu — wycinka to 100 boisk piłkarskich/dzień.',
+    'Antarktyda ma ~70% wody pitnej świata zamkniętej w lodzie.',
+    'Norwegia ma >80% aut elektrycznych w nowej sprzedaży — Polska ~5%.',
   ],
   motivation: [
     'James Clear: „Codziennie 1% lepszy = 37× lepszy w skali roku."',
@@ -94,13 +100,23 @@ const FALLBACK: Record<Topic, string[]> = {
     'Naval Ravikant: „Czytaj to, co Cię ekscytuje — nie to, co modne."',
     'Cal Newport: „Deep work to umiejętność XXI wieku, której większość już nie posiada."',
     'David Goggins: „Najbardziej niedoceniana umiejętność: konsekwencja w nudzie."',
+    'Steve Jobs: „Twój czas jest ograniczony, więc nie marnuj go żyjąc życiem kogoś innego."',
+    'Marek Aureliusz: „Masz władzę nad swoim umysłem — nie nad światem zewnętrznym."',
+    'Peter Drucker: „Najlepszym sposobem przewidzenia przyszłości jest jej stworzenie."',
+    'Naval: „Zazdrość to najgorszy z grzechów — nikt nie wygrywa."',
+    'Charlie Munger: „Dzień, w którym przestałeś się uczyć — zacząłeś przegrywać."',
   ],
   biohacking: [
     'Ekspozycja na zimno (10 min, 14°C) zwiększa norepinefrynę o 200–300%.',
-    'Sen poniżej 6 h = wzrost ryzyka demencji o 30% (badanie z 2021 r.).',
-    'Krótka 20-min drzemka po południu poprawia uczenie się o ~30%.',
-    'Spożycie 200 mg L-teaniny + 100 mg kofeiny = lepsza koncentracja niż sama kofeina.',
-    'Zone 2 cardio 3×/tyg po 45 min = +12% mitochondrii w 8 tygodni.',
+    'Sen krótszy niż 6 h zwiększa ryzyko demencji o ~30% (badanie z 2021 r.).',
+    'Krótka 20-minutowa drzemka po południu poprawia uczenie się o ~30%.',
+    '200 mg L-teaniny + 100 mg kofeiny daje lepszą koncentrację niż sama kofeina.',
+    'Zone 2 cardio 3×/tydzień po 45 min = +12% mitochondrii w 8 tygodni.',
+    'Światło słoneczne w pierwszych 30 min po przebudzeniu reguluje rytm dobowy lepiej niż melatonina.',
+    'Post 16/8 obniża insulinę i zwiększa autofagię (sprzątanie uszkodzonych komórek).',
+    'Magnez chelatowy (glicynian) przed snem podnosi jakość snu REM o ~15%.',
+    '10-min spacer po posiłku obniża szczyt glukozy o 12–22% (Glucose Goddess).',
+    'HRV (zmienność rytmu serca) to najlepszy pojedynczy wskaźnik regeneracji organizmu.',
   ],
 }
 
