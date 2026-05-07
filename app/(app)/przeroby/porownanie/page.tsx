@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
+import { PrzedmiarKonradUploadButton } from '@/components/przeroby/PrzedmiarKonradUploadButton'
 
 const FLOOR_LABELS: Record<string, string> = {
   PARTER: 'Parter',
@@ -29,24 +30,26 @@ export default async function PorownaniaListPage() {
             Obmiar Maraf zestawiony z przedmiarem Konrada per kondygnacja.
           </p>
         </div>
-        <Link
-          href="/przeroby/obmiar"
-          className="text-sm px-3 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 whitespace-nowrap"
-        >
-          🔍 Pokaż obmiar Maraf
-        </Link>
+        <div className="flex gap-2 flex-wrap">
+          <Link
+            href="/przeroby/obmiar"
+            className="text-sm px-3 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 whitespace-nowrap"
+          >
+            🔍 Pokaż obmiar Maraf
+          </Link>
+          <PrzedmiarKonradUploadButton />
+        </div>
       </div>
 
       {summaries.length === 0 ? (
         <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
           <div className="text-4xl mb-3">📊</div>
           <h2 className="font-semibold text-gray-900 mb-2">Brak podsumowań</h2>
-          <p className="text-sm text-gray-500 max-w-lg mx-auto mb-3">
-            Zaimportuj „Podsumowanie kondygnacji" przygotowane przez kierownika.
+          <p className="text-sm text-gray-500 max-w-lg mx-auto">
+            Wgraj <strong>przedmiar Konrada</strong> (xlsx) klikając przycisk u góry —
+            system zaimportuje wartości ścian i słupów per kondygnacja
+            i zestawi je z obmiarem Maraf.
           </p>
-          <code className="bg-gray-100 px-2 py-1 rounded text-xs">
-            node scripts/import-podsumowanie.js PARTER [ścieżka.xlsx]
-          </code>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
