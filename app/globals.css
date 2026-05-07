@@ -128,6 +128,18 @@ input::placeholder, textarea::placeholder { color: var(--text-muted); }
 .dark .bg-amber-100 { background-color: rgba(251, 191, 36, 0.20) !important; }
 .dark .bg-orange-100 { background-color: rgba(251, 146, 60, 0.20) !important; }
 
+/* Tailwind opacity-modifier variants (np. bg-gray-50/30, bg-blue-50/50)
+   — generuja inne klasy niz bg-gray-50, wiec wymagaja osobnych overridow. */
+.dark .bg-gray-50\/30 { background-color: rgba(255, 255, 255, 0.025) !important; }
+.dark .bg-gray-50\/40 { background-color: rgba(255, 255, 255, 0.03) !important; }
+.dark .bg-gray-50\/50 { background-color: rgba(255, 255, 255, 0.04) !important; }
+.dark .bg-gray-50\/60 { background-color: rgba(255, 255, 255, 0.05) !important; }
+.dark .bg-blue-50\/30 { background-color: rgba(96, 165, 250, 0.04) !important; }
+.dark .bg-blue-50\/50 { background-color: rgba(96, 165, 250, 0.06) !important; }
+.dark .hover\:bg-gray-50\/40:hover { background-color: rgba(255, 255, 255, 0.03) !important; }
+.dark .hover\:bg-gray-50\/60:hover { background-color: rgba(255, 255, 255, 0.05) !important; }
+.dark .hover\:bg-gray-100\/70:hover { background-color: rgba(255, 255, 255, 0.06) !important; }
+
 .dark .text-yellow-700 { color: #FCD34D !important; }
 .dark .text-yellow-800 { color: #FDE68A !important; }
 .dark .text-amber-700 { color: #FCD34D !important; }
