@@ -7,6 +7,7 @@ import {
   CLIENT_STATUS_LABELS, CLIENT_STATUS_COLORS,
   ACTIVITY_TYPE_LABELS, SERVICE_STATUS_COLORS, SERVICE_STATUS_LABELS
 } from '@/lib/types'
+import { TopWidget } from '@/components/dashboard/TopWidget'
 
 async function getDashboardData() {
   const [unitsByStatus, clientsByStatus, openService, recentActivities, recentClients, revenueData] = await Promise.all([
@@ -49,10 +50,8 @@ export default async function DashboardPage() {
 
   return (
     <div className="p-8">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-gray-500 text-sm mt-1">Witaj, {session?.user?.name || session?.user?.email}</p>
-      </div>
+      {/* Top widget: powitanie + news dnia + pogoda (admin only dla news/weather) */}
+      <TopWidget />
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
