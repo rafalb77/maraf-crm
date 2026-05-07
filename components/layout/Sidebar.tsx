@@ -1,8 +1,9 @@
 'use client'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { signOut } from 'next-auth/react'
+import { signOut, useSession } from 'next-auth/react'
 import { LogoFull } from './Logo'
+import { isAdmin } from '@/lib/auth-utils'
 
 type NavItem = { href: string; label: string; icon: React.ReactNode }
 type NavSection = { label?: string; items: NavItem[] }
@@ -102,6 +103,8 @@ const sections: NavSection[] = [
 
 export function Sidebar() {
   const pathname = usePathname()
+  const { data: session } = useSession()
+  const userIsAdmin = isAdmin(session?.user?.email)
 
   const itemBase = 'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-150'
 
@@ -167,30 +170,33 @@ export function Sidebar() {
         ))}
       </nav>
 
-      {/* Bottom: settings + logout */}
+      {/* Bottom: settings (tylko admin) + logout */}
       <div className="px-3 py-4 border-t" style={{ borderColor: 'var(--border)' }}>
-        <Link
-          href="/settings"
-          className={itemBase + ' mb-1'}
-          style={
-            isActive('/settings')
-              ? {
-                  background: 'linear-gradient(135deg, rgba(201,163,122,0.18), rgba(201,163,122,0.08))',
-                  color: 'var(--accent)',
-                  boxShadow: 'inset 3px 0 0 var(--accent)',
-                }
-              : { color: 'var(--text-secondary)' }
-          }
-          onMouseEnter={(e) => {
-            if (!isActive('/settings')) e.currentTarget.style.backgroundColor = 'var(--surface-hover)'
-          }}
-          onMouseLeave={(e) => {
-            if (!isActive('/settings')) e.currentTarget.style.backgroundColor = 'transparent'
-          }}
-        >
-          {ICONS.settings}
-          Ustawienia
-        </Link>
+        {userIsAdmin && (
+          <Link
+            href="/settings"
+            prefetch={false}
+            className={itemBase + ' mb-1'}
+            style={
+              isActive('/settings')
+                ? {
+                    background: 'linear-gradient(135deg, rgba(201,163,122,0.18), rgba(201,163,122,0.08))',
+                    color: 'var(--accent)',
+                    boxShadow: 'inset 3px 0 0 var(--accent)',
+                  }
+                : { color: 'var(--text-secondary)' }
+            }
+            onMouseEnter={(e) => {
+              if (!isActive('/settings')) e.currentTarget.style.backgroundColor = 'var(--surface-hover)'
+            }}
+            onMouseLeave={(e) => {
+              if (!isActive('/settings')) e.currentTarget.style.backgroundColor = 'transparent'
+            }}
+          >
+            {ICONS.settings}
+            Ustawienia
+          </Link>
+        )}
         <button
           onClick={() => signOut({ callbackUrl: '/auth/signin' })}
           className={itemBase + ' w-full'}

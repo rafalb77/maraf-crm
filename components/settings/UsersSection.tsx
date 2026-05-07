@@ -174,15 +174,15 @@ export function UsersSection({ currentUserEmail }: { currentUserEmail: string })
       ) : users.length === 0 ? (
         <div className="text-sm text-gray-500 py-4">Brak użytkowników.</div>
       ) : (
-        <div className="overflow-x-auto -mx-6">
+        <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-xs uppercase tracking-wide text-gray-500 border-b border-gray-100">
-                <th className="px-6 py-2 font-medium">Imię</th>
-                <th className="px-6 py-2 font-medium">Email</th>
-                <th className="px-6 py-2 font-medium">Status</th>
-                <th className="px-6 py-2 font-medium">Dodany</th>
-                <th className="px-6 py-2 font-medium text-right">Akcje</th>
+                <th className="px-3 py-2 font-medium">Imię</th>
+                <th className="px-3 py-2 font-medium">Email</th>
+                <th className="px-3 py-2 font-medium">Status</th>
+                <th className="px-3 py-2 font-medium">Dodany</th>
+                <th className="px-3 py-2 font-medium text-right">Akcje</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -190,49 +190,51 @@ export function UsersSection({ currentUserEmail }: { currentUserEmail: string })
                 const isMe = u.email === currentUserEmail
                 return (
                   <tr key={u.id}>
-                    <td className="px-6 py-3 text-gray-900">{u.name || <span className="text-gray-400">—</span>}</td>
-                    <td className="px-6 py-3 text-gray-700">
-                      {u.email}
-                      {isMe && (
-                        <span className="ml-2 text-xs text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">to Ty</span>
-                      )}
+                    <td className="px-3 py-3 text-gray-900 whitespace-nowrap">{u.name || <span className="text-gray-400">—</span>}</td>
+                    <td className="px-3 py-3 text-gray-700">
+                      <div className="flex items-center gap-2">
+                        <span className="break-all">{u.email}</span>
+                        {isMe && (
+                          <span className="text-[10px] text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded flex-shrink-0">to Ty</span>
+                        )}
+                      </div>
                     </td>
-                    <td className="px-6 py-3">
+                    <td className="px-3 py-3">
                       {u.pendingActivation ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-50 text-amber-800 text-xs font-medium rounded">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-50 text-amber-800 text-xs font-medium rounded whitespace-nowrap">
                           <Clock className="w-3 h-3" />
                           Czeka na aktywację
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-50 text-green-800 text-xs font-medium rounded">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-50 text-green-800 text-xs font-medium rounded whitespace-nowrap">
                           <CheckCircle2 className="w-3 h-3" />
                           Aktywne
                         </span>
                       )}
                     </td>
-                    <td className="px-6 py-3 text-gray-500">
+                    <td className="px-3 py-3 text-gray-500 whitespace-nowrap">
                       {new Date(u.createdAt).toLocaleDateString('pl-PL')}
                     </td>
-                    <td className="px-6 py-3 text-right">
+                    <td className="px-3 py-3 text-right whitespace-nowrap">
                       <div className="inline-flex items-center gap-1">
                         <button
                           onClick={() => sendReset(u)}
                           disabled={busy === u.id}
-                          className="text-xs text-gray-600 hover:text-gray-900 hover:bg-gray-100 px-2 py-1 rounded inline-flex items-center gap-1 disabled:opacity-50"
+                          className="text-gray-500 hover:text-gray-900 hover:bg-gray-100 p-1.5 rounded inline-flex items-center disabled:opacity-50"
                           title="Wyślij ponownie link do resetu hasła"
+                          aria-label="Reset hasła"
                         >
-                          <RotateCcw className="w-3.5 h-3.5" />
-                          Reset hasła
+                          <RotateCcw className="w-4 h-4" />
                         </button>
                         {!isMe && (
                           <button
                             onClick={() => del(u)}
                             disabled={busy === u.id}
-                            className="text-xs text-red-600 hover:text-red-700 hover:bg-red-50 px-2 py-1 rounded inline-flex items-center gap-1 disabled:opacity-50"
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50 p-1.5 rounded inline-flex items-center disabled:opacity-50"
                             title="Usuń użytkownika"
+                            aria-label="Usuń"
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
-                            Usuń
+                            <Trash2 className="w-4 h-4" />
                           </button>
                         )}
                       </div>
