@@ -116,6 +116,23 @@ input::placeholder, textarea::placeholder { color: var(--text-muted); }
 
 .dark .border-blue-200 { border-color: rgba(96, 165, 250, 0.24) !important; }
 
+/* ===== Badge tints (status pills) — dark-mode tła =====
+   Badge w aplikacji używają kombinacji bg-X-100 + text-X-700.
+   Bez tych nadpisań tła pozostają w oryginalnych pastelowych kolorach
+   Tailwinda, a teksty są już jasne (np. text-green-700 → #86EFAC) —
+   wynik to "jasny tekst na jasnym tle" = nieczytelne. */
+.dark .bg-green-100 { background-color: rgba(34, 197, 94, 0.20) !important; }
+.dark .bg-yellow-100 { background-color: rgba(250, 204, 21, 0.20) !important; }
+.dark .bg-yellow-200 { background-color: rgba(250, 204, 21, 0.28) !important; }
+.dark .bg-red-100 { background-color: rgba(248, 113, 113, 0.20) !important; }
+.dark .bg-amber-100 { background-color: rgba(251, 191, 36, 0.20) !important; }
+.dark .bg-orange-100 { background-color: rgba(251, 146, 60, 0.20) !important; }
+
+.dark .text-yellow-700 { color: #FCD34D !important; }
+.dark .text-yellow-800 { color: #FDE68A !important; }
+.dark .text-amber-700 { color: #FCD34D !important; }
+.dark .text-orange-700 { color: #FDBA74 !important; }
+
 /* Accent (gold) buttons — replace blue primary in dark mode */
 .dark .bg-blue-600 { background-color: var(--accent) !important; color: #1A1F28 !important; }
 .dark .bg-blue-600:hover, .dark .hover\:bg-blue-700:hover { background-color: var(--brand-gold-light, #E8D0B0) !important; }
