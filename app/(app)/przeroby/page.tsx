@@ -2,11 +2,12 @@ import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
 
 export default async function PrzerobyHomePage() {
-  const [summariesCount, subsCount, protocolsCount, draftCount, contracts] = await Promise.all([
+  const [summariesCount, subsCount, protocolsCount, draftCount, workItemsCount, contracts] = await Promise.all([
     prisma.floorSummary.count(),
     prisma.subcontractor.count({ where: { active: true } }),
     prisma.protocol.count(),
     prisma.protocol.count({ where: { status: 'SZKIC' } }),
+    prisma.workItem.count(),
     prisma.subContract.findMany({
       where: { status: { not: 'ANULOWANA' } },
       include: {
@@ -37,9 +38,16 @@ export default async function PrzerobyHomePage() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <ModuleTile
+          href="/przeroby/obmiar"
+          title="Obmiar Maraf"
+          desc="Szczegółowy obmiar konstrukcji żelbetowej"
+          stat={String(workItemsCount)}
+          statLabel="pozycji"
+        />
+        <ModuleTile
           href="/przeroby/porownanie"
           title="Porównania"
-          desc="Podsumowania kierownika vs obmiar inżynierski"
+          desc="Maraf vs przedmiar Konrada (kierownika)"
           stat={String(summariesCount)}
           statLabel="kondygnacji"
         />
@@ -56,13 +64,6 @@ export default async function PrzerobyHomePage() {
           desc="Miesięczne rozliczenia robót"
           stat={String(protocolsCount)}
           statLabel="łącznie"
-        />
-        <ModuleTile
-          href="/przeroby/protokoly"
-          title="W trakcie"
-          desc="Szkice protokołów do dokończenia"
-          stat={String(draftCount)}
-          statLabel="szkiców"
         />
       </div>
 

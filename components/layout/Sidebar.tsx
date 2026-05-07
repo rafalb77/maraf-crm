@@ -92,6 +92,7 @@ const sections: NavSection[] = [
     label: 'Przeroby',
     items: [
       { href: '/przeroby', label: 'Pulpit przerobów', icon: ICONS.przeroby },
+      { href: '/przeroby/obmiar', label: 'Obmiar Maraf', icon: ICONS.units },
       { href: '/przeroby/porownanie', label: 'Porównanie obmiarów', icon: ICONS.dashboard },
       { href: '/przeroby/podwykonawcy', label: 'Podwykonawcy', icon: ICONS.contractors },
       { href: '/przeroby/protokoly', label: 'Protokoły', icon: ICONS.sales },

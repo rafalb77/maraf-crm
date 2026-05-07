@@ -22,13 +22,19 @@ export default async function PorownaniaListPage() {
 
   return (
     <div className="p-8">
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-6 flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Porównanie obmiarów</h1>
           <p className="text-gray-500 text-sm mt-1">
-            Obmiar Maraf zestawiony z podsumowaniem kierownika per kondygnacja.
+            Obmiar Maraf zestawiony z przedmiarem Konrada per kondygnacja.
           </p>
         </div>
+        <Link
+          href="/przeroby/obmiar"
+          className="text-sm px-3 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 whitespace-nowrap"
+        >
+          🔍 Pokaż obmiar Maraf
+        </Link>
       </div>
 
       {summaries.length === 0 ? (
