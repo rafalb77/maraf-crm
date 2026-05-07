@@ -70,6 +70,11 @@ COPY --from=builder /app/node_modules/xlsx ./node_modules/xlsx
 COPY --from=builder /app/node_modules/dotenv ./node_modules/dotenv
 COPY --from=builder /app/node_modules/bcryptjs ./node_modules/bcryptjs
 
+# Pliki danych do jednorazowego importu (np. obmiar Maraf — stały).
+# Pliki, które się zmieniają (np. Konrad — co miesiąc), wgrywaj
+# przez UI / endpoint upload, NIE przez git.
+COPY --from=builder /app/data ./data
+
 # Persistent katalog na uploady (montowany przez Coolify volume)
 RUN mkdir -p /app/public/uploads/rysunki && \
     chown -R nextjs:nodejs /app/public/uploads
