@@ -144,6 +144,15 @@ input::placeholder, textarea::placeholder { color: var(--text-muted); }
 .dark .text-yellow-800 { color: #FDE68A !important; }
 .dark .text-amber-700 { color: #FCD34D !important; }
 .dark .text-orange-700 { color: #FDBA74 !important; }
+.dark .text-emerald-700 { color: #6EE7B7 !important; }
+
+/* bg-X-50 warianty (badge MANUAL_NOT_FOUND, MANUAL_DIFF_UNIT, MANUAL_OVERRIDE) */
+.dark .bg-amber-50 { background-color: rgba(251, 191, 36, 0.12) !important; }
+.dark .bg-orange-50 { background-color: rgba(251, 146, 60, 0.12) !important; }
+.dark .bg-emerald-50 { background-color: rgba(52, 211, 153, 0.12) !important; }
+
+/* Progress bar tracks (bg-gray-200) — pasek tła jest zbyt jasny w dark */
+.dark .bg-gray-200 { background-color: rgba(255, 255, 255, 0.08) !important; }
 
 /* Accent (gold) buttons — replace blue primary in dark mode */
 .dark .bg-blue-600 { background-color: var(--accent) !important; color: #1A1F28 !important; }
