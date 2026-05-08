@@ -168,6 +168,35 @@ input::placeholder, textarea::placeholder { color: var(--text-muted); }
   transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
 }
 
+/* ===== Animacje ikon pogody (TopWidget na dashboardzie) ===== */
+@keyframes weather-spin-kf {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+@keyframes weather-float-kf {
+  0%, 100% { transform: translateY(0px); }
+  50%      { transform: translateY(-4px); }
+}
+@keyframes weather-pulse-kf {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.75; transform: scale(0.96); }
+}
+@keyframes weather-flash-kf {
+  0%, 92%, 100% { opacity: 1; }
+  94%           { opacity: 0.4; }
+  96%           { opacity: 1; }
+  98%           { opacity: 0.6; }
+}
+.weather-spin  { animation: weather-spin-kf 30s linear infinite; }
+.weather-float { animation: weather-float-kf 4s ease-in-out infinite; }
+.weather-pulse { animation: weather-pulse-kf 2.8s ease-in-out infinite; }
+.weather-flash { animation: weather-flash-kf 4s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .weather-spin, .weather-float, .weather-pulse, .weather-flash {
+    animation: none;
+  }
+}
+
 /* ===== Tiptap editor content (mailing) ===== */
 .ProseMirror { outline: none; }
 .ProseMirror p { margin: 0 0 0.5em 0; }

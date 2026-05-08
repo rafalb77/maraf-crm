@@ -10,30 +10,36 @@ const DEFAULT_LON = 19.4051
 const DEFAULT_CITY = 'Zgierz'
 const CACHE_TTL_MS = 30 * 60 * 1000 // 30 min
 
-// Mapowanie WMO weather codes → emoji + opis (skrócone)
+// Mapowanie WMO weather codes → emoji + nazwa ikony Lucide + opis
 // Pełna lista: https://open-meteo.com/en/docs (Weather Variable Documentation)
-const WMO: Record<number, { emoji: string; label: string }> = {
-  0: { emoji: '☀️', label: 'bezchmurnie' },
-  1: { emoji: '🌤', label: 'głównie słonecznie' },
-  2: { emoji: '⛅', label: 'częściowe zachmurzenie' },
-  3: { emoji: '☁️', label: 'pochmurno' },
-  45: { emoji: '🌫', label: 'mgła' },
-  48: { emoji: '🌫', label: 'mgła osadzająca' },
-  51: { emoji: '🌦', label: 'mżawka słaba' },
-  53: { emoji: '🌦', label: 'mżawka' },
-  55: { emoji: '🌦', label: 'mżawka silna' },
-  61: { emoji: '🌧', label: 'deszcz słaby' },
-  63: { emoji: '🌧', label: 'deszcz' },
-  65: { emoji: '🌧', label: 'deszcz silny' },
-  71: { emoji: '🌨', label: 'śnieg słaby' },
-  73: { emoji: '🌨', label: 'śnieg' },
-  75: { emoji: '🌨', label: 'śnieg silny' },
-  80: { emoji: '🌦', label: 'przelotne opady' },
-  81: { emoji: '🌧', label: 'przelotne opady' },
-  82: { emoji: '⛈', label: 'silne opady' },
-  95: { emoji: '⛈', label: 'burza' },
-  96: { emoji: '⛈', label: 'burza z gradem' },
-  99: { emoji: '⛈', label: 'silna burza z gradem' },
+// iconName mapuje na komponent w components/dashboard/WeatherIcon.tsx
+export type WeatherIconName =
+  | 'sun' | 'cloud-sun' | 'cloud' | 'cloud-fog'
+  | 'cloud-drizzle' | 'cloud-rain' | 'cloud-rain-wind'
+  | 'cloud-snow' | 'cloud-lightning' | 'cloud-hail'
+
+const WMO: Record<number, { emoji: string; iconName: WeatherIconName; label: string }> = {
+  0:  { emoji: '☀️', iconName: 'sun',             label: 'bezchmurnie' },
+  1:  { emoji: '🌤', iconName: 'sun',             label: 'głównie słonecznie' },
+  2:  { emoji: '⛅', iconName: 'cloud-sun',       label: 'częściowe zachmurzenie' },
+  3:  { emoji: '☁️', iconName: 'cloud',           label: 'pochmurno' },
+  45: { emoji: '🌫', iconName: 'cloud-fog',       label: 'mgła' },
+  48: { emoji: '🌫', iconName: 'cloud-fog',       label: 'mgła osadzająca' },
+  51: { emoji: '🌦', iconName: 'cloud-drizzle',   label: 'mżawka słaba' },
+  53: { emoji: '🌦', iconName: 'cloud-drizzle',   label: 'mżawka' },
+  55: { emoji: '🌦', iconName: 'cloud-drizzle',   label: 'mżawka silna' },
+  61: { emoji: '🌧', iconName: 'cloud-rain',      label: 'deszcz słaby' },
+  63: { emoji: '🌧', iconName: 'cloud-rain',      label: 'deszcz' },
+  65: { emoji: '🌧', iconName: 'cloud-rain-wind', label: 'deszcz silny' },
+  71: { emoji: '🌨', iconName: 'cloud-snow',      label: 'śnieg słaby' },
+  73: { emoji: '🌨', iconName: 'cloud-snow',      label: 'śnieg' },
+  75: { emoji: '🌨', iconName: 'cloud-snow',      label: 'śnieg silny' },
+  80: { emoji: '🌦', iconName: 'cloud-rain',      label: 'przelotne opady' },
+  81: { emoji: '🌧', iconName: 'cloud-rain',      label: 'przelotne opady' },
+  82: { emoji: '⛈', iconName: 'cloud-rain-wind', label: 'silne opady' },
+  95: { emoji: '⛈', iconName: 'cloud-lightning', label: 'burza' },
+  96: { emoji: '⛈', iconName: 'cloud-hail',      label: 'burza z gradem' },
+  99: { emoji: '⛈', iconName: 'cloud-hail',      label: 'silna burza z gradem' },
 }
 
 const WIND_DIRS = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW']
@@ -48,7 +54,7 @@ export type Weather = {
   current: {
     tempC: number
     feelsLikeC: number | null
-    condition: { emoji: string; label: string }
+    condition: { emoji: string; iconName: WeatherIconName; label: string }
     windKmh: number
     windDir: string
   }
@@ -86,7 +92,7 @@ export async function getWeather(): Promise<Weather | null> {
     const json = await res.json()
 
     const code = json.current?.weather_code as number | undefined
-    const condition = (code != null && WMO[code]) || { emoji: '🌥', label: 'pochmurno' }
+    const condition = (code != null && WMO[code]) || { emoji: '🌥', iconName: 'cloud' as WeatherIconName, label: 'pochmurno' }
     const sunrise = String(json.daily?.sunrise?.[0] || '').slice(11, 16)
     const sunset = String(json.daily?.sunset?.[0] || '').slice(11, 16)
 

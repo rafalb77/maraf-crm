@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { ExternalLink, Sunrise, Sunset, Wind, Loader2 } from 'lucide-react'
+import { WeatherIcon } from './WeatherIcon'
 
 type Greeting = {
   text: string
@@ -20,12 +21,17 @@ type News = {
   isLive: boolean
 }
 
+type WeatherIconName =
+  | 'sun' | 'cloud-sun' | 'cloud' | 'cloud-fog'
+  | 'cloud-drizzle' | 'cloud-rain' | 'cloud-rain-wind'
+  | 'cloud-snow' | 'cloud-lightning' | 'cloud-hail'
+
 type Weather = {
   city: string
   current: {
     tempC: number
     feelsLikeC: number | null
-    condition: { emoji: string; label: string }
+    condition: { emoji: string; iconName: WeatherIconName; label: string }
     windKmh: number
     windDir: string
   }
@@ -226,23 +232,25 @@ function WeatherCard({ weather }: { weather: Weather }) {
   const d = weather.daily
 
   return (
-    <div className="lg:min-w-[260px] lg:text-right">
-      <div className="flex lg:justify-end items-center gap-2 text-xs uppercase tracking-wider mb-1"
+    <div className="lg:min-w-[280px] lg:text-right">
+      <div className="text-xs uppercase tracking-wider mb-1.5 lg:text-right"
            style={{ color: 'var(--text-muted)' }}>
-        <span>{c.condition.emoji}</span>
-        <span>{weather.city}</span>
+        {weather.city}
       </div>
 
-      <div className="flex lg:justify-end items-baseline gap-2">
-        <span className="text-3xl font-bold tabular-nums" style={{ color: 'var(--text-primary)' }}>
-          {c.tempC}°
-        </span>
-        <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-          {c.condition.label}
-        </span>
+      <div className="flex lg:justify-end items-center gap-3">
+        <WeatherIcon name={c.condition.iconName} size={56} />
+        <div className="flex flex-col items-start lg:items-end">
+          <span className="text-4xl font-bold tabular-nums leading-none" style={{ color: 'var(--text-primary)' }}>
+            {c.tempC}°
+          </span>
+          <span className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>
+            {c.condition.label}
+          </span>
+        </div>
       </div>
 
-      <div className="flex lg:justify-end items-center gap-3 mt-1.5 text-xs flex-wrap"
+      <div className="flex lg:justify-end items-center gap-3 mt-2 text-xs flex-wrap"
            style={{ color: 'var(--text-muted)' }}>
         <span className="tabular-nums">
           ↓ {d.minC}° &nbsp;↑ {d.maxC}°
