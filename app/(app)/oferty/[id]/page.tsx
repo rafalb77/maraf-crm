@@ -13,7 +13,7 @@ const TYPE_LABELS: Record<string, string> = {
 const TYPE_BADGE: Record<string, string> = {
   MIESZKALNY: 'bg-blue-50 text-blue-700',
   USLUGOWY: 'bg-purple-50 text-purple-700',
-  PARKING: 'bg-amber-50 text-amber-700',
+  PARKING: 'bg-amber-50 text-rose-700',
   GARAZ: 'bg-orange-50 text-orange-700',
   KOMORKA: 'bg-gray-100 text-gray-700',
 }
@@ -85,7 +85,7 @@ export default async function OfferPage({ params }: { params: Promise<{ id: stri
                 <th className="text-right px-2 py-2 font-medium">Cena netto</th>
                 <th className="text-right px-2 py-2 font-medium">Cena brutto</th>
                 <th className="text-right px-2 py-2 font-medium">Rabat</th>
-                <th className="text-right px-2 py-2 font-medium bg-amber-50/40">Po rabacie<br/>netto</th>
+                <th className="text-right px-2 py-2 font-medium bg-rose-50/40">Po rabacie<br/>netto</th>
                 <th className="text-right px-3 py-2 font-medium bg-green-50/40">Po rabacie<br/>brutto</th>
               </tr>
             </thead>
@@ -104,14 +104,14 @@ export default async function OfferPage({ params }: { params: Promise<{ id: stri
                   <td className="px-2 py-2 text-right tabular-nums text-gray-600">{fmt(it.pricePerSqmGross)}</td>
                   <td className="px-2 py-2 text-right tabular-nums">{fmt(it.priceNet)}</td>
                   <td className="px-2 py-2 text-right tabular-nums">{fmt(it.priceGross)}</td>
-                  <td className="px-2 py-2 text-right tabular-nums text-amber-700">
+                  <td className="px-2 py-2 text-right tabular-nums text-rose-700">
                     {it.discountValue > 0 ? (
                       it.discountType === 'PCT'
                         ? `${it.discountValue}%`
                         : `${fmt(it.discountValue)} zł`
                     ) : '—'}
                   </td>
-                  <td className="px-2 py-2 text-right tabular-nums font-medium bg-amber-50/40">
+                  <td className="px-2 py-2 text-right tabular-nums font-medium bg-rose-50/40">
                     {fmt(it.finalNet)}
                   </td>
                   <td className="px-3 py-2 text-right tabular-nums font-semibold bg-green-50/40 text-green-800">
@@ -125,10 +125,10 @@ export default async function OfferPage({ params }: { params: Promise<{ id: stri
                 <td colSpan={6} className="px-3 py-2 text-right text-sm font-medium text-gray-700">RAZEM</td>
                 <td className="px-2 py-2 text-right tabular-nums font-medium">{fmt(offer.subtotalNet)}</td>
                 <td className="px-2 py-2 text-right tabular-nums font-medium">{fmt(offer.subtotalGross)}</td>
-                <td className="px-2 py-2 text-right tabular-nums text-amber-700">
+                <td className="px-2 py-2 text-right tabular-nums text-rose-700">
                   {offer.totalDiscountNet > 0 ? `−${fmt(offer.totalDiscountNet)}` : '—'}
                 </td>
-                <td className="px-2 py-2 text-right tabular-nums font-bold bg-amber-50/60">
+                <td className="px-2 py-2 text-right tabular-nums font-bold bg-rose-50/60">
                   {fmt(offer.totalNet)}
                 </td>
                 <td className="px-3 py-2 text-right tabular-nums font-bold bg-green-50/60 text-green-800">
@@ -147,13 +147,13 @@ export default async function OfferPage({ params }: { params: Promise<{ id: stri
           <p className="text-xs text-gray-500 mt-3 mb-1">Suma brutto przed rabatem</p>
           <p className="text-xl font-medium text-gray-700 tabular-nums">{fmt(offer.subtotalGross)} zł</p>
         </div>
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-5">
-          <p className="text-xs text-amber-700 mb-1">Łączny rabat netto</p>
-          <p className="text-xl font-bold text-amber-800 tabular-nums">
+        <div className="bg-rose-50 border border-rose-200 rounded-xl p-5">
+          <p className="text-xs text-rose-700 mb-1">Łączny rabat netto</p>
+          <p className="text-xl font-bold text-rose-800 tabular-nums">
             {offer.totalDiscountNet > 0 ? `−${fmt(offer.totalDiscountNet)}` : '0,00'} zł
           </p>
-          <p className="text-xs text-amber-700 mt-3 mb-1">Łączny rabat brutto</p>
-          <p className="text-xl font-medium text-amber-800 tabular-nums">
+          <p className="text-xs text-rose-700 mt-3 mb-1">Łączny rabat brutto</p>
+          <p className="text-xl font-medium text-rose-800 tabular-nums">
             {offer.totalDiscountGross > 0 ? `−${fmt(offer.totalDiscountGross)}` : '0,00'} zł
           </p>
         </div>

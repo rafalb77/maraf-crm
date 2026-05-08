@@ -325,7 +325,7 @@ export function OfferCalculator({
                   <th className="text-right px-2 py-2 font-medium">Cena netto</th>
                   <th className="text-right px-2 py-2 font-medium">Cena brutto</th>
                   <th className="text-center px-2 py-2 font-medium">Rabat</th>
-                  <th className="text-right px-2 py-2 font-medium bg-amber-50/40">Po rabacie<br/>netto</th>
+                  <th className="text-right px-2 py-2 font-medium bg-rose-50/40">Po rabacie<br/>netto</th>
                   <th className="text-right px-3 py-2 font-medium bg-green-50/40">Po rabacie<br/>brutto</th>
                   <th className="px-2" />
                 </tr>
@@ -369,10 +369,10 @@ export function OfferCalculator({
                           </select>
                         </div>
                       </td>
-                      <td className="px-2 py-2 text-right tabular-nums font-medium bg-amber-50/40">
+                      <td className="px-2 py-2 text-right tabular-nums font-medium bg-rose-50/40">
                         {fmt(fNet)}
                         {dNet > 0 && (
-                          <p className="text-[10px] text-amber-700">−{fmt(dNet)}</p>
+                          <p className="text-[10px] text-rose-700">−{fmt(dNet)}</p>
                         )}
                       </td>
                       <td className="px-3 py-2 text-right tabular-nums font-semibold bg-green-50/40 text-green-800">
@@ -406,12 +406,12 @@ export function OfferCalculator({
             <SummaryRow
               label="Łączny rabat netto"
               value={sums.totalDiscountNet > 0 ? `−${fmt(sums.totalDiscountNet)} zł` : '—'}
-              accent={sums.totalDiscountNet > 0 ? 'amber' : undefined}
+              accent={sums.totalDiscountNet > 0 ? 'rose' : undefined}
             />
             <SummaryRow
               label="Łączny rabat brutto"
               value={sums.totalDiscountGross > 0 ? `−${fmt(sums.totalDiscountGross)} zł` : '—'}
-              accent={sums.totalDiscountGross > 0 ? 'amber' : undefined}
+              accent={sums.totalDiscountGross > 0 ? 'rose' : undefined}
             />
           </div>
           <div className="bg-gray-50 rounded-lg p-4 space-y-3">
@@ -581,8 +581,8 @@ function CustomItemForm({
   )
 }
 
-function SummaryRow({ label, value, accent }: { label: string; value: string; accent?: 'amber' }) {
-  const color = accent === 'amber' ? 'text-amber-700' : 'text-gray-900'
+function SummaryRow({ label, value, accent }: { label: string; value: string; accent?: 'rose' }) {
+  const color = accent === 'rose' ? 'text-rose-700' : 'text-gray-900'
   return (
     <div className="flex justify-between items-baseline">
       <span className="text-sm text-gray-600">{label}</span>

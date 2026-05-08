@@ -154,6 +154,25 @@ input::placeholder, textarea::placeholder { color: var(--text-muted); }
 /* Progress bar tracks (bg-gray-200) — pasek tła jest zbyt jasny w dark */
 .dark .bg-gray-200 { background-color: rgba(255, 255, 255, 0.08) !important; }
 
+/* Rose — uzywany dla rabatow w widoku oferty (zamiast brazu/amber) */
+.dark .bg-rose-50 { background-color: rgba(244, 114, 182, 0.10) !important; }
+.dark .bg-rose-100 { background-color: rgba(244, 114, 182, 0.18) !important; }
+.dark .border-rose-200 { border-color: rgba(244, 114, 182, 0.30) !important; }
+.dark .text-rose-700 { color: #FDA4AF !important; }
+.dark .text-rose-800 { color: #FECACA !important; }
+
+/* Opacity warianty kolumn tabeli oferty (Po rabacie netto/brutto) */
+.dark .bg-rose-50\/40 { background-color: rgba(244, 114, 182, 0.06) !important; }
+.dark .bg-rose-50\/60 { background-color: rgba(244, 114, 182, 0.10) !important; }
+.dark .bg-amber-50\/40 { background-color: rgba(251, 191, 36, 0.06) !important; }
+.dark .bg-amber-50\/60 { background-color: rgba(251, 191, 36, 0.10) !important; }
+.dark .bg-green-50\/40 { background-color: rgba(34, 197, 94, 0.06) !important; }
+.dark .bg-green-50\/60 { background-color: rgba(34, 197, 94, 0.10) !important; }
+
+/* text-X-800 (jasniejsze warianty dla podkreslenia kwot) */
+.dark .text-green-800 { color: #86EFAC !important; }
+.dark .text-amber-800 { color: #FDE68A !important; }
+
 /* Accent (gold) buttons — replace blue primary in dark mode */
 .dark .bg-blue-600 { background-color: var(--accent) !important; color: #1A1F28 !important; }
 .dark .bg-blue-600:hover, .dark .hover\:bg-blue-700:hover { background-color: var(--brand-gold-light, #E8D0B0) !important; }
