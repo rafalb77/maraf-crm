@@ -21,13 +21,20 @@ function computeItemsAndTotals(rawItems: any[]) {
     const priceGross = Number(it.priceGross) || 0
     const vatRate = Number(it.vatRate) || 8
     const discountValue = Number(it.discountValue) || 0
-    const discountType = it.discountType === 'AMOUNT_NET' ? 'AMOUNT_NET' : 'PCT'
+    // Rabat kwotowy ('AMOUNT_NET' to legacy nazwa) jest interpretowany
+    // jako kwota BRUTTO. discountNet wyliczany przez VAT.
+    const discountType = it.discountType === 'PCT' ? 'PCT' : 'AMOUNT_NET'
     let discountNet = 0
+    let discountGross = 0
     if (discountValue > 0) {
-      if (discountType === 'PCT') discountNet = priceNet * (discountValue / 100)
-      else discountNet = Math.min(discountValue, priceNet)
+      if (discountType === 'PCT') {
+        discountNet = priceNet * (discountValue / 100)
+        discountGross = discountNet * (1 + vatRate / 100)
+      } else {
+        discountGross = Math.min(discountValue, priceGross)
+        discountNet = discountGross / (1 + vatRate / 100)
+      }
     }
-    const discountGross = discountNet * (1 + vatRate / 100)
     const finalNet = priceNet - discountNet
     const finalGross = priceGross - discountGross
 

@@ -143,8 +143,7 @@ export function OfferCalculator({
     let totalNet = 0
     let totalGross = 0
     for (const it of items) {
-      const dNet = computeDiscountNet(it)
-      const dGross = dNet * (1 + it.vatRate / 100)
+      const { dNet, dGross } = computeDiscount(it)
       const fNet = it.priceNet - dNet
       const fGross = it.priceGross - dGross
       subtotalNet += it.priceNet
@@ -332,9 +331,9 @@ export function OfferCalculator({
               </thead>
               <tbody>
                 {items.map((it) => {
-                  const dNet = computeDiscountNet(it)
+                  const { dNet, dGross } = computeDiscount(it)
                   const fNet = it.priceNet - dNet
-                  const fGross = it.priceGross - dNet * (1 + it.vatRate / 100)
+                  const fGross = it.priceGross - dGross
                   return (
                     <tr key={it.key} className="border-t border-gray-100">
                       <td className="px-3 py-2">
@@ -456,10 +455,15 @@ export function OfferCalculator({
   )
 }
 
-function computeDiscountNet(it: Item): number {
-  if (!it.discountValue || it.discountValue <= 0) return 0
-  if (it.discountType === 'PCT') return it.priceNet * (it.discountValue / 100)
-  return Math.min(it.discountValue, it.priceNet)
+function computeDiscount(it: Item): { dNet: number; dGross: number } {
+  if (!it.discountValue || it.discountValue <= 0) return { dNet: 0, dGross: 0 }
+  if (it.discountType === 'PCT') {
+    const dNet = it.priceNet * (it.discountValue / 100)
+    return { dNet, dGross: dNet * (1 + it.vatRate / 100) }
+  }
+  // AMOUNT_NET (legacy nazwa) — kwota wpisywana przez usera = BRUTTO
+  const dGross = Math.min(it.discountValue, it.priceGross)
+  return { dGross, dNet: dGross / (1 + it.vatRate / 100) }
 }
 
 function fmt(n: number) {
