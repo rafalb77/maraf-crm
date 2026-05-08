@@ -371,11 +371,19 @@ export function OfferCalculator({
                       <td className="px-2 py-2 text-right tabular-nums font-medium bg-rose-50/40">
                         {fmt(fNet)}
                         {dNet > 0 && (
-                          <p className="text-[10px] text-rose-700">−{fmt(dNet)}</p>
+                          <>
+                            <p className="text-[10px] text-rose-700">−{fmt(dNet)}</p>
+                            {it.area > 0 && (
+                              <p className="text-[10px] text-gray-500">{fmt(fNet / it.area)} /m²</p>
+                            )}
+                          </>
                         )}
                       </td>
                       <td className="px-3 py-2 text-right tabular-nums font-semibold bg-green-50/40 text-green-800">
                         {fmt(fGross)}
+                        {dGross > 0 && it.area > 0 && (
+                          <p className="text-[10px] font-normal text-green-700/80">{fmt(fGross / it.area)} /m²</p>
+                        )}
                       </td>
                       <td className="px-2 py-2">
                         <button

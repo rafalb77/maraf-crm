@@ -113,9 +113,15 @@ export default async function OfferPage({ params }: { params: Promise<{ id: stri
                   </td>
                   <td className="px-2 py-2 text-right tabular-nums font-medium bg-rose-50/40">
                     {fmt(it.finalNet)}
+                    {it.discountValue > 0 && it.area > 0 && (
+                      <p className="text-[10px] font-normal text-gray-500">{fmt(it.finalNet / it.area)} /m²</p>
+                    )}
                   </td>
                   <td className="px-3 py-2 text-right tabular-nums font-semibold bg-green-50/40 text-green-800">
                     {fmt(it.finalGross)}
+                    {it.discountValue > 0 && it.area > 0 && (
+                      <p className="text-[10px] font-normal text-green-700/80">{fmt(it.finalGross / it.area)} /m²</p>
+                    )}
                   </td>
                 </tr>
               ))}
