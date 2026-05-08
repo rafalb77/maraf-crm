@@ -135,12 +135,43 @@ Suma brutto przed rabatem: ${fmt(offer.subtotalGross)} zł
 ${offer.totalDiscountNet > 0 ? `Łączny rabat (brutto): −${fmt(offer.totalDiscountGross)} zł\n` : ''}DO ZAPŁATY (brutto): ${fmt(offer.totalGross)} zł
 `
 
+  let mailInfo: any
   try {
-    await sendEmail({ to, subject: subject || `Oferta ${offer.number}`, html, text })
+    mailInfo = await sendEmail({ to, subject: subject || `Oferta ${offer.number}`, html, text })
+    console.log('[oferty.email] sent:', {
+      to,
+      messageId: mailInfo?.messageId,
+      accepted: mailInfo?.accepted,
+      rejected: mailInfo?.rejected,
+      response: mailInfo?.response,
+    })
   } catch (e: any) {
+    console.error('[oferty.email] error:', e?.message, e?.code)
     const f = toFriendlyMailError(e)
     return NextResponse.json(
       { error: f.message, code: f.code, technical: f.technical, isTransient: f.isTransient },
+      { status: 502 },
+    )
+  }
+
+  // Niektore serwery SMTP zwracaja "OK" ale rzeczywisty adres jest w 'rejected'
+  // — wtedy mail nie dotarl. Traktujemy to jako blad.
+  if (mailInfo?.rejected && Array.isArray(mailInfo.rejected) && mailInfo.rejected.length > 0) {
+    return NextResponse.json(
+      {
+        error: `Serwer SMTP odrzucił adres: ${mailInfo.rejected.join(', ')}. Sprawdź poprawność adresu odbiorcy lub konfigurację SMTP.`,
+        rejected: mailInfo.rejected,
+        response: mailInfo.response,
+      },
+      { status: 502 },
+    )
+  }
+  if (mailInfo?.accepted && Array.isArray(mailInfo.accepted) && mailInfo.accepted.length === 0) {
+    return NextResponse.json(
+      {
+        error: 'Serwer SMTP nie potwierdził dostarczenia (accepted: []). Wiadomość mogła nie dotrzeć.',
+        response: mailInfo.response,
+      },
       { status: 502 },
     )
   }
@@ -160,5 +191,10 @@ ${offer.totalDiscountNet > 0 ? `Łączny rabat (brutto): −${fmt(offer.totalDis
     await prisma.offer.update({ where: { id }, data: { status: 'WYSLANA' } })
   }
 
-  return NextResponse.json({ success: true })
+  return NextResponse.json({
+    success: true,
+    messageId: mailInfo?.messageId || null,
+    accepted: mailInfo?.accepted || null,
+    response: mailInfo?.response || null,
+  })
 }
