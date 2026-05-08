@@ -60,7 +60,7 @@ export default async function OfferPrintPage({ params }: { params: Promise<{ id:
             <div className="flex items-center justify-between gap-6">
               <div style={{ width: 220, height: 64, position: 'relative' }}>
                 <Image
-                  src="/logo-icon-dark.png"
+                  src="/logo-icon-light.png"
                   alt="MARAF Development"
                   fill
                   priority
@@ -131,23 +131,23 @@ export default async function OfferPrintPage({ params }: { params: Promise<{ id:
             </h3>
             <p className="text-sm leading-relaxed text-gray-700 mb-3">
               Nowoczesny kompleks mieszkaniowy łączący zalety natury z wygodą miasta.
-              Położony pomiędzy <strong>Lasem Krogulec</strong> a centrum Łodzi — w zacisznej
-              dzielnicy Zgierza, z doskonałą komunikacją do aglomeracji łódzkiej.
+              Bezpośrednie sąsiedztwo <strong>Lasu Krogulec</strong> w zacisznej części Zgierza,
+              z doskonałą komunikacją do <strong>centrum Zgierza i Łodzi</strong>.
             </p>
 
             <div className="grid grid-cols-2 gap-x-5 gap-y-1.5 text-[11px] text-gray-700">
               <Bullet>Sąsiedztwo <strong>Lasu Krogulec</strong> — spacery, jogging, świeże powietrze</Bullet>
               <Bullet>Loggie lub balkony w <strong>każdym mieszkaniu</strong></Bullet>
-              <Bullet>Garaż podziemny ze stacjami <strong>ładowania EV</strong></Bullet>
+              <Bullet>Możliwość montażu <strong>stacji ładowania EV</strong> na parkingach zewnętrznych</Bullet>
               <Bullet>ŁKA, autobus i rower miejski w <strong>300 m</strong></Bullet>
               <Bullet><strong>Zielone dachy</strong> z roślinnością ekstensywną</Bullet>
               <Bullet>Windy w każdej klatce + plac zabaw</Bullet>
               <Bullet>Mieszkania <strong>1–4 pokojowe</strong> z przemyślanymi metrażami</Bullet>
-              <Bullet><strong>25 lat doświadczenia</strong> Maraf Development</Bullet>
+              <Bullet><strong>Doświadczeni deweloperzy</strong> — Maraf Development</Bullet>
             </div>
 
             <p className="text-[11px] text-gray-500 mt-3">
-              📍 ul. Struga 23, 95-100 Zgierz · novastaffa.pl
+              novastaffa.pl
             </p>
           </section>
 
@@ -241,25 +241,13 @@ export default async function OfferPrintPage({ params }: { params: Promise<{ id:
             </section>
           )}
 
-          {/* ===================== SIGNATURES ===================== */}
-          <section className="mt-12 grid grid-cols-2 gap-12 page-break-avoid">
-            <div className="text-center">
-              <div className="border-b border-gray-400 pb-1 mb-1">&nbsp;</div>
-              <p className="text-[10px] text-gray-600 uppercase tracking-wider">Podpis klienta</p>
-            </div>
-            <div className="text-center">
-              <div className="border-b border-gray-400 pb-1 mb-1">&nbsp;</div>
-              <p className="text-[10px] text-gray-600 uppercase tracking-wider">Podpis sprzedawcy</p>
-            </div>
-          </section>
-
           {/* ===================== FOOTER ===================== */}
           <footer className="mt-10 pt-4 border-t text-[10px] text-gray-500 page-break-avoid"
                   style={{ borderColor: '#E2DCD0' }}>
             <div className="flex justify-between items-end">
               <div>
                 <p className="font-semibold" style={{ color: NAVY }}>{settingsMap.companyName || 'MARAF Development'}</p>
-                <p>Inwestycja Nova Staffa · ul. Struga 23, 95-100 Zgierz</p>
+                <p>Biuro: ul. Struga 23, 95-100 Zgierz</p>
                 <p>www.novastaffa.pl · biuro@maraf.pl</p>
               </div>
               <div className="text-right">
