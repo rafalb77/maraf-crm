@@ -137,18 +137,14 @@ export default async function OfferPrintPage({ params }: { params: Promise<{ id:
 
             <div className="grid grid-cols-2 gap-x-5 gap-y-1.5 text-[11px] text-gray-700">
               <Bullet>Sąsiedztwo <strong>Lasu Krogulec</strong> — spacery, jogging, świeże powietrze</Bullet>
+              <Bullet>Windy w <strong>każdej klatce</strong> + plac zabaw</Bullet>
               <Bullet>Loggie lub balkony w <strong>każdym mieszkaniu</strong></Bullet>
               <Bullet>Możliwość montażu <strong>stacji ładowania EV</strong> na parkingach zewnętrznych</Bullet>
               <Bullet>ŁKA, autobus i rower miejski w <strong>300 m</strong></Bullet>
               <Bullet><strong>Zielone dachy</strong> z roślinnością ekstensywną</Bullet>
-              <Bullet>Windy w każdej klatce + plac zabaw</Bullet>
               <Bullet>Mieszkania <strong>1–4 pokojowe</strong> z przemyślanymi metrażami</Bullet>
-              <Bullet><strong>Doświadczeni deweloperzy</strong> — Maraf Development</Bullet>
+              <Bullet><strong>Doświadczony deweloper</strong> — Maraf Development</Bullet>
             </div>
-
-            <p className="text-[11px] text-gray-500 mt-3">
-              novastaffa.pl
-            </p>
           </section>
 
           <div className="gold-line my-6" />
@@ -167,7 +163,7 @@ export default async function OfferPrintPage({ params }: { params: Promise<{ id:
                   <th className="text-right p-2 font-medium" style={{ width: '11%' }}>Pow.</th>
                   <th className="text-right p-2 font-medium" style={{ width: '17%' }}>Cena brutto</th>
                   <th className="text-right p-2 font-medium" style={{ width: '12%' }}>Rabat</th>
-                  <th className="text-right p-2 font-semibold" style={{ width: '26%', background: GOLD, color: NAVY }}>Po rabacie brutto</th>
+                  <th className="text-right p-2 font-semibold" style={{ width: '26%', borderLeft: `2px solid ${GOLD}` }}>Po rabacie brutto</th>
                 </tr>
               </thead>
               <tbody>
@@ -184,7 +180,7 @@ export default async function OfferPrintPage({ params }: { params: Promise<{ id:
                         : '—'}
                     </td>
                     <td className="p-2 text-right tabular-nums font-semibold"
-                        style={{ background: '#F4E8D8', color: NAVY }}>
+                        style={{ borderLeft: `2px solid ${GOLD}`, color: NAVY }}>
                       {fmt(it.finalGross)}
                     </td>
                   </tr>
@@ -198,7 +194,7 @@ export default async function OfferPrintPage({ params }: { params: Promise<{ id:
                     {offer.totalDiscountGross > 0 ? `−${fmt(offer.totalDiscountGross)}` : '—'}
                   </td>
                   <td className="p-2 text-right tabular-nums font-bold text-base"
-                      style={{ background: GOLD, color: NAVY }}>
+                      style={{ borderLeft: `2px solid ${GOLD}`, color: NAVY }}>
                     {fmt(offer.totalGross)}
                   </td>
                 </tr>
@@ -248,7 +244,7 @@ export default async function OfferPrintPage({ params }: { params: Promise<{ id:
               <div>
                 <p className="font-semibold" style={{ color: NAVY }}>{settingsMap.companyName || 'MARAF Development'}</p>
                 <p>Biuro: ul. Struga 23, 95-100 Zgierz</p>
-                <p>www.novastaffa.pl · biuro@maraf.pl</p>
+                <p>www.novastaffa.pl · biuro@novastaffa.pl</p>
               </div>
               <div className="text-right">
                 <p>Oferta wystawiona przez system CRM Maraf</p>
