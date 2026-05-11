@@ -53,12 +53,20 @@ export async function generateOfferPdf(offerId: string): Promise<Buffer> {
   const browser = await puppeteer.launch({
     executablePath,
     args: [
+      // Wymagane w Docker (nie ma sandbox/uid 0)
       '--no-sandbox',
       '--disable-setuid-sandbox',
+      // Brak /dev/shm w Docker default
       '--disable-dev-shm-usage',
+      // Brak GPU w server runtime
       '--disable-gpu',
-      '--no-zygote',
-      '--single-process',
+      // Wylacz crash reporter — w Chromium 137+ chrome_crashpad_handler
+      // wymaga --database arg, ktorego nie dostarcza. Padalo "--database is required".
+      '--disable-crash-reporter',
+      '--disable-breakpad',
+      // Mniej pamieci
+      '--disable-extensions',
+      '--disable-features=site-per-process',
     ],
     headless: true,
   })
