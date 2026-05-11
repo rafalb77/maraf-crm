@@ -62,9 +62,14 @@ ENV HOSTNAME="0.0.0.0"
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome-stable
 ENV PUPPETEER_SKIP_DOWNLOAD=true
 
-# Niesetowy user dla bezpieczeństwa
-RUN groupadd --system --gid 1001 nodejs && \
-    useradd --system --uid 1001 --gid nodejs nextjs
+# Nieprivileged user dla bezpieczenstwa.
+# UWAGA: user MUSI miec katalog home (nie --system bez -m) — Chrome/Chromium
+# pada bez $HOME ("Permission denied: /home/nextjs") z bledami crashpad.
+RUN groupadd --gid 1001 nodejs && \
+    useradd --uid 1001 --gid nodejs -m -d /home/nextjs -s /bin/sh nextjs && \
+    mkdir -p /home/nextjs/.config /home/nextjs/.local/share/applications \
+             /tmp/chrome-crashes /tmp/chrome-user-data && \
+    chown -R nextjs:nodejs /home/nextjs /tmp/chrome-crashes /tmp/chrome-user-data
 
 # Next.js standalone build
 COPY --from=builder /app/public ./public
