@@ -9,9 +9,10 @@ import { getOfferPdfHtml, type OfferForPdf } from './offer-pdf-html'
 
 const DEFAULT_EXECUTABLE_PATHS = [
   process.env.PUPPETEER_EXECUTABLE_PATH,
+  '/usr/bin/google-chrome-stable',
+  '/usr/bin/google-chrome',
   '/usr/bin/chromium',
   '/usr/bin/chromium-browser',
-  '/usr/bin/google-chrome',
 ].filter(Boolean) as string[]
 
 async function findExecutablePath(): Promise<string> {

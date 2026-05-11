@@ -41,21 +41,25 @@ RUN npm run build
 FROM node:20-bookworm-slim AS runner
 WORKDIR /app
 
-# OpenSSL dla Prismy w runtime + tini + Chromium dla puppeteer (PDF z oferta)
-# Plus zaleznosci Chromium: fonts, nss, drm, x11 itp.
+# OpenSSL dla Prismy w runtime + tini + Google Chrome (PDF z oferta)
+# UWAGA: Debian "chromium" 137+ ma bug crashpad ("--database is required").
+# Google Chrome stable nie ma tego problemu — instalujemy go z repo Google.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    openssl ca-certificates tini \
-    chromium fonts-liberation fonts-dejavu \
+    openssl ca-certificates tini wget gnupg \
+    fonts-liberation fonts-dejavu \
     libnss3 libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 \
     libxfixes3 libxrandr2 libgbm1 libasound2 libatk-bridge2.0-0 \
     libatk1.0-0 libcups2 libpango-1.0-0 libpangocairo-1.0-0 \
+    && wget -qO- https://dl-ssl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/google-chrome.gpg \
+    && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome.gpg] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list \
+    && apt-get update && apt-get install -y --no-install-recommends google-chrome-stable \
     && rm -rf /var/lib/apt/lists/*
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
-ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome-stable
 ENV PUPPETEER_SKIP_DOWNLOAD=true
 
 # Niesetowy user dla bezpieczeństwa
