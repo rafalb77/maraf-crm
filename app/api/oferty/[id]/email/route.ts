@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { sendEmail, toFriendlyMailError } from '@/lib/mailer'
+import { generateOfferPdf } from '@/lib/pdf-generator'
 
 const TYPE_LABELS: Record<string, string> = {
   MIESZKALNY: 'Mieszkanie',
@@ -135,9 +136,37 @@ Suma brutto przed rabatem: ${fmt(offer.subtotalGross)} zł
 ${offer.totalDiscountNet > 0 ? `Łączny rabat (brutto): −${fmt(offer.totalDiscountGross)} zł\n` : ''}DO ZAPŁATY (brutto): ${fmt(offer.totalGross)} zł
 `
 
+  // Generuj PDF z oferta — dolaczany jako attachment
+  let pdfBuffer: Buffer | null = null
+  try {
+    pdfBuffer = await generateOfferPdf(id)
+  } catch (e: any) {
+    // PDF nie jest blokujacy — jak Chromium nie odpala, wysylamy bez attachmentu
+    console.warn('[oferty.email] PDF generation skipped:', e?.message)
+  }
+
+  // Bezpieczna nazwa pliku PDF (slash w numerze oferty → myslnik)
+  const pdfFilename = `${(offer.number || 'oferta').replace(/[/\\]/g, '-')}.pdf`
+  const attachments = pdfBuffer
+    ? [{ filename: pdfFilename, content: pdfBuffer, contentType: 'application/pdf' }]
+    : undefined
+
   let mailInfo: any
   try {
-    mailInfo = await sendEmail({ to, subject: subject || `Oferta ${offer.number}`, html, text })
+    mailInfo = await sendEmail({
+      to,
+      subject: subject || `Wiadomość od MARAF Development — ${offer.number}`,
+      html,
+      text,
+      attachments,
+      // Headers transactional — sygnał dla anti-spam i klasyfikacji folderów
+      // ("to nie marketing, to transakcyjny mail")
+      headers: {
+        'X-Auto-Response-Suppress': 'All',
+        'Auto-Submitted': 'auto-generated',
+        'X-Mailer': 'MARAF CRM',
+      },
+    })
     console.log('[oferty.email] sent:', {
       to,
       messageId: mailInfo?.messageId,

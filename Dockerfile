@@ -41,15 +41,22 @@ RUN npm run build
 FROM node:20-bookworm-slim AS runner
 WORKDIR /app
 
-# OpenSSL dla Prismy w runtime + tini do prawidłowego sygnałowania (graceful shutdown)
+# OpenSSL dla Prismy w runtime + tini + Chromium dla puppeteer (PDF z oferta)
+# Plus zaleznosci Chromium: fonts, nss, drm, x11 itp.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     openssl ca-certificates tini \
+    chromium fonts-liberation fonts-dejavu \
+    libnss3 libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 \
+    libxfixes3 libxrandr2 libgbm1 libasound2 libatk-bridge2.0-0 \
+    libatk1.0-0 libcups2 libpango-1.0-0 libpangocairo-1.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+ENV PUPPETEER_SKIP_DOWNLOAD=true
 
 # Niesetowy user dla bezpieczeństwa
 RUN groupadd --system --gid 1001 nodejs && \
@@ -72,6 +79,9 @@ COPY --from=builder /app/scripts ./scripts
 COPY --from=builder /app/node_modules/xlsx ./node_modules/xlsx
 COPY --from=builder /app/node_modules/dotenv ./node_modules/dotenv
 COPY --from=builder /app/node_modules/bcryptjs ./node_modules/bcryptjs
+
+# Puppeteer-core (do generowania PDF z oferta)
+COPY --from=builder /app/node_modules/puppeteer-core ./node_modules/puppeteer-core
 
 # Pliki danych do jednorazowego importu (np. obmiar Maraf — stały).
 # Pliki, które się zmieniają (np. Konrad — co miesiąc), wgrywaj

@@ -131,12 +131,14 @@ export async function sendEmail({
   html,
   text,
   attachments,
+  headers,
 }: {
   to: string | string[]
   subject: string
   html: string
   text?: string
   attachments?: Attachment[]
+  headers?: Record<string, string>
 }) {
   const cfg = await getSmtpConfig()
   if (!cfg) throw new Error('Brak konfiguracji SMTP. Uzupełnij dane w Ustawieniach.')
@@ -149,6 +151,7 @@ export async function sendEmail({
     html,
     text,
     attachments,
+    headers,
   }
 
   let lastError: any = null
