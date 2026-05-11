@@ -60,15 +60,21 @@ export async function generateOfferPdf(offerId: string): Promise<Buffer> {
       '--disable-dev-shm-usage',
       // Brak GPU w server runtime
       '--disable-gpu',
-      // Wylacz crash reporter — w Chromium 137+ chrome_crashpad_handler
-      // wymaga --database arg, ktorego nie dostarcza. Padalo "--database is required".
+      // Crashpad WYMAGA tych dwoch w Chromium 137+ na Debian:
+      // bez nich chrome_crashpad_handler padl z "--database is required"
+      '--crash-dumps-dir=/tmp/chrome-crashes',
+      '--user-data-dir=/tmp/chrome-user-data',
+      // Wylacz crash reporter (i tak nie potrzebny w runtime)
       '--disable-crash-reporter',
       '--disable-breakpad',
+      '--disable-features=Crashpad',
       // Mniej pamieci
       '--disable-extensions',
-      '--disable-features=site-per-process',
+      '--no-first-run',
+      '--no-default-browser-check',
     ],
-    headless: true,
+    headless: 'new' as any,
+    dumpio: false,
   })
   try {
     const page = await browser.newPage()
