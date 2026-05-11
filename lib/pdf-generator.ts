@@ -73,7 +73,11 @@ export async function generateOfferPdf(offerId: string): Promise<Buffer> {
       '--no-first-run',
       '--no-default-browser-check',
     ],
-    headless: 'new' as any,
+    // Legacy headless (--headless flag, NIE --headless=new):
+    // 'new' headless w Chrome 137+ wymaga multi-process + crashpad,
+    // ktory ma bug "--database is required" w Debian 12.
+    // Legacy uses single-process bez crashpad.
+    headless: true,
     dumpio: false,
   })
   try {
