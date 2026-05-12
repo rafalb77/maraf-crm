@@ -14,6 +14,7 @@ Zanim zaczniesz pracę nad konkretnym modułem — przeczytaj odpowiedni plik. T
 ### Otwarte sprawy (do dokończenia)
 
 - **`docs/pdf-generator-status.md`** — PDF z ofertą jako attachment maila nie działa na produkcji (Chrome pada przy launch). Stan po wszystkich próbach + checklist co sprawdzić w nowej sesji.
+- **`docs/obmiary-rozpoczecie.md`** — moduł obmiarów z rysunków (DXF/PDF). Schema + dependencies gotowe, ale brak UI/API. 4 warianty MVP do wyboru z user'em (manualne klikanie / DXF parser / AI / pełna integracja z Przerobami).
 
 Aktualizuj te pliki gdy podejmujesz nową decyzję projektową.
 
