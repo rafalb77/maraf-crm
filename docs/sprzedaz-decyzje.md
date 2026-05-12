@@ -133,7 +133,7 @@ User zgłosił chęć **dokończenia generatora umów rezerwacyjnych** w nowej s
 
 1. **Brakujące pola w szablonie** — czy są zmienne które wychodzą jako `...` zamiast wartości? Patrz `lib/contract-generator.ts` — wszystkie placeholdery z fallback'iem `'...'`. User może chcieć wypełnić te które są pomijane (np. nr aktu notarialnego, nr KW, sprzedawca itp.)
 
-2. **PDF zamiast DOCX** — klient woli PDF (nie wszyscy mają Worda). Rozwiązanie: po wygenerowaniu DOCX → konwersja do PDF przez puppeteer (jak oferty, **po rozwiązaniu** `docs/pdf-generator-status.md`) ALBO przez `libreoffice` w Docker.
+2. **PDF zamiast DOCX** — klient woli PDF (nie wszyscy mają Worda). Rozwiązanie: reuse Puppeteer setupu z ofert (`lib/pdf-generator.ts` + Google Chrome w Dockerfile — już skonfigurowane i działające). Można renderować umowę jako HTML (analogicznie do `lib/offer-pdf-html.ts`) i przepuścić przez ten sam wrapper, ALBO LibreOffice w Docker (`apt install libreoffice`) — wtedy DOCX → PDF jedną komendą `soffice --headless --convert-to pdf`.
 
 3. **Preview w UI przed pobraniem** — obecnie endpoint zwraca plik bezpośrednio. Można dorobić stronę `/sales/[id]/preview` z renderem zawartości umowy (DOCX → HTML preview) + przycisk „Pobierz".
 
