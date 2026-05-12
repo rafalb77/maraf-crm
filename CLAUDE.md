@@ -9,7 +9,8 @@ Zanim zaczniesz pracę nad konkretnym modułem — przeczytaj odpowiedni plik. T
 - **`docs/przeroby-decyzje.md`** — moduł Przeroby (porównanie Maraf vs Konrad, mapowania kondygnacji, idempotencja reimportu)
 - **`docs/oferty-decyzje.md`** — kalkulator ofert, rabat brutto/netto, druk PDF, wysyłka mailem
 - **`docs/dashboard-decyzje.md`** — TopWidget (powitanie/news/pogoda), RSS, Open-Meteo
-- **`docs/sprzedaz-decyzje.md`** — moduł Sprzedaż (umowy rezerwacyjne, generowanie DOCX, konwersja z oferty). Stan obecny + plan na podpisywanie umów (4 warianty MVP).
+- **`docs/sprzedaz-decyzje.md`** — moduł Sprzedaż (umowy rezerwacyjne, generowanie DOCX, konwersja z oferty). Stan obecny + plan na podpisywanie umów (4 warianty MVP) + 10 kierunków rozwoju generatora.
+- **`docs/lokale-decyzje.md`** — moduł Lokale (CRUD, import xlsx, statusy, rezerwacje). Stan obecny + 10 kierunków rozwoju (bulk ops, wizualizacja, historia, floor plan, integracje).
 - **`docs/changelog.md`** — dziennik niebanalnych decyzji technicznych z datami („dlaczego coś jest tak a nie inaczej")
 - **`docs/infrastruktura.md`** — panele administracyjne, URL-e (Coolify, OVH, GitHub), SMTP, awaryjne ścieżki resetu hasła. **Patrz tu gdy user pyta „jak zalogować się do Coolify" lub o inne kwestie operacyjne.**
 
