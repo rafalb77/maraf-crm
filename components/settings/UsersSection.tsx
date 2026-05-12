@@ -1,6 +1,8 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { UserPlus, Mail, Trash2, RotateCcw, X, CheckCircle2, AlertTriangle, Clock } from 'lucide-react'
+import { UserPlus, Mail, Trash2, RotateCcw, X, CheckCircle2, AlertTriangle, Clock, Shield } from 'lucide-react'
+import { ALL_PERMISSIONS, PERMISSION_LABELS, type Permission } from '@/lib/permissions'
+import { isAdmin } from '@/lib/auth-utils'
 
 type User = {
   id: string
@@ -8,6 +10,7 @@ type User = {
   name: string | null
   createdAt: string
   pendingActivation: boolean
+  permissions: string[]
 }
 
 type SessionInfo = { id?: string; email?: string }
@@ -96,6 +99,28 @@ export function UsersSection({ currentUserEmail }: { currentUserEmail: string })
     }
   }
 
+  async function savePermissions(user: User, perms: string[]) {
+    setBusy(user.id)
+    try {
+      const res = await fetch(`/api/users/${user.id}/permissions`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ permissions: perms }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || 'Błąd zapisu uprawnień')
+      setUsers((arr) => arr.map((u) => (u.id === user.id ? { ...u, permissions: data.permissions || perms } : u)))
+      setInfo({
+        type: 'ok',
+        msg: `Uprawnienia ${user.email} zaktualizowane. User musi wylogować się i zalogować ponownie, żeby zmiany weszły w życie.`,
+      })
+    } catch (e: any) {
+      setInfo({ type: 'err', msg: e.message })
+    } finally {
+      setBusy(null)
+    }
+  }
+
   async function sendReset(user: User) {
     setBusy(user.id)
     try {
@@ -123,9 +148,9 @@ export function UsersSection({ currentUserEmail }: { currentUserEmail: string })
     <div className="bg-white rounded-xl border border-gray-200 p-6">
       <div className="flex items-start justify-between mb-4">
         <div>
-          <h2 className="font-semibold text-gray-900">Użytkownicy</h2>
+          <h2 className="font-semibold text-gray-900">Użytkownicy i uprawnienia</h2>
           <p className="text-sm text-gray-500 mt-1">
-            Konta z dostępem do systemu. Każdy zalogowany ma pełne uprawnienia.
+            Konta z dostępem do systemu. Klikaj checkboxy żeby nadać/odebrać dostęp do sekcji. Po zmianie user musi się wylogować i zalogować ponownie.
           </p>
         </div>
         <button
@@ -174,76 +199,18 @@ export function UsersSection({ currentUserEmail }: { currentUserEmail: string })
       ) : users.length === 0 ? (
         <div className="text-sm text-gray-500 py-4">Brak użytkowników.</div>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-left text-xs uppercase tracking-wide text-gray-500 border-b border-gray-100">
-                <th className="px-3 py-2 font-medium">Imię</th>
-                <th className="px-3 py-2 font-medium">Email</th>
-                <th className="px-3 py-2 font-medium">Status</th>
-                <th className="px-3 py-2 font-medium">Dodany</th>
-                <th className="px-3 py-2 font-medium text-right">Akcje</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {users.map((u) => {
-                const isMe = u.email === currentUserEmail
-                return (
-                  <tr key={u.id}>
-                    <td className="px-3 py-3 text-gray-900 whitespace-nowrap">{u.name || <span className="text-gray-400">—</span>}</td>
-                    <td className="px-3 py-3 text-gray-700">
-                      <div className="flex items-center gap-2">
-                        <span className="break-all">{u.email}</span>
-                        {isMe && (
-                          <span className="text-[10px] text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded flex-shrink-0">to Ty</span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-3 py-3">
-                      {u.pendingActivation ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-50 text-amber-800 text-xs font-medium rounded whitespace-nowrap">
-                          <Clock className="w-3 h-3" />
-                          Czeka na aktywację
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-50 text-green-800 text-xs font-medium rounded whitespace-nowrap">
-                          <CheckCircle2 className="w-3 h-3" />
-                          Aktywne
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-3 py-3 text-gray-500 whitespace-nowrap">
-                      {new Date(u.createdAt).toLocaleDateString('pl-PL')}
-                    </td>
-                    <td className="px-3 py-3 text-right whitespace-nowrap">
-                      <div className="inline-flex items-center gap-1">
-                        <button
-                          onClick={() => sendReset(u)}
-                          disabled={busy === u.id}
-                          className="text-gray-500 hover:text-gray-900 hover:bg-gray-100 p-1.5 rounded inline-flex items-center disabled:opacity-50"
-                          title="Wyślij ponownie link do resetu hasła"
-                          aria-label="Reset hasła"
-                        >
-                          <RotateCcw className="w-4 h-4" />
-                        </button>
-                        {!isMe && (
-                          <button
-                            onClick={() => del(u)}
-                            disabled={busy === u.id}
-                            className="text-red-600 hover:text-red-700 hover:bg-red-50 p-1.5 rounded inline-flex items-center disabled:opacity-50"
-                            title="Usuń użytkownika"
-                            aria-label="Usuń"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+        <div className="space-y-3">
+          {users.map((u) => (
+            <UserRow
+              key={u.id}
+              user={u}
+              isMe={u.email === currentUserEmail}
+              busy={busy === u.id}
+              onDelete={() => del(u)}
+              onReset={() => sendReset(u)}
+              onPermissionsChange={(perms) => savePermissions(u, perms)}
+            />
+          ))}
         </div>
       )}
 
@@ -322,6 +289,164 @@ export function UsersSection({ currentUserEmail }: { currentUserEmail: string })
             </form>
           </div>
         </div>
+      )}
+    </div>
+  )
+}
+
+function UserRow({
+  user,
+  isMe,
+  busy,
+  onDelete,
+  onReset,
+  onPermissionsChange,
+}: {
+  user: User
+  isMe: boolean
+  busy: boolean
+  onDelete: () => void
+  onReset: () => void
+  onPermissionsChange: (perms: string[]) => void
+}) {
+  // Admin (z env) ma override — w UI checkboxy disabled + komunikat
+  const userIsAdmin = isAdmin(user.email)
+  // Lokalny state checkboxów — pozwala kliknąć kilka naraz przed save
+  const [localPerms, setLocalPerms] = useState<string[]>(user.permissions || [])
+  const [dirty, setDirty] = useState(false)
+
+  // Sync gdy parent zaaktualizuje user (np. po fetch)
+  useEffect(() => {
+    setLocalPerms(user.permissions || [])
+    setDirty(false)
+  }, [user.permissions])
+
+  function toggle(perm: string) {
+    setLocalPerms((arr) => {
+      const next = arr.includes(perm) ? arr.filter((p) => p !== perm) : [...arr, perm]
+      setDirty(true)
+      return next
+    })
+  }
+
+  function selectAll() {
+    setLocalPerms([...ALL_PERMISSIONS])
+    setDirty(true)
+  }
+  function clearAll() {
+    setLocalPerms([])
+    setDirty(true)
+  }
+
+  return (
+    <div className="border border-gray-200 rounded-lg p-4 bg-white">
+      <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="font-medium text-gray-900">{user.name || user.email}</span>
+            {isMe && (
+              <span className="text-[10px] text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">to Ty</span>
+            )}
+            {userIsAdmin && (
+              <span className="text-[10px] text-purple-700 bg-purple-50 px-1.5 py-0.5 rounded inline-flex items-center gap-1">
+                <Shield className="w-3 h-3" />
+                Administrator
+              </span>
+            )}
+            {user.pendingActivation ? (
+              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-amber-50 text-amber-800 text-[10px] font-medium rounded">
+                <Clock className="w-3 h-3" />
+                Czeka na aktywację
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-green-50 text-green-800 text-[10px] font-medium rounded">
+                <CheckCircle2 className="w-3 h-3" />
+                Aktywne
+              </span>
+            )}
+          </div>
+          {user.name && <p className="text-xs text-gray-500 mt-0.5 break-all">{user.email}</p>}
+          <p className="text-[10px] text-gray-400 mt-0.5">Dodany {new Date(user.createdAt).toLocaleDateString('pl-PL')}</p>
+        </div>
+        <div className="inline-flex items-center gap-1">
+          <button
+            onClick={onReset}
+            disabled={busy}
+            className="text-gray-500 hover:text-gray-900 hover:bg-gray-100 p-1.5 rounded inline-flex items-center disabled:opacity-50"
+            title="Wyślij link do resetu hasła"
+          >
+            <RotateCcw className="w-4 h-4" />
+          </button>
+          {!isMe && (
+            <button
+              onClick={onDelete}
+              disabled={busy}
+              className="text-red-600 hover:text-red-700 hover:bg-red-50 p-1.5 rounded inline-flex items-center disabled:opacity-50"
+              title="Usuń użytkownika"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {userIsAdmin ? (
+        <p className="text-xs text-purple-700 bg-purple-50 border border-purple-100 rounded px-2 py-1.5">
+          Administrator ma dostęp do wszystkich sekcji (override przez NEXT_PUBLIC_ADMIN_EMAIL).
+        </p>
+      ) : (
+        <>
+          <div className="flex flex-wrap gap-1.5 mb-2">
+            {ALL_PERMISSIONS.map((perm) => {
+              const checked = localPerms.includes(perm)
+              return (
+                <label
+                  key={perm}
+                  className={`inline-flex items-center gap-1.5 px-2 py-1 border rounded text-xs cursor-pointer select-none transition-colors ${
+                    checked
+                      ? 'bg-blue-50 border-blue-300 text-blue-800'
+                      : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300'
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={() => toggle(perm)}
+                    className="w-3 h-3"
+                  />
+                  {PERMISSION_LABELS[perm as Permission]}
+                </label>
+              )
+            })}
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              type="button"
+              onClick={selectAll}
+              className="text-[11px] text-gray-500 hover:text-gray-700 underline"
+            >
+              Zaznacz wszystkie
+            </button>
+            <span className="text-gray-300">·</span>
+            <button
+              type="button"
+              onClick={clearAll}
+              className="text-[11px] text-gray-500 hover:text-gray-700 underline"
+            >
+              Odznacz wszystkie
+            </button>
+            {dirty && (
+              <button
+                type="button"
+                onClick={() => onPermissionsChange(localPerms)}
+                disabled={busy}
+                className="ml-auto bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white text-xs font-medium px-3 py-1 rounded"
+              >
+                {busy ? 'Zapisuję...' : '💾 Zapisz uprawnienia'}
+              </button>
+            )}
+          </div>
+        </>
       )}
     </div>
   )

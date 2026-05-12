@@ -106,22 +106,27 @@ Label `MANUAL_NOT_FOUND` w UI brzmi „brak u kierownika" — żeby nie mylił z
 - **Nadziemia Maraf nie ma „Słupów"** — tylko „Trzpienie nadziemia". Słupy są tylko na parterze (`Słupy 0`). Mapowanie to uwzględnia (parter: array `[Słupy 0, Trzpienie 0]`, piętra: tylko `Trzpienie nadziemia`).
 - **Maraf `Ścianki fund.` są na parterze** (Kondygnacja 0), nie pod-fundamentowe — Maraf liczy je jako część `Piony 0`. Dlatego mapowanie ścian parteru łączy `[Ściany 0, Ścianki fund.]`.
 
-### 8. Rola `CONTRACTOR` (kierownik podwykonawcy, np. Konrad)
+### 8. Per-user permissions (zastępuje rolę `CONTRACTOR`)
 
-Konrad ma własne konto w aplikacji ale widzi **tylko sekcję Przeroby**. Inne strony (klienci, oferty, sprzedaż, settings) są zablokowane:
+Globalny system dostępu — każdy user ma listę sekcji do których ma dostęp. Konrad ma `['przeroby']`. Maraf-sprzedawca może mieć `['clients', 'oferty', 'sales']`. Admin (z env) zawsze ma wszystko (override).
 
-- **Identyfikacja**: hardcoded email w env `NEXT_PUBLIC_CONTRACTOR_EMAIL` (analogicznie do `NEXT_PUBLIC_ADMIN_EMAIL`). Bez `User.role` w schema — jeden contractor obecnie, jeśli będzie więcej → zmienić na listę albo dodać `role` enum.
-- **Server-side gate**: `middleware.ts` na root projektu, używa `next-auth/jwt` `getToken()`. Dla contractor poza białą listą → redirect `/przeroby` (strony) lub 403 JSON (API).
-- **Client-side gate**: `components/layout/Sidebar.tsx` filtruje `visibleSections` — contractor widzi tylko grupę „Przeroby". Link Settings też ukryty (bo `isAdmin` zwraca false).
-- **Biała lista** (`contractorCanAccess()` w `lib/auth-utils.ts`): `/przeroby/*`, `/api/przeroby/*`, `/api/auth/*` (logout/session).
+- **Definicja sekcji**: `lib/permissions.ts` → `ALL_PERMISSIONS` = `['dashboard','clients','units','oferty','sales','service','mailing','calendar','przeroby']` (9 top-level). `settings` jest hardcoded admin-only.
+- **Mapowanie URL → permission**: `getRequiredPermission(pathname)` — pokrywa strony `(app)/*` i API `/api/*`. Zwraca `Permission`, `'admin'` (settings/users) lub `null` (auth, statics).
+- **Schema**: `User.permissions String[] @default([])`. Default pusty — nowy user ma 0 dostępu, admin nadaje w `/settings`.
+- **Server-side gate**: `middleware.ts` czyta `token.permissions` (z JWT). Admin override; brak permission → 403 JSON dla API, redirect na `getFirstAvailableUrl(permissions)` dla stron.
+- **Client-side gate**: `Sidebar` filtruje `items` per-section po `session.user.permissions`. Sekcja bez żadnego dostępnego item-a znika.
+- **NextAuth callbacks** (`lib/auth.ts`): `jwt()` przy logowaniu (i `trigger === 'update'`) pobiera permissions z DB → token. `session()` propaguje do `session.user.permissions`. Typy w `types/next-auth.d.ts`.
 
-**Pułapka rebuildu**: `NEXT_PUBLIC_CONTRACTOR_EMAIL` jest inline'owane w client bundle przy `next build` (jak każdy `NEXT_PUBLIC_*`). Po zmianie env w Coolify trzeba **rebuild deploy**, nie restart — inaczej Sidebar client-side nie zauważy roli (mimo że middleware server-side już blokuje).
+**Zarządzanie w UI**: `/settings` → karta per-user z checkboxami sekcji + „Zaznacz/Odznacz wszystkie" + przycisk zapisu (pojawia się tylko gdy dirty). Endpoint `PATCH /api/users/[id]/permissions` (tylko admin).
 
-**Setup nowego contractor'a (np. Konrada)**:
-1. `/settings` → dodać usera (email + hasło)
-2. Coolify env: `NEXT_PUBLIC_CONTRACTOR_EMAIL=konrad@...`
-3. Coolify: redeploy (rebuild)
-4. Konrad loguje się → automatycznie ląduje na `/przeroby` (middleware przekierowuje z `/dashboard`)
+**Pułapka snapshot-u**: permissions są snapshot w JWT przy logowaniu (nie czytane co request, żeby uniknąć dodatkowej DB query). Po zmianie w `/settings` user musi się **wylogować i zalogować ponownie**. UI o tym informuje po zapisie.
+
+**Setup nowego usera (np. Konrada)**:
+1. `/settings` → „Dodaj użytkownika" (mail + imię) → admin dostaje link aktywacyjny mailem albo kopiuje go ręcznie
+2. Po aktywacji w tej samej karcie usera zaznacz checkboxy sekcji (np. „Przeroby" dla Konrada) → „Zapisz uprawnienia"
+3. User loguje się → automatycznie ląduje na pierwszej dostępnej sekcji (preferred order: dashboard → przeroby → ...)
+
+**Cleanup**: stary `NEXT_PUBLIC_CONTRACTOR_EMAIL` + `isContractor()` + `contractorCanAccess()` zostały usunięte. Jeśli nadal jest w env Coolify — można usunąć (ignorowane).
 
 ### 9. Wartość Konrada wpisana ręcznie + uzasadnienie >5%
 
@@ -139,14 +144,7 @@ Walidacja progu jest **w UI** (`KonradEditor` ma `reasonMissing` flag). API endp
 
 **Reimport zachowuje** `konradManualValue` + `konradManualReason` (preserveMap w `lib/przedmiar-konrad-import.ts`) — analogicznie do `manualValue`. Łapane też w odtworzeniu historii.
 
-**Kto edytuje co**:
-| Rola | manualValue (Maraf) | konradManualValue (Konrad) | accepted |
-|---|---|---|---|
-| Admin | ✅ | ✅ | ✅ |
-| Contractor (Konrad) | ❌ (403) | ✅ | ✅ |
-| Zwykły user | ✅ | ✅ | ✅ |
-
-Endpoint PATCH zwraca 403 dla contractor który próbuje edytować `manualValue`/`manualNote`. UI ukrywa sekcję Maraf-editora dla contractor (`canEditMaraf` prop z page.tsx). UI pokazuje sekcję Konrad-editora dla admin + contractor (`canEditKonrad`).
+**Kto edytuje co**: każdy z permission `przeroby` (i admin) edytuje obie wartości — `manualValue` (Maraf) i `konradManualValue` (Konrad). Granularne rozróżnienie (np. `przeroby:edit-maraf` jako osobna permission) **nie jest** zaimplementowane — historia zmian (`FloorSummaryItemHistory.userEmail`) wystarczy do auditingu. Jeśli kiedyś biznesowo trzeba zablokować Konradowi edycję Marafa — wprowadzić osobny permission.
 
 **Pozycja „gotowa do protokołu"** (`totalReady` w page.tsx) — rozszerzona: zaliczona jest też pozycja z `konradManualValue` jeśli Δ ≤ 5% **lub** wpisane jest uzasadnienie. Plus oryginalne kryteria (`accepted`, `manualValue`, `AUTO_OK` w tolerancji).
 

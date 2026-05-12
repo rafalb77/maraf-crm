@@ -3,7 +3,8 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { signOut, useSession } from 'next-auth/react'
 import { LogoFull } from './Logo'
-import { isAdmin, isContractor } from '@/lib/auth-utils'
+import { isAdmin } from '@/lib/auth-utils'
+import { getRequiredPermission } from '@/lib/permissions'
 
 type NavItem = { href: string; label: string; icon: React.ReactNode }
 type NavSection = { label?: string; items: NavItem[] }
@@ -105,13 +106,23 @@ export function Sidebar() {
   const pathname = usePathname()
   const { data: session } = useSession()
   const userIsAdmin = isAdmin(session?.user?.email)
-  const userIsContractor = isContractor(session?.user?.email)
+  const userPermissions = (session?.user as any)?.permissions as string[] | undefined
 
-  // Contractor (np. Konrad-kierownik) widzi tylko sekcje Przeroby.
-  // Middleware blokuje inne strony server-side; tu odfiltrowujemy nav.
-  const visibleSections = userIsContractor
-    ? sections.filter((s) => s.label === 'Przeroby')
+  // Admin widzi wszystko. Inni — tylko sekcje do których mają permission
+  // (sprawdzamy per-item po pierwszym segmencie URL → required permission).
+  const visibleSections = userIsAdmin
+    ? sections
     : sections
+        .map((s) => ({
+          ...s,
+          items: s.items.filter((item) => {
+            const required = getRequiredPermission(item.href)
+            if (required === null) return true
+            if (required === 'admin') return false // admin już obsłużony powyżej
+            return (userPermissions || []).includes(required)
+          }),
+        }))
+        .filter((s) => s.items.length > 0)
 
   const itemBase = 'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-150'
 

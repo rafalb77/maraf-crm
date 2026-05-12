@@ -111,13 +111,9 @@ function fmt(n: number | null | undefined) {
 export function ComparisonTable({
   summaryId,
   items: initial,
-  canEditKonrad = true,
-  canEditMaraf = true,
 }: {
   summaryId: string
   items: Item[]
-  canEditKonrad?: boolean
-  canEditMaraf?: boolean
 }) {
   const [items, setItems] = useState(initial)
   const [openId, setOpenId] = useState<string | null>(null)
@@ -146,8 +142,6 @@ export function ComparisonTable({
                 key={it.id}
                 item={it}
                 isOpen={openId === it.id}
-                canEditKonrad={canEditKonrad}
-                canEditMaraf={canEditMaraf}
                 onToggle={() => setOpenId(openId === it.id ? null : it.id)}
                 onUpdate={(patch) => setItems((arr) => arr.map((x) => (x.id === it.id ? { ...x, ...patch } : x)))}
               />
@@ -162,15 +156,11 @@ export function ComparisonTable({
 function ItemRow({
   item,
   isOpen,
-  canEditKonrad,
-  canEditMaraf,
   onToggle,
   onUpdate,
 }: {
   item: Item
   isOpen: boolean
-  canEditKonrad: boolean
-  canEditMaraf: boolean
   onToggle: () => void
   onUpdate: (patch: Partial<Item>) => void
 }) {
@@ -368,37 +358,33 @@ function ItemRow({
               )}
             </div>
 
-            {/* Edycja ręczna — wartość Konrada (gdy ma uprawnienia) */}
-            {canEditKonrad && (
-              <div className="mt-4 bg-white rounded-lg border border-indigo-200 p-3">
-                <p className="text-xs font-semibold text-indigo-800 mb-1">
-                  Wartość Konrada (ręczna)
-                </p>
-                <p className="text-[11px] text-gray-500 mb-3 leading-relaxed">
-                  Wpisz wartość kierownika gdy nie ma jej w xlsx „Ściany i słupy żelb.". Jeśli różnica vs Maraf przekroczy {Math.round(KONRAD_DIFF_THRESHOLD * 100)}% — wymagane uzasadnienie.
-                </p>
-                <KonradEditor
-                  item={item}
-                  marafValue={marafValue}
-                  saving={saving}
-                  onSave={save}
-                />
-              </div>
-            )}
+            {/* Edycja ręczna — wartość Konrada */}
+            <div className="mt-4 bg-white rounded-lg border border-indigo-200 p-3">
+              <p className="text-xs font-semibold text-indigo-800 mb-1">
+                Wartość Konrada (ręczna)
+              </p>
+              <p className="text-[11px] text-gray-500 mb-3 leading-relaxed">
+                Wpisz wartość kierownika gdy nie ma jej w xlsx „Ściany i słupy żelb.". Jeśli różnica vs Maraf przekroczy {Math.round(KONRAD_DIFF_THRESHOLD * 100)}% — wymagane uzasadnienie.
+              </p>
+              <KonradEditor
+                item={item}
+                marafValue={marafValue}
+                saving={saving}
+                onSave={save}
+              />
+            </div>
 
-            {/* Edycja ręczna — wartość Marafa (gdy ma uprawnienia) */}
-            {canEditMaraf && (
-              <div className="mt-4 bg-white rounded-lg border border-gray-200 p-3">
-                <p className="text-xs font-semibold text-gray-700 mb-3">
-                  Ręczne wprowadzenie wartości Marafa i komentarz
-                </p>
-                <ManualEditor
-                  item={item}
-                  saving={saving}
-                  onSave={save}
-                />
-              </div>
-            )}
+            {/* Edycja ręczna — wartość Marafa */}
+            <div className="mt-4 bg-white rounded-lg border border-gray-200 p-3">
+              <p className="text-xs font-semibold text-gray-700 mb-3">
+                Ręczne wprowadzenie wartości Marafa i komentarz
+              </p>
+              <ManualEditor
+                item={item}
+                saving={saving}
+                onSave={save}
+              />
+            </div>
 
             {savedAt && (
               <p className="text-xs text-green-600 mt-2">✓ Zapisano o {savedAt.toLocaleTimeString('pl-PL')}</p>

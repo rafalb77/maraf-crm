@@ -1,8 +1,5 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
-import { isAdmin, isContractor } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
 import { ComparisonTable } from '@/components/przeroby/ComparisonTable'
 import { ProtocolGenerator } from '@/components/przeroby/ProtocolGenerator'
@@ -23,14 +20,6 @@ export default async function PorownaniaPage({
   params: Promise<{ floor: string }>
 }) {
   const { floor } = await params
-  const session = await getServerSession(authOptions)
-  const userEmail = session?.user?.email
-  const userIsAdmin = isAdmin(userEmail)
-  const userIsContractor = isContractor(userEmail)
-  // Wartość Konrada edytuje Konrad (contractor) lub admin. Maraf-inżynier (zwykły
-  // user) edytuje tylko manualValue (Maraf override) — bez zmian względem stanu
-  // sprzed dodania pola Konrada.
-  const canEditKonrad = userIsAdmin || userIsContractor
 
   const summary = await prisma.floorSummary.findFirst({
     where: { floor },
@@ -243,7 +232,7 @@ export default async function PorownaniaPage({
         total={computed.length}
       />
 
-      <ComparisonTable summaryId={summary.id} items={computed} canEditKonrad={canEditKonrad} canEditMaraf={!userIsContractor || userIsAdmin} />
+      <ComparisonTable summaryId={summary.id} items={computed} />
     </div>
   )
 }

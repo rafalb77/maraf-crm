@@ -1,19 +1,23 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { getToken } from 'next-auth/jwt'
-import { isContractor, contractorCanAccess } from '@/lib/auth-utils'
+import { isAdmin } from '@/lib/auth-utils'
+import { getRequiredPermission, getFirstAvailableUrl } from '@/lib/permissions'
 
 /**
- * Server-side gate dla rol CONTRACTOR (np. Konrad — kierownik podwykonawcy).
+ * Server-side gate per-permission.
  *
- * CONTRACTOR widzi tylko sekcje Przeroby. Proba wejscia na inne strony →
- * redirect /przeroby. Proba wywolania innych endpointow API → 403.
+ * Czyta permissions z JWT (snapshot przy logowaniu — patrz lib/auth.ts jwt callback).
+ * Sprawdza pathname → wymagana permission (lib/permissions.ts):
+ *  - admin (NEXT_PUBLIC_ADMIN_EMAIL) ma override, przepuszczamy wszystko
+ *  - permission match → przepuść
+ *  - brak permission → 403 JSON dla /api/*, redirect na pierwszą dostępną sekcję dla stron
+ *  - required === 'admin' i user nie jest adminem → jak wyżej
  *
- * Authenticacja sama w sobie nie jest tu sprawdzana — niezalogowani sa
- * blokowani na poziomie strony przez (app)/layout.tsx (`if (!session)
- * redirect /auth/signin`). Middleware uzupelnia o gate ROLE.
+ * Authenticacja sama w sobie nie jest tu sprawdzana — niezalogowani sa blokowani
+ * na poziomie strony przez (app)/layout.tsx. Middleware uzupelnia o gate PERMISSIONS.
  *
- * Matcher wyklucza: /auth/*, /api/auth/* (zeby logowanie/wylogowanie dzialalo),
- * /_next/*, static assets (pliki z kropka w nazwie).
+ * Po update permissions w /settings user musi się wylogować i zalogować ponownie
+ * (token JWT jest snapshot-em).
  */
 export async function middleware(req: NextRequest) {
   const pathname = req.nextUrl.pathname
@@ -21,17 +25,35 @@ export async function middleware(req: NextRequest) {
   const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET })
   if (!token?.email) return NextResponse.next()
 
-  if (isContractor(token.email) && !contractorCanAccess(pathname)) {
+  // Admin override — zawsze ma wszystko.
+  if (isAdmin(token.email)) return NextResponse.next()
+
+  const required = getRequiredPermission(pathname)
+  if (required === null) return NextResponse.next()
+
+  const permissions = (token.permissions as string[] | undefined) || []
+
+  // 'admin' wymagany — tylko admin (już sprawdzony wyżej), zwykły user dostaje deny.
+  if (required === 'admin') {
     if (pathname.startsWith('/api/')) {
-      return new NextResponse(JSON.stringify({ error: 'Forbidden' }), {
+      return new NextResponse(JSON.stringify({ error: 'Forbidden — admin only' }), {
         status: 403,
         headers: { 'content-type': 'application/json' },
       })
     }
-    return NextResponse.redirect(new URL('/przeroby', req.url))
+    return NextResponse.redirect(new URL(getFirstAvailableUrl(permissions), req.url))
   }
 
-  return NextResponse.next()
+  if (permissions.includes(required)) return NextResponse.next()
+
+  // Brak permission.
+  if (pathname.startsWith('/api/')) {
+    return new NextResponse(JSON.stringify({ error: 'Forbidden' }), {
+      status: 403,
+      headers: { 'content-type': 'application/json' },
+    })
+  }
+  return NextResponse.redirect(new URL(getFirstAvailableUrl(permissions), req.url))
 }
 
 export const config = {

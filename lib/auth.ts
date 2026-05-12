@@ -30,12 +30,31 @@ export const authOptions: NextAuthOptions = {
   session: { strategy: 'jwt' },
   pages: { signIn: '/auth/signin' },
   callbacks: {
-    async jwt({ token, user }) {
-      if (user) token.id = user.id
+    async jwt({ token, user, trigger }) {
+      // Przy login (user object jest dostępne) ORAZ przy "update" session — pobierz fresh
+      // permissions z DB. Bez update trigger token zachowuje permissions z login.
+      // Admin (NEXT_PUBLIC_ADMIN_EMAIL) override jest w hasPermission/middleware,
+      // tutaj zapisujemy tylko surowe permissions z DB.
+      if (user || trigger === 'update') {
+        const email = user?.email || token.email
+        if (email) {
+          const dbUser = await prisma.user.findUnique({
+            where: { email },
+            select: { id: true, permissions: true },
+          })
+          if (dbUser) {
+            token.id = dbUser.id
+            token.permissions = dbUser.permissions
+          }
+        }
+      }
       return token
     },
     async session({ session, token }) {
-      if (token && session.user) session.user.id = token.id as string
+      if (token && session.user) {
+        session.user.id = (token.id as string) || ''
+        session.user.permissions = (token.permissions as string[]) || []
+      }
       return session
     },
   },

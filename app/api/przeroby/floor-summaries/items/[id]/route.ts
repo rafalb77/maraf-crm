@@ -2,8 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { isAdmin, isContractor } from '@/lib/auth-utils'
 
+// Dostep gate'owany jest na poziomie middleware (permission 'przeroby').
+// Wszyscy z tym permission (i admin) moga edytowac obie wartosci — manualValue
+// (Maraf) i konradManualValue (Konrad). Historia zmian (FloorSummaryItemHistory)
+// trzyma kto-co-kiedy do auditingu.
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -15,19 +18,6 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (!existing) return NextResponse.json({ error: 'Nie znaleziono' }, { status: 404 })
 
   const userEmail = (session.user as any)?.email || null
-  const userIsAdmin = isAdmin(userEmail)
-  const userIsContractor = isContractor(userEmail)
-
-  // Contractor (Konrad) NIE moze edytowac manualValue (Maraf ręczny). To pole
-  // jest dla inżyniera/admina, contractor edytuje wylacznie wartosc Konrada.
-  if (userIsContractor && !userIsAdmin) {
-    if ('manualValue' in body || 'manualNote' in body) {
-      return NextResponse.json(
-        { error: 'Brak uprawnień do edycji wartości Marafa. Edytuj wartość Konrada poniżej.' },
-        { status: 403 },
-      )
-    }
-  }
 
   const data: any = {}
   const historyEntries: any[] = []

@@ -8,6 +8,11 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// permissions: lista sekcji do których user ma dostęp (np. ['przeroby', 'clients']).
+// Identyfikatory zdefiniowane w lib/permissions.ts (ALL_PERMISSIONS).
+// Admin (NEXT_PUBLIC_ADMIN_EMAIL) ma override — jego permissions ignorowane, zawsze ma wszystko.
+// Default [] — bezpieczny default; nowy user nie ma dostępu nigdzie dopóki admin nie nada.
+// Istniejący userzy też dostaną [] po `prisma db push` — admin musi w /settings nadać im sekcje.
 model User {
   id                String    @id @default(cuid())
   email             String    @unique
@@ -15,6 +20,7 @@ model User {
   name              String?
   resetToken        String?   @unique
   resetTokenExpiry  DateTime?
+  permissions       String[]  @default([])
   createdAt         DateTime  @default(now())
 }
 

@@ -26,6 +26,7 @@ export async function GET() {
       createdAt: true,
       resetTokenExpiry: true, // służy tylko do statusu "czeka na aktywację"
       password: true, // sprawdzamy tylko czy nie pusty/placeholder
+      permissions: true,
     },
     orderBy: { createdAt: 'asc' },
   })
@@ -43,6 +44,7 @@ export async function GET() {
       name: u.name,
       createdAt: u.createdAt,
       pendingActivation: u.resetTokenExpiry ? u.resetTokenExpiry > now : false,
+      permissions: u.permissions,
     })),
   })
 }
