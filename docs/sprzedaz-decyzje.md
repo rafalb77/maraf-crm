@@ -125,17 +125,61 @@ Integracja z **Autenti** (PL), **DocuSign** (US), **Adobe Sign**, **SignNow**:
 - **Konwersja oferty** ustawia lokale na `ZAREZERWOWANY` ale `reservationType` może być null — uzgodnić co dokładnie ustawić (MIEKKA z expiry 7 dni? REZERWACJA?).
 - **Numer kontraktu** generowany przy create — jeśli stworzysz i skasujesz, numer leci „dziurawo". To OK dla audytu.
 
+## Generowanie umów rezerwacyjnych — otwarte sprawy
+
+User zgłosił chęć **dokończenia generatora umów rezerwacyjnych** w nowej sesji. Aktualnie generator DZIAŁA (przycisk „Pobierz" w `/sales/[id]` → endpoint `GET /api/contracts/[id]/generate` → DOCX z szablonu). Co może być „niedokończone":
+
+### Potencjalne kierunki — **zapytaj usera w nowej sesji** który chce
+
+1. **Brakujące pola w szablonie** — czy są zmienne które wychodzą jako `...` zamiast wartości? Patrz `lib/contract-generator.ts` — wszystkie placeholdery z fallback'iem `'...'`. User może chcieć wypełnić te które są pomijane (np. nr aktu notarialnego, nr KW, sprzedawca itp.)
+
+2. **PDF zamiast DOCX** — klient woli PDF (nie wszyscy mają Worda). Rozwiązanie: po wygenerowaniu DOCX → konwersja do PDF przez puppeteer (jak oferty, **po rozwiązaniu** `docs/pdf-generator-status.md`) ALBO przez `libreoffice` w Docker.
+
+3. **Preview w UI przed pobraniem** — obecnie endpoint zwraca plik bezpośrednio. Można dorobić stronę `/sales/[id]/preview` z renderem zawartości umowy (DOCX → HTML preview) + przycisk „Pobierz".
+
+4. **Generator dla pozostałych typów umów** — endpoint odrzuca dla `DEWELOPERSKA` i `PRZENIESIENIA` (linia 23 w `app/api/contracts/[id]/generate/route.ts`: „Generowanie z szablonu dostępne na razie tylko dla umów rezerwacyjnych"). Potrzeba nowych szablonów `templates/umowa-deweloperska.docx`, `templates/umowa-przeniesienia.docx` + rozszerzenie `generateContractDocx` o branch per typ.
+
+5. **Customizable klauzule** — user może chcieć **edytować treść** umowy przed pobraniem (np. dodać specjalną klauzulę dla tego klienta). Wymagałoby UI z polem textarea „dodatkowe zapisy" + placeholder `{#additionalClauses}...{/}` w szablonie DOCX.
+
+6. **Wysyłka mailem do klienta** — analogicznie do ofert. Email z umową w załączniku (DOCX + PDF). Endpoint `POST /api/contracts/[id]/email`. Reuse `lib/mailer.ts`.
+
+7. **Auto-generacja przy konwersji oferty** — obecnie konwersja oferty tworzy `Contract` ale nie generuje DOCX. Może warto auto-wygenerować i zapisać do `ContractAttachment`.
+
+8. **Wersjonowanie wygenerowanych dokumentów** — track zmian w czasie (np. „wygenerowane 5.05, zaktualizowane 12.05 po zmianie ceny"). Wymaga `ContractAttachment` z polem `version: Int`.
+
+9. **Sprzedawca / opiekun** — pole `Contract.caretaker` istnieje (`String?`), ale czy jest używane w szablonie i UI? Może chodzi o podpinanie usera-handlowca jako sprzedawcy umowy.
+
+10. **Konkretny bug** — może user widzi błąd w wygenerowanym DOCX (np. zła odmiana, błędna data, źle sformatowana kwota). Wtedy zapytaj **co dokładnie nie pasuje w PDF**.
+
+### Co zrobić w nowej sesji
+
+1. **Najpierw doprecyzuj z userem** — który z 10 punktów ma na myśli. Pytania:
+   - Czy generator zwraca błąd / błędny dokument? (wtedy bug fix)
+   - Czy chcesz nowych typów umów (deweloperska, przeniesienia)?
+   - Czy potrzebujesz PDF zamiast/obok DOCX?
+   - Czy chcesz wysłać umowę mailem z systemu?
+   - Czy podpisywanie cyfrowe (osobny temat — sekcja „Następny krok — podpisywanie" wyżej)?
+
+2. Po wyborze kierunku — sprawdź konkretny plik (`lib/contract-generator.ts` lub szablon DOCX) i zaproponuj plan.
+
 ## Jak rozpocząć w nowej sesji
 
 ```
-"Przeczytaj docs/sprzedaz-decyzje.md. Chcę rozszerzyć moduł Sprzedaż
-o podpisywanie umów rezerwacyjnych. Zadaj mi 4 pytania z sekcji
-'Co zdecydować' i pomóż wybrać wariant."
+"Przeczytaj docs/sprzedaz-decyzje.md. Chcę dokończyć generator umów
+rezerwacyjnych. Zadaj mi pytania z sekcji 'Generowanie umów — otwarte
+sprawy', wybierzemy kierunek, potem plan."
 ```
 
-Lub jeśli wiesz że wariant A:
+Lub jeśli wiesz że to konkretna sprawa, np. PDF:
 
 ```
-"Robimy wariant A z docs/sprzedaz-decyzje.md (wgranie skanu).
-Przedstaw plan implementacji."
+"Z docs/sprzedaz-decyzje.md — chcę żeby umowa była PDF, nie DOCX.
+Plan implementacji?"
+```
+
+Lub jeśli chodzi o podpisywanie (osobny temat):
+
+```
+"Z docs/sprzedaz-decyzje.md sekcja 'Następny krok — podpisywanie'.
+Robimy wariant A (wgranie skanu)."
 ```
