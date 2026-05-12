@@ -181,7 +181,7 @@ function EmailDialog({
   const [to, setTo] = useState(defaultEmail)
   const [subject, setSubject] = useState(`Wiadomość od MARAF Development — ${number}`)
   const [message, setMessage] = useState(
-    `Dzień dobry,\n\nw załączeniu przesyłam ofertę numer ${number} z inwestycji Nova Staffa.\n\nW razie pytań pozostaję do dyspozycji.\n\nPozdrawiam`,
+    `Dzień dobry,\n\nw załączeniu przesyłam ofertę numer ${number} z inwestycji Nova Staffa.\n\nW razie pytań pozostaję do dyspozycji.\n\nPozdrawiam\nRafał Boruch\nt. 501 629 619`,
   )
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -226,7 +226,7 @@ function EmailDialog({
             <textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={6}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500" />
             <p className="text-xs text-gray-400 mt-1">
-              Do maila zostanie dołączony plik PDF z ofertą (do druku) + pełna treść w HTML.
+              Do maila zostanie dołączony plik PDF z ofertą.
             </p>
           </div>
         </div>

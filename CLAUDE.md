@@ -15,9 +15,12 @@ Zanim zaczniesz pracę nad konkretnym modułem — przeczytaj odpowiedni plik. T
 
 ### Otwarte sprawy (do dokończenia)
 
-- **`docs/pdf-generator-status.md`** — PDF z ofertą jako attachment maila nie działa na produkcji (Chrome pada przy launch). Stan po wszystkich próbach + checklist co sprawdzić w nowej sesji.
 - **`docs/obmiary-rozpoczecie.md`** — moduł obmiarów z rysunków (DXF/PDF). Schema + dependencies gotowe, ale brak UI/API. 4 warianty MVP do wyboru z user'em (manualne klikanie / DXF parser / AI / pełna integracja z Przerobami).
 - **`docs/porownanie-obmiarow-rozpoczecie.md`** — porównanie obmiarów (rozszerzenie istniejącego `/przeroby/porownanie`). Zakres niejasny — 4 scenariusze do uzgodnienia z userem (rozszerzenie, historia wersji, xlsx vs rysunek, inne).
+
+_(temat „PDF generator" zamknięty 2026-05-12 — patrz `docs/changelog.md`)_
+
+Gdy w trakcie pracy pojawi się temat niedokończony (deploy padł, fix wymaga osobnej sesji, czekamy na dane od użytkownika) — **wpisz tu** wraz z linkiem do osobnego pliku `docs/<temat>-status.md` z pełnym kontekstem (co próbowano, co nie pomogło, checklist diagnostyki).
 
 Aktualizuj te pliki gdy podejmujesz nową decyzję projektową.
 

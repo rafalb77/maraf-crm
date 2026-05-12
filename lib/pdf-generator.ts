@@ -1,8 +1,11 @@
 // PDF generator dla ofert.
-// Uzywa puppeteer-core + system Chromium (Dockerfile instaluje chromium
-// przez apt). PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium ustawione w env.
+// Uzywa puppeteer-core + system Google Chrome stable (Dockerfile instaluje
+// z oficjalnego repo Google). PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome-stable.
 //
-// W development (lokalnie bez Chromium) — wyrzuca blad ktorego zlapie caller.
+// Patrz docs/changelog.md (2026-05-09 i 2026-05-12) — dlaczego Google Chrome
+// a nie Debian chromium (bug crashpad) i dlaczego user nextjs MUSI miec HOME.
+//
+// W development (lokalnie bez Chrome) — wyrzuca blad ktorego zlapie caller.
 
 import { prisma } from './prisma'
 import { getOfferPdfHtml, type OfferForPdf } from './offer-pdf-html'

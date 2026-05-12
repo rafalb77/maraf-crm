@@ -4,6 +4,18 @@ Krótkie wpisy „co i **dlaczego**". Bez listy wszystkich commitów — od tego
 
 ---
 
+## 2026-05-12
+
+### PDF oferty + wysyłka mailem — działa na produkcji
+**Powód**: Po deployu `b00ed31` (HOME dir dla user nextjs) + `d0ed015` (Google Chrome zamiast Debian chromium) Chrome odpala się czysto, `/api/oferty/[id]/pdf` zwraca PDF, mail z attachmentem dociera. Wcześniejsze raporty „crashpad fail po b00ed31" były z czasu zanim deploy realnie wszedł w kontener — diagnostyka `diag` z `5fb4a73` potwierdziła stan kontenera dopiero teraz: `homeExists: true`, `chromeBinExists: true`, `whoami: nextjs`, `HOME=/home/nextjs`, Chrome odpala się i wypluwa pusty DOM bez crashpad errora (D-Bus errory to niegroźny szum w headless kontenerze).
+**Implementacja**: Bez nowych zmian w kodzie — `b00ed31` + `d0ed015` były właściwymi fixami. Usunięto tymczasową diagnostykę `diag` z endpointu `/pdf`. `docs/pdf-generator-status.md` skasowany.
+
+### Treść maila z ofertą — minimalna (PDF wystarczy)
+**Powód**: Skoro PDF z ofertą jest załącznikiem (z brandingiem + tabelą + sumą + USP Nova Staffa), powielanie tabeli i podsumowania w HTML body było redundantne. Klient i tak otwiera PDF.
+**Implementacja**: `app/api/oferty/[id]/email/route.ts` — usunięto sekcję info oferty + tabelę items + summary + notes. Body to teraz `<p>{messageHtml}</p>` + opcjonalnie `emailSignature` z Settings. Default message w `EmailDialog` zakończony stopką „Pozdrawiam / Rafał Boruch / t. 501 629 619" (user-edytowalna przed wysłaniem). Query `offer` w endpointcie zwężone do potrzebnych pól (number/clientId/status/totalGross).
+
+---
+
 ## 2026-05-09
 
 ### Google Chrome stable zamiast Debian chromium

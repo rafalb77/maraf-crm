@@ -50,13 +50,15 @@ X-Mailer: MARAF CRM
 - 502 jeśli `accepted: []` (SMTP nie potwierdził dostarczenia)
 - W logach `[oferty.email] sent: { messageId, accepted, rejected, response }` dla każdej wysyłki
 
-### 5. PDF jako załącznik
+### 5. PDF jako załącznik + minimalna treść maila
 
 `generateOfferPdf()` w `lib/pdf-generator.ts` — Puppeteer (puppeteer-core + system Google Chrome) renderuje HTML z `lib/offer-pdf-html.ts` do PDF i dołącza do maila. **Non-blocking** — jeśli Chrome padnie, mail leci bez PDF z warningiem w logach.
 
-HTML jest **server-side string** (nie React component) z embedded base64 dla obrazków z `public/`. Niezależne od auth/network/Next.js Image. Layout: A4 portrait, navy+gold branding, 7 kolumn tabeli (uproszczone z 11 dla portrait), sekcja Nova Staffa z USP (8 punktów), karta „DO ZAPŁATY" jako flagship navy+gold.
+HTML PDF-a jest **server-side string** (nie React component) z embedded base64 dla obrazków z `public/`. Niezależne od auth/network/Next.js Image. Layout: A4 portrait, navy+gold branding, 7 kolumn tabeli (uproszczone z 11 dla portrait), sekcja Nova Staffa z USP (8 punktów), karta „DO ZAPŁATY" jako flagship navy+gold.
 
-Endpoint diagnostyczny `/api/oferty/[id]/pdf` zwraca PDF inline — używaj do testów (bez wysyłki maila).
+**Treść samego maila jest celowo minimalna** (zmiana 2026-05-12) — tylko user-wpisana wiadomość + opcjonalny `emailSignature` z Settings. Tabela / sumy / notes są w załączonym PDF, powielanie ich w body byłoby redundantne. Default message w `EmailDialog` kończy się stopką „Pozdrawiam / Rafał Boruch / t. 501 629 619" (user edytowalny przed wysyłką).
+
+Endpoint `/api/oferty/[id]/pdf` zwraca PDF inline — używaj do podglądu (bez wysyłki maila).
 
 ### 6. Treść oferty w PDF — wytyczne marketingowe
 
@@ -93,7 +95,6 @@ Patrz też `docs/changelog.md` (2026-05-09):
 
 ## Otwarte sprawy
 
-- **PDF nie generuje się jeszcze na produkcji** — Chrome pada przy launch w Docker. Pełny stan debugowania + checklist do nowej sesji: **`docs/pdf-generator-status.md`**.
 - Email do klienta z preview na osobnej stronie publicznej (signed URL bez auth) — alternatywa do PDF attachment
 
 ## Pliki kluczowe
