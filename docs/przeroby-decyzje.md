@@ -123,6 +123,33 @@ Konrad ma własne konto w aplikacji ale widzi **tylko sekcję Przeroby**. Inne s
 3. Coolify: redeploy (rebuild)
 4. Konrad loguje się → automatycznie ląduje na `/przeroby` (middleware przekierowuje z `/dashboard`)
 
+### 9. Wartość Konrada wpisana ręcznie + uzasadnienie >5%
+
+Dla pozycji `MANUAL_NOT_FOUND` (Konrad nie ma detalu w xlsx „Ściany i słupy żelb.") kierownik (Konrad) wpisuje wartość ręcznie przez pola:
+
+- **`konradManualValue`** — wartość kierownika (m² lub m³). Nadpisuje wyświetlanie w kolumnie „Kierownik" (`refValue()` traktuje to jako pierwszorzędne).
+- **`konradManualReason`** — uzasadnienie. **Wymagane** w UI gdy `|Δ| > 5%` vs Maraf (próg `KONRAD_DIFF_THRESHOLD = 0.05` w `ComparisonTable.tsx`). Submit zablokowany do wpisania.
+
+Walidacja progu jest **w UI** (`KonradEditor` ma `reasonMissing` flag). API endpoint NIE waliduje — bo Maraf-value zależy od reguły i bieżącego stanu `WorkItem` (musiałby wykonać query); na MVP wystarczy walidacja frontendowa.
+
+**Audit trail**:
+- `SET_KONRAD_VALUE` / `CLEAR_KONRAD_VALUE` w `FloorSummaryItemHistory.action`
+- `note` z historii zawiera `konradManualReason`
+- `userEmail` z sesji (kto wpisał)
+
+**Reimport zachowuje** `konradManualValue` + `konradManualReason` (preserveMap w `lib/przedmiar-konrad-import.ts`) — analogicznie do `manualValue`. Łapane też w odtworzeniu historii.
+
+**Kto edytuje co**:
+| Rola | manualValue (Maraf) | konradManualValue (Konrad) | accepted |
+|---|---|---|---|
+| Admin | ✅ | ✅ | ✅ |
+| Contractor (Konrad) | ❌ (403) | ✅ | ✅ |
+| Zwykły user | ✅ | ✅ | ✅ |
+
+Endpoint PATCH zwraca 403 dla contractor który próbuje edytować `manualValue`/`manualNote`. UI ukrywa sekcję Maraf-editora dla contractor (`canEditMaraf` prop z page.tsx). UI pokazuje sekcję Konrad-editora dla admin + contractor (`canEditKonrad`).
+
+**Pozycja „gotowa do protokołu"** (`totalReady` w page.tsx) — rozszerzona: zaliczona jest też pozycja z `konradManualValue` jeśli Δ ≤ 5% **lub** wpisane jest uzasadnienie. Plus oryginalne kryteria (`accepted`, `manualValue`, `AUTO_OK` w tolerancji).
+
 ## Otwarte sprawy
 
 - Protokoły przerobowe — `app/(app)/przeroby/protokoly` i scripts `import-protokoly.js` istnieją, ale jeszcze nie zaimportowane dane na produkcji

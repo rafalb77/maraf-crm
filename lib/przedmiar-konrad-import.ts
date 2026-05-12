@@ -497,11 +497,14 @@ export async function commitImport(buffer: Buffer, userEmail: string | null = nu
   const { sections: parsedSections } = parseSheet(buffer)
   const allSections = buildAllSections(parsedSections)
 
-  // Mapa do zachowania manualValue/note/accepted + poprzednia wartość Konrada
-  // (do log REIMPORT) + historia (do odtworzenia po cascade delete)
+  // Mapa do zachowania manualValue/note/accepted + konradManualValue/Reason
+  // + poprzednia wartość Konrada (do log REIMPORT) + historia (do odtworzenia
+  // po cascade delete).
   type PreservedItem = {
     manualValue: number | null
     manualNote: string | null
+    konradManualValue: number | null
+    konradManualReason: string | null
     accepted: boolean
     acceptedAt: Date | null
     acceptedNote: string | null
@@ -535,6 +538,8 @@ export async function commitImport(buffer: Buffer, userEmail: string | null = nu
       preserveMap.set(key, {
         manualValue: it.manualValue,
         manualNote: it.manualNote,
+        konradManualValue: it.konradManualValue,
+        konradManualReason: it.konradManualReason,
         accepted: it.accepted,
         acceptedAt: it.acceptedAt,
         acceptedNote: it.acceptedNote,
@@ -604,6 +609,8 @@ export async function commitImport(buffer: Buffer, userEmail: string | null = nu
           mappingRule: JSON.stringify(pos.rule),
           manualValue: preserved?.manualValue ?? null,
           manualNote: preserved?.manualNote ?? null,
+          konradManualValue: preserved?.konradManualValue ?? null,
+          konradManualReason: preserved?.konradManualReason ?? null,
           accepted: preserved?.accepted ?? false,
           acceptedAt: preserved?.acceptedAt ?? null,
           acceptedNote: preserved?.acceptedNote ?? null,

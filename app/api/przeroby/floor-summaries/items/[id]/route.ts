@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { isAdmin, isContractor } from '@/lib/auth-utils'
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions)
@@ -14,6 +15,19 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (!existing) return NextResponse.json({ error: 'Nie znaleziono' }, { status: 404 })
 
   const userEmail = (session.user as any)?.email || null
+  const userIsAdmin = isAdmin(userEmail)
+  const userIsContractor = isContractor(userEmail)
+
+  // Contractor (Konrad) NIE moze edytowac manualValue (Maraf ręczny). To pole
+  // jest dla inżyniera/admina, contractor edytuje wylacznie wartosc Konrada.
+  if (userIsContractor && !userIsAdmin) {
+    if ('manualValue' in body || 'manualNote' in body) {
+      return NextResponse.json(
+        { error: 'Brak uprawnień do edycji wartości Marafa. Edytuj wartość Konrada poniżej.' },
+        { status: 403 },
+      )
+    }
+  }
 
   const data: any = {}
   const historyEntries: any[] = []
@@ -43,6 +57,38 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
           action: 'EDIT_NOTE',
           oldValue: JSON.stringify(existing.manualNote),
           newValue: JSON.stringify(newNote),
+          userEmail,
+        })
+      }
+    }
+  }
+  if ('konradManualValue' in body) {
+    const newVal = body.konradManualValue == null ? null : Number(body.konradManualValue)
+    if (newVal !== existing.konradManualValue) {
+      data.konradManualValue = newVal
+      const newReason = 'konradManualReason' in body ? (body.konradManualReason || null) : existing.konradManualReason
+      historyEntries.push({
+        itemId: id,
+        action: newVal == null ? 'CLEAR_KONRAD_VALUE' : 'SET_KONRAD_VALUE',
+        oldValue: JSON.stringify(existing.konradManualValue),
+        newValue: JSON.stringify(newVal),
+        note: newReason,
+        userEmail,
+      })
+    }
+  }
+  if ('konradManualReason' in body) {
+    const newReason = body.konradManualReason || null
+    if (newReason !== existing.konradManualReason) {
+      data.konradManualReason = newReason
+      // Jeśli zmiana wartości też w tym body — historia już zapisana z reason. Jeśli zmiana tylko reason, osobny wpis EDIT_NOTE.
+      if (!('konradManualValue' in body)) {
+        historyEntries.push({
+          itemId: id,
+          action: 'EDIT_NOTE',
+          oldValue: JSON.stringify(existing.konradManualReason),
+          newValue: JSON.stringify(newReason),
+          note: 'Uzasadnienie wartości Konrada',
           userEmail,
         })
       }

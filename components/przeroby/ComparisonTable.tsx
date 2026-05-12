@@ -24,6 +24,8 @@ type Item = {
   matchReason: string | null
   manualValue: number | null
   manualNote: string | null
+  konradManualValue: number | null
+  konradManualReason: string | null
   accepted: boolean
   acceptedAt: Date | string | null
   acceptedNote: string | null
@@ -38,11 +40,17 @@ type Item = {
   history?: HistoryEntry[]
 }
 
+// Próg w obrębie którego wartość Konrada uznajemy za zgodną z Marafem.
+// Powyżej tego progu — kierownik musi wpisać konradManualReason.
+const KONRAD_DIFF_THRESHOLD = 0.05
+
 const ACTION_LABEL: Record<string, string> = {
   ACCEPT: '✓ Zaakceptowano różnicę',
   UNACCEPT: '↩ Cofnięto akceptację',
   SET_MANUAL_VALUE: '✏ Ustawiono ręczną wartość Marafa',
   CLEAR_MANUAL_VALUE: '🗑 Wyczyszczono ręczną wartość Marafa',
+  SET_KONRAD_VALUE: '✏ Ustawiono ręczną wartość Konrada',
+  CLEAR_KONRAD_VALUE: '🗑 Wyczyszczono ręczną wartość Konrada',
   EDIT_NOTE: '📝 Zmieniono komentarz',
   REIMPORT: '🔄 Reimport — zaktualizowano wartość Konrada',
 }
@@ -51,6 +59,8 @@ const ACTION_COLOR: Record<string, string> = {
   UNACCEPT: 'text-amber-700',
   SET_MANUAL_VALUE: 'text-blue-700',
   CLEAR_MANUAL_VALUE: 'text-gray-600',
+  SET_KONRAD_VALUE: 'text-indigo-700',
+  CLEAR_KONRAD_VALUE: 'text-gray-600',
   REIMPORT: 'text-purple-700',
   EDIT_NOTE: 'text-gray-700',
 }
@@ -73,6 +83,8 @@ const MATCH_MODE_BADGE: Record<string, string> = {
 }
 
 function refValue(it: Item): number | null {
+  // Konrad wpisany ręcznie ma pierwszeństwo nad wartością z xlsx Konrada.
+  if (it.konradManualValue != null) return it.konradManualValue
   if (it.aggMethod === 'volumeSum') return it.concreteVol || null
   if (it.aggMethod === 'areaSum') return it.laborQty || null
   if (it.unit === 'm3' || it.unit === 'm³') return it.concreteVol || it.laborQty
@@ -96,7 +108,17 @@ function fmt(n: number | null | undefined) {
   return n.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
-export function ComparisonTable({ summaryId, items: initial }: { summaryId: string; items: Item[] }) {
+export function ComparisonTable({
+  summaryId,
+  items: initial,
+  canEditKonrad = true,
+  canEditMaraf = true,
+}: {
+  summaryId: string
+  items: Item[]
+  canEditKonrad?: boolean
+  canEditMaraf?: boolean
+}) {
   const [items, setItems] = useState(initial)
   const [openId, setOpenId] = useState<string | null>(null)
 
@@ -124,6 +146,8 @@ export function ComparisonTable({ summaryId, items: initial }: { summaryId: stri
                 key={it.id}
                 item={it}
                 isOpen={openId === it.id}
+                canEditKonrad={canEditKonrad}
+                canEditMaraf={canEditMaraf}
                 onToggle={() => setOpenId(openId === it.id ? null : it.id)}
                 onUpdate={(patch) => setItems((arr) => arr.map((x) => (x.id === it.id ? { ...x, ...patch } : x)))}
               />
@@ -138,11 +162,15 @@ export function ComparisonTable({ summaryId, items: initial }: { summaryId: stri
 function ItemRow({
   item,
   isOpen,
+  canEditKonrad,
+  canEditMaraf,
   onToggle,
   onUpdate,
 }: {
   item: Item
   isOpen: boolean
+  canEditKonrad: boolean
+  canEditMaraf: boolean
   onToggle: () => void
   onUpdate: (patch: Partial<Item>) => void
 }) {
@@ -184,6 +212,8 @@ function ItemRow({
       onUpdate({
         manualValue: 'manualValue' in patch ? patch.manualValue : item.manualValue,
         manualNote: 'manualNote' in patch ? patch.manualNote : item.manualNote,
+        konradManualValue: 'konradManualValue' in patch ? patch.konradManualValue : item.konradManualValue,
+        konradManualReason: 'konradManualReason' in patch ? patch.konradManualReason : item.konradManualReason,
         accepted: 'accepted' in patch ? patch.accepted : item.accepted,
         acceptedNote: 'acceptedNote' in patch ? patch.acceptedNote : item.acceptedNote,
         acceptedAt: 'accepted' in patch ? (patch.accepted ? new Date() : null) : item.acceptedAt,
@@ -230,6 +260,9 @@ function ItemRow({
         </td>
         <td className="px-3 py-2 text-right tabular-nums">
           {fmt(kierownikValue)}
+          {item.konradManualValue != null && (
+            <span className="ml-1 text-indigo-600 text-xs" title="Wartość ręczna Konrada">✏</span>
+          )}
           <span className="block text-[10px] text-gray-400">{refLabel(item)}</span>
         </td>
         <td className="px-3 py-2 text-right tabular-nums">
@@ -335,20 +368,41 @@ function ItemRow({
               )}
             </div>
 
-            {/* Edycja ręczna */}
-            <div className="mt-4 bg-white rounded-lg border border-gray-200 p-3">
-              <p className="text-xs font-semibold text-gray-700 mb-3">
-                Ręczne wprowadzenie wartości i komentarz
-              </p>
-              <ManualEditor
-                item={item}
-                saving={saving}
-                onSave={save}
-              />
-              {savedAt && (
-                <p className="text-xs text-green-600 mt-2">✓ Zapisano o {savedAt.toLocaleTimeString('pl-PL')}</p>
-              )}
-            </div>
+            {/* Edycja ręczna — wartość Konrada (gdy ma uprawnienia) */}
+            {canEditKonrad && (
+              <div className="mt-4 bg-white rounded-lg border border-indigo-200 p-3">
+                <p className="text-xs font-semibold text-indigo-800 mb-1">
+                  Wartość Konrada (ręczna)
+                </p>
+                <p className="text-[11px] text-gray-500 mb-3 leading-relaxed">
+                  Wpisz wartość kierownika gdy nie ma jej w xlsx „Ściany i słupy żelb.". Jeśli różnica vs Maraf przekroczy {Math.round(KONRAD_DIFF_THRESHOLD * 100)}% — wymagane uzasadnienie.
+                </p>
+                <KonradEditor
+                  item={item}
+                  marafValue={marafValue}
+                  saving={saving}
+                  onSave={save}
+                />
+              </div>
+            )}
+
+            {/* Edycja ręczna — wartość Marafa (gdy ma uprawnienia) */}
+            {canEditMaraf && (
+              <div className="mt-4 bg-white rounded-lg border border-gray-200 p-3">
+                <p className="text-xs font-semibold text-gray-700 mb-3">
+                  Ręczne wprowadzenie wartości Marafa i komentarz
+                </p>
+                <ManualEditor
+                  item={item}
+                  saving={saving}
+                  onSave={save}
+                />
+              </div>
+            )}
+
+            {savedAt && (
+              <p className="text-xs text-green-600 mt-2">✓ Zapisano o {savedAt.toLocaleTimeString('pl-PL')}</p>
+            )}
 
             {/* Historia zmian */}
             {item.history && item.history.length > 0 && (
@@ -490,6 +544,97 @@ function ManualEditor({
             className="px-3 py-1.5 border border-gray-300 rounded text-sm text-gray-700 hover:bg-gray-50"
           >
             Wyczyść ręczną wartość
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function KonradEditor({
+  item,
+  marafValue,
+  saving,
+  onSave,
+}: {
+  item: Item
+  marafValue: number | null
+  saving: boolean
+  onSave: (patch: { konradManualValue?: number | null; konradManualReason?: string | null }) => void
+}) {
+  const [value, setValue] = useState<string>(item.konradManualValue != null ? String(item.konradManualValue) : '')
+  const [reason, setReason] = useState<string>(item.konradManualReason || '')
+
+  const parsedValue = value === '' ? null : Number(value)
+  const valueIsValidNumber = parsedValue == null || !Number.isNaN(parsedValue)
+
+  // Δ% vs Maraf — liczone live, żeby kierownik widział czy uzasadnienie jest wymagane.
+  const diffPct =
+    parsedValue != null && marafValue != null && marafValue > 0 && valueIsValidNumber
+      ? ((parsedValue - marafValue) / marafValue) * 100
+      : null
+
+  const reasonRequired = diffPct != null && Math.abs(diffPct) > KONRAD_DIFF_THRESHOLD * 100
+  const reasonMissing = reasonRequired && reason.trim().length === 0
+  const canSave = !saving && valueIsValidNumber && !reasonMissing && parsedValue != null
+
+  return (
+    <div className="space-y-3" onClick={(e) => e.stopPropagation()}>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div>
+          <label className="block text-xs text-gray-600 mb-1">Wartość Konrada ({item.unit})</label>
+          <input
+            type="number"
+            step="0.01"
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            onClick={(e) => e.stopPropagation()}
+            placeholder={marafValue != null ? `Maraf: ${marafValue.toFixed(2)}` : '0.00'}
+            className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 tabular-nums"
+          />
+          {diffPct != null && (
+            <p className={`text-[11px] mt-1 ${Math.abs(diffPct) <= KONRAD_DIFF_THRESHOLD * 100 ? 'text-green-700' : 'text-amber-700'}`}>
+              Δ vs Maraf: {diffPct >= 0 ? '+' : ''}{diffPct.toFixed(1)}%
+              {Math.abs(diffPct) > KONRAD_DIFF_THRESHOLD * 100 && ' — uzasadnienie wymagane'}
+            </p>
+          )}
+        </div>
+        <div className="md:col-span-2">
+          <label className="block text-xs text-gray-600 mb-1">
+            Z czego wynika różnica? {reasonRequired && <span className="text-red-600">*</span>}
+          </label>
+          <textarea
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            onClick={(e) => e.stopPropagation()}
+            placeholder="np. Strop nad I p. = 1018 m² wg pomiaru na budowie (vs 1013,90 wg projektu) — uwzględniono zwiększone otwory technologiczne."
+            rows={2}
+            className={`w-full px-2 py-1.5 border rounded text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 ${reasonMissing ? 'border-red-300 bg-red-50' : 'border-gray-300'}`}
+          />
+          {reasonMissing && (
+            <p className="text-[11px] text-red-600 mt-1">Wpisz uzasadnienie — różnica przekracza {Math.round(KONRAD_DIFF_THRESHOLD * 100)}%.</p>
+          )}
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => onSave({
+            konradManualValue: parsedValue,
+            konradManualReason: reason.trim() || null,
+          })}
+          disabled={!canSave}
+          className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-300 text-white px-3 py-1.5 rounded text-sm font-medium"
+          title={reasonMissing ? 'Wpisz uzasadnienie' : ''}
+        >
+          {saving ? 'Zapisuję...' : '💾 Zapisz wartość Konrada'}
+        </button>
+        {item.konradManualValue != null && (
+          <button
+            onClick={() => { setValue(''); setReason(''); onSave({ konradManualValue: null, konradManualReason: null }) }}
+            disabled={saving}
+            className="px-3 py-1.5 border border-gray-300 rounded text-sm text-gray-700 hover:bg-gray-50"
+          >
+            Wyczyść
           </button>
         )}
       </div>

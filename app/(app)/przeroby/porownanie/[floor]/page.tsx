@@ -1,5 +1,8 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+import { isAdmin, isContractor } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
 import { ComparisonTable } from '@/components/przeroby/ComparisonTable'
 import { ProtocolGenerator } from '@/components/przeroby/ProtocolGenerator'
@@ -20,6 +23,15 @@ export default async function PorownaniaPage({
   params: Promise<{ floor: string }>
 }) {
   const { floor } = await params
+  const session = await getServerSession(authOptions)
+  const userEmail = session?.user?.email
+  const userIsAdmin = isAdmin(userEmail)
+  const userIsContractor = isContractor(userEmail)
+  // Wartość Konrada edytuje Konrad (contractor) lub admin. Maraf-inżynier (zwykły
+  // user) edytuje tylko manualValue (Maraf override) — bez zmian względem stanu
+  // sprzed dodania pola Konrada.
+  const canEditKonrad = userIsAdmin || userIsContractor
+
   const summary = await prisma.floorSummary.findFirst({
     where: { floor },
     include: {
@@ -127,6 +139,8 @@ export default async function PorownaniaPage({
       matchReason: it.matchReason,
       manualValue: it.manualValue,
       manualNote: it.manualNote,
+      konradManualValue: it.konradManualValue,
+      konradManualReason: it.konradManualReason,
       accepted: it.accepted,
       acceptedAt: it.acceptedAt,
       acceptedNote: it.acceptedNote,
@@ -167,6 +181,17 @@ export default async function PorownaniaPage({
   const totalReady = computed.filter((c) => {
     if (c.accepted) return true
     if (c.manualValue != null) return true
+    // Konrad wpisany ręcznie + (jeśli Δ > 5%) uzasadnienie → gotowa.
+    if (c.konradManualValue != null) {
+      const maraf = c.manualValue != null ? c.manualValue : c.autoValue
+      if (maraf != null && maraf > 0) {
+        const diffPct = Math.abs((c.konradManualValue - maraf) / maraf)
+        if (diffPct <= 0.05) return true
+        if (c.konradManualReason && c.konradManualReason.trim().length > 0) return true
+      } else {
+        return true
+      }
+    }
     if (c.matchMode === 'AUTO_OK' && c.autoValue != null) {
       const kierownik = referenceValue(c)
       const maraf = c.autoValue
@@ -218,7 +243,7 @@ export default async function PorownaniaPage({
         total={computed.length}
       />
 
-      <ComparisonTable summaryId={summary.id} items={computed} />
+      <ComparisonTable summaryId={summary.id} items={computed} canEditKonrad={canEditKonrad} canEditMaraf={!userIsContractor || userIsAdmin} />
     </div>
   )
 }
@@ -250,6 +275,9 @@ function aggregate(items: any[], method: string): number {
 }
 
 function referenceValue(c: any): number | null {
+  // Konrad wpisany ręcznie ma pierwszeństwo nad wartością z xlsx (np. dla
+  // pozycji MANUAL_NOT_FOUND gdzie xlsx Konrada nie ma detalu).
+  if (c.konradManualValue != null) return c.konradManualValue
   // Wybór wartości z kierownika do porównania zależy od metody agregacji obmiaru:
   //   volumeSum (m³)  → porównujemy z concreteVol (objętość betonu kierownika)
   //   areaSum  (m²)   → porównujemy z laborQty (powierzchnia robocizny kierownika)
