@@ -10,6 +10,7 @@ Zanim zaczniesz pracę nad konkretnym modułem — przeczytaj odpowiedni plik. T
 - **`docs/oferty-decyzje.md`** — kalkulator ofert, rabat brutto/netto, druk PDF, wysyłka mailem
 - **`docs/dashboard-decyzje.md`** — TopWidget (powitanie/news/pogoda), RSS, Open-Meteo
 - **`docs/changelog.md`** — dziennik niebanalnych decyzji technicznych z datami („dlaczego coś jest tak a nie inaczej")
+- **`docs/infrastruktura.md`** — panele administracyjne, URL-e (Coolify, OVH, GitHub), SMTP, awaryjne ścieżki resetu hasła. **Patrz tu gdy user pyta „jak zalogować się do Coolify" lub o inne kwestie operacyjne.**
 
 ### Otwarte sprawy (do dokończenia)
 
