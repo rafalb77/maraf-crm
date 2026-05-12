@@ -15,6 +15,7 @@ Zanim zaczniesz pracę nad konkretnym modułem — przeczytaj odpowiedni plik. T
 
 - **`docs/pdf-generator-status.md`** — PDF z ofertą jako attachment maila nie działa na produkcji (Chrome pada przy launch). Stan po wszystkich próbach + checklist co sprawdzić w nowej sesji.
 - **`docs/obmiary-rozpoczecie.md`** — moduł obmiarów z rysunków (DXF/PDF). Schema + dependencies gotowe, ale brak UI/API. 4 warianty MVP do wyboru z user'em (manualne klikanie / DXF parser / AI / pełna integracja z Przerobami).
+- **`docs/porownanie-obmiarow-rozpoczecie.md`** — porównanie obmiarów (rozszerzenie istniejącego `/przeroby/porownanie`). Zakres niejasny — 4 scenariusze do uzgodnienia z userem (rozszerzenie, historia wersji, xlsx vs rysunek, inne).
 
 Aktualizuj te pliki gdy podejmujesz nową decyzję projektową.
 
