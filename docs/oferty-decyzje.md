@@ -93,7 +93,7 @@ Patrz też `docs/changelog.md` (2026-05-09):
 
 ## Otwarte sprawy
 
-- **PDF nie generuje się jeszcze na produkcji** — w trakcie debugowania (stan na 2026-05-09). Endpoint `/api/oferty/[id]/pdf` zwraca błąd. Sprawdzić Coolify deploy + log.
+- **PDF nie generuje się jeszcze na produkcji** — Chrome pada przy launch w Docker. Pełny stan debugowania + checklist do nowej sesji: **`docs/pdf-generator-status.md`**.
 - Email do klienta z preview na osobnej stronie publicznej (signed URL bez auth) — alternatywa do PDF attachment
 
 ## Pliki kluczowe

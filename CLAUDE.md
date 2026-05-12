@@ -11,6 +11,10 @@ Zanim zaczniesz pracę nad konkretnym modułem — przeczytaj odpowiedni plik. T
 - **`docs/dashboard-decyzje.md`** — TopWidget (powitanie/news/pogoda), RSS, Open-Meteo
 - **`docs/changelog.md`** — dziennik niebanalnych decyzji technicznych z datami („dlaczego coś jest tak a nie inaczej")
 
+### Otwarte sprawy (do dokończenia)
+
+- **`docs/pdf-generator-status.md`** — PDF z ofertą jako attachment maila nie działa na produkcji (Chrome pada przy launch). Stan po wszystkich próbach + checklist co sprawdzić w nowej sesji.
+
 Aktualizuj te pliki gdy podejmujesz nową decyzję projektową.
 
 ## Commands
