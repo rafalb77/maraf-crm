@@ -29,6 +29,8 @@ type Item = {
   acceptedNote: string | null
   autoValue: number | null
   autoUnit: string
+  autoMatchedCount?: number | null
+  autoBreakdown?: { key: string; count: number; value: number }[] | null
   aggMethod?: string | null
   protocolDoneQty?: number
   protocolDoneAmount?: number
@@ -58,7 +60,7 @@ const MATCH_MODE_LABEL: Record<string, string> = {
   MANUAL_FLOOR_SPLIT: 'wielokondygnacyjny',
   MANUAL_DIFF_UNIT: 'inna jednostka',
   MANUAL_OUT_OF_SCOPE: 'poza ŻB',
-  MANUAL_NOT_FOUND: 'brak w obmiarze',
+  MANUAL_NOT_FOUND: 'brak u kierownika',
   MANUAL_OVERRIDE: 'ręczne nadpisanie',
 }
 const MATCH_MODE_BADGE: Record<string, string> = {
@@ -275,20 +277,45 @@ function ItemRow({
                     Dlaczego ręczne porównanie?
                   </p>
                   <p className="text-xs text-gray-700 leading-relaxed">{item.matchReason || 'Brak opisu.'}</p>
+                  {item.aggMethod && item.autoMatchedCount === 0 && (
+                    <p className="text-xs text-red-700 mt-2 leading-relaxed">
+                      ⚠ Reguła Marafa nie dopasowała żadnej pozycji obmiaru — sprawdź czy dane Marafa są zaimportowane dla tej kategorii / kondygnacji.
+                    </p>
+                  )}
                 </div>
               )}
 
-              {/* Wartość auto + reguła (gdy AUTO_OK) */}
-              {item.matchMode === 'AUTO_OK' && (
+              {/* Wartość auto + reguła (gdy są dane Marafa policzone z reguły) */}
+              {item.autoValue != null && (
                 <div className="bg-white rounded-lg border border-blue-200 p-3 lg:col-span-2">
                   <p className="text-xs font-semibold text-blue-800 mb-2">
                     Auto-dopasowanie (Maraf)
                   </p>
                   <div className="text-xs text-gray-700">
                     Wartość Marafa obliczona automatycznie z obmiaru projektowego:{' '}
-                    <strong>{fmt(item.autoValue)} {unitLabel(item.autoUnit)}</strong>.
+                    <strong>{fmt(item.autoValue)} {unitLabel(item.autoUnit)}</strong>
+                    {item.autoMatchedCount != null && item.autoMatchedCount > 0 && (
+                      <span className="text-gray-500"> · z {item.autoMatchedCount} pozycji obmiaru</span>
+                    )}.
                     Możesz nadpisać tę wartość ręcznie poniżej.
                   </div>
+                  {item.autoBreakdown && item.autoBreakdown.length > 1 && (
+                    <div className="mt-3 pt-2 border-t border-blue-100">
+                      <p className="text-[10px] uppercase tracking-wider text-blue-700 mb-1">Składowe</p>
+                      <ul className="text-xs text-gray-700 space-y-0.5">
+                        {item.autoBreakdown.map((b) => (
+                          <li key={b.key} className="flex justify-between gap-3">
+                            <span className="text-gray-700">
+                              {b.key} <span className="text-gray-400">({b.count})</span>
+                            </span>
+                            <span className="tabular-nums font-medium text-gray-900">
+                              {fmt(b.value)} {unitLabel(item.autoUnit)}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

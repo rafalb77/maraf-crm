@@ -6,6 +6,10 @@ Krótkie wpisy „co i **dlaczego**". Bez listy wszystkich commitów — od tego
 
 ## 2026-05-12
 
+### Maraf wyznacznikiem także dla pozycji `MANUAL_NOT_FOUND`
+**Powód**: W `/przeroby/porownanie/[floor]` kolumna „Maraf (wyznacznik)" była pusta (`—`) dla pozycji typu „Strop nad I piętro", „Belki nad I piętro", „Biegi schodowe" — mimo że xlsx obmiaru Marafa zawiera komplet danych (Stropy nadziemia A=1013,90 m² na Kondygnacji 1 itd.). Bug: kod liczył `autoValue` tylko dla `matchMode === 'AUTO_OK'`, ignorując pozycje `MANUAL_NOT_FOUND` mimo że mają `mappingRule`. Semantyka `MANUAL_NOT_FOUND` to „brak detalu u **Konrada**", nie u Marafa — Maraf jest wyznacznikiem zawsze.
+**Implementacja**: [page.tsx:66-103](app/(app)/przeroby/porownanie/[floor]/page.tsx) — `autoValue` liczony dla każdej pozycji z `mappingRule`. Dodatkowo: jeśli reguła nie dopasowała żadnego `WorkItem` → `autoValue = null` (zamiast wprowadzającego w błąd `0,00`); breakdown per `elementType` w panelu szczegółów (np. dla belek/wieńców/nadproży nad I piętrem); label `MANUAL_NOT_FOUND` zmieniony z „brak w obmiarze" na „brak u kierownika".
+
 ### PDF oferty + wysyłka mailem — działa na produkcji
 **Powód**: Po deployu `b00ed31` (HOME dir dla user nextjs) + `d0ed015` (Google Chrome zamiast Debian chromium) Chrome odpala się czysto, `/api/oferty/[id]/pdf` zwraca PDF, mail z attachmentem dociera. Wcześniejsze raporty „crashpad fail po b00ed31" były z czasu zanim deploy realnie wszedł w kontener — diagnostyka `diag` z `5fb4a73` potwierdziła stan kontenera dopiero teraz: `homeExists: true`, `chromeBinExists: true`, `whoami: nextjs`, `HOME=/home/nextjs`, Chrome odpala się i wypluwa pusty DOM bez crashpad errora (D-Bus errory to niegroźny szum w headless kontenerze).
 **Implementacja**: Bez nowych zmian w kodzie — `b00ed31` + `d0ed015` były właściwymi fixami. Usunięto tymczasową diagnostykę `diag` z endpointu `/pdf`. `docs/pdf-generator-status.md` skasowany.

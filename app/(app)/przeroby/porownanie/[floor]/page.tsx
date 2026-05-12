@@ -59,19 +59,48 @@ export default async function PorownaniaPage({
     if (!protocolByName[k].unitPrice) protocolByName[k].unitPrice = pi.unitPrice
   }
 
-  // Dla każdej pozycji podsumowania policz wartość auto z reguły
+  // Dla każdej pozycji podsumowania policz wartość auto z reguły.
+  // Maraf jest wyznacznikiem — liczymy autoValue dla KAŻDEJ pozycji z mappingRule,
+  // niezależnie od matchMode. matchMode (AUTO_OK / MANUAL_NOT_FOUND / ...) opisuje
+  // tylko stan po stronie Konrada (kierownika), nie obecność danych Marafa.
   const computed = summary.items.map((it) => {
     let autoValue: number | null = null
+    let autoMatchedCount: number | null = null
+    let autoBreakdown: { key: string; count: number; value: number }[] | null = null
     let aggMethod: string | null = null
     let autoUnit = it.unit
-    if (it.matchMode === 'AUTO_OK' && it.mappingRule) {
+    if (it.mappingRule) {
       try {
         const rule = JSON.parse(it.mappingRule)
         aggMethod = rule.agg || null
         const matched = workItems.filter((wi) => matchRule(wi, rule))
-        autoValue = aggregate(matched, rule.agg)
+        autoMatchedCount = matched.length
+        // matched.length === 0 → reguła nie znalazła nic w obmiarze Marafa.
+        // Zwracamy null (nie 0) żeby UI pokazał "—" + osobny komunikat,
+        // zamiast wprowadzającego w błąd "0,00" jakby Maraf wynosił zero.
+        autoValue = matched.length > 0 ? aggregate(matched, rule.agg) : null
         if (rule.agg === 'volumeSum') autoUnit = 'm³'
         else if (rule.agg === 'areaSum') autoUnit = 'm²'
+        // Breakdown po elementType — dla pozycji typu "Belki nad I piętro" gdzie reguła
+        // nie filtruje elementType i wpadają tam belki/wieńce/nadproża/wsporniki łącznie.
+        if (matched.length > 0) {
+          const groups = new Map<string, { count: number; value: number }>()
+          for (const wi of matched) {
+            const key = wi.elementType || '(bez rodzaju)'
+            const v = rule.agg === 'volumeSum' ? (wi.volumeM3 || 0)
+              : rule.agg === 'areaSum' ? (wi.areaM2 || 0)
+              : rule.agg === 'heightCountSum' ? (wi.heightM || 0) * (wi.count || 1)
+              : rule.agg === 'countSum' ? (wi.count || 0)
+              : 0
+            const cur = groups.get(key) || { count: 0, value: 0 }
+            cur.count++
+            cur.value += v
+            groups.set(key, cur)
+          }
+          autoBreakdown = [...groups.entries()]
+            .map(([key, v]) => ({ key, ...v }))
+            .sort((a, b) => b.value - a.value)
+        }
       } catch {
         autoValue = null
       }
@@ -103,6 +132,8 @@ export default async function PorownaniaPage({
       acceptedNote: it.acceptedNote,
       autoValue,
       autoUnit,
+      autoMatchedCount,
+      autoBreakdown,
       aggMethod,
       protocolDoneQty,
       protocolDoneAmount,

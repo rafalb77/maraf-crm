@@ -86,10 +86,16 @@ Wzorzec do replikacji w innych modułach (lokale → ten sam pattern w UnitsImpo
 
 ### 7. Auto-dopasowanie i akceptacja różnic
 
-Strona `/przeroby/porownanie/[floor]` liczy automatycznie:
-- Dla `matchMode === 'AUTO_OK'`: parsuje `mappingRule` (JSON), filtruje `WorkItem` z reguły, agreguje (`volumeSum` / `areaSum`), porównuje z wartością Konrada (laborQty dla m², concreteVol dla m³)
-- Różnica > 5% → wymaga akceptacji ręcznej (toggle `accepted`)
-- Pozycja „gotowa do protokołu" = `accepted || manualValue != null || (AUTO_OK && różnica ≤ 5%)`
+Strona `/przeroby/porownanie/[floor]` liczy `autoValue` Marafa dla **każdej** pozycji z `mappingRule`, niezależnie od `matchMode`. `matchMode` opisuje wyłącznie stan po stronie Konrada (czy ma detal w xlsx, czy nie), nie obecność danych Marafa.
+
+- parsuje `mappingRule` (JSON), filtruje `WorkItem` z reguły, agreguje (`volumeSum` / `areaSum`)
+- jeśli reguła nie dopasowała żadnej pozycji obmiaru → `autoValue = null` (UI „—" + warning ⚠ w panelu szczegółów); nie pokazujemy `0,00` jako fałszywej wartości Marafa
+- breakdown po `elementType` w panelu szczegółów — przydatne dla pozycji typu „Belki nad I piętro" gdzie reguła bez filtra `elementType` zlicza belki/wieńce/nadproża/wsporniki razem
+- porównanie z wartością Konrada: `laborQty` dla `areaSum` (m²), `concreteVol` dla `volumeSum` (m³)
+- różnica > 5% → wymaga akceptacji ręcznej (toggle `accepted`)
+- pozycja „gotowa do protokołu" = `accepted || manualValue != null || (AUTO_OK && różnica ≤ 5%)` — czyli `AUTO_OK` nadal warunkuje auto-zaliczenie, bo dla pozycji `MANUAL_*` bez ręcznej akcji kierownika nie ma porównania
+
+Label `MANUAL_NOT_FOUND` w UI brzmi „brak u kierownika" — żeby nie mylił z brakiem danych Marafa (Maraf zawsze jest jeśli ma `WorkItem` pasujące do reguły).
 
 `ProtocolGenerator` (komponent) tworzy szkic protokołu na podstawie gotowych pozycji.
 
