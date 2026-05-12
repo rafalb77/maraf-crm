@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { signOut, useSession } from 'next-auth/react'
 import { LogoFull } from './Logo'
-import { isAdmin } from '@/lib/auth-utils'
+import { isAdmin, isContractor } from '@/lib/auth-utils'
 
 type NavItem = { href: string; label: string; icon: React.ReactNode }
 type NavSection = { label?: string; items: NavItem[] }
@@ -105,6 +105,13 @@ export function Sidebar() {
   const pathname = usePathname()
   const { data: session } = useSession()
   const userIsAdmin = isAdmin(session?.user?.email)
+  const userIsContractor = isContractor(session?.user?.email)
+
+  // Contractor (np. Konrad-kierownik) widzi tylko sekcje Przeroby.
+  // Middleware blokuje inne strony server-side; tu odfiltrowujemy nav.
+  const visibleSections = userIsContractor
+    ? sections.filter((s) => s.label === 'Przeroby')
+    : sections
 
   const itemBase = 'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-150'
 
@@ -124,7 +131,7 @@ export function Sidebar() {
 
       {/* Nav */}
       <nav className="flex-1 px-3 py-4 overflow-y-auto">
-        {sections.map((section, idx) => (
+        {visibleSections.map((section, idx) => (
           <div key={idx} className={idx > 0 ? 'mt-5' : ''}>
             {section.label && (
               <div

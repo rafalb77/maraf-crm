@@ -106,6 +106,23 @@ Label `MANUAL_NOT_FOUND` w UI brzmi „brak u kierownika" — żeby nie mylił z
 - **Nadziemia Maraf nie ma „Słupów"** — tylko „Trzpienie nadziemia". Słupy są tylko na parterze (`Słupy 0`). Mapowanie to uwzględnia (parter: array `[Słupy 0, Trzpienie 0]`, piętra: tylko `Trzpienie nadziemia`).
 - **Maraf `Ścianki fund.` są na parterze** (Kondygnacja 0), nie pod-fundamentowe — Maraf liczy je jako część `Piony 0`. Dlatego mapowanie ścian parteru łączy `[Ściany 0, Ścianki fund.]`.
 
+### 8. Rola `CONTRACTOR` (kierownik podwykonawcy, np. Konrad)
+
+Konrad ma własne konto w aplikacji ale widzi **tylko sekcję Przeroby**. Inne strony (klienci, oferty, sprzedaż, settings) są zablokowane:
+
+- **Identyfikacja**: hardcoded email w env `NEXT_PUBLIC_CONTRACTOR_EMAIL` (analogicznie do `NEXT_PUBLIC_ADMIN_EMAIL`). Bez `User.role` w schema — jeden contractor obecnie, jeśli będzie więcej → zmienić na listę albo dodać `role` enum.
+- **Server-side gate**: `middleware.ts` na root projektu, używa `next-auth/jwt` `getToken()`. Dla contractor poza białą listą → redirect `/przeroby` (strony) lub 403 JSON (API).
+- **Client-side gate**: `components/layout/Sidebar.tsx` filtruje `visibleSections` — contractor widzi tylko grupę „Przeroby". Link Settings też ukryty (bo `isAdmin` zwraca false).
+- **Biała lista** (`contractorCanAccess()` w `lib/auth-utils.ts`): `/przeroby/*`, `/api/przeroby/*`, `/api/auth/*` (logout/session).
+
+**Pułapka rebuildu**: `NEXT_PUBLIC_CONTRACTOR_EMAIL` jest inline'owane w client bundle przy `next build` (jak każdy `NEXT_PUBLIC_*`). Po zmianie env w Coolify trzeba **rebuild deploy**, nie restart — inaczej Sidebar client-side nie zauważy roli (mimo że middleware server-side już blokuje).
+
+**Setup nowego contractor'a (np. Konrada)**:
+1. `/settings` → dodać usera (email + hasło)
+2. Coolify env: `NEXT_PUBLIC_CONTRACTOR_EMAIL=konrad@...`
+3. Coolify: redeploy (rebuild)
+4. Konrad loguje się → automatycznie ląduje na `/przeroby` (middleware przekierowuje z `/dashboard`)
+
 ## Otwarte sprawy
 
 - Protokoły przerobowe — `app/(app)/przeroby/protokoly` i scripts `import-protokoly.js` istnieją, ale jeszcze nie zaimportowane dane na produkcji

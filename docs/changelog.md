@@ -6,6 +6,10 @@ Krótkie wpisy „co i **dlaczego**". Bez listy wszystkich commitów — od tego
 
 ## 2026-05-12
 
+### Rola `CONTRACTOR` — Konrad widzi tylko sekcję Przeroby
+**Powód**: Konrad (kierownik podwykonawcy) ma uzupełniać wartości w `/przeroby/porownanie/[floor]` — ale nie powinien widzieć reszty CRM-u (klienci, oferty, sprzedaż, settings). Potrzebny gate per-rola.
+**Implementacja**: Hardcoded email w env `NEXT_PUBLIC_CONTRACTOR_EMAIL` (analogicznie do `NEXT_PUBLIC_ADMIN_EMAIL`) — bez zmiany schema, bez `User.role` enum. Funkcja `isContractor()` + biała lista `contractorCanAccess()` w `lib/auth-utils.ts`. **Middleware** `middleware.ts` (server-side, NextAuth JWT) blokuje server-side: redirect na `/przeroby` dla stron, 403 JSON dla API. **Sidebar** (client-side) filtruje sekcje — contractor widzi tylko grupę „Przeroby". **Po zmianie env wymagany REBUILD** (nie tylko restart) — `NEXT_PUBLIC_` jest inline'owane w buildtime, inaczej Sidebar client-side nie zauważy roli.
+
 ### Maraf wyznacznikiem także dla pozycji `MANUAL_NOT_FOUND`
 **Powód**: W `/przeroby/porownanie/[floor]` kolumna „Maraf (wyznacznik)" była pusta (`—`) dla pozycji typu „Strop nad I piętro", „Belki nad I piętro", „Biegi schodowe" — mimo że xlsx obmiaru Marafa zawiera komplet danych (Stropy nadziemia A=1013,90 m² na Kondygnacji 1 itd.). Bug: kod liczył `autoValue` tylko dla `matchMode === 'AUTO_OK'`, ignorując pozycje `MANUAL_NOT_FOUND` mimo że mają `mappingRule`. Semantyka `MANUAL_NOT_FOUND` to „brak detalu u **Konrada**", nie u Marafa — Maraf jest wyznacznikiem zawsze.
 **Implementacja**: [page.tsx:66-103](app/(app)/przeroby/porownanie/[floor]/page.tsx) — `autoValue` liczony dla każdej pozycji z `mappingRule`. Dodatkowo: jeśli reguła nie dopasowała żadnego `WorkItem` → `autoValue = null` (zamiast wprowadzającego w błąd `0,00`); breakdown per `elementType` w panelu szczegółów (np. dla belek/wieńców/nadproży nad I piętrem); label `MANUAL_NOT_FOUND` zmieniony z „brak w obmiarze" na „brak u kierownika".
