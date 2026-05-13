@@ -92,6 +92,10 @@ COPY --from=builder /app/node_modules/bcryptjs ./node_modules/bcryptjs
 # Puppeteer-core (do generowania PDF z oferta)
 COPY --from=builder /app/node_modules/puppeteer-core ./node_modules/puppeteer-core
 
+# pdf-parse (do bulk importu kart mieszkań — scripts/import-floorplans.js)
+COPY --from=builder /app/node_modules/pdf-parse ./node_modules/pdf-parse
+COPY --from=builder /app/node_modules/node-ensure ./node_modules/node-ensure
+
 # Pliki danych do jednorazowego importu (np. obmiar Maraf — stały).
 # Pliki, które się zmieniają (np. Konrad — co miesiąc), wgrywaj
 # przez UI / endpoint upload, NIE przez git.
