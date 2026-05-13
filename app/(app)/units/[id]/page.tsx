@@ -86,13 +86,27 @@ export default async function UnitDetailPage({ params }: { params: { id: string 
             {unit.floorPlanUrl ? (
               <div className="space-y-3">
                 {unit.floorPlanUrl.endsWith('.pdf') ? (
-                  <a href={unit.floorPlanUrl} target="_blank" rel="noopener noreferrer"
-                    className="flex items-center gap-2 text-blue-600 hover:text-blue-700 text-sm">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                    Pobierz rzut PDF
-                  </a>
+                  <>
+                    <div className="flex flex-wrap items-center gap-4 text-sm">
+                      <a href={unit.floorPlanUrl} target="_blank" rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 text-blue-600 hover:text-blue-700">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                        </svg>
+                        Otwórz w nowej karcie
+                      </a>
+                      <a href={unit.floorPlanUrl} download
+                        className="inline-flex items-center gap-1.5 text-gray-600 hover:text-gray-900">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        Pobierz
+                      </a>
+                    </div>
+                    <iframe src={unit.floorPlanUrl} title="Podgląd rzutu PDF"
+                      className="w-full rounded-lg border border-gray-100 bg-gray-50"
+                      style={{ height: 720 }} />
+                  </>
                 ) : (
                   <div className="relative rounded-lg overflow-hidden border border-gray-100" style={{ height: 300 }}>
                     <Image src={unit.floorPlanUrl} alt="Rzut lokalu" fill className="object-contain" />
