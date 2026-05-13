@@ -105,7 +105,7 @@ export default async function UnitDetailPage({ params }: { params: { id: string 
                     </div>
                     <iframe src={unit.floorPlanUrl} title="Podgląd rzutu PDF"
                       className="w-full rounded-lg border border-gray-100 bg-gray-50"
-                      style={{ height: 720 }} />
+                      style={{ aspectRatio: '4 / 3', minHeight: 480 }} />
                   </>
                 ) : (
                   <div className="relative rounded-lg overflow-hidden border border-gray-100" style={{ height: 300 }}>
