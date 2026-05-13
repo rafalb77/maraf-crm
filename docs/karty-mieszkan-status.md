@@ -1,6 +1,16 @@
 # Import kart mieszkań (floor plan PDF) — status
 
-**Stan na 2026-05-13 koniec sesji**: kod wgrany na `main` (commit `d05a50f`), Coolify rebuilduje. User ma odpalić **dry-run** w Coolify Terminal i wkleić output do Claude'a przed właściwym importem.
+**Stan: 🟢 ZAMKNIĘTE 2026-05-13.** 59/59 kart zaimportowanych. Sortowanie numeryczne (commit `7955943`) rozwiązało problem mapowania na piętrze 1. Pliki w `/app/public/uploads/floorplans/`, `Unit.floorPlanUrl` ustawione dla wszystkich 59 mieszkań.
+
+**Pozostały TODO (poza tematem importu)**:
+- Poprawić w UI `/lokale/<id>/edit` 2 literówki w `floor`: `B1.2.M18` (3→2), `B1.4.M59` (5→4) — typo z importu xlsx, nie wpływa na karty PDF (mapowanie poprawne).
+- (Opcjonalnie) `git rm -r data/karty` — 18MB w repo niepotrzebne po imporcie.
+
+---
+
+## Historia tematu
+
+Pierwsza wersja parsowała PDF (pdf-parse) → padło bo fonty bez CMap (0/59). Pivot na deterministyczne mapowanie po folderze + nazwie pliku. Pierwszy dry-run pokazał błąd Prisma `orderBy: { number: 'asc' }` — sortuje stringami, więc na piętrze 1 dostawaliśmy `M1, M10, M11, ..., M2, M3, ..., M9` zamiast `M1, M2, M3, ...`. User otworzył `nr2.pdf` lokalnie i potwierdził że to M2 (39 m²), nie M10 (55 m²). Fix: `extractTrailingNumber()` + sort w JS po wyciągniętym numerze. Drugi dry-run + właściwy import zaimportowały 59/59.
 
 ## Kontekst
 

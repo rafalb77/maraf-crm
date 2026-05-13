@@ -16,14 +16,14 @@ Zanim zaczniesz pracę nad konkretnym modułem — przeczytaj odpowiedni plik. T
 
 ### Otwarte sprawy (do dokończenia)
 
-- **`docs/karty-mieszkan-status.md`** — **AKTYWNE** (stan na 2026-05-13): import 59 kart mieszkań PDF. Skrypt `scripts/import-floorplans.js` przepisany na deterministyczne mapowanie (folder + filename, bez pdf-parse). Commit `d05a50f` na `main`. User ma odpalić **dry-run** w Coolify Terminal i wkleić output — wtedy weryfikujemy mapowanie i odpalamy właściwy import.
+- **`docs/karty-mieszkan-status.md`** — **🟢 ZAMKNIĘTE 2026-05-13** (zostawiam plik dla historii; jest 1 mini-TODO: poprawić w UI 2 literówki w `Unit.floor` — `B1.2.M18` 3→2, `B1.4.M59` 5→4).
 - **`docs/obmiary-rozpoczecie.md`** — moduł obmiarów z rysunków (DXF/PDF). Schema + dependencies gotowe, ale brak UI/API. 4 warianty MVP do wyboru z user'em (manualne klikanie / DXF parser / AI / pełna integracja z Przerobami).
 - **`docs/porownanie-obmiarow-rozpoczecie.md`** — porównanie obmiarów (rozszerzenie istniejącego `/przeroby/porownanie`). Zakres niejasny — 4 scenariusze do uzgodnienia z userem (rozszerzenie, historia wersji, xlsx vs rysunek, inne).
 - **`docs/panel-personalizacja-rozpoczecie.md`** — **podtemat 2+3 (preferredName, interests, /profil, TopWidget per-user) wdrożony 2026-05-13** — patrz changelog. Otwarty pozostaje podtemat 1 (UX panelu `/settings`) — niedoprecyzowany.
 - **`docs/sprzedaz-decyzje.md`** — moduł Sprzedaż gotowy w MVP. Otwarte: 4 warianty podpisywania umów (sekcja „Plan podpisywania") + 10 kierunków rozwoju generatora.
 - **`docs/lokale-decyzje.md`** — moduł Lokale działa. Otwarte: 10 kierunków rozwoju (bulk operacje, wizualizacja rzutu, historia zmian, integracje portali).
 
-_(temat „PDF generator" zamknięty 2026-05-12, temat „Personalizacja per-user" zamknięty 2026-05-13 — patrz `docs/changelog.md`)_
+_(temat „PDF generator" zamknięty 2026-05-12, „Personalizacja per-user" + „Import kart mieszkań" zamknięte 2026-05-13 — patrz `docs/changelog.md`)_
 
 Gdy w trakcie pracy pojawi się temat niedokończony (deploy padł, fix wymaga osobnej sesji, czekamy na dane od użytkownika) — **wpisz tu** wraz z linkiem do osobnego pliku `docs/<temat>-status.md` z pełnym kontekstem (co próbowano, co nie pomogło, checklist diagnostyki).
 
