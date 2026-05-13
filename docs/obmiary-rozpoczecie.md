@@ -48,7 +48,7 @@ DrawingElement       → pojedynczy element wyobmiarowany
 
 ### Powiązania z innymi modułami
 
-- **Schema NIE łączy** DrawingElement z WorkItem (moduł Przeroby) — brak FK. Czyli obecnie obmiar z rysunku i obmiar inżynierski Marafa to **dwa osobne światy**. To może być świadome (rysunki = beta), ale w przyszłości warto rozważyć integrację: „Obmiar z rysunku → import jako WorkItem do WorkCategory".
+- **Schema NIE łączy** DrawingElement z WorkItem (moduł Przeroby) — brak FK. Czyli obecnie obmiar z rysunku i obmiar inżynierski Marafu to **dwa osobne światy**. To może być świadome (rysunki = beta), ale w przyszłości warto rozważyć integrację: „Obmiar z rysunku → import jako WorkItem do WorkCategory".
 
 ## Co NIE JEST gotowe
 
@@ -64,7 +64,7 @@ DrawingElement       → pojedynczy element wyobmiarowany
 Schema jest ambitna (PDF + DXF + DWG + IMAGE, AI, manualne klikanie, automatyczne parsowanie). Realnie pierwsza iteracja powinna mieć **WĄSKI scope**. Pytania do usera:
 
 ### 1. Cel biznesowy
-- ❓ Czy ten moduł ma **zastąpić** obecny obmiar inżynierski Marafa (xlsx → Przeroby), czy jest osobnym narzędziem?
+- ❓ Czy ten moduł ma **zastąpić** obecny obmiar inżynierski Marafu (xlsx → Przeroby), czy jest osobnym narzędziem?
 - ❓ Kto będzie wprowadzał dane — inżynier (sam wykonuje obmiar), kierownik (czy AI), czy admin (jednorazowo)?
 - ❓ Jakie typy plików dominują w praktyce? **DXF / PDF / skany**? Każdy ma inny tech-stack (DXF = strukturalny parse, PDF = render + OCR, skan = obraz + AI).
 
@@ -94,7 +94,7 @@ Schema jest ambitna (PDF + DXF + DWG + IMAGE, AI, manualne klikanie, automatyczn
 **D. Pełna integracja z Przerobami**
 - DrawingElement → eksport do WorkItem
 - Mapowanie: `type='SCIANA_ZB' floor='PARTER'` → WorkCategory='Piony 0' WorkItem
-- Obmiar z rysunku zastępuje obmiar xlsx Marafa
+- Obmiar z rysunku zastępuje obmiar xlsx Marafu
 - **Plus 3-5 dni** ponad A/B/C
 
 ### 3. Stacking technologiczny — decyzje

@@ -8,7 +8,7 @@ import { prisma } from '@/lib/prisma'
  * Body: {
  *   name: string,
  *   unit: 'm2' | 'm3' | 'mb' | 'szt' | 'kpl' | 'T' | 'kg',
- *   manualValue?: number,         // wartość Marafa (ręczna)
+ *   manualValue?: number,         // wartość Marafu (ręczna)
  *   konradManualValue?: number,   // wartość kierownika (ręczna)
  *   konradManualReason?: string,
  * }

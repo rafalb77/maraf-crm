@@ -49,8 +49,8 @@ const KONRAD_DIFF_THRESHOLD = 0.05
 const ACTION_LABEL: Record<string, string> = {
   ACCEPT: '✓ Zaakceptowano różnicę (legacy)',
   UNACCEPT: '↩ Cofnięto akceptację (legacy)',
-  SET_MANUAL_VALUE: '✏ Ustawiono ręczną wartość Marafa',
-  CLEAR_MANUAL_VALUE: '🗑 Wyczyszczono ręczną wartość Marafa',
+  SET_MANUAL_VALUE: '✏ Ustawiono ręczną wartość Marafu',
+  CLEAR_MANUAL_VALUE: '🗑 Wyczyszczono ręczną wartość Marafu',
   SET_KONRAD_VALUE: '✏ Ustawiono ręczną wartość kierownika',
   CLEAR_KONRAD_VALUE: '🗑 Wyczyszczono ręczną wartość kierownika',
   INVESTOR_APPROVE: '✅ Zaakceptowano przez Inwestora',
@@ -378,20 +378,20 @@ function ItemRow({
                   <p className="text-xs text-gray-700 leading-relaxed">{item.matchReason || 'Brak opisu.'}</p>
                   {item.aggMethod && item.autoMatchedCount === 0 && (
                     <p className="text-xs text-red-700 mt-2 leading-relaxed">
-                      ⚠ Reguła Marafa nie dopasowała żadnej pozycji obmiaru — sprawdź czy dane Marafa są zaimportowane dla tej kategorii / kondygnacji.
+                      ⚠ Reguła Marafu nie dopasowała żadnej pozycji obmiaru — sprawdź czy dane Marafu są zaimportowane dla tej kategorii / kondygnacji.
                     </p>
                   )}
                 </div>
               )}
 
-              {/* Wartość auto + reguła (gdy są dane Marafa policzone z reguły) */}
+              {/* Wartość auto + reguła (gdy są dane Marafu policzone z reguły) */}
               {item.autoValue != null && (
                 <div className="bg-white rounded-lg border border-blue-200 p-3 lg:col-span-2">
                   <p className="text-xs font-semibold text-blue-800 mb-2">
                     Auto-dopasowanie (Maraf)
                   </p>
                   <div className="text-xs text-gray-700">
-                    Wartość Marafa obliczona automatycznie z obmiaru projektowego:{' '}
+                    Wartość Marafu obliczona automatycznie z obmiaru projektowego:{' '}
                     <strong>{fmt(item.autoValue)} {unitLabel(item.autoUnit)}</strong>
                     {item.autoMatchedCount != null && item.autoMatchedCount > 0 && (
                       <span className="text-gray-500"> · z {item.autoMatchedCount} pozycji obmiaru</span>
@@ -447,10 +447,10 @@ function ItemRow({
               />
             </div>
 
-            {/* Edycja ręczna — wartość Marafa */}
+            {/* Edycja ręczna — wartość Marafu */}
             <div className="mt-4 bg-white rounded-lg border border-gray-200 p-3">
               <p className="text-xs font-semibold text-gray-700 mb-3">
-                Ręczne wprowadzenie wartości Marafa i komentarz
+                Ręczne wprowadzenie wartości Marafu i komentarz
               </p>
               <ManualEditor
                 item={item}
@@ -613,7 +613,7 @@ function ManualEditor({
     <div className="space-y-3" onClick={(e) => e.stopPropagation()}>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         <div>
-          <label className="block text-xs text-gray-600 mb-1">Wartość Marafa ręczna ({item.unit})</label>
+          <label className="block text-xs text-gray-600 mb-1">Wartość Marafu ręczna ({item.unit})</label>
           <input
             type="number"
             step="0.01"

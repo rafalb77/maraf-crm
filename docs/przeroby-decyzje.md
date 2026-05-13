@@ -7,7 +7,7 @@ Kontroling protokołów przerobowych podwykonawców. Porównanie **obmiaru inży
 ```
 WorkScope ("Konstrukcja żelbetowa", slug=konstrukcja-zelbetowa)
   └── WorkCategory (Fundamenty, Piony 0, Belki nad 0, Strop nad 0, ...)
-       └── WorkItem (Łf-01, S-P.04, Tr-N-01, ...) — POJEDYNCZE elementy z xlsx Marafa
+       └── WorkItem (Łf-01, S-P.04, Tr-N-01, ...) — POJEDYNCZE elementy z xlsx Marafu
 
 FloorSummary (per kondygnacja: PARTER, I_PIETRO, ..., DACH)
   └── FloorSummaryItem (Ściany żelbetowe parteru, Strop nad parterem, ...)
@@ -28,7 +28,7 @@ Grubość ścian czytana z xlsx Konrada (kol „gr", indeks 4), fallback `DEFAUL
 
 ### 2. Mapowanie pozycji Konrada → Maraf
 
-| Kondygnacja | Pozycja Konrada | Reguła mapowania Marafa | Tryb |
+| Kondygnacja | Pozycja Konrada | Reguła mapowania Marafu | Tryb |
 |---|---|---|---|
 | **PARTER** | Ściany żelbetowe | `Piony 0` + elementType `[Ściany 0, Ścianki fund.]` + Kondygnacja 0 (volumeSum) | AUTO_OK |
 | | Słupy/trzpienie | `Piony 0` + `[Słupy 0, Trzpienie 0]` + Kondygnacja 0 (volumeSum) | AUTO_OK |
@@ -86,23 +86,23 @@ Wzorzec do replikacji w innych modułach (lokale → ten sam pattern w UnitsImpo
 
 ### 7. Auto-dopasowanie i akceptacja różnic
 
-Strona `/przeroby/porownanie/[floor]` liczy `autoValue` Marafa dla **każdej** pozycji z `mappingRule`, niezależnie od `matchMode`. `matchMode` opisuje wyłącznie stan po stronie Konrada (czy ma detal w xlsx, czy nie), nie obecność danych Marafa.
+Strona `/przeroby/porownanie/[floor]` liczy `autoValue` Marafu dla **każdej** pozycji z `mappingRule`, niezależnie od `matchMode`. `matchMode` opisuje wyłącznie stan po stronie Konrada (czy ma detal w xlsx, czy nie), nie obecność danych Marafu.
 
 - parsuje `mappingRule` (JSON), filtruje `WorkItem` z reguły, agreguje (`volumeSum` / `areaSum`)
-- jeśli reguła nie dopasowała żadnej pozycji obmiaru → `autoValue = null` (UI „—" + warning ⚠ w panelu szczegółów); nie pokazujemy `0,00` jako fałszywej wartości Marafa
+- jeśli reguła nie dopasowała żadnej pozycji obmiaru → `autoValue = null` (UI „—" + warning ⚠ w panelu szczegółów); nie pokazujemy `0,00` jako fałszywej wartości Marafu
 - breakdown po `elementType` w panelu szczegółów — przydatne dla pozycji typu „Belki nad I piętro" gdzie reguła bez filtra `elementType` zlicza belki/wieńce/nadproża/wsporniki razem
 - porównanie z wartością Konrada: `laborQty` dla `areaSum` (m²), `concreteVol` dla `volumeSum` (m³)
 - różnica > 5% → wymaga akceptacji ręcznej (toggle `accepted`)
 - pozycja „gotowa do protokołu" = `accepted || manualValue != null || (AUTO_OK && różnica ≤ 5%)` — czyli `AUTO_OK` nadal warunkuje auto-zaliczenie, bo dla pozycji `MANUAL_*` bez ręcznej akcji kierownika nie ma porównania
 
-Label `MANUAL_NOT_FOUND` w UI brzmi „brak u kierownika" — żeby nie mylił z brakiem danych Marafa (Maraf zawsze jest jeśli ma `WorkItem` pasujące do reguły).
+Label `MANUAL_NOT_FOUND` w UI brzmi „brak u kierownika" — żeby nie mylił z brakiem danych Marafu (Maraf zawsze jest jeśli ma `WorkItem` pasujące do reguły).
 
 `ProtocolGenerator` (komponent) tworzy szkic protokołu na podstawie gotowych pozycji.
 
 ## Pułapki
 
 - **`floor` w FloorSummary** to enum-string: `PARTER`, `I_PIETRO`, ..., `IV_PIETRO`, `V_PIETRO`, `DACH`. Unique `[scopeId, floor]` — nie da się mieć dwóch FloorSummary tej samej kondygnacji w tym samym zakresie (np. dwóch źródeł). Jeśli będziemy chcieli porównanie Konrad vs inny kierownik dla tej samej kondygnacji → trzeba rozszerzyć schema.
-- **W pliku Konrada XLS** nazwa arkusza musi być DOKŁADNIE `Ściany i słupy żelb.` (z polskim ż). Inne arkusze (Mury, Posadzki, Elewacja) ignorujemy — nie pasują do obmiaru żelbetu Marafa.
+- **W pliku Konrada XLS** nazwa arkusza musi być DOKŁADNIE `Ściany i słupy żelb.` (z polskim ż). Inne arkusze (Mury, Posadzki, Elewacja) ignorujemy — nie pasują do obmiaru żelbetu Marafu.
 - **Nadziemia Maraf nie ma „Słupów"** — tylko „Trzpienie nadziemia". Słupy są tylko na parterze (`Słupy 0`). Mapowanie to uwzględnia (parter: array `[Słupy 0, Trzpienie 0]`, piętra: tylko `Trzpienie nadziemia`).
 - **Maraf `Ścianki fund.` są na parterze** (Kondygnacja 0), nie pod-fundamentowe — Maraf liczy je jako część `Piony 0`. Dlatego mapowanie ścian parteru łączy `[Ściany 0, Ścianki fund.]`.
 
@@ -144,7 +144,7 @@ Walidacja progu jest **w UI** (`KonradEditor` ma `reasonMissing` flag). API endp
 
 **Reimport zachowuje** `konradManualValue` + `konradManualReason` (preserveMap w `lib/przedmiar-konrad-import.ts`) — analogicznie do `manualValue`. Łapane też w odtworzeniu historii.
 
-**Kto edytuje co**: każdy z permission `przeroby` (i admin) edytuje obie wartości — `manualValue` (Maraf) i `konradManualValue` (Konrad). Granularne rozróżnienie (np. `przeroby:edit-maraf` jako osobna permission) **nie jest** zaimplementowane — historia zmian (`FloorSummaryItemHistory.userEmail`) wystarczy do auditingu. Jeśli kiedyś biznesowo trzeba zablokować Konradowi edycję Marafa — wprowadzić osobny permission.
+**Kto edytuje co**: każdy z permission `przeroby` (i admin) edytuje obie wartości — `manualValue` (Maraf) i `konradManualValue` (Konrad). Granularne rozróżnienie (np. `przeroby:edit-maraf` jako osobna permission) **nie jest** zaimplementowane — historia zmian (`FloorSummaryItemHistory.userEmail`) wystarczy do auditingu. Jeśli kiedyś biznesowo trzeba zablokować Konradowi edycję Marafu — wprowadzić osobny permission.
 
 **Pozycja „gotowa do protokołu"** (`totalReady` w page.tsx) — rozszerzona: zaliczona jest też pozycja z `konradManualValue` jeśli Δ ≤ 5% **lub** wpisane jest uzasadnienie. Plus oryginalne kryteria (`accepted`, `manualValue`, `AUTO_OK` w tolerancji).
 
@@ -161,4 +161,4 @@ Walidacja progu jest **w UI** (`KonradEditor` ma `reasonMissing` flag). API endp
 - `components/przeroby/PrzedmiarKonradUploader.tsx` — UI modal
 - `app/(app)/przeroby/porownanie/[floor]/page.tsx` — widok porównania per kondygnacja (logika auto-dopasowania)
 - `components/przeroby/ComparisonTable.tsx` — tabela z edycją manualValue + accept + historia
-- `scripts/import-obmiar.js` — CLI dla obmiaru Marafa (jednorazowy import)
+- `scripts/import-obmiar.js` — CLI dla obmiaru Marafu (jednorazowy import)

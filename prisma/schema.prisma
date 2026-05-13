@@ -445,7 +445,7 @@ model FloorSummaryItem {
   matchMode     String   @default("AUTO_OK")
   matchReason   String?                 // automatyczny opis dlaczego nie matchuje
   mappingRule   String?                 // JSON: { categoryName, elementType?, floorName?, namePattern? }
-  manualValue   Float?                  // ręczna wartość Marafa (override autoValue z reguły)
+  manualValue   Float?                  // ręczna wartość Marafu (override autoValue z reguły)
   manualNote    String?                 // komentarz do manualValue
   konradManualValue  Float?             // ręczna wartość Konrada (gdy nie ma detalu w xlsx) — wpisuje kierownik lub admin
   konradManualReason String?            // uzasadnienie wartości Konrada — WYMAGANE gdy |Δ| > 5% vs Maraf
@@ -473,7 +473,7 @@ model FloorSummaryItem {
 }
 
 // Historia zmian per pozycja podsumowania — auditing dla ręcznych decyzji kierownika
-// (akceptacja różnicy, wpis ręcznej wartości Marafa/Konrada, komentarze).
+// (akceptacja różnicy, wpis ręcznej wartości Marafu/Konrada, komentarze).
 model FloorSummaryItemHistory {
   id        String   @id @default(cuid())
   itemId    String

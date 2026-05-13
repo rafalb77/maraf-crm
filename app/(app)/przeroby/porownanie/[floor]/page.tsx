@@ -68,7 +68,7 @@ export default async function PorownaniaPage({
   // Dla każdej pozycji podsumowania policz wartość auto z reguły.
   // Maraf jest wyznacznikiem — liczymy autoValue dla KAŻDEJ pozycji z mappingRule,
   // niezależnie od matchMode. matchMode (AUTO_OK / MANUAL_NOT_FOUND / ...) opisuje
-  // tylko stan po stronie Konrada (kierownika), nie obecność danych Marafa.
+  // tylko stan po stronie Konrada (kierownika), nie obecność danych Marafu.
   const computed = summary.items.map((it) => {
     let autoValue: number | null = null
     let autoMatchedCount: number | null = null
@@ -81,7 +81,7 @@ export default async function PorownaniaPage({
         aggMethod = rule.agg || null
         const matched = workItems.filter((wi) => matchRule(wi, rule))
         autoMatchedCount = matched.length
-        // matched.length === 0 → reguła nie znalazła nic w obmiarze Marafa.
+        // matched.length === 0 → reguła nie znalazła nic w obmiarze Marafu.
         // Zwracamy null (nie 0) żeby UI pokazał "—" + osobny komunikat,
         // zamiast wprowadzającego w błąd "0,00" jakby Maraf wynosił zero.
         autoValue = matched.length > 0 ? aggregate(matched, rule.agg) : null
@@ -175,7 +175,7 @@ export default async function PorownaniaPage({
   }).length
   const totalAccepted = computed.filter((c) => c.investorApproved).length
   // "Gotowe do protokołu" = tylko pozycje zaakceptowane przez Inwestora (admin).
-  // Wartości Marafa/kierownika same w sobie nie wystarczają — wymagana świadoma decyzja Inwestora.
+  // Wartości Marafu/kierownika same w sobie nie wystarczają — wymagana świadoma decyzja Inwestora.
   const totalReady = totalAccepted
 
   return (
