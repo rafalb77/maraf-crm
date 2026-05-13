@@ -18,6 +18,7 @@ Zanim zaczniesz pracę nad konkretnym modułem — przeczytaj odpowiedni plik. T
 
 - **`docs/obmiary-rozpoczecie.md`** — moduł obmiarów z rysunków (DXF/PDF). Schema + dependencies gotowe, ale brak UI/API. 4 warianty MVP do wyboru z user'em (manualne klikanie / DXF parser / AI / pełna integracja z Przerobami).
 - **`docs/porownanie-obmiarow-rozpoczecie.md`** — porównanie obmiarów (rozszerzenie istniejącego `/przeroby/porownanie`). Zakres niejasny — 4 scenariusze do uzgodnienia z userem (rozszerzenie, historia wersji, xlsx vs rysunek, inne).
+- **`docs/panel-personalizacja-rozpoczecie.md`** — dopracowanie panelu `/settings` + ustawienia per-user (zainteresowania, preferowane imię, avatar) + TopWidget personalizowany dla wszystkich userów (nie tylko admin). 3 podtematy, plan 4-fazowy.
 
 _(temat „PDF generator" zamknięty 2026-05-12 — patrz `docs/changelog.md`)_
 
