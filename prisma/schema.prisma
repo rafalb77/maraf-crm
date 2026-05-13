@@ -13,11 +13,21 @@ datasource db {
 // Admin (NEXT_PUBLIC_ADMIN_EMAIL) ma override — jego permissions ignorowane, zawsze ma wszystko.
 // Default [] — bezpieczny default; nowy user nie ma dostępu nigdzie dopóki admin nie nada.
 // Istniejący userzy też dostaną [] po `prisma db push` — admin musi w /settings nadać im sekcje.
+//
+// Pola personalizacji (preferredName, interests, customInterests):
+//  - preferredName — wyświetlane w powitaniu w dashboardzie (fallback: pierwsze słowo z name / email)
+//  - interests — predefiniowane tematy newsów dnia (IDs z lib/news-feed.ts: tech, world, business, ...)
+//  - customInterests — własne tematy free-form (max 50 znaków każdy, max 5 sztuk), fetch przez Google News search
+//
+// Endpoint /api/dashboard/widget czyta interests z DB po userId — zmiana działa natychmiast (bez re-login).
 model User {
   id                String    @id @default(cuid())
   email             String    @unique
   password          String
   name              String?
+  preferredName     String?
+  interests         String[]  @default([])
+  customInterests   String[]  @default([])
   resetToken        String?   @unique
   resetTokenExpiry  DateTime?
   permissions       String[]  @default([])

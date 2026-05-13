@@ -1,9 +1,32 @@
 # Panel + personalizacja per-user — punkt startowy
 
-**Status**: 🟡 user zgłosił chęć rozpoczęcia. Łączy 3 podtematy:
-1. **Dopracowanie panelu** (UX strony `/settings` jako całość)
-2. **Ustawienia per-użytkownik** (rozszerzenie poza permissions)
-3. **Personalizacja Dashboard / TopWidget** dla nowych userów (zainteresowania, preferowane imię)
+**Status**: 🟢 **MVP wdrożone 2026-05-13** (podtemat 2 + 3). Szczegóły w [docs/changelog.md](changelog.md) — wpis „Personalizacja per-user". Pozostaje podtemat 1 (UX panelu `/settings`) — niedoprecyzowany, zostawiamy na osobną sesję.
+
+**Co zostało wdrożone w MVP**:
+- `User.preferredName / interests / customInterests` w schema (wymaga `prisma db push` na produkcji)
+- Strona `/profil` (każdy user) — formularz: preferowane imię + 7 predefiniowanych tematów + max 5 custom tematów
+- `Avatar` initials (bez uploadu — decyzja)
+- `TopBar` dropdown z avatarem → `/profil` + wyloguj
+- `/api/users/me` PATCH (whitelisted fields)
+- `/api/dashboard/widget` — drop `isAdmin` gate, czyta interests z DB po userId (nie z JWT — natychmiastowa zmiana bez relogu)
+- News feed: 7 predefined topics (`tech, world, business, motivation, biohacking, architecture, real-estate`) + custom przez Google News RSS search + lokalne fallback
+- Default interests gdy puste: `world, business, architecture, real-estate`
+
+**Świadomie pominięte w MVP** (osobne sesje, jak user chce):
+- Avatar upload (initials wystarczą)
+- Theme w DB (zostaje per-przeglądarka)
+- Stopki maili per-user
+- Pogoda per-user (zostaje globalna Zgierz — inwestycja)
+- `/settings` UX cleanup, tabs, brand consistency
+
+**Po deployu na produkcję**: w Coolify Terminal odpalić `node node_modules/prisma/build/index.js db push --skip-generate` (dodaje 3 nowe kolumny). Admin musi w `/settings → użytkownicy` zaznaczyć Konradowi (i innym non-admin) permission `dashboard` żeby zobaczyli TopWidget.
+
+---
+
+Łączy 3 podtematy:
+1. **Dopracowanie panelu** (UX strony `/settings` jako całość) — **nie wdrożone**, czekamy na doprecyzowanie
+2. **Ustawienia per-użytkownik** (rozszerzenie poza permissions) — ✅ wdrożone 2026-05-13
+3. **Personalizacja Dashboard / TopWidget** dla nowych userów (zainteresowania, preferowane imię) — ✅ wdrożone 2026-05-13
 
 ## Co JUŻ działa
 

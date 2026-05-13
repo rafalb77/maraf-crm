@@ -1,6 +1,11 @@
 /**
  * Powitanie po porze dnia + skrót imienia.
- * Dla admina (NEXT_PUBLIC_ADMIN_EMAIL) zawsze "Rafał" niezależnie od pola name w bazie.
+ *
+ * Priorytet wyświetlanego imienia:
+ *   1. preferredName z User.preferredName (per-user, edytowalny na /profil)
+ *   2. pierwsze słowo z User.name
+ *   3. część przed @ z User.email
+ *   4. fallback "Cześć"
  */
 
 export type Greeting = {
@@ -10,27 +15,34 @@ export type Greeting = {
   emoji: string
 }
 
-const ADMIN_DISPLAY_NAME = 'Rafał'
-
-function firstName(input: string | null | undefined): string {
-  if (!input) return 'Cześć'
+function firstWordCapitalized(input: string | null | undefined): string | null {
+  if (!input) return null
   const s = input.trim()
-  if (!s) return 'Cześć'
-  // Bierz pierwsze słowo + capitalize (na wypadek "rafał boruch")
+  if (!s) return null
   const w = s.split(/\s+/)[0]
   return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()
+}
+
+function emailLocalPart(email: string | null | undefined): string | null {
+  if (!email) return null
+  const at = email.indexOf('@')
+  const local = at > 0 ? email.slice(0, at) : email
+  return firstWordCapitalized(local.replace(/[._-]+/g, ' '))
 }
 
 export function getGreeting(opts: {
   email?: string | null
   name?: string | null
+  preferredName?: string | null
   date?: Date
 }): Greeting {
   const date = opts.date || new Date()
-  const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL?.trim().toLowerCase()
-  const isAdminUser = !!(opts.email && adminEmail && opts.email.trim().toLowerCase() === adminEmail)
 
-  const displayName = isAdminUser ? ADMIN_DISPLAY_NAME : firstName(opts.name || opts.email)
+  const displayName =
+    firstWordCapitalized(opts.preferredName) ||
+    firstWordCapitalized(opts.name) ||
+    emailLocalPart(opts.email) ||
+    'Cześć'
 
   const hour = date.getHours()
   let partOfDay: Greeting['partOfDay']

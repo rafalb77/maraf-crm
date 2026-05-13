@@ -4,6 +4,17 @@ Krótkie wpisy „co i **dlaczego**". Bez listy wszystkich commitów — od tego
 
 ---
 
+## 2026-05-13
+
+### Personalizacja per-user: `/profil`, preferredName, interests + TopWidget dla wszystkich
+**Powód**: Hardcoded `ADMIN_DISPLAY_NAME = 'Rafał'` w `greeting.ts` + `isAdmin` gate w `/api/dashboard/widget` blokowały sensowne UX dla nie-adminów. User chciał:
+1) każdy user dostaje swoje powitanie po imieniu które sobie ustawia,
+2) news dnia per-user (zamiast hardcoded rotacji po dniach tygodnia) wg jego zainteresowań,
+3) zarządzanie dostępem do dashboardu już jest (per-user permission `dashboard` od 2026-05-12) — nie trzeba osobnego gate.
+**Implementacja**: Schema — `User.preferredName String?`, `User.interests String[] @default([])`, `User.customInterests String[] @default([])`. Predefiniowane tematy (`PREDEFINED_TOPIC_IDS` w [lib/news-feed.ts](lib/news-feed.ts)): `tech, world, business, motivation, biohacking, architecture, real-estate`. Custom tematy = free-form stringi (limit `MAX_CUSTOM_INTERESTS=5`, `MAX_CUSTOM_INTEREST_LENGTH=50`) — fetchowane przez **Google News RSS search** (`news.google.com/rss/search?q=&hl=pl&gl=PL`). Predefiniowane `business/architecture/real-estate` też używają Google News fallback (brak stabilnych dedykowanych RSS), `tech/world` mają dedykowane FEEDS (Spider's Web, TVN24 itd.). Wybór tematu/itemu deterministyczny per user-dzień: `hash(userId + YYYYMMDD)` % count. Default gdy puste interests: `['world', 'business', 'architecture', 'real-estate']`. `lib/greeting.ts` — usunięte hardcoded `ADMIN_DISPLAY_NAME`, priorytet imienia: `preferredName → firstWord(name) → emailLocalPart`. `/api/dashboard/widget` — drop `isAdmin` gate (permission `dashboard` w middleware to teraz jedyny gate); **czyta interests/preferredName z DB po `session.user.id` (nie z JWT)** — zmiany w `/profil` działają natychmiast bez relogu. Nowy endpoint **`PATCH /api/users/me`** z whitelisted fields (preferredName/interests/customInterests) + sanityzacja custom (strip kontrolnych chars, dedup case-insensitive). Nowa strona `/profil` (każdy user; permission map w `lib/permissions.ts` zwraca `null` dla `/profil` i `/api/users/me` PRZED check'iem `/api/users` → admin). Komponent `Avatar` — initials z hash maila (paleta 8 kolorów), zero infrastruktury (decyzja: bez uploadu w MVP). `TopBar` — dropdown z avatarem → "Mój profil" + "Wyloguj" (click-outside + ESC close). `TopWidget` — usunięte rozróżnienie admin/non-admin: pełen widget gdy news+weather są; `SimpleGreeting` gdy oba padły. **Pominięte w MVP** (osobne sesje): avatar upload, theme w DB (zostaje per-przeglądarka), stopki maili per-user, pogoda per-user (zostaje globalna Zgierz — `WEATHER_LAT/LON` env, bo inwestycja jest tam i wszyscy pracują przy niej), `/settings` UX cleanup. **WYMAGANE po deployu**: `prisma db push --skip-generate` w Coolify Terminal (3 nowe kolumny). Admin musi w `/settings → użytkownicy` zaznaczyć Konradowi (i innym non-admin) permission `dashboard` żeby zobaczyli widget — sam fakt rozszerzenia widget na nie-admina to niewystarczające bo middleware nadal wymaga permission `dashboard` dla `/api/dashboard/*`.
+
+---
+
 ## 2026-05-12
 
 ### Nowy szablon umowy rezerwacyjnej (`templates/umowa-rezerwacyjna.docx`)

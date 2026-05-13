@@ -59,6 +59,11 @@ const PREFERRED_LANDING_ORDER: Permission[] = [
  *  - null       — gdy brak wymagań (auth, statics, root)
  */
 export function getRequiredPermission(pathname: string): Permission | 'admin' | null {
+  // Profil usera — każdy zalogowany ma dostęp do SWOJEGO (PATCH /api/users/me filtruje po session.user.id).
+  // Musi być PRZED /api/users (które jest admin-only).
+  if (pathname === '/profil' || pathname.startsWith('/profil/')) return null
+  if (pathname === '/api/users/me' || pathname.startsWith('/api/users/me/')) return null
+
   // Strony
   if (pathname.startsWith('/dashboard')) return 'dashboard'
   if (pathname.startsWith('/clients')) return 'clients'

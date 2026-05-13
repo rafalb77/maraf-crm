@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { isAdmin } from '@/lib/auth-utils'
+import { prisma } from '@/lib/prisma'
 import { getGreeting } from '@/lib/greeting'
 import { getNewsForToday } from '@/lib/news-feed'
 import { getWeather } from '@/lib/weather'
@@ -12,12 +12,15 @@ export const runtime = 'nodejs'
  * GET /api/dashboard/widget
  *
  * Zwraca dane do TopWidget na dashboardzie:
- *  - greeting: powitanie po imieniu + porze dnia
- *  - news: news dnia (deterministyczny per data)
+ *  - greeting: powitanie po preferredName/name/email + porze dnia
+ *  - news: news dnia (deterministyczny per user + data) z interests/customInterests
  *  - weather: aktualna pogoda + dzienne min/max + wschód/zachód
  *
- * Uwaga: news + weather mają wewnętrzne cache (per proces serwera).
- * News - 6h, weather - 30min.
+ * Permission `dashboard` jest sprawdzany w middleware.ts — tutaj zakładamy że user już przeszedł gate.
+ * User.interests + customInterests czytane bezpośrednio z DB (po session.user.id) — zmiana
+ * w /profil działa natychmiast bez relogowania (nie polegamy na JWT snapshot).
+ *
+ * Cache: news 6h, weather 30min — per proces serwera.
  */
 export async function GET() {
   const session = await getServerSession(authOptions)
@@ -25,22 +28,28 @@ export async function GET() {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  // Tylko admin widzi widget (per ustalenie z userem)
-  // Pozostali userzy dostaną pusty obiekt — UI nie wyrenderuje sekcji
-  const userIsAdmin = isAdmin(session.user.email)
+  const userId = session.user.id || ''
+
+  // Fresh read z DB (nie z session) żeby zmiany w /profil działały bez relogowania
+  const dbUser = userId
+    ? await prisma.user.findUnique({
+        where: { id: userId },
+        select: { preferredName: true, interests: true, customInterests: true, name: true, email: true },
+      })
+    : null
 
   const greeting = getGreeting({
-    email: session.user.email,
-    name: session.user.name,
+    email: dbUser?.email ?? session.user.email,
+    name: dbUser?.name ?? session.user.name,
+    preferredName: dbUser?.preferredName ?? null,
   })
 
-  if (!userIsAdmin) {
-    return NextResponse.json({ greeting, news: null, weather: null, isAdmin: false })
-  }
-
-  // Równolegle — news i weather są niezależne
   const [news, weather] = await Promise.all([
-    getNewsForToday().catch((e) => {
+    getNewsForToday({
+      userId,
+      interests: dbUser?.interests,
+      customInterests: dbUser?.customInterests,
+    }).catch((e) => {
       console.warn('[widget] news error:', e?.message)
       return null
     }),
@@ -50,5 +59,5 @@ export async function GET() {
     }),
   ])
 
-  return NextResponse.json({ greeting, news, weather, isAdmin: true })
+  return NextResponse.json({ greeting, news, weather })
 }
