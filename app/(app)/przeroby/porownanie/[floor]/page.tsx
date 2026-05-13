@@ -1,5 +1,8 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+import { isAdmin } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
 import { ComparisonTable } from '@/components/przeroby/ComparisonTable'
 import { ProtocolGenerator } from '@/components/przeroby/ProtocolGenerator'
@@ -20,6 +23,8 @@ export default async function PorownaniaPage({
   params: Promise<{ floor: string }>
 }) {
   const { floor } = await params
+  const session = await getServerSession(authOptions)
+  const userIsAdmin = isAdmin(session?.user?.email)
 
   const summary = await prisma.floorSummary.findFirst({
     where: { floor },
@@ -130,9 +135,11 @@ export default async function PorownaniaPage({
       manualNote: it.manualNote,
       konradManualValue: it.konradManualValue,
       konradManualReason: it.konradManualReason,
-      accepted: it.accepted,
-      acceptedAt: it.acceptedAt,
-      acceptedNote: it.acceptedNote,
+      investorApproved: it.investorApproved,
+      investorApprovedBy: it.investorApprovedBy,
+      investorApprovedAt: it.investorApprovedAt,
+      investorApprovedNote: it.investorApprovedNote,
+      investorApprovedValue: it.investorApprovedValue,
       autoValue,
       autoUnit,
       autoMatchedCount,
@@ -158,7 +165,7 @@ export default async function PorownaniaPage({
   const totalManual = computed.length - totalAuto
   // Maraf jest wyznacznikiem — % różnicy liczymy względem wartości Maraf (autoValue/manualValue)
   const okMatches = computed.filter((c) => {
-    if (c.accepted) return true
+    if (c.investorApproved) return true
     if (c.matchMode !== 'AUTO_OK' || c.autoValue == null) return false
     const kierownik = referenceValue(c)
     if (kierownik == null) return false
@@ -166,28 +173,10 @@ export default async function PorownaniaPage({
     if (maraf <= 0) return false
     return Math.abs((kierownik - maraf) / maraf) <= 0.05
   }).length
-  const totalAccepted = computed.filter((c) => c.accepted).length
-  const totalReady = computed.filter((c) => {
-    if (c.accepted) return true
-    if (c.manualValue != null) return true
-    // Konrad wpisany ręcznie + (jeśli Δ > 5%) uzasadnienie → gotowa.
-    if (c.konradManualValue != null) {
-      const maraf = c.manualValue != null ? c.manualValue : c.autoValue
-      if (maraf != null && maraf > 0) {
-        const diffPct = Math.abs((c.konradManualValue - maraf) / maraf)
-        if (diffPct <= 0.05) return true
-        if (c.konradManualReason && c.konradManualReason.trim().length > 0) return true
-      } else {
-        return true
-      }
-    }
-    if (c.matchMode === 'AUTO_OK' && c.autoValue != null) {
-      const kierownik = referenceValue(c)
-      const maraf = c.autoValue
-      if (kierownik != null && maraf > 0) return Math.abs((kierownik - maraf) / maraf) <= 0.05
-    }
-    return false
-  }).length
+  const totalAccepted = computed.filter((c) => c.investorApproved).length
+  // "Gotowe do protokołu" = tylko pozycje zaakceptowane przez Inwestora (admin).
+  // Wartości Marafa/kierownika same w sobie nie wystarczają — wymagana świadoma decyzja Inwestora.
+  const totalReady = totalAccepted
 
   return (
     <div className="p-8">
@@ -218,7 +207,7 @@ export default async function PorownaniaPage({
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <Stat label="Pozycji łącznie" value={String(computed.length)} />
         <Stat label="Auto-dopasowanie" value={`${totalAuto}/${computed.length}`} accent="blue" />
-        <Stat label="Zaakceptowane różnice" value={String(totalAccepted)} accent="green" />
+        <Stat label="Zaakceptowane przez Inwestora" value={String(totalAccepted)} accent="green" />
         <Stat label="Gotowe do protokołu" value={`${totalReady}/${computed.length}`} accent={totalReady === computed.length ? 'green' : 'amber'} />
       </div>
 
@@ -232,7 +221,7 @@ export default async function PorownaniaPage({
         total={computed.length}
       />
 
-      <ComparisonTable summaryId={summary.id} items={computed} />
+      <ComparisonTable summaryId={summary.id} items={computed} userIsAdmin={userIsAdmin} />
     </div>
   )
 }

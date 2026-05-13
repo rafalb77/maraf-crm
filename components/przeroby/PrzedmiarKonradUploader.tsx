@@ -148,7 +148,7 @@ export function PrzedmiarKonradUploader({ onClose }: { onClose: () => void }) {
           <div className="flex items-start gap-3">
             <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
             <div className="text-sm text-green-900">
-              <p className="font-medium">Przedmiar Konrada zaimportowany.</p>
+              <p className="font-medium">Przedmiar kierownika zaimportowany.</p>
               <ul className="mt-2 space-y-0.5 text-green-800 text-xs">
                 {a.summariesCreated > 0 && (
                   <li>+ {a.summariesCreated} nowych kondygnacji</li>
@@ -180,11 +180,11 @@ export function PrzedmiarKonradUploader({ onClose }: { onClose: () => void }) {
 
   // ====== Preview / upload ======
   return (
-    <Modal onClose={onClose} title="Wgraj przedmiar Konrada">
+    <Modal onClose={onClose} title="Wgraj przedmiar kierownika">
       <p className="text-sm text-gray-600 mb-4">
-        Wybierz plik xlsx Konrada (arkusz <strong>„Ściany i słupy żelb."</strong>).
+        Wybierz plik xlsx kierownika (arkusz <strong>„Ściany i słupy żelb."</strong>).
         System utworzy pełną strukturę porównania <strong>6 kondygnacji × 5–7 pozycji</strong>:
-        ściany i słupy z xlsx Konrada (auto), pozostałe pozycje (stropy, belki, fundamenty,
+        ściany i słupy z xlsx kierownika (auto), pozostałe pozycje (stropy, belki, fundamenty,
         biegi, szyby, atyki) jako <strong>do uzupełnienia ręcznie</strong> przez kierownika w UI porównania.
       </p>
 
@@ -247,7 +247,7 @@ export function PrzedmiarKonradUploader({ onClose }: { onClose: () => void }) {
             <p className="font-medium">Brak obmiaru Maraf w bazie</p>
             <p className="text-amber-800 mt-0.5 text-xs">
               Najpierw zaimportuj obmiar Maraf przez skrypt CLI (zakres „konstrukcja-zelbetowa").
-              Bez niego porównanie Konrada nie będzie miało punktu odniesienia.
+              Bez niego porównanie kierownika nie będzie miało punktu odniesienia.
             </p>
           </div>
         </div>
@@ -311,7 +311,7 @@ export function PrzedmiarKonradUploader({ onClose }: { onClose: () => void }) {
                         <thead>
                           <tr className="text-left text-gray-500 uppercase tracking-wide">
                             <th className="px-3 py-2 font-medium">Pozycja</th>
-                            <th className="px-3 py-2 font-medium text-right">Konrad</th>
+                            <th className="px-3 py-2 font-medium text-right">Kierownik</th>
                             <th className="px-3 py-2 font-medium">Tryb</th>
                             <th className="px-3 py-2 font-medium">Status</th>
                           </tr>
@@ -388,7 +388,7 @@ export function PrzedmiarKonradUploader({ onClose }: { onClose: () => void }) {
             <h3 className="font-semibold text-gray-900 text-lg mb-2">Czy na pewno?</h3>
             <p className="text-sm text-gray-600 mb-4">
               Zostanie utworzonych <strong>{diff.totalItemsInPlan} pozycji</strong> w {diff.floors.length} kondygnacjach.
-              Wszystkie wartości Konrada (ściany w m³, słupy w m³) zostaną zaktualizowane,
+              Wszystkie wartości kierownika (ściany w m³, słupy w m³) zostaną zaktualizowane,
               a pozycje bez detalu (stropy, belki, fundamenty, biegi, szyby) będą czekać na ręczne uzupełnienie.
             </p>
             {diff.totalManualValuesPreserved > 0 && (
