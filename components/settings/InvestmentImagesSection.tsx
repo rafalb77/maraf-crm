@@ -2,9 +2,9 @@
 import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
-import { UNIT_IMAGE_KIND_LABELS, type UnitImageKind } from '@/lib/types'
+import { INVESTMENT_IMAGE_KIND_LABELS, type InvestmentImageKind } from '@/lib/types'
 
-export type UnitImageItem = {
+export type InvestmentImageItem = {
   id: string
   url: string
   position: number
@@ -12,20 +12,19 @@ export type UnitImageItem = {
   kind: string
 }
 
-export function UnitImageGallery({
-  unitId,
+export function InvestmentImagesSection({
   initialImages,
 }: {
-  unitId: string
-  initialImages: UnitImageItem[]
+  initialImages: InvestmentImageItem[]
 }) {
   const router = useRouter()
   const fileInput = useRef<HTMLInputElement>(null)
-  const [images, setImages] = useState<UnitImageItem[]>(initialImages)
+  const [images, setImages] = useState<InvestmentImageItem[]>(initialImages)
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState<string | null>(null)
   const [dragId, setDragId] = useState<string | null>(null)
+  const [uploadKind, setUploadKind] = useState<InvestmentImageKind>('ZEWNETRZNE')
 
   async function handleFiles(files: FileList | null) {
     if (!files || files.length === 0) return
@@ -34,7 +33,8 @@ export function UnitImageGallery({
     try {
       const fd = new FormData()
       Array.from(files).forEach((f) => fd.append('files', f))
-      const res = await fetch(`/api/units/${unitId}/images`, { method: 'POST', body: fd })
+      fd.append('kind', uploadKind)
+      const res = await fetch(`/api/investment-images`, { method: 'POST', body: fd })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Blad uploadu')
       setImages((prev) => [...prev, ...data.images])
@@ -51,7 +51,7 @@ export function UnitImageGallery({
     if (!confirm('Usunac to zdjecie?')) return
     setBusy(id)
     try {
-      const res = await fetch(`/api/units/${unitId}/images/${id}`, { method: 'DELETE' })
+      const res = await fetch(`/api/investment-images/${id}`, { method: 'DELETE' })
       if (!res.ok) throw new Error('Blad usuwania')
       setImages((prev) => {
         const next = prev.filter((i) => i.id !== id)
@@ -72,7 +72,7 @@ export function UnitImageGallery({
   async function handleSetPrimary(id: string) {
     setBusy(id)
     try {
-      const res = await fetch(`/api/units/${unitId}/images/${id}`, {
+      const res = await fetch(`/api/investment-images/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ isPrimary: true }),
@@ -91,7 +91,7 @@ export function UnitImageGallery({
     setBusy(id)
     setImages((prev) => prev.map((i) => (i.id === id ? { ...i, kind } : i)))
     try {
-      const res = await fetch(`/api/units/${unitId}/images/${id}`, {
+      const res = await fetch(`/api/investment-images/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ kind }),
@@ -134,7 +134,7 @@ export function UnitImageGallery({
     setDragId(null)
 
     try {
-      await fetch(`/api/units/${unitId}/images/reorder`, {
+      await fetch(`/api/investment-images/reorder`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ids: reordered.map((i) => i.id) }),
@@ -145,12 +145,20 @@ export function UnitImageGallery({
     }
   }
 
-  const kindOptions = Object.entries(UNIT_IMAGE_KIND_LABELS) as Array<[UnitImageKind, string]>
+  const kindOptions = Object.entries(INVESTMENT_IMAGE_KIND_LABELS) as Array<[InvestmentImageKind, string]>
 
   return (
-    <div className="space-y-3">
+    <div className="bg-white rounded-xl border border-gray-200 p-6">
+      <div className="mb-4">
+        <h2 className="font-semibold text-gray-900">Wizualizacje inwestycji</h2>
+        <p className="text-sm text-gray-500 mt-1">
+          Wspolne dla wszystkich lokali — elewacja, otoczenie, czesci wspolne, wnetrza wspolne (lobby, klatki).
+          Wykorzystywane przez generator kreacji reklamowych Meta Ads jako tlo zwlaszcza dla formatow Stories (9:16) i FB Landscape (1.91:1).
+        </p>
+      </div>
+
       {images.length > 0 && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mb-4">
           {images.map((img) => (
             <div key={img.id} className="space-y-1.5">
               <div
@@ -209,34 +217,49 @@ export function UnitImageGallery({
         </div>
       )}
 
-      <div>
-        <input
-          ref={fileInput}
-          type="file"
-          accept="image/jpeg,image/png,image/webp"
-          multiple
-          className="hidden"
-          onChange={(e) => handleFiles(e.target.files)}
-          disabled={uploading}
-        />
-        <button
-          type="button"
-          onClick={() => fileInput.current?.click()}
-          disabled={uploading}
-          className="inline-flex items-center gap-2 px-3 py-2 border border-dashed border-gray-300 rounded-lg text-sm text-gray-600 hover:border-blue-400 hover:text-blue-600 transition-colors disabled:opacity-50"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-          </svg>
-          {uploading ? 'Wgrywanie...' : 'Wgraj zdjecia (JPG, PNG, WebP)'}
-        </button>
-        <p className="text-xs text-gray-400 mt-1">
-          Mozesz wybrac wiele plikow naraz. Max 5 MB per plik. Przeciagaj kafelki aby zmienic kolejnosc.
-          Kategoria pod kafelkiem (Wnetrze / Rzut 3D / Doll house...) — generator kreacji wybiera odpowiednie zdjecie per format reklamy.
-        </p>
+      <div className="flex flex-wrap items-end gap-3">
+        <div>
+          <label className="block text-xs text-gray-600 mb-1">Kategoria nowych zdjec</label>
+          <select
+            value={uploadKind}
+            onChange={(e) => setUploadKind(e.target.value as InvestmentImageKind)}
+            disabled={uploading}
+            className="text-sm px-2 py-1.5 border border-gray-300 rounded bg-white text-gray-700 focus:border-blue-400 focus:outline-none disabled:opacity-50"
+          >
+            {kindOptions.map(([key, label]) => (
+              <option key={key} value={key}>{label}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <input
+            ref={fileInput}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            multiple
+            className="hidden"
+            onChange={(e) => handleFiles(e.target.files)}
+            disabled={uploading}
+          />
+          <button
+            type="button"
+            onClick={() => fileInput.current?.click()}
+            disabled={uploading}
+            className="inline-flex items-center gap-2 px-3 py-2 border border-dashed border-gray-300 rounded-lg text-sm text-gray-600 hover:border-blue-400 hover:text-blue-600 transition-colors disabled:opacity-50"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+            </svg>
+            {uploading ? 'Wgrywanie...' : 'Wgraj zdjecia (JPG, PNG, WebP)'}
+          </button>
+        </div>
       </div>
+      <p className="text-xs text-gray-400 mt-2">
+        Mozesz wybrac wiele plikow naraz. Max 5 MB per plik. Przeciagaj kafelki aby zmienic kolejnosc.
+        Kategoria pojedynczego zdjecia mozna zmienic pod kafelkiem.
+      </p>
 
-      {error && <p className="text-red-500 text-xs">{error}</p>}
+      {error && <p className="text-red-500 text-xs mt-2">{error}</p>}
     </div>
   )
 }

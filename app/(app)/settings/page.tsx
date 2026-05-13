@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { authOptions } from '@/lib/auth'
 import { SettingsForm } from '@/components/settings/SettingsForm'
 import { UsersSection } from '@/components/settings/UsersSection'
+import { InvestmentImagesSection } from '@/components/settings/InvestmentImagesSection'
 
 export default async function SettingsPage({
   searchParams,
@@ -23,6 +24,10 @@ export default async function SettingsPage({
     (smtpDbMap.smtpHost && smtpDbMap.smtpUser && smtpDbMap.smtpPass) ||
     (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS)
   )
+
+  const investmentImages = await prisma.investmentImage.findMany({
+    orderBy: [{ position: 'asc' }, { createdAt: 'asc' }],
+  })
 
   return (
     <div className="p-8 max-w-5xl">
@@ -94,6 +99,9 @@ GOOGLE_REDIRECT_URI="https://crm.maraf.pl/api/calendar/callback"`}</pre>
 
         {/* App settings — dane firmy + SMTP + test mail */}
         <SettingsForm />
+
+        {/* Wizualizacje wspolne dla calej inwestycji (tlo dla kreacji Meta Ads) */}
+        <InvestmentImagesSection initialImages={investmentImages} />
 
         {/* Info about app */}
         <div className="bg-white rounded-xl border border-gray-200 p-6">

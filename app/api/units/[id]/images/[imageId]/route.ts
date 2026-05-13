@@ -52,7 +52,13 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   }
 
   const body = await req.json().catch(() => ({}))
-  const { isPrimary, position } = body as { isPrimary?: boolean; position?: number }
+  const { isPrimary, position, kind } = body as {
+    isPrimary?: boolean
+    position?: number
+    kind?: string
+  }
+
+  const ALLOWED_KIND = ['RZUT_3D', 'DOLL_HOUSE', 'WNETRZE', 'WIDOK_Z_OKNA', 'INNE']
 
   if (isPrimary === true) {
     // Zdejmij isPrimary z pozostalych zdjec tego lokalu, ustaw na obecnym
@@ -62,6 +68,11 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     ])
   } else if (typeof position === 'number') {
     await prisma.unitImage.update({ where: { id: params.imageId }, data: { position } })
+  } else if (typeof kind === 'string') {
+    if (!ALLOWED_KIND.includes(kind)) {
+      return NextResponse.json({ error: 'Nieprawidlowa kategoria zdjecia' }, { status: 400 })
+    }
+    await prisma.unitImage.update({ where: { id: params.imageId }, data: { kind } })
   }
 
   const updated = await prisma.unitImage.findUnique({ where: { id: params.imageId } })

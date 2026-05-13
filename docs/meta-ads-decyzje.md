@@ -20,13 +20,24 @@ Reklamy mieszkań w UE = **Special Ad Category "HOUSING"** (zakaz targetowania w
 ### MVP #1 — Generator kreacji (bez Mety)
 Cel: z lokalu (zdjęcia + dane + nazwa inwestycji z Settings) wygenerować zestaw PNG-ów w formatach FB/IG do ręcznego wgrania w Ads Managerze. **Daje wartość natychmiast bez App Review Mety.**
 
-- **1a. Galeria zdjęć lokalu** (status: w trakcie 2026-05-13)
+- **1a. Galeria zdjęć lokalu** (status: ✅ zrobione 2026-05-13)
   - Model `UnitImage` (id, unitId, url, position, isPrimary, createdAt) — relacja kaskadowa do Unit
   - API `/api/units/[id]/images` (POST multi-upload, GET list) + `/api/units/[id]/images/[imageId]` (DELETE, PATCH dla reorder/setPrimary)
   - Folder `public/uploads/units/<unitId>/`
   - Komponent `UnitImageGallery` w `/units/[id]` — dropzone, drag-reorder, isPrimary, delete
   - **Nie ruszamy `floorPlanUrl`** — pozostaje na karty PDF mieszkań (relabel UI: "Karta lokalu (PDF)")
   - Walidacja: tylko obrazy (JPG/PNG/WebP), max 5MB/plik, bez auto-kompresji na MVP
+  - **Fix podgladow**: `<Image unoptimized>` — bez tego optymalizator Next robi fetch bez cookies → 401 z `/uploads/[...path]`
+
+- **1a.2. Rozszerzenie galerii + wizualizacje wspolne inwestycji** (status: w trakcie 2026-05-13)
+  - Pole `kind` w `UnitImage` (`RZUT_3D` | `DOLL_HOUSE` | `WNETRZE` | `WIDOK_Z_OKNA` | `INNE`) — dropdown pod kafelkiem, PATCH endpoint rozszerzony o kind
+  - Nowy model `InvestmentImage` (id, url, position, isPrimary, kind, createdAt) — **bez unitId**, wspolne dla calej inwestycji
+  - Kategorie `InvestmentImage`: `ZEWNETRZNE` | `WEWNETRZNE` | `OTOCZENIE` | `INNE`
+  - API `/api/investment-images` (POST/GET) + `/[imageId]` (DELETE/PATCH) + `/reorder` (POST) — wszystkie endpointy `isAdmin` gate
+  - Folder `public/uploads/investment/`
+  - Komponent `InvestmentImagesSection` w `/settings` (admin only przez layout settings)
+  - Powod: wizualizacje zewnetrzne sa wspolne dla wszystkich 158 lokali — nie ma sensu wrzucac do `UnitImage` 158 razy
+  - Etykiety w `lib/types.ts` (`UNIT_IMAGE_KIND_LABELS`, `INVESTMENT_IMAGE_KIND_LABELS`)
 
 - **1b. Template engine + render PNG** (status: pending)
   - `lib/ad-creative-html.ts` — HTML+CSS composer dla 4 formatów: 1080×1080 (FB/IG feed), 1080×1350 (IG portrait 4:5), 1080×1920 (Stories/Reels 9:16), 1200×628 (FB landscape 1.91:1)
