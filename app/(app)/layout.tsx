@@ -18,7 +18,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <div className="flex h-screen" style={{ backgroundColor: 'var(--background)' }}>
       <Sidebar />
       <div className="flex-1 ml-64 flex flex-col overflow-hidden">
-        <TopBar userName={session.user?.name || session.user?.email} />
+        <TopBar userName={session.user?.name} userEmail={session.user?.email} />
         <main className="flex-1 overflow-y-auto">
           {children}
         </main>

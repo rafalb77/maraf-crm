@@ -497,9 +497,13 @@ export async function commitImport(buffer: Buffer, userEmail: string | null = nu
   const { sections: parsedSections } = parseSheet(buffer)
   const allSections = buildAllSections(parsedSections)
 
-  // Mapa do zachowania manualValue/note/accepted + konradManualValue/Reason
+  // Mapa do zachowania manualValue/note/accepted/investor + konradManualValue/Reason
   // + poprzednia wartość Konrada (do log REIMPORT) + historia (do odtworzenia
   // po cascade delete).
+  //
+  // Dodatkowo: items z `matchMode = 'MANUAL_ADDED'` (dodane ręcznie w UI) zachowujemy
+  // OSOBNO i doklejamy na końcu po wszystkich standardowych pozycjach z buildPositionsForFloor.
+  // To wymaga zebrania ich tu i ponownego stworzenia w tx.
   type PreservedItem = {
     manualValue: number | null
     manualNote: string | null
@@ -508,6 +512,11 @@ export async function commitImport(buffer: Buffer, userEmail: string | null = nu
     accepted: boolean
     acceptedAt: Date | null
     acceptedNote: string | null
+    investorApproved: boolean
+    investorApprovedBy: string | null
+    investorApprovedAt: Date | null
+    investorApprovedNote: string | null
+    investorApprovedValue: number | null
     prevKonradValue: number // poprzednia wartość Konrada (m² lub m³, w zależności od unit)
     prevUnit: string
     history: Array<{
@@ -519,7 +528,25 @@ export async function commitImport(buffer: Buffer, userEmail: string | null = nu
       createdAt: Date
     }>
   }
+  type ManualAddedItem = {
+    floor: string
+    name: string
+    unit: string
+    matchMode: string
+    matchReason: string | null
+    manualValue: number | null
+    manualNote: string | null
+    konradManualValue: number | null
+    konradManualReason: string | null
+    investorApproved: boolean
+    investorApprovedBy: string | null
+    investorApprovedAt: Date | null
+    investorApprovedNote: string | null
+    investorApprovedValue: number | null
+    history: PreservedItem['history']
+  }
   const preserveMap = new Map<string, PreservedItem>()
+  const manualAddedByFloor = new Map<string, ManualAddedItem[]>()
   const existingForPreserve = await prisma.floorSummary.findMany({
     where: { scopeId: scope.id },
     include: {
@@ -532,8 +559,40 @@ export async function commitImport(buffer: Buffer, userEmail: string | null = nu
   })
   for (const s of existingForPreserve) {
     for (const it of s.items) {
+      const history = it.history.map((h) => ({
+        action: h.action,
+        oldValue: h.oldValue,
+        newValue: h.newValue,
+        note: h.note,
+        userEmail: h.userEmail,
+        createdAt: h.createdAt,
+      }))
+
+      // Pozycja dodana ręcznie — nie idzie do preserveMap (po nazwie), tylko do osobnej kolekcji
+      if (it.matchMode === 'MANUAL_ADDED') {
+        const arr = manualAddedByFloor.get(s.floor) || []
+        arr.push({
+          floor: s.floor,
+          name: it.name,
+          unit: it.unit,
+          matchMode: it.matchMode,
+          matchReason: it.matchReason,
+          manualValue: it.manualValue,
+          manualNote: it.manualNote,
+          konradManualValue: it.konradManualValue,
+          konradManualReason: it.konradManualReason,
+          investorApproved: it.investorApproved,
+          investorApprovedBy: it.investorApprovedBy,
+          investorApprovedAt: it.investorApprovedAt,
+          investorApprovedNote: it.investorApprovedNote,
+          investorApprovedValue: it.investorApprovedValue,
+          history,
+        })
+        manualAddedByFloor.set(s.floor, arr)
+        continue
+      }
+
       const key = `${s.floor}||${normalizeName(it.name)}`
-      // Poprzednia wartość Konrada — zależy od jednostki
       const prevKonrad = it.unit === 'm2' ? it.laborQty : it.concreteVol
       preserveMap.set(key, {
         manualValue: it.manualValue,
@@ -543,16 +602,14 @@ export async function commitImport(buffer: Buffer, userEmail: string | null = nu
         accepted: it.accepted,
         acceptedAt: it.acceptedAt,
         acceptedNote: it.acceptedNote,
+        investorApproved: it.investorApproved,
+        investorApprovedBy: it.investorApprovedBy,
+        investorApprovedAt: it.investorApprovedAt,
+        investorApprovedNote: it.investorApprovedNote,
+        investorApprovedValue: it.investorApprovedValue,
         prevKonradValue: prevKonrad,
         prevUnit: it.unit,
-        history: it.history.map((h) => ({
-          action: h.action,
-          oldValue: h.oldValue,
-          newValue: h.newValue,
-          note: h.note,
-          userEmail: h.userEmail,
-          createdAt: h.createdAt,
-        })),
+        history,
       })
     }
   }
@@ -614,6 +671,11 @@ export async function commitImport(buffer: Buffer, userEmail: string | null = nu
           accepted: preserved?.accepted ?? false,
           acceptedAt: preserved?.acceptedAt ?? null,
           acceptedNote: preserved?.acceptedNote ?? null,
+          investorApproved: preserved?.investorApproved ?? false,
+          investorApprovedBy: preserved?.investorApprovedBy ?? null,
+          investorApprovedAt: preserved?.investorApprovedAt ?? null,
+          investorApprovedNote: preserved?.investorApprovedNote ?? null,
+          investorApprovedValue: preserved?.investorApprovedValue ?? null,
         }
 
         const created = await tx.floorSummaryItem.create({ data })
@@ -650,6 +712,50 @@ export async function commitImport(buffer: Buffer, userEmail: string | null = nu
               },
             })
           }
+        }
+      }
+
+      // Doklej pozycje MANUAL_ADDED z poprzedniego stanu (dodane ręcznie w UI,
+      // poza listą z buildPositionsForFloor — żeby przeżyły reimport).
+      const manualAdded = manualAddedByFloor.get(sec.meta.floor) || []
+      for (let j = 0; j < manualAdded.length; j++) {
+        const m = manualAdded[j]
+        const created = await tx.floorSummaryItem.create({
+          data: {
+            summaryId: summary.id,
+            position: positions.length + j + 1,
+            name: m.name,
+            unit: m.unit,
+            laborQty: 0,
+            concreteVol: 0,
+            rebarMass: 0,
+            matchMode: m.matchMode,
+            matchReason: m.matchReason,
+            mappingRule: null,
+            manualValue: m.manualValue,
+            manualNote: m.manualNote,
+            konradManualValue: m.konradManualValue,
+            konradManualReason: m.konradManualReason,
+            investorApproved: m.investorApproved,
+            investorApprovedBy: m.investorApprovedBy,
+            investorApprovedAt: m.investorApprovedAt,
+            investorApprovedNote: m.investorApprovedNote,
+            investorApprovedValue: m.investorApprovedValue,
+          },
+        })
+        itemsCreated++
+        if (m.history.length > 0) {
+          await tx.floorSummaryItemHistory.createMany({
+            data: m.history.map((h) => ({
+              itemId: created.id,
+              action: h.action,
+              oldValue: h.oldValue,
+              newValue: h.newValue,
+              note: h.note,
+              userEmail: h.userEmail,
+              createdAt: h.createdAt,
+            })),
+          })
         }
       }
     }

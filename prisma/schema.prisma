@@ -13,11 +13,21 @@ datasource db {
 // Admin (NEXT_PUBLIC_ADMIN_EMAIL) ma override — jego permissions ignorowane, zawsze ma wszystko.
 // Default [] — bezpieczny default; nowy user nie ma dostępu nigdzie dopóki admin nie nada.
 // Istniejący userzy też dostaną [] po `prisma db push` — admin musi w /settings nadać im sekcje.
+//
+// Pola personalizacji (preferredName, interests, customInterests):
+//  - preferredName — wyświetlane w powitaniu w dashboardzie (fallback: pierwsze słowo z name / email)
+//  - interests — predefiniowane tematy newsów dnia (IDs z lib/news-feed.ts: tech, world, business, ...)
+//  - customInterests — własne tematy free-form (max 50 znaków każdy, max 5 sztuk), fetch przez Google News search
+//
+// Endpoint /api/dashboard/widget czyta interests z DB po userId — zmiana działa natychmiast (bez re-login).
 model User {
   id                String    @id @default(cuid())
   email             String    @unique
   password          String
   name              String?
+  preferredName     String?
+  interests         String[]  @default([])
+  customInterests   String[]  @default([])
   resetToken        String?   @unique
   resetTokenExpiry  DateTime?
   permissions       String[]  @default([])
@@ -440,6 +450,7 @@ model FloorSummary {
 //   MANUAL_OUT_OF_SCOPE— poza zakresem ŻB (murowanie, łączniki)
 //   MANUAL_NOT_FOUND   — pozycja nieobecna w obmiarze inżynierskim (np. daszki)
 //   MANUAL_OVERRIDE    — użytkownik świadomie nadpisał wartość
+//   MANUAL_ADDED       — pozycja dodana ręcznie przez usera w UI (poza pozycjami z buildPositionsForFloor); zachowywane przy reimporcie
 model FloorSummaryItem {
   id            String   @id @default(cuid())
   summaryId     String
@@ -453,13 +464,23 @@ model FloorSummaryItem {
   matchMode     String   @default("AUTO_OK")
   matchReason   String?                 // automatyczny opis dlaczego nie matchuje
   mappingRule   String?                 // JSON: { categoryName, elementType?, floorName?, namePattern? }
-  manualValue   Float?                  // ręczna wartość Marafa (override autoValue z reguły)
+  manualValue   Float?                  // ręczna wartość Marafu (override autoValue z reguły)
   manualNote    String?                 // komentarz do manualValue
   konradManualValue  Float?             // ręczna wartość Konrada (gdy nie ma detalu w xlsx) — wpisuje kierownik lub admin
   konradManualReason String?            // uzasadnienie wartości Konrada — WYMAGANE gdy |Δ| > 5% vs Maraf
-  accepted      Boolean  @default(false) // kierownik świadomie zaakceptował różnicę (poza tolerancją)
+  // DEPRECATED — zastąpione przez investorApproved*. Pola zostają w schemie/bazie żeby
+  // nie tracić historycznych danych (kto co kiedy kierowniczo zaakceptował). Nie używane w UI.
+  accepted      Boolean  @default(false)
   acceptedAt    DateTime?
   acceptedNote  String?
+  // Akceptacja przez Inwestora (admin) — warunek konieczny przejścia pozycji do protokołu.
+  // investorApprovedValue = snapshot wartości kierownika w momencie akceptacji (do auditingu —
+  // jeśli wartość się zmieni po akceptacji, widać że potrzeba reakceptacji).
+  investorApproved      Boolean   @default(false)
+  investorApprovedBy    String?
+  investorApprovedAt    DateTime?
+  investorApprovedNote  String?
+  investorApprovedValue Float?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -471,11 +492,11 @@ model FloorSummaryItem {
 }
 
 // Historia zmian per pozycja podsumowania — auditing dla ręcznych decyzji kierownika
-// (akceptacja różnicy, wpis ręcznej wartości Marafa/Konrada, komentarze).
+// (akceptacja różnicy, wpis ręcznej wartości Marafu/Konrada, komentarze).
 model FloorSummaryItemHistory {
   id        String   @id @default(cuid())
   itemId    String
-  action    String   // ACCEPT | UNACCEPT | SET_MANUAL_VALUE | CLEAR_MANUAL_VALUE | SET_KONRAD_VALUE | CLEAR_KONRAD_VALUE | EDIT_NOTE | REIMPORT
+  action    String   // ACCEPT | UNACCEPT | SET_MANUAL_VALUE | CLEAR_MANUAL_VALUE | SET_KONRAD_VALUE | CLEAR_KONRAD_VALUE | INVESTOR_APPROVE | INVESTOR_UNAPPROVE | ITEM_ADDED | EDIT_NOTE | REIMPORT
   oldValue  String?  // poprzednia wartość (JSON serialized)
   newValue  String?  // nowa wartość (JSON serialized)
   note      String?  // komentarz / uzasadnienie z formularza

@@ -9,31 +9,44 @@ Zastępuje stary tytuł „Dashboard / Witaj X". 3 kolumny w jednym banner'ze:
 
 Gold-gradient tło z brand tokens (NAVY + GOLD), responsive (1 kolumna na mobile).
 
-### 1. Powitanie po porze dnia + admin name override
+### 1. Powitanie po porze dnia + preferredName per-user
 
-`lib/greeting.ts` → funkcja `getGreeting({email, name})`:
+`lib/greeting.ts` → funkcja `getGreeting({email, name, preferredName})`:
 - `hour 5-12` → poranek 🌅
 - `hour 12-18` → popołudnie ☀️
 - `hour 18-22` → wieczór 🌆
 - `hour 22-5` → noc 🌙
 
-**Imię**: dla admina (email = `NEXT_PUBLIC_ADMIN_EMAIL`) zawsze **„Rafał"** — hardcoded w `ADMIN_DISPLAY_NAME` w `greeting.ts`, bo w bazie `name = 'Administrator'`. Dla innych userów — pierwsze słowo z `User.name` lub email.
+**Imię** (priorytet od 2026-05-13):
+1. `User.preferredName` (każdy user ustawia w `/profil`)
+2. pierwsze słowo z `User.name`
+3. lokalna część e-maila (przed `@`, z `._-` zamienionym na spację)
+4. fallback „Cześć"
 
-### 2. News dnia — polskie RSS + fallback
+Hardcoded `ADMIN_DISPLAY_NAME = 'Rafał'` zostało usunięte — admin ustawia sobie preferredName tak jak każdy inny user.
 
-`lib/news-feed.ts` — agreguje RSS z polskich źródeł, deterministyczny wybór per data.
+### 2. News dnia — per user.interests (RSS + Google News + fallback)
 
-**Topic rotuje per dzień tygodnia** (deterministycznie):
-- poniedziałek, czwartek → 🚀 tech (Spider's Web, Antyweb, Niebezpiecznik)
-- wtorek, sobota → 🌍 świat (TVN24, Onet, WP)
-- środa, niedziela → 🧬 biohacking (fallback)
-- piątek → 💪 motywacja (fallback)
+`lib/news-feed.ts` — agreguje newsy per zainteresowania usera, deterministyczny wybór per user-dzień.
 
-**Fallback do lokalnej bazy** — `motivation` i `biohacking` nie mają stabilnych polskich RSS, więc rotujemy 8-10 ciekawostek/cytatów per topic (Mark Manson, James Clear, Marek Aureliusz, fakty o śnie/zimnie/L-teaninie). Plus jak RSS się wykrzaczy → fallback.
+**Predefiniowane tematy** (`PREDEFINED_TOPIC_IDS`, 2026-05-13):
+- 🚀 `tech` — Spider's Web, Antyweb, Niebezpiecznik (dedykowane RSS)
+- 🌍 `world` — TVN24, Onet, WP (dedykowane RSS)
+- 💼 `business` — Google News query "biznes Polska"
+- 💪 `motivation` — brak RSS, lokalna baza cytatów (Manson, Clear, Aureliusz, Goggins, Munger...)
+- 🧬 `biohacking` — brak RSS, lokalna baza ciekawostek (sen, L-teanina, post 16/8, HRV...)
+- 🏛️ `architecture` — Google News query "architektura" + lokalna baza ciekawostek (Burj, ENIAC, Sagrada Familia...)
+- 🏘️ `real-estate` — Google News query "rynek nieruchomości" + lokalna baza statystyk rynku PL
 
-**Cache 6h** w pamięci serwera (per-proces, nie persistent). Deterministyczny wybór po dacie (YYYY-MM-DD hash) — wszyscy zalogowani widzą ten sam news danego dnia.
+**Custom tematy** (max 5 per user, max 50 znaków, free-form) — fetchowane przez **Google News RSS search**: `news.google.com/rss/search?q=<query>&hl=pl&gl=PL&ceid=PL:pl`. Sanityzacja w `lib/news-feed.ts` (`sanitizeCustom`) + dedup case-insensitive w `PATCH /api/users/me`.
 
-Parsuje RSS regex'em (bez biblioteki) — obsługuje RSS 2.0 i Atom 1.0, dekoduje HTML entities, strip CDATA.
+**Wybór per user-dzień**: `hash(userId + YYYYMMDD + 'topic')` % count(interests) → temat dnia; `hash(userId + YYYYMMDD + 'item')` % count(items) → konkretny news. Czyli każdy user widzi inny news, ale ten sam przez cały dzień.
+
+**Default gdy user ma puste interests + customInterests**: `['world', 'business', 'architecture', 'real-estate']`.
+
+**Cache 6h** w pamięci serwera (per-proces). Klucze cache: `pre:<topic>` dla predefined, `gn:<query lowercased>` dla custom/Google. RSS parser regex'em (RSS 2.0 + Atom 1.0).
+
+**Endpoint `/api/dashboard/widget`** czyta `interests` i `customInterests` z **DB query po session.user.id** (nie z JWT) — zmiany w `/profil` działają natychmiast bez relogu. Stary hardcoded `isAdmin` gate został usunięty 2026-05-13; jedyny gate to permission `dashboard` (middleware). Konrad/inni non-admin muszą mieć w `/settings` zaznaczone `dashboard` żeby zobaczyli widget.
 
 ### 3. Pogoda — Open-Meteo (free, no API key)
 

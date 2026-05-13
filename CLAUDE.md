@@ -17,10 +17,14 @@ Zanim zaczniesz pracę nad konkretnym modułem — przeczytaj odpowiedni plik. T
 
 ### Otwarte sprawy (do dokończenia)
 
+- **`docs/karty-mieszkan-status.md`** — **🟢 ZAMKNIĘTE 2026-05-13** (zostawiam plik dla historii; jest 1 mini-TODO: poprawić w UI 2 literówki w `Unit.floor` — `B1.2.M18` 3→2, `B1.4.M59` 5→4).
 - **`docs/obmiary-rozpoczecie.md`** — moduł obmiarów z rysunków (DXF/PDF). Schema + dependencies gotowe, ale brak UI/API. 4 warianty MVP do wyboru z user'em (manualne klikanie / DXF parser / AI / pełna integracja z Przerobami).
 - **`docs/porownanie-obmiarow-rozpoczecie.md`** — porównanie obmiarów (rozszerzenie istniejącego `/przeroby/porownanie`). Zakres niejasny — 4 scenariusze do uzgodnienia z userem (rozszerzenie, historia wersji, xlsx vs rysunek, inne).
+- **`docs/panel-personalizacja-rozpoczecie.md`** — **podtemat 2+3 (preferredName, interests, /profil, TopWidget per-user) wdrożony 2026-05-13** — patrz changelog. Otwarty pozostaje podtemat 1 (UX panelu `/settings`) — niedoprecyzowany.
+- **`docs/sprzedaz-decyzje.md`** — moduł Sprzedaż gotowy w MVP. Otwarte: 4 warianty podpisywania umów (sekcja „Plan podpisywania") + 10 kierunków rozwoju generatora.
+- **`docs/lokale-decyzje.md`** — moduł Lokale działa. Otwarte: 10 kierunków rozwoju (bulk operacje, wizualizacja rzutu, historia zmian, integracje portali).
 
-_(temat „PDF generator" zamknięty 2026-05-12 — patrz `docs/changelog.md`)_
+_(temat „PDF generator" zamknięty 2026-05-12, „Personalizacja per-user" + „Import kart mieszkań" zamknięte 2026-05-13 — patrz `docs/changelog.md`)_
 
 Gdy w trakcie pracy pojawi się temat niedokończony (deploy padł, fix wymaga osobnej sesji, czekamy na dane od użytkownika) — **wpisz tu** wraz z linkiem do osobnego pliku `docs/<temat>-status.md` z pełnym kontekstem (co próbowano, co nie pomogło, checklist diagnostyki).
 
@@ -79,6 +83,7 @@ npm run db:seed                   # tworzy admina z ADMIN_EMAIL/ADMIN_PASSWORD
 - **Debian chromium 137+ ma bug crashpad** — używamy **Google Chrome stable** zainstalowanego z oficjalnego repo Google (Dockerfile w runner stage). `PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome-stable`. **NIE wracaj** do `apt-get install chromium`.
 - **`.env.local` vs `schema.prisma`** — lokalnie aplikacja **się nie uruchomi** out-of-the-box: `.env.local` ma `DATABASE_URL="file:..."` (SQLite z legacy), a schema mówi `provider = "postgresql"`. Trzeba postawić lokalnego Postgres albo użyć cloud DB. Workflow developerski bywa: edit kod → push → Coolify deploy → test na produkcji.
 - **`force-dynamic` w `app/(app)/layout.tsx`** jest **konieczny** — bez niego `next build` próbuje statycznie wygenerować strony robiące Prisma queries, dostaje OOM przy SSG i build pada. Każda nowa strona pod `(app)` dziedziczy to.
+- **`output: 'standalone'` + `public/uploads/`** — Next.js standalone trace'uje listę plików w `public/` w **buildtime**. Pliki dodane w runtime (przez Coolify persistent volume `/app/public/uploads` lub nasze skrypty importowe) **NIE są serwowane** przez wbudowany static handler — zwraca 404. Dlatego mamy `app/uploads/[...path]/route.ts` — catch-all API route który czyta pliki z fs. Każdy URL `/uploads/*` przechodzi przez niego (wymaga session + sanityzuje path traversal). Jak dodajesz nowy MIME type — uzupełnij `MIME` w route.ts.
 - **Worktree'y w `.claude/worktrees/`** — Claude Code czasem pracuje w worktree, główne repo to `C:/AplikacjeAI/CodeCRM`. `node_modules` jest w głównym repo, worktree go nie ma — `npx prisma generate` uruchamiaj w głównym repo. Pliki binarne (xlsx, png) wgrywane przez usera do głównego repo trzeba skopiować do worktree przed `git add`.
 
 ## Skrypty CLI (poza UI)

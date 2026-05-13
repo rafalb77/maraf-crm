@@ -26,9 +26,11 @@ type Item = {
   manualNote: string | null
   konradManualValue: number | null
   konradManualReason: string | null
-  accepted: boolean
-  acceptedAt: Date | string | null
-  acceptedNote: string | null
+  investorApproved: boolean
+  investorApprovedBy: string | null
+  investorApprovedAt: Date | string | null
+  investorApprovedNote: string | null
+  investorApprovedValue: number | null
   autoValue: number | null
   autoUnit: string
   autoMatchedCount?: number | null
@@ -45,14 +47,17 @@ type Item = {
 const KONRAD_DIFF_THRESHOLD = 0.05
 
 const ACTION_LABEL: Record<string, string> = {
-  ACCEPT: '✓ Zaakceptowano różnicę',
-  UNACCEPT: '↩ Cofnięto akceptację',
-  SET_MANUAL_VALUE: '✏ Ustawiono ręczną wartość Marafa',
-  CLEAR_MANUAL_VALUE: '🗑 Wyczyszczono ręczną wartość Marafa',
-  SET_KONRAD_VALUE: '✏ Ustawiono ręczną wartość Konrada',
-  CLEAR_KONRAD_VALUE: '🗑 Wyczyszczono ręczną wartość Konrada',
+  ACCEPT: '✓ Zaakceptowano różnicę (legacy)',
+  UNACCEPT: '↩ Cofnięto akceptację (legacy)',
+  SET_MANUAL_VALUE: '✏ Ustawiono ręczną wartość Marafu',
+  CLEAR_MANUAL_VALUE: '🗑 Wyczyszczono ręczną wartość Marafu',
+  SET_KONRAD_VALUE: '✏ Ustawiono ręczną wartość kierownika',
+  CLEAR_KONRAD_VALUE: '🗑 Wyczyszczono ręczną wartość kierownika',
+  INVESTOR_APPROVE: '✅ Zaakceptowano przez Inwestora',
+  INVESTOR_UNAPPROVE: '↩ Cofnięto akceptację Inwestora',
+  ITEM_ADDED: '➕ Pozycja dodana ręcznie',
   EDIT_NOTE: '📝 Zmieniono komentarz',
-  REIMPORT: '🔄 Reimport — zaktualizowano wartość Konrada',
+  REIMPORT: '🔄 Reimport — zaktualizowano wartość kierownika',
 }
 const ACTION_COLOR: Record<string, string> = {
   ACCEPT: 'text-green-700',
@@ -61,6 +66,9 @@ const ACTION_COLOR: Record<string, string> = {
   CLEAR_MANUAL_VALUE: 'text-gray-600',
   SET_KONRAD_VALUE: 'text-indigo-700',
   CLEAR_KONRAD_VALUE: 'text-gray-600',
+  INVESTOR_APPROVE: 'text-green-700',
+  INVESTOR_UNAPPROVE: 'text-amber-700',
+  ITEM_ADDED: 'text-purple-700',
   REIMPORT: 'text-purple-700',
   EDIT_NOTE: 'text-gray-700',
 }
@@ -72,6 +80,7 @@ const MATCH_MODE_LABEL: Record<string, string> = {
   MANUAL_OUT_OF_SCOPE: 'poza ŻB',
   MANUAL_NOT_FOUND: 'brak u kierownika',
   MANUAL_OVERRIDE: 'ręczne nadpisanie',
+  MANUAL_ADDED: 'dodana ręcznie',
 }
 const MATCH_MODE_BADGE: Record<string, string> = {
   AUTO_OK: 'bg-blue-50 text-blue-700',
@@ -80,6 +89,7 @@ const MATCH_MODE_BADGE: Record<string, string> = {
   MANUAL_OUT_OF_SCOPE: 'bg-gray-100 text-gray-600',
   MANUAL_NOT_FOUND: 'bg-amber-50 text-amber-700',
   MANUAL_OVERRIDE: 'bg-emerald-50 text-emerald-700',
+  MANUAL_ADDED: 'bg-purple-50 text-purple-700',
 }
 
 function refValue(it: Item): number | null {
@@ -111,26 +121,41 @@ function fmt(n: number | null | undefined) {
 export function ComparisonTable({
   summaryId,
   items: initial,
+  userIsAdmin = false,
 }: {
   summaryId: string
   items: Item[]
+  userIsAdmin?: boolean
 }) {
   const [items, setItems] = useState(initial)
   const [openId, setOpenId] = useState<string | null>(null)
+  const [showAddModal, setShowAddModal] = useState(false)
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-gray-50/50">
+        <p className="text-xs text-gray-500">
+          Akceptacja po stronie Inwestora (kolumna „AKCEPTACJA") warunkuje przejście pozycji do protokołu.
+        </p>
+        <button
+          onClick={() => setShowAddModal(true)}
+          className="bg-purple-600 hover:bg-purple-700 text-white text-xs font-medium px-3 py-1.5 rounded-lg inline-flex items-center gap-1"
+        >
+          ➕ Dodaj pozycję
+        </button>
+      </div>
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-gray-50 text-xs text-gray-500 uppercase tracking-wider">
             <tr>
               <th className="text-left px-3 py-3 font-medium w-10">Lp.</th>
-              <th className="text-left px-3 py-3 font-medium">Pozycja kierownika</th>
+              <th className="text-left px-3 py-3 font-medium">Pozycja obmiaru</th>
               <th className="text-center px-2 py-3 font-medium">Jedn.<br/>poz.</th>
               <th className="text-right px-3 py-3 font-medium bg-blue-50/50">Maraf<br/>(wyznacznik)</th>
               <th className="text-right px-3 py-3 font-medium">Kierownik</th>
               <th className="text-right px-3 py-3 font-medium">Δ</th>
               <th className="text-right px-3 py-3 font-medium">Δ%</th>
+              <th className="text-center px-3 py-3 font-medium w-24">Akceptacja<br/>Inwestora</th>
               <th className="text-left px-3 py-3 font-medium w-32">Postęp<br/>w protokołach</th>
               <th className="text-left px-3 py-3 font-medium">Tryb</th>
               <th className="px-3 py-3" />
@@ -142,13 +167,25 @@ export function ComparisonTable({
                 key={it.id}
                 item={it}
                 isOpen={openId === it.id}
+                userIsAdmin={userIsAdmin}
                 onToggle={() => setOpenId(openId === it.id ? null : it.id)}
                 onUpdate={(patch) => setItems((arr) => arr.map((x) => (x.id === it.id ? { ...x, ...patch } : x)))}
+                onDelete={() => setItems((arr) => arr.filter((x) => x.id !== it.id))}
               />
             ))}
           </tbody>
         </table>
       </div>
+      {showAddModal && (
+        <AddItemModal
+          summaryId={summaryId}
+          onClose={() => setShowAddModal(false)}
+          onAdded={(newItem) => {
+            setItems((arr) => [...arr, newItem])
+            setShowAddModal(false)
+          }}
+        />
+      )}
     </div>
   )
 }
@@ -156,13 +193,17 @@ export function ComparisonTable({
 function ItemRow({
   item,
   isOpen,
+  userIsAdmin,
   onToggle,
   onUpdate,
+  onDelete,
 }: {
   item: Item
   isOpen: boolean
+  userIsAdmin: boolean
   onToggle: () => void
   onUpdate: (patch: Partial<Item>) => void
+  onDelete: () => void
 }) {
   const router = useRouter()
   const [savedAt, setSavedAt] = useState<Date | null>(null)
@@ -175,7 +216,7 @@ function ItemRow({
   const diff = marafValue != null && marafValue > 0 ? kierownikValue - marafValue : null
   const diffPct = diff != null && marafValue != null && marafValue > 0 ? (diff / marafValue) * 100 : null
 
-  const flag = item.accepted
+  const flag = item.investorApproved
     ? '✓'
     : diffPct == null
       ? ''
@@ -185,9 +226,15 @@ function ItemRow({
           ? '~'
           : '✗'
 
-  const flagCls = item.accepted
+  const flagCls = item.investorApproved
     ? 'text-green-600'
     : flag === '✓' ? 'text-green-600' : flag === '~' ? 'text-amber-600' : flag === '✗' ? 'text-red-600' : 'text-gray-400'
+
+  // Czy snapshot wartości w momencie akceptacji się rozjechał z aktualną wartością kierownika?
+  // Jeśli tak — akceptacja jest "przestarzała", admin powinien re-zaakceptować.
+  const approvalStale = item.investorApproved
+    && item.investorApprovedValue != null
+    && kierownikValue !== item.investorApprovedValue
 
   async function save(patch: any) {
     setSaving(true)
@@ -204,9 +251,11 @@ function ItemRow({
         manualNote: 'manualNote' in patch ? patch.manualNote : item.manualNote,
         konradManualValue: 'konradManualValue' in patch ? patch.konradManualValue : item.konradManualValue,
         konradManualReason: 'konradManualReason' in patch ? patch.konradManualReason : item.konradManualReason,
-        accepted: 'accepted' in patch ? patch.accepted : item.accepted,
-        acceptedNote: 'acceptedNote' in patch ? patch.acceptedNote : item.acceptedNote,
-        acceptedAt: 'accepted' in patch ? (patch.accepted ? new Date() : null) : item.acceptedAt,
+        investorApproved: 'investorApproved' in patch ? patch.investorApproved : item.investorApproved,
+        investorApprovedNote: 'investorApprovedNote' in patch ? patch.investorApprovedNote : item.investorApprovedNote,
+        investorApprovedAt: 'investorApproved' in patch ? (patch.investorApproved ? new Date() : null) : item.investorApprovedAt,
+        investorApprovedValue: data?.investorApprovedValue ?? item.investorApprovedValue,
+        investorApprovedBy: data?.investorApprovedBy ?? item.investorApprovedBy,
       })
       setSavedAt(new Date())
       router.refresh()
@@ -216,15 +265,19 @@ function ItemRow({
     setSaving(false)
   }
 
-  // Czy widoczny jest przycisk „Akceptuj różnicę"?
-  // Pokazujemy gdy:
-  //  - mamy auto-policzoną wartość lub ręczną (jest co akceptować)
-  //  - LUB wymagana jest decyzja kierownika (MANUAL_*)
-  // Nie pokazujemy gdy: różnica <=5% (już matchuje) lub poza ŻB (nie ma sensu akceptować braku)
-  const showAcceptButton = !item.accepted &&
-    item.matchMode !== 'MANUAL_OUT_OF_SCOPE' &&
-    (marafValue != null || item.matchMode.startsWith('MANUAL_')) &&
-    !(diffPct != null && Math.abs(diffPct) <= 5)
+  async function handleDelete() {
+    if (!confirm(`Usunąć pozycję „${item.name}"? Tej operacji nie można cofnąć.`)) return
+    setSaving(true)
+    try {
+      const res = await fetch(`/api/przeroby/floor-summaries/items/${item.id}`, { method: 'DELETE' })
+      if (!res.ok) throw new Error((await res.json()).error || 'Błąd')
+      onDelete()
+      router.refresh()
+    } catch (e: any) {
+      alert(e.message)
+    }
+    setSaving(false)
+  }
 
   return (
     <>
@@ -251,7 +304,7 @@ function ItemRow({
         <td className="px-3 py-2 text-right tabular-nums">
           {fmt(kierownikValue)}
           {item.konradManualValue != null && (
-            <span className="ml-1 text-indigo-600 text-xs" title="Wartość ręczna Konrada">✏</span>
+            <span className="ml-1 text-indigo-600 text-xs" title="Wartość ręczna kierownika">✏</span>
           )}
           <span className="block text-[10px] text-gray-400">{refLabel(item)}</span>
         </td>
@@ -260,6 +313,29 @@ function ItemRow({
         </td>
         <td className={`px-3 py-2 text-right tabular-nums ${flagCls} font-medium`}>
           {diffPct != null ? `${flag} ${diffPct.toFixed(1)}%` : ''}
+        </td>
+        <td className="px-3 py-2 text-center">
+          {item.investorApproved ? (
+            approvalStale ? (
+              <span
+                className="inline-block px-1.5 py-0.5 text-[10px] font-semibold rounded bg-amber-100 text-amber-800"
+                title={`Zaakceptowano wartość ${fmt(item.investorApprovedValue || 0)}, ale obecna wartość kierownika to ${fmt(kierownikValue)}. Wymagana ponowna akceptacja.`}
+              >
+                ⚠ Nieaktualna
+              </span>
+            ) : (
+              <span
+                className="inline-block px-1.5 py-0.5 text-[10px] font-semibold rounded bg-green-100 text-green-800"
+                title={`Zaakceptowano przez ${item.investorApprovedBy || 'Inwestora'}${item.investorApprovedAt ? ' — ' + new Date(item.investorApprovedAt as any).toLocaleDateString('pl-PL') : ''}`}
+              >
+                ✓ Zaakceptowano
+              </span>
+            )
+          ) : (
+            <span className="inline-block px-1.5 py-0.5 text-[10px] uppercase tracking-wider rounded bg-gray-100 text-gray-500">
+              Czeka
+            </span>
+          )}
         </td>
         <td className="px-3 py-2">
           <ProgressMini
@@ -281,7 +357,7 @@ function ItemRow({
 
       {isOpen && (
         <tr className="border-t border-gray-100 bg-gray-50/40">
-          <td colSpan={10} className="px-5 py-4">
+          <td colSpan={11} className="px-5 py-4">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
               {/* Detale liczbowe kierownika */}
               <div className="bg-white rounded-lg border border-gray-200 p-3">
@@ -302,20 +378,20 @@ function ItemRow({
                   <p className="text-xs text-gray-700 leading-relaxed">{item.matchReason || 'Brak opisu.'}</p>
                   {item.aggMethod && item.autoMatchedCount === 0 && (
                     <p className="text-xs text-red-700 mt-2 leading-relaxed">
-                      ⚠ Reguła Marafa nie dopasowała żadnej pozycji obmiaru — sprawdź czy dane Marafa są zaimportowane dla tej kategorii / kondygnacji.
+                      ⚠ Reguła Marafu nie dopasowała żadnej pozycji obmiaru — sprawdź czy dane Marafu są zaimportowane dla tej kategorii / kondygnacji.
                     </p>
                   )}
                 </div>
               )}
 
-              {/* Wartość auto + reguła (gdy są dane Marafa policzone z reguły) */}
+              {/* Wartość auto + reguła (gdy są dane Marafu policzone z reguły) */}
               {item.autoValue != null && (
                 <div className="bg-white rounded-lg border border-blue-200 p-3 lg:col-span-2">
                   <p className="text-xs font-semibold text-blue-800 mb-2">
                     Auto-dopasowanie (Maraf)
                   </p>
                   <div className="text-xs text-gray-700">
-                    Wartość Marafa obliczona automatycznie z obmiaru projektowego:{' '}
+                    Wartość Marafu obliczona automatycznie z obmiaru projektowego:{' '}
                     <strong>{fmt(item.autoValue)} {unitLabel(item.autoUnit)}</strong>
                     {item.autoMatchedCount != null && item.autoMatchedCount > 0 && (
                       <span className="text-gray-500"> · z {item.autoMatchedCount} pozycji obmiaru</span>
@@ -343,25 +419,22 @@ function ItemRow({
               )}
             </div>
 
-            {/* Akceptacja różnicy */}
-            <div className="mt-4 bg-white rounded-lg border border-gray-200 p-3">
-              {item.accepted ? (
-                <AcceptedBanner item={item} saving={saving} onSave={save} />
-              ) : showAcceptButton ? (
-                <AcceptForm item={item} diffPct={diffPct} saving={saving} onSave={save} />
-              ) : (
-                <p className="text-xs text-gray-400">
-                  {diffPct != null && Math.abs(diffPct) <= 5
-                    ? 'Pozycja w zakresie tolerancji (≤5%) — akceptacja niewymagana.'
-                    : 'Pozycja jest poza zakresem porównania.'}
-                </p>
-              )}
+            {/* Akceptacja przez Inwestora — warunek przejścia do protokołu */}
+            <div className="mt-4 bg-white rounded-lg border border-green-200 p-3">
+              <InvestorApproval
+                item={item}
+                kierownikValue={kierownikValue}
+                approvalStale={approvalStale}
+                userIsAdmin={userIsAdmin}
+                saving={saving}
+                onSave={save}
+              />
             </div>
 
-            {/* Edycja ręczna — wartość Konrada */}
+            {/* Edycja ręczna — wartość kierownika */}
             <div className="mt-4 bg-white rounded-lg border border-indigo-200 p-3">
               <p className="text-xs font-semibold text-indigo-800 mb-1">
-                Wartość Konrada (ręczna)
+                Wartość kierownika (ręczna)
               </p>
               <p className="text-[11px] text-gray-500 mb-3 leading-relaxed">
                 Wpisz wartość kierownika gdy nie ma jej w xlsx „Ściany i słupy żelb.". Jeśli różnica vs Maraf przekroczy {Math.round(KONRAD_DIFF_THRESHOLD * 100)}% — wymagane uzasadnienie.
@@ -374,10 +447,10 @@ function ItemRow({
               />
             </div>
 
-            {/* Edycja ręczna — wartość Marafa */}
+            {/* Edycja ręczna — wartość Marafu */}
             <div className="mt-4 bg-white rounded-lg border border-gray-200 p-3">
               <p className="text-xs font-semibold text-gray-700 mb-3">
-                Ręczne wprowadzenie wartości Marafa i komentarz
+                Ręczne wprowadzenie wartości Marafu i komentarz
               </p>
               <ManualEditor
                 item={item}
@@ -388,6 +461,23 @@ function ItemRow({
 
             {savedAt && (
               <p className="text-xs text-green-600 mt-2">✓ Zapisano o {savedAt.toLocaleTimeString('pl-PL')}</p>
+            )}
+
+            {/* Usuwanie — tylko dla pozycji dodanych ręcznie */}
+            {item.matchMode === 'MANUAL_ADDED' && (
+              <div className="mt-4 bg-white rounded-lg border border-red-200 p-3 flex items-center justify-between gap-3" onClick={(e) => e.stopPropagation()}>
+                <div className="text-xs text-gray-600">
+                  <p className="font-semibold text-red-700 mb-0.5">Pozycja dodana ręcznie</p>
+                  <p>Możesz ją usunąć — zniknie z porównania i nie będzie odtwarzana przy reimporcie.</p>
+                </div>
+                <button
+                  onClick={handleDelete}
+                  disabled={saving}
+                  className="bg-red-600 hover:bg-red-700 disabled:bg-gray-300 text-white text-sm px-3 py-1.5 rounded font-medium whitespace-nowrap"
+                >
+                  🗑 Usuń pozycję
+                </button>
+              </div>
             )}
 
             {/* Historia zmian */}
@@ -401,74 +491,108 @@ function ItemRow({
   )
 }
 
-function AcceptForm({
+/**
+ * Akceptacja przez Inwestora — warunek przejścia pozycji do protokołu.
+ * Tylko admin może zaakceptować/cofnąć (UI gate + backend 403).
+ * Banner pokazuje kto + kiedy + snapshot wartości w momencie akceptacji.
+ * Gdy obecna wartość kierownika rozjedzie się ze snapshotem (`approvalStale`)
+ * → ostrzeżenie + wymóg reakceptacji.
+ */
+function InvestorApproval({
   item,
-  diffPct,
+  kierownikValue,
+  approvalStale,
+  userIsAdmin,
   saving,
   onSave,
 }: {
   item: Item
-  diffPct: number | null
+  kierownikValue: number
+  approvalStale: boolean
+  userIsAdmin: boolean
   saving: boolean
   onSave: (patch: any) => void
 }) {
-  const [note, setNote] = useState<string>(item.acceptedNote || '')
+  const [note, setNote] = useState<string>(item.investorApprovedNote || '')
+  const approvedAt = item.investorApprovedAt
+    ? (item.investorApprovedAt instanceof Date ? item.investorApprovedAt : new Date(item.investorApprovedAt as any))
+    : null
+
+  if (item.investorApproved) {
+    return (
+      <div className={`rounded p-3 ${approvalStale ? 'bg-amber-50 border border-amber-200' : 'bg-green-50 border border-green-200'}`} onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex-1">
+            <p className={`text-sm font-semibold mb-1 ${approvalStale ? 'text-amber-800' : 'text-green-800'}`}>
+              {approvalStale ? '⚠ Akceptacja nieaktualna' : '✅ Zaakceptowano przez Inwestora'}
+            </p>
+            <p className={`text-xs ${approvalStale ? 'text-amber-700' : 'text-green-700'}`}>
+              Zaakceptowano wartość: <strong>{fmt(item.investorApprovedValue || 0)} {unitLabel(item.unit)}</strong>
+              {approvalStale && (
+                <>
+                  {' '}· obecna wartość kierownika: <strong>{fmt(kierownikValue)} {unitLabel(item.unit)}</strong>
+                </>
+              )}
+            </p>
+            <p className={`text-[10px] mt-1 ${approvalStale ? 'text-amber-600' : 'text-green-600'}`}>
+              {item.investorApprovedBy || 'Inwestor'}
+              {approvedAt && ' — ' + approvedAt.toLocaleString('pl-PL')}
+            </p>
+            {item.investorApprovedNote && (
+              <p className={`text-xs italic mt-1 ${approvalStale ? 'text-amber-700' : 'text-green-700'}`}>„{item.investorApprovedNote}"</p>
+            )}
+            {approvalStale && (
+              <p className="text-xs text-amber-800 mt-2 font-medium">
+                Wartość kierownika zmieniła się po akceptacji — Inwestor musi ponownie zaakceptować.
+              </p>
+            )}
+          </div>
+          {userIsAdmin && (
+            <button
+              onClick={() => onSave({ investorApproved: false, investorApprovedNote: null })}
+              disabled={saving}
+              className={`text-xs underline hover:no-underline ${approvalStale ? 'text-amber-700 hover:text-amber-900' : 'text-green-700 hover:text-green-900'}`}
+            >
+              Cofnij akceptację
+            </button>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  // Pozycja jeszcze nie zaakceptowana
   return (
     <div onClick={(e) => e.stopPropagation()}>
       <p className="text-xs font-semibold text-gray-700 mb-2">
-        Akceptacja różnicy
+        Akceptacja Inwestora — wymagana do przejścia do protokołu
       </p>
-      <p className="text-xs text-gray-600 mb-3 leading-relaxed">
-        {diffPct != null
-          ? `Kierownik różni się od Marafa o ${diffPct.toFixed(1)}%. `
-          : 'Brak automatycznego porównania. '}
-        Jeśli wartość jest poprawna w kontekście realizacji robót, możesz świadomie zaakceptować różnicę — pozycja zaliczy się do gotowości protokołu.
-      </p>
-      <input
-        type="text"
-        value={note}
-        onChange={(e) => setNote(e.target.value)}
-        onClick={(e) => e.stopPropagation()}
-        placeholder="np. „Tolerancja projektowa, fragmenty ścian wystają poza obrys parteru"
-        className="w-full mb-2 px-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-      />
-      <button
-        onClick={() => onSave({ accepted: true, acceptedNote: note })}
-        disabled={saving}
-        className="bg-green-600 hover:bg-green-700 disabled:bg-gray-300 text-white px-3 py-1.5 rounded text-sm font-medium"
-      >
-        {saving ? 'Zapisuję...' : '✓ Zaakceptuj różnicę'}
-      </button>
-    </div>
-  )
-}
-
-function AcceptedBanner({ item, saving, onSave }: { item: Item; saving: boolean; onSave: (patch: any) => void }) {
-  const acceptedAt = item.acceptedAt instanceof Date ? item.acceptedAt : item.acceptedAt ? new Date(item.acceptedAt as any) : null
-  return (
-    <div className="bg-green-50 border border-green-200 rounded p-3" onClick={(e) => e.stopPropagation()}>
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex-1">
-          <p className="text-sm font-semibold text-green-800 mb-1">
-            ✓ Różnica zaakceptowana
+      {userIsAdmin ? (
+        <>
+          <p className="text-xs text-gray-600 mb-3 leading-relaxed">
+            Akceptujesz wartość kierownika <strong>{fmt(kierownikValue)} {unitLabel(item.unit)}</strong> jako podstawę rozliczenia. Po akceptacji pozycja zaliczy się do „Gotowe do protokołu".
           </p>
-          {item.acceptedNote && (
-            <p className="text-xs text-green-700 italic">„{item.acceptedNote}"</p>
-          )}
-          {acceptedAt && (
-            <p className="text-[10px] text-green-600 mt-1">
-              {acceptedAt.toLocaleString('pl-PL')}
-            </p>
-          )}
-        </div>
-        <button
-          onClick={() => onSave({ accepted: false, acceptedNote: null })}
-          disabled={saving}
-          className="text-xs text-green-700 hover:text-green-900 underline"
-        >
-          Cofnij akceptację
-        </button>
-      </div>
+          <input
+            type="text"
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            onClick={(e) => e.stopPropagation()}
+            placeholder="Komentarz (opcjonalny) — np. „Zaakceptowano w trakcie odbioru technicznego 12.05"
+            className="w-full mb-2 px-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+          />
+          <button
+            onClick={() => onSave({ investorApproved: true, investorApprovedNote: note || null })}
+            disabled={saving}
+            className="bg-green-600 hover:bg-green-700 disabled:bg-gray-300 text-white px-3 py-1.5 rounded text-sm font-medium"
+          >
+            {saving ? 'Zapisuję...' : '✅ Zaakceptuj jako Inwestor'}
+          </button>
+        </>
+      ) : (
+        <p className="text-xs text-gray-500 italic">
+          Pozycja czeka na akceptację przez osobę uprawnioną ze strony Inwestora (administratora).
+        </p>
+      )}
     </div>
   )
 }
@@ -489,7 +613,7 @@ function ManualEditor({
     <div className="space-y-3" onClick={(e) => e.stopPropagation()}>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         <div>
-          <label className="block text-xs text-gray-600 mb-1">Wartość Marafa ręczna ({item.unit})</label>
+          <label className="block text-xs text-gray-600 mb-1">Wartość Marafu ręczna ({item.unit})</label>
           <input
             type="number"
             step="0.01"
@@ -568,7 +692,7 @@ function KonradEditor({
     <div className="space-y-3" onClick={(e) => e.stopPropagation()}>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         <div>
-          <label className="block text-xs text-gray-600 mb-1">Wartość Konrada ({item.unit})</label>
+          <label className="block text-xs text-gray-600 mb-1">Wartość kierownika ({item.unit})</label>
           <input
             type="number"
             step="0.01"
@@ -612,7 +736,7 @@ function KonradEditor({
           className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-300 text-white px-3 py-1.5 rounded text-sm font-medium"
           title={reasonMissing ? 'Wpisz uzasadnienie' : ''}
         >
-          {saving ? 'Zapisuję...' : '💾 Zapisz wartość Konrada'}
+          {saving ? 'Zapisuję...' : '💾 Zapisz wartość kierownika'}
         </button>
         {item.konradManualValue != null && (
           <button
@@ -623,6 +747,163 @@ function KonradEditor({
             Wyczyść
           </button>
         )}
+      </div>
+    </div>
+  )
+}
+
+function AddItemModal({
+  summaryId,
+  onClose,
+  onAdded,
+}: {
+  summaryId: string
+  onClose: () => void
+  onAdded: (item: Item) => void
+}) {
+  const router = useRouter()
+  const [name, setName] = useState('')
+  const [unit, setUnit] = useState<'m2' | 'm3' | 'mb' | 'szt' | 'kpl' | 'T' | 'kg'>('m3')
+  const [marafValue, setMarafValue] = useState('')
+  const [konradValue, setKonradValue] = useState('')
+  const [konradReason, setKonradReason] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState('')
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault()
+    setErr('')
+    if (!name.trim() || name.trim().length < 2) {
+      setErr('Nazwa pozycji jest wymagana (min. 2 znaki).')
+      return
+    }
+    setBusy(true)
+    try {
+      const res = await fetch(`/api/przeroby/floor-summaries/${summaryId}/items`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: name.trim(),
+          unit,
+          manualValue: marafValue !== '' ? Number(marafValue) : null,
+          konradManualValue: konradValue !== '' ? Number(konradValue) : null,
+          konradManualReason: konradReason.trim() || null,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Błąd dodawania pozycji')
+      onAdded({
+        ...data,
+        autoValue: null,
+        autoUnit: data.unit,
+        autoMatchedCount: null,
+        autoBreakdown: null,
+        aggMethod: null,
+        protocolDoneQty: 0,
+        protocolDoneAmount: 0,
+        protocolPct: 0,
+        history: [],
+      })
+      router.refresh()
+    } catch (e: any) {
+      setErr(e.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+      onClick={() => !busy && onClose()}
+    >
+      <div className="bg-white rounded-xl shadow-xl p-6 max-w-lg w-full" onClick={(e) => e.stopPropagation()}>
+        <h3 className="font-semibold text-gray-900 text-lg mb-1">Dodaj pozycję obmiaru</h3>
+        <p className="text-xs text-gray-500 mb-4">
+          Pozycja zostanie dodana z trybem „dodana ręcznie". Zostanie zachowana przy reimporcie kierownika.
+        </p>
+        <form onSubmit={submit} className="space-y-3">
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Nazwa pozycji *</label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="np. Słupy maszynowni dachu"
+              required
+              autoFocus
+              className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Jednostka rozliczenia *</label>
+            <select
+              value={unit}
+              onChange={(e) => setUnit(e.target.value as any)}
+              className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+            >
+              <option value="m3">m³ — objętość (np. beton)</option>
+              <option value="m2">m² — powierzchnia (np. strop)</option>
+              <option value="mb">mb — metr bieżący</option>
+              <option value="szt">szt</option>
+              <option value="kpl">kpl — komplet</option>
+              <option value="T">T — tona</option>
+              <option value="kg">kg</option>
+            </select>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Maraf — wartość (opc.)</label>
+              <input
+                type="number"
+                step="0.01"
+                value={marafValue}
+                onChange={(e) => setMarafValue(e.target.value)}
+                placeholder="0.00"
+                className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Kierownik — wartość (opc.)</label>
+              <input
+                type="number"
+                step="0.01"
+                value={konradValue}
+                onChange={(e) => setKonradValue(e.target.value)}
+                placeholder="0.00"
+                className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Uzasadnienie (opc.)</label>
+            <input
+              type="text"
+              value={konradReason}
+              onChange={(e) => setKonradReason(e.target.value)}
+              placeholder="np. Pozycja zgłoszona przez kierownika — brak w pierwotnym obmiarze"
+              className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
+          {err && <p className="text-xs text-red-700 bg-red-50 px-2 py-1 rounded">{err}</p>}
+          <div className="flex items-center justify-end gap-2 pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={busy}
+              className="px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 rounded"
+            >
+              Anuluj
+            </button>
+            <button
+              type="submit"
+              disabled={busy}
+              className="bg-purple-600 hover:bg-purple-700 disabled:bg-gray-300 text-white text-sm font-medium px-3 py-1.5 rounded"
+            >
+              {busy ? 'Dodawanie...' : '➕ Dodaj pozycję'}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   )

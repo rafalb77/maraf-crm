@@ -48,7 +48,6 @@ type WidgetData = {
   greeting: Greeting | null
   news: News | null
   weather: Weather | null
-  isAdmin: boolean
 }
 
 export function TopWidget() {
@@ -87,13 +86,14 @@ export function TopWidget() {
     )
   }
 
-  // Jeśli user nie jest adminem → nie renderuj nic
-  if (!data || !data.isAdmin || !data.greeting) {
-    if (data?.greeting) {
-      // Zwykły user też dostaje powitanie, bez news/weather
-      return <SimpleGreeting greeting={data.greeting} />
-    }
+  // Bez danych — nic nie renderujemy (np. 401, /api/dashboard/widget zablokowany przez permission).
+  if (!data || !data.greeting) {
     return null
+  }
+
+  // Jeśli i news i weather padły → kompaktowe powitanie zamiast szerokiego widgeta.
+  if (!data.news && !data.weather) {
+    return <SimpleGreeting greeting={data.greeting} />
   }
 
   return (

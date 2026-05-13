@@ -27,7 +27,7 @@ export default async function PorownaniaListPage() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Porównanie obmiarów</h1>
           <p className="text-gray-500 text-sm mt-1">
-            Obmiar Maraf zestawiony z przedmiarem Konrada per kondygnacja.
+            Obmiar Maraf zestawiony z przedmiarem kierownika per kondygnacja.
           </p>
         </div>
         <div className="flex gap-2 flex-wrap">
@@ -46,7 +46,7 @@ export default async function PorownaniaListPage() {
           <div className="text-4xl mb-3">📊</div>
           <h2 className="font-semibold text-gray-900 mb-2">Brak podsumowań</h2>
           <p className="text-sm text-gray-500 max-w-lg mx-auto">
-            Wgraj <strong>przedmiar Konrada</strong> (xlsx) klikając przycisk u góry —
+            Wgraj <strong>przedmiar kierownika</strong> (xlsx) klikając przycisk u góry —
             system zaimportuje wartości ścian i słupów per kondygnacja
             i zestawi je z obmiarem Maraf.
           </p>

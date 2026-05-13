@@ -12,7 +12,7 @@ export function PrzedmiarKonradUploadButton() {
         className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-3 py-2 rounded-lg flex items-center gap-2 transition-colors"
       >
         <Upload className="w-4 h-4" />
-        Wgraj przedmiar Konrada
+        Wgraj przedmiar kierownika
       </button>
       {open && <PrzedmiarKonradUploader onClose={() => setOpen(false)} />}
     </>

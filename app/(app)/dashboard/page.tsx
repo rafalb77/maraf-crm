@@ -50,7 +50,7 @@ export default async function DashboardPage() {
 
   return (
     <div className="p-8">
-      {/* Top widget: powitanie + news dnia + pogoda (admin only dla news/weather) */}
+      {/* Top widget: powitanie + news dnia (per user.interests) + pogoda */}
       <TopWidget />
 
       {/* KPI Cards */}
