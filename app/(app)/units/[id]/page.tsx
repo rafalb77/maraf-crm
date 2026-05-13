@@ -111,7 +111,7 @@ export default async function UnitDetailPage({ params }: { params: { id: string 
                   </>
                 ) : (
                   <div className="relative rounded-lg overflow-hidden border border-gray-100" style={{ height: 300 }}>
-                    <Image src={unit.floorPlanUrl} alt="Karta lokalu" fill className="object-contain" />
+                    <Image src={unit.floorPlanUrl} alt="Karta lokalu" fill unoptimized className="object-contain" />
                   </div>
                 )}
               </div>

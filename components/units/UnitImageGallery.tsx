@@ -142,7 +142,9 @@ export function UnitImageGallery({
               } ${dragId === img.id ? 'opacity-50' : ''} bg-gray-50 cursor-move`}
               title="Przeciagnij aby zmienic kolejnosc"
             >
-              <Image src={img.url} alt="" fill className="object-cover pointer-events-none" sizes="200px" />
+              {/* unoptimized: optymalizator Next.js robi wewn. fetch bez cookies →
+                  /uploads/[...path] zwraca 401. Bez optymalizacji <Image> dziala jak <img>. */}
+              <Image src={img.url} alt="" fill unoptimized className="object-cover pointer-events-none" sizes="200px" />
 
               {img.isPrimary && (
                 <div className="absolute top-1.5 left-1.5 bg-amber-500 text-white text-[10px] font-semibold px-1.5 py-0.5 rounded">
