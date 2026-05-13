@@ -92,6 +92,25 @@ model Unit {
   serviceRequests ServiceRequest[]
   contractUnits   ContractUnit[]
   offerItems      OfferItem[]
+  images          UnitImage[]
+}
+
+// Galeria zdjec/wizualizacji per lokal. Uzywana do generowania kreacji
+// reklamowych Meta Ads (FB/IG) — patrz docs/meta-ads-decyzje.md.
+// floorPlanUrl na modelu Unit zostaje osobno (karta PDF mieszkania).
+// isPrimary: zdjecie glowne (tlo kreacji reklamowej, miniaturka w listach).
+// position: kolejnosc w galerii (drag-reorder w UI).
+model UnitImage {
+  id        String   @id @default(cuid())
+  unitId    String
+  url       String
+  position  Int      @default(0)
+  isPrimary Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  unit Unit @relation(fields: [unitId], references: [id], onDelete: Cascade)
+
+  @@index([unitId, position])
 }
 
 model ClientUnit {
