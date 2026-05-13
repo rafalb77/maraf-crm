@@ -5,7 +5,10 @@
  * Strategia DETERMINISTYCZNA (bez parsowania PDF — fonty osadzone bez CMap):
  *   1. Folder name → numer pietra (np. "Pietro 1" → 1, "Pietro 4" → 4)
  *   2. Filename → globalny numer pliku (`nr1.pdf` → 1, `nr59.pdf` → 59)
- *   3. W bazie: SELECT Unit WHERE type=MIESZKALNY ORDER BY number ASC
+ *   3. W bazie: SELECT Unit WHERE type=MIESZKALNY, posortowane NUMERYCZNIE
+ *      po koncowym numerze z Unit.number (np. "B1.1.M2" → 2, "B1.1.M10" → 10).
+ *      UWAGA: Prisma orderBy sortowalo stringami → M1, M10, M11..., M2, M3...
+ *      Ludzie numeruja M1, M2, M3, M4...M10, M11 — wiec sort numeryczny.
  *   4. N-ty plik (po globalnym numerze) = N-ty Unit z listy
  *   5. Weryfikacja: Unit.floor === folderFloor — jesli nie, warning
  *
@@ -60,6 +63,13 @@ function parseNumberFromFilename(filename) {
   return m ? parseInt(m[1]) : null
 }
 
+// Wyciaga koncowy numer z Unit.number do sortowania numerycznego.
+// "B1.1.M2" → 2, "B1.1.M10" → 10, "B1.4.M59" → 59
+function extractTrailingNumber(unitNumber) {
+  const m = unitNumber.match(/(\d+)$/)
+  return m ? parseInt(m[1]) : 0
+}
+
 async function main() {
   const args = process.argv.slice(2)
   const dryRun = args.includes('--dry-run')
@@ -90,13 +100,18 @@ async function main() {
     if (unparseable.length > 5) console.warn(`   ... i ${unparseable.length - 5} więcej`)
   }
 
-  // 3. Pobierz Unit MIESZKALNY z bazy posortowane po number
-  const units = await prisma.unit.findMany({
+  // 3. Pobierz Unit MIESZKALNY z bazy i posortuj NUMERYCZNIE po koncowym numerze
+  //    (Prisma orderBy string sort daje M1, M10, M11..., M2 — nie chcemy tego).
+  const unitsRaw = await prisma.unit.findMany({
     where: { type: 'MIESZKALNY' },
     select: { id: true, number: true, floor: true, area: true },
-    orderBy: { number: 'asc' },
   })
-  console.log(`🏠 Mieszkań w bazie: ${units.length}\n`)
+  const units = unitsRaw.sort(
+    (a, b) => extractTrailingNumber(a.number) - extractTrailingNumber(b.number),
+  )
+  console.log(`🏠 Mieszkań w bazie: ${units.length}`)
+  console.log(`   Pierwsze 3 po sortowaniu numerycznym: ${units.slice(0, 3).map((u) => u.number).join(', ')}`)
+  console.log(`   Ostatnie 3: ${units.slice(-3).map((u) => u.number).join(', ')}\n`)
 
   if (units.length === 0) {
     console.error('❌ Brak mieszkań w bazie — czy import lokali xlsx był wykonany?')
