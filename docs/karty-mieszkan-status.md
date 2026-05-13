@@ -24,7 +24,13 @@ Skrypt **nie parsuje PDF w ogóle**. Mapowanie po nazwach plików:
 4. **Mapowanie**: N-ty plik (po globalnym numerze) = N-ty `Unit` z posortowanej listy. Czyli `nr1.pdf` → pierwszy lokal MIESZKALNY w bazie (po `number ASC`), `nr59.pdf` → 59-ty.
 5. **Weryfikacja**: jeśli `Unit.floor !== folderFloor` → warning w outpucie (nie zatrzymuje skryptu, ale flaguje).
 
-**Założenie krytyczne**: kolejność `nr1 … nr59` po globalnym numerze odpowiada kolejności `Unit.number ASC` w bazie. Jeśli to się nie potwierdzi w dry-runie (dużo warningów „piętro NIE PASUJE"), trzeba zmienić strategię — np. dodać mapę ręczną nr→number albo sortować po `(floor, number)` zamiast samego `number`.
+**WAŻNE — sort numeryczny (poprawione commit `7955943`)**: Prisma `orderBy: { number: 'asc' }` sortuje stringami → `M1, M10, M11, M12, M13, M14, M15, M2, M3, ..., M9`. Maraf numerował pliki PDF intuicyjnie (`M1=nr1, M2=nr2, ..., M15=nr15`) więc sortujemy w JS przez `extractTrailingNumber(unitNumber)` — wyciągamy końcowy `\d+` z `"B1.1.M2"` (→ `2`) i sortujemy numerycznie. Na piętrach 2-4 problemu nie było (wszystkie 2-cyfrowe `M16..M59`, alfabetycznie = numerycznie), tylko piętro 1 wymagało fixa.
+
+**Dwie literówki w `Unit.floor` w bazie** (znalezione w dry-run, NIE wpływają na mapowanie PDF→Unit):
+- `B1.2.M18` ma `floor=3` (powinno 2, sąsiednie M16/M17/M19 mają 2) — pewnie błąd przy imporcie xlsx
+- `B1.4.M59` ma `floor=5` (powinno 4, sąsiednie M46..M58 mają 4) — j.w.
+
+Po imporcie kart user musi w `/lokale/<id>/edit` poprawić te dwa. Nie blokuje importu PDF (PDF jest poprawnie sparowany z lokalem, tylko `floor` w bazie ma typo).
 
 **Plik**: [scripts/import-floorplans.js](../scripts/import-floorplans.js).
 
