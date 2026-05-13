@@ -2,10 +2,12 @@
 /**
  * Bulk import floor-planow (kart mieszkan PDF) do bazy + uploads volume.
  *
- * Strategia dopasowania:
- *   Parsuje tekst z PDF (pdf-parse), wyciaga `metraz X,XX m²` i `Y PIETRO`.
- *   W bazie szuka Unit gdzie type=MIESZKALNY + area=X (±0.05) + floor=Y.
- *   Jesli dokladnie 1 wynik → mapuje. Inaczej → flag warning.
+ * Strategia DETERMINISTYCZNA (bez parsowania PDF — fonty osadzone bez CMap):
+ *   1. Folder name → numer pietra (np. "Pietro 1" → 1, "Pietro 4" → 4)
+ *   2. Filename → globalny numer pliku (`nr1.pdf` → 1, `nr59.pdf` → 59)
+ *   3. W bazie: SELECT Unit WHERE type=MIESZKALNY ORDER BY number ASC
+ *   4. N-ty plik (po globalnym numerze) = N-ty Unit z listy
+ *   5. Weryfikacja: Unit.floor === folderFloor — jesli nie, warning
  *
  * Pliki kopiowane do /app/public/uploads/floorplans/{number}-{ts}.pdf,
  * Unit.floorPlanUrl ustawiane na `/uploads/floorplans/{filename}`.
@@ -13,18 +15,12 @@
  * Uruchomienie (Coolify Terminal w kontenerze CRM):
  *   node scripts/import-floorplans.js /app/data/karty            # faktyczny import
  *   node scripts/import-floorplans.js /app/data/karty --dry-run  # tylko preview
- *
- * Wymaga: pdf-parse w node_modules + struktura `<dir>/<podfolder>/*.pdf`
- * (rekursywne czytanie podkatalogow, czyli folder „Karty/Pietro 1/", „Karty/Pietro 2/" itp.).
  */
 const fs = require('fs').promises
 const path = require('path')
-const pdfParse = require('pdf-parse')
 const { PrismaClient } = require('@prisma/client')
 
 const prisma = new PrismaClient()
-
-const ROMAN_TO_NUM = { I: 1, II: 2, III: 3, IV: 4, V: 5, VI: 6, VII: 7, VIII: 8, IX: 9, X: 10 }
 
 async function findPdfs(dir) {
   const entries = await fs.readdir(dir, { withFileTypes: true })
@@ -40,36 +36,28 @@ async function findPdfs(dir) {
   return result
 }
 
-async function parsePdf(filepath) {
-  const buffer = await fs.readFile(filepath)
-  const data = await pdfParse(buffer)
-  const text = data.text.replace(/\s+/g, ' ')
-
-  // "I PIĘTRO", "II PIĘTRO" itd.
-  const pietroMatch = text.match(/([IVX]+)\s*PIĘTRO/i)
-  // "40,48 m²", "39,48 m²"; w nagłówku jest tylko jeden "X,XX m²" + dopiero później powierzchnie pokoi.
-  // Bierzemy pierwszy taki z "Metraż" lub po nim — fallback to dowolny pierwszy "X,XX m²" w tekście.
-  const metrazMatch =
-    text.match(/Metra[żz]\s*[:\s]*\s*(\d+[,.]?\d*)\s*m²/i) ||
-    text.match(/(\d+[,.]?\d*)\s*m²/)
-
-  if (!pietroMatch || !metrazMatch) return null
-  const floor = ROMAN_TO_NUM[pietroMatch[1].toUpperCase()] || parseInt(pietroMatch[1])
-  const area = parseFloat(metrazMatch[1].replace(',', '.'))
-  if (!floor || !area) return null
-  return { floor, area }
+// Parsuje "Piętro 1" / "Pietro 1" / "I piętro" z nazwy folderu w ścieżce
+function parseFloorFromPath(filepath, baseDir) {
+  const rel = path.relative(baseDir, filepath)
+  const parts = rel.split(path.sep)
+  for (const part of parts) {
+    // Format: "Pietro 1", "Piętro 4"
+    const m1 = part.match(/Pi[ęe]tro\s*(\d+)/i)
+    if (m1) return parseInt(m1[1])
+    // Format: "I pietro", "II pietro"
+    const m2 = part.match(/^([IVX]+)\s*pi[ęe]tro/i)
+    if (m2) {
+      const roman = { I: 1, II: 2, III: 3, IV: 4, V: 5 }
+      return roman[m2[1].toUpperCase()] || null
+    }
+  }
+  return null
 }
 
-async function findUnit(floor, area) {
-  // ±0.05 m² tolerancja (zaokrąglenia w PDF vs xlsx)
-  return prisma.unit.findMany({
-    where: {
-      type: 'MIESZKALNY',
-      floor,
-      area: { gte: area - 0.05, lte: area + 0.05 },
-    },
-    select: { id: true, number: true, area: true },
-  })
+// Parsuje "nr15" / "nr1" z nazwy pliku
+function parseNumberFromFilename(filename) {
+  const m = filename.match(/nr(\d+)/i)
+  return m ? parseInt(m[1]) : null
 }
 
 async function main() {
@@ -78,65 +66,83 @@ async function main() {
   const dir = args.find((a) => !a.startsWith('--')) || '/app/data/karty'
 
   console.log(`📂 Katalog: ${dir}`)
-  console.log(`🔍 Dry-run: ${dryRun ? 'TAK (bez zmian w bazie)' : 'NIE (faktyczny import)'}\n`)
+  console.log(`🔍 Dry-run: ${dryRun ? 'TAK (bez zmian)' : 'NIE'}\n`)
 
   const targetDir = '/app/public/uploads/floorplans'
   if (!dryRun) await fs.mkdir(targetDir, { recursive: true })
 
-  let pdfs
-  try {
-    pdfs = await findPdfs(dir)
-  } catch (e) {
-    console.error(`❌ Błąd czytania katalogu: ${e.message}`)
-    process.exit(1)
-  }
+  // 1. Znajdź wszystkie PDFy
+  const pdfs = await findPdfs(dir)
   console.log(`📄 Znaleziono ${pdfs.length} plików PDF\n`)
 
-  const stats = { ok: 0, ambiguous: 0, notFound: 0, parseErr: 0 }
+  // 2. Sparsuj każdy plik
+  const parsed = pdfs.map((f) => ({
+    filepath: f,
+    relPath: path.relative(dir, f),
+    folderFloor: parseFloorFromPath(f, dir),
+    fileNumber: parseNumberFromFilename(path.basename(f)),
+  }))
+
+  const unparseable = parsed.filter((p) => !p.folderFloor || !p.fileNumber)
+  if (unparseable.length > 0) {
+    console.warn(`⚠️  ${unparseable.length} plików bez parsowania (folder/numer):`)
+    unparseable.slice(0, 5).forEach((p) => console.warn(`   ${p.relPath}`))
+    if (unparseable.length > 5) console.warn(`   ... i ${unparseable.length - 5} więcej`)
+  }
+
+  // 3. Pobierz Unit MIESZKALNY z bazy posortowane po number
+  const units = await prisma.unit.findMany({
+    where: { type: 'MIESZKALNY' },
+    select: { id: true, number: true, floor: true, area: true },
+    orderBy: { number: 'asc' },
+  })
+  console.log(`🏠 Mieszkań w bazie: ${units.length}\n`)
+
+  if (units.length === 0) {
+    console.error('❌ Brak mieszkań w bazie — czy import lokali xlsx był wykonany?')
+    process.exit(1)
+  }
+
+  // 4. Mapowanie: globalny numer N → N-ty Unit z listy
+  const sortedParsed = parsed
+    .filter((p) => p.fileNumber)
+    .sort((a, b) => a.fileNumber - b.fileNumber)
+
   const mappings = []
+  const stats = { ok: 0, floorMismatch: 0, outOfRange: 0 }
 
-  for (const filepath of pdfs.sort()) {
-    const relPath = path.relative(dir, filepath)
-    const parsed = await parsePdf(filepath).catch((e) => {
-      console.warn(`⚠️  ${relPath}: błąd parsowania PDF — ${e.message}`)
-      return null
-    })
-    if (!parsed) {
-      console.log(`⚠️  ${relPath}: brak danych w PDF (metraż / piętro)`)
-      stats.parseErr++
+  for (const p of sortedParsed) {
+    const idx = p.fileNumber - 1 // nr1 → idx 0
+    if (idx < 0 || idx >= units.length) {
+      console.log(`❌ ${p.relPath}: numer ${p.fileNumber} poza zakresem (max ${units.length})`)
+      stats.outOfRange++
       continue
     }
+    const unit = units[idx]
 
-    const candidates = await findUnit(parsed.floor, parsed.area)
-    if (candidates.length === 0) {
-      console.log(`❌ ${relPath}: brak lokalu (piętro ${parsed.floor}, ${parsed.area} m²)`)
-      stats.notFound++
-      continue
-    }
-    if (candidates.length > 1) {
+    if (p.folderFloor !== unit.floor) {
       console.log(
-        `⚠️  ${relPath}: niejednoznaczne (${parsed.floor}p, ${parsed.area} m²) → ${candidates
-          .map((c) => c.number)
-          .join(', ')}`,
+        `⚠️  ${p.relPath} → ${unit.number}: piętro NIE PASUJE (folder=p${p.folderFloor}, baza floor=${unit.floor})`,
       )
-      stats.ambiguous++
-      continue
+      stats.floorMismatch++
     }
 
-    const unit = candidates[0]
-    mappings.push({ filepath, relPath, unit, area: parsed.area, floor: parsed.floor })
-    console.log(`✓ ${relPath} → ${unit.number} (p${parsed.floor}, ${parsed.area} m²)`)
+    mappings.push({ ...p, unit })
+    console.log(`✓ ${p.relPath} → ${unit.number} (floor=${unit.floor}, ${unit.area} m²)`)
     stats.ok++
   }
 
   console.log(`\n${'='.repeat(60)}`)
-  console.log(`✅ OK: ${stats.ok}`)
-  console.log(`⚠️  Niejednoznaczne: ${stats.ambiguous}`)
-  console.log(`❌ Brak lokalu: ${stats.notFound}`)
-  console.log(`⚠️  Błąd parsowania: ${stats.parseErr}`)
+  console.log(`✅ Zmapowane: ${stats.ok}`)
+  console.log(`⚠️  Niezgodne piętro: ${stats.floorMismatch}`)
+  console.log(`❌ Poza zakresem: ${stats.outOfRange}`)
+
+  if (stats.floorMismatch > 0) {
+    console.log('\n⚠️  UWAGA: są niezgodności pięter. Wklej output do Claude przed importem.')
+  }
 
   if (dryRun) {
-    console.log(`\n💡 Tryb dry-run — uruchom bez --dry-run żeby faktycznie zaimportować.`)
+    console.log(`\n💡 Tryb dry-run — uruchom bez --dry-run żeby zaimportować.`)
     return
   }
 
@@ -145,7 +151,7 @@ async function main() {
     return
   }
 
-  console.log(`\n📤 Importuję ${mappings.length} plików do bazy + uploads...`)
+  console.log(`\n📤 Importuję ${mappings.length} plików...`)
   let imported = 0
   for (const m of mappings) {
     const ext = path.extname(m.filepath).slice(1).toLowerCase() || 'pdf'
