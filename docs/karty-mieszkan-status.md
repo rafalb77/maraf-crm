@@ -6,6 +6,8 @@
 - Poprawić w UI `/lokale/<id>/edit` 2 literówki w `floor`: `B1.2.M18` (3→2), `B1.4.M59` (5→4) — typo z importu xlsx, nie wpływa na karty PDF (mapowanie poprawne).
 - (Opcjonalnie) `git rm -r data/karty` — 18MB w repo niepotrzebne po imporcie.
 
+**Pułapka 404 (rozwiązana commit `7470583`)**: Po imporcie URL `/uploads/floorplans/*.pdf` zwracał 404 mimo że pliki były na volume z dobrymi uprawnieniami. Przyczyna: Next.js w trybie `output: 'standalone'` trace'uje listę plików w `public/` w **buildtime** — runtime additions (przez volume / nasz skrypt) nie są serwowane przez wbudowany static handler. Fix: `app/uploads/[...path]/route.ts` — catch-all API route czytający plik z fs i streamujący z odpowiednim Content-Type + session check + sanityzacja path traversal. Dotyczy WSZYSTKICH uploadów do `public/uploads/*` (rysunki, przyszłe uploady ofert itd.) — nie tylko floorplans.
+
 ---
 
 ## Historia tematu
