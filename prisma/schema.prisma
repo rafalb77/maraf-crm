@@ -100,17 +100,36 @@ model Unit {
 // floorPlanUrl na modelu Unit zostaje osobno (karta PDF mieszkania).
 // isPrimary: zdjecie glowne (tlo kreacji reklamowej, miniaturka w listach).
 // position: kolejnosc w galerii (drag-reorder w UI).
+// kind: kategoria zdjecia (RZUT_3D | DOLL_HOUSE | WNETRZE | WIDOK_Z_OKNA | INNE) —
+//   patrz UNIT_IMAGE_KIND_LABELS w lib/types.ts. Uzywana przez generator kreacji
+//   do wyboru zdjecia per format (np. Story 9:16 = WNETRZE pionowe).
 model UnitImage {
   id        String   @id @default(cuid())
   unitId    String
   url       String
   position  Int      @default(0)
   isPrimary Boolean  @default(false)
+  kind      String   @default("INNE")
   createdAt DateTime @default(now())
 
   unit Unit @relation(fields: [unitId], references: [id], onDelete: Cascade)
 
   @@index([unitId, position])
+}
+
+// Wizualizacje wspolne dla calej inwestycji (Nova Staffa) — nie per-lokal,
+// reuse'owane przez generator kreacji Meta Ads dla wszystkich lokali.
+// Zarzadzane w /settings (admin only). Folder uploadow: public/uploads/investment/.
+// kind: ZEWNETRZNE | WEWNETRZNE | OTOCZENIE | INNE — patrz INVESTMENT_IMAGE_KIND_LABELS.
+model InvestmentImage {
+  id        String   @id @default(cuid())
+  url       String
+  position  Int      @default(0)
+  isPrimary Boolean  @default(false)
+  kind      String   @default("INNE")
+  createdAt DateTime @default(now())
+
+  @@index([position])
 }
 
 model ClientUnit {

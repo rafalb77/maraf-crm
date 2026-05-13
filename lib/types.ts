@@ -118,6 +118,29 @@ export const CONTRACT_STATUS_COLORS: Record<ContractStatus, string> = {
   ANULOWANA: 'bg-red-100 text-red-700',
 }
 
+// Kind zdjec w galerii lokalu (UnitImage) — wykorzystywane przez generator
+// kreacji Meta Ads do wyboru wlasciwego zdjecia per format reklamy.
+export type UnitImageKind = 'RZUT_3D' | 'DOLL_HOUSE' | 'WNETRZE' | 'WIDOK_Z_OKNA' | 'INNE'
+
+export const UNIT_IMAGE_KIND_LABELS: Record<UnitImageKind, string> = {
+  RZUT_3D: 'Rzut 3D',
+  DOLL_HOUSE: 'Doll house',
+  WNETRZE: 'Wnętrze',
+  WIDOK_Z_OKNA: 'Widok z okna',
+  INNE: 'Inne',
+}
+
+// Kind wizualizacji wspolnych dla calej inwestycji (InvestmentImage) —
+// tlo dla kreacji w wszystkich formatach (zwlaszcza Stories 9:16 i Landscape 1.91:1).
+export type InvestmentImageKind = 'ZEWNETRZNE' | 'WEWNETRZNE' | 'OTOCZENIE' | 'INNE'
+
+export const INVESTMENT_IMAGE_KIND_LABELS: Record<InvestmentImageKind, string> = {
+  ZEWNETRZNE: 'Zewnętrzne',
+  WEWNETRZNE: 'Wewnętrzne',
+  OTOCZENIE: 'Otoczenie',
+  INNE: 'Inne',
+}
+
 // Validation: 1 umowa rezerwacyjna = max 1 MIESZKALNY + 2 PARKING + 2 GARAZ + 1 KOMORKA
 export const RESERVATION_CONTRACT_LIMITS: Record<UnitType, number> = {
   MIESZKALNY: 1,
