@@ -49,10 +49,10 @@ const ACTION_LABEL: Record<string, string> = {
   UNACCEPT: '↩ Cofnięto akceptację',
   SET_MANUAL_VALUE: '✏ Ustawiono ręczną wartość Marafa',
   CLEAR_MANUAL_VALUE: '🗑 Wyczyszczono ręczną wartość Marafa',
-  SET_KONRAD_VALUE: '✏ Ustawiono ręczną wartość Konrada',
-  CLEAR_KONRAD_VALUE: '🗑 Wyczyszczono ręczną wartość Konrada',
+  SET_KONRAD_VALUE: '✏ Ustawiono ręczną wartość kierownika',
+  CLEAR_KONRAD_VALUE: '🗑 Wyczyszczono ręczną wartość kierownika',
   EDIT_NOTE: '📝 Zmieniono komentarz',
-  REIMPORT: '🔄 Reimport — zaktualizowano wartość Konrada',
+  REIMPORT: '🔄 Reimport — zaktualizowano wartość kierownika',
 }
 const ACTION_COLOR: Record<string, string> = {
   ACCEPT: 'text-green-700',
@@ -251,7 +251,7 @@ function ItemRow({
         <td className="px-3 py-2 text-right tabular-nums">
           {fmt(kierownikValue)}
           {item.konradManualValue != null && (
-            <span className="ml-1 text-indigo-600 text-xs" title="Wartość ręczna Konrada">✏</span>
+            <span className="ml-1 text-indigo-600 text-xs" title="Wartość ręczna kierownika">✏</span>
           )}
           <span className="block text-[10px] text-gray-400">{refLabel(item)}</span>
         </td>
@@ -358,10 +358,10 @@ function ItemRow({
               )}
             </div>
 
-            {/* Edycja ręczna — wartość Konrada */}
+            {/* Edycja ręczna — wartość kierownika */}
             <div className="mt-4 bg-white rounded-lg border border-indigo-200 p-3">
               <p className="text-xs font-semibold text-indigo-800 mb-1">
-                Wartość Konrada (ręczna)
+                Wartość kierownika (ręczna)
               </p>
               <p className="text-[11px] text-gray-500 mb-3 leading-relaxed">
                 Wpisz wartość kierownika gdy nie ma jej w xlsx „Ściany i słupy żelb.". Jeśli różnica vs Maraf przekroczy {Math.round(KONRAD_DIFF_THRESHOLD * 100)}% — wymagane uzasadnienie.
@@ -568,7 +568,7 @@ function KonradEditor({
     <div className="space-y-3" onClick={(e) => e.stopPropagation()}>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         <div>
-          <label className="block text-xs text-gray-600 mb-1">Wartość Konrada ({item.unit})</label>
+          <label className="block text-xs text-gray-600 mb-1">Wartość kierownika ({item.unit})</label>
           <input
             type="number"
             step="0.01"
@@ -612,7 +612,7 @@ function KonradEditor({
           className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-300 text-white px-3 py-1.5 rounded text-sm font-medium"
           title={reasonMissing ? 'Wpisz uzasadnienie' : ''}
         >
-          {saving ? 'Zapisuję...' : '💾 Zapisz wartość Konrada'}
+          {saving ? 'Zapisuję...' : '💾 Zapisz wartość kierownika'}
         </button>
         {item.konradManualValue != null && (
           <button

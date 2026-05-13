@@ -47,7 +47,7 @@ export default async function PrzerobyHomePage() {
         <ModuleTile
           href="/przeroby/porownanie"
           title="Porównania"
-          desc="Maraf vs przedmiar Konrada (kierownika)"
+          desc="Maraf vs przedmiar kierownika"
           stat={String(summariesCount)}
           statLabel="kondygnacji"
         />
