@@ -4,6 +4,19 @@ Krótkie wpisy „co i **dlaczego**". Bez listy wszystkich commitów — od tego
 
 ---
 
+## 2026-05-13
+
+### Akceptacja Inwestora (`investorApproved`) + ręczne dodawanie pozycji obmiaru
+**Powód**: (1) Brakowało finalnej decyzji „Inwestor zatwierdza pozycję do protokołu" — stary mechanizm `accepted` był akceptacją różnicy przez kierownika, nie wystarczał semantycznie do podstawy faktury. (2) Brakowało możliwości dodania pozycji spoza listy `buildPositionsForFloor` (np. „Słupy maszynowni dachu" — element specjalny nieprzewidziany w mapowaniu Maraf↔Konrad).
+**Implementacja**:
+- Schema: 5 nowych pól w `FloorSummaryItem` — `investorApproved`, `investorApprovedBy/At/Note/Value` (snapshot wartości kierownika w momencie akceptacji). `accepted/At/Note` zostawione w schemie jako DEPRECATED (nie używane w UI, niekasowane żeby nie tracić historii). Nowy `matchMode = 'MANUAL_ADDED'` (komentarz).
+- API: PATCH `floor-summaries/items/[id]` — akceptacja tylko dla admina (403 dla innych). Zmiana `konradManualValue` **auto-cofa** akceptację (`INVESTOR_UNAPPROVE` w historii) + ustawia `approvalStale` w UI. POST `floor-summaries/[summaryId]/items` (NOWY) — dodawanie pozycji manualnej. DELETE `items/[id]` — tylko dla `matchMode === 'MANUAL_ADDED'`.
+- UI: nowa kolumna „AKCEPTACJA INWESTORA" w tabeli (badge ✓ / ⚠ Nieaktualna / Czeka). Komponent `InvestorApproval` w panelu szczegółów (zielony banner gdy ok, żółty gdy stale, formularz dla admina). Button „➕ Dodaj pozycję" nad tabelą + modal `AddItemModal` (name, unit dropdown, opc. wartości Marafa + kierownika + uzasadnienie). Delete button widoczny tylko dla `MANUAL_ADDED` w panelu szczegółów. Nagłówek tabeli „Pozycja kierownika" → „Pozycja obmiaru".
+- Reimport (`przedmiar-konrad-import.ts`): `manualAddedByFloor` map zachowuje pozycje `MANUAL_ADDED` osobno (poza `preserveMap` po nazwie). Doklejone na końcu pętli po standardowych `buildPositionsForFloor`. Pełna preservacja: name, unit, wszystkie wartości manual, akceptacja inwestora, historia.
+- Semantyka `totalReady` zmieniona: tylko `investorApproved === true` zalicza pozycję jako gotową do protokołu (poprzednio: `accepted || manualValue != null || AUTO_OK w tolerancji`).
+- Historia: nowe akcje `INVESTOR_APPROVE`, `INVESTOR_UNAPPROVE`, `ITEM_ADDED`. Stary `ACCEPT/UNACCEPT` oznaczony jako legacy w `ACTION_LABEL`.
+- **WYMAGANE po deployu**: `prisma db push --skip-generate` w Coolify Terminal — doda 5 nowych kolumn. Istniejące zaakceptowane pozycje (z `accepted=true`) **nie są** migrowane na `investorApproved` (różna semantyka — accepted był robiony przez kierownika, nie inwestora). Admin musi przejść i zaakceptować ręcznie. Stary `accepted` zostaje w bazie dla auditingu.
+
 ## 2026-05-12
 
 ### Nowy szablon umowy rezerwacyjnej (`templates/umowa-rezerwacyjna.docx`)

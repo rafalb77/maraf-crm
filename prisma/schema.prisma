@@ -421,6 +421,7 @@ model FloorSummary {
 //   MANUAL_OUT_OF_SCOPE— poza zakresem ŻB (murowanie, łączniki)
 //   MANUAL_NOT_FOUND   — pozycja nieobecna w obmiarze inżynierskim (np. daszki)
 //   MANUAL_OVERRIDE    — użytkownik świadomie nadpisał wartość
+//   MANUAL_ADDED       — pozycja dodana ręcznie przez usera w UI (poza pozycjami z buildPositionsForFloor); zachowywane przy reimporcie
 model FloorSummaryItem {
   id            String   @id @default(cuid())
   summaryId     String
@@ -438,9 +439,19 @@ model FloorSummaryItem {
   manualNote    String?                 // komentarz do manualValue
   konradManualValue  Float?             // ręczna wartość Konrada (gdy nie ma detalu w xlsx) — wpisuje kierownik lub admin
   konradManualReason String?            // uzasadnienie wartości Konrada — WYMAGANE gdy |Δ| > 5% vs Maraf
-  accepted      Boolean  @default(false) // kierownik świadomie zaakceptował różnicę (poza tolerancją)
+  // DEPRECATED — zastąpione przez investorApproved*. Pola zostają w schemie/bazie żeby
+  // nie tracić historycznych danych (kto co kiedy kierowniczo zaakceptował). Nie używane w UI.
+  accepted      Boolean  @default(false)
   acceptedAt    DateTime?
   acceptedNote  String?
+  // Akceptacja przez Inwestora (admin) — warunek konieczny przejścia pozycji do protokołu.
+  // investorApprovedValue = snapshot wartości kierownika w momencie akceptacji (do auditingu —
+  // jeśli wartość się zmieni po akceptacji, widać że potrzeba reakceptacji).
+  investorApproved      Boolean   @default(false)
+  investorApprovedBy    String?
+  investorApprovedAt    DateTime?
+  investorApprovedNote  String?
+  investorApprovedValue Float?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -456,7 +467,7 @@ model FloorSummaryItem {
 model FloorSummaryItemHistory {
   id        String   @id @default(cuid())
   itemId    String
-  action    String   // ACCEPT | UNACCEPT | SET_MANUAL_VALUE | CLEAR_MANUAL_VALUE | SET_KONRAD_VALUE | CLEAR_KONRAD_VALUE | EDIT_NOTE | REIMPORT
+  action    String   // ACCEPT | UNACCEPT | SET_MANUAL_VALUE | CLEAR_MANUAL_VALUE | SET_KONRAD_VALUE | CLEAR_KONRAD_VALUE | INVESTOR_APPROVE | INVESTOR_UNAPPROVE | ITEM_ADDED | EDIT_NOTE | REIMPORT
   oldValue  String?  // poprzednia wartość (JSON serialized)
   newValue  String?  // nowa wartość (JSON serialized)
   note      String?  // komentarz / uzasadnienie z formularza
