@@ -16,9 +16,12 @@ Zanim zaczniesz pracę nad konkretnym modułem — przeczytaj odpowiedni plik. T
 
 ### Otwarte sprawy (do dokończenia)
 
+- **`docs/karty-mieszkan-status.md`** — **AKTYWNE** (stan na 2026-05-13): import 59 kart mieszkań PDF. Skrypt `scripts/import-floorplans.js` przepisany na deterministyczne mapowanie (folder + filename, bez pdf-parse). Commit `d05a50f` na `main`. User ma odpalić **dry-run** w Coolify Terminal i wkleić output — wtedy weryfikujemy mapowanie i odpalamy właściwy import.
 - **`docs/obmiary-rozpoczecie.md`** — moduł obmiarów z rysunków (DXF/PDF). Schema + dependencies gotowe, ale brak UI/API. 4 warianty MVP do wyboru z user'em (manualne klikanie / DXF parser / AI / pełna integracja z Przerobami).
 - **`docs/porownanie-obmiarow-rozpoczecie.md`** — porównanie obmiarów (rozszerzenie istniejącego `/przeroby/porownanie`). Zakres niejasny — 4 scenariusze do uzgodnienia z userem (rozszerzenie, historia wersji, xlsx vs rysunek, inne).
 - **`docs/panel-personalizacja-rozpoczecie.md`** — **podtemat 2+3 (preferredName, interests, /profil, TopWidget per-user) wdrożony 2026-05-13** — patrz changelog. Otwarty pozostaje podtemat 1 (UX panelu `/settings`) — niedoprecyzowany.
+- **`docs/sprzedaz-decyzje.md`** — moduł Sprzedaż gotowy w MVP. Otwarte: 4 warianty podpisywania umów (sekcja „Plan podpisywania") + 10 kierunków rozwoju generatora.
+- **`docs/lokale-decyzje.md`** — moduł Lokale działa. Otwarte: 10 kierunków rozwoju (bulk operacje, wizualizacja rzutu, historia zmian, integracje portali).
 
 _(temat „PDF generator" zamknięty 2026-05-12, temat „Personalizacja per-user" zamknięty 2026-05-13 — patrz `docs/changelog.md`)_
 
