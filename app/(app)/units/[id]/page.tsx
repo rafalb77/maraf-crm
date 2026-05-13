@@ -9,6 +9,7 @@ import {
   type UnitType, type UnitStatus, type ServiceStatus, type ServicePriority
 } from '@/lib/types'
 import { FloorPlanUpload } from '@/components/units/FloorPlanUpload'
+import { UnitImageGallery } from '@/components/units/UnitImageGallery'
 import { DeleteUnitButton } from '@/components/units/DeleteUnitButton'
 
 export default async function UnitDetailPage({ params }: { params: { id: string } }) {
@@ -17,6 +18,7 @@ export default async function UnitDetailPage({ params }: { params: { id: string 
     include: {
       clientUnits: { include: { client: true } },
       serviceRequests: { include: { client: true }, orderBy: { createdAt: 'desc' } },
+      images: { orderBy: [{ position: 'asc' }, { createdAt: 'asc' }] },
     },
   })
 
@@ -80,9 +82,9 @@ export default async function UnitDetailPage({ params }: { params: { id: string 
             )}
           </div>
 
-          {/* Floor plan */}
+          {/* Karta lokalu (PDF) */}
           <div className="bg-white rounded-xl border border-gray-200 p-6">
-            <h2 className="font-semibold text-gray-900 mb-4">Rzut lokalu</h2>
+            <h2 className="font-semibold text-gray-900 mb-4">Karta lokalu (PDF)</h2>
             {unit.floorPlanUrl ? (
               <div className="space-y-3">
                 {unit.floorPlanUrl.endsWith('.pdf') ? (
@@ -91,11 +93,11 @@ export default async function UnitDetailPage({ params }: { params: { id: string 
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
-                    Pobierz rzut PDF
+                    Pobierz karte PDF
                   </a>
                 ) : (
                   <div className="relative rounded-lg overflow-hidden border border-gray-100" style={{ height: 300 }}>
-                    <Image src={unit.floorPlanUrl} alt="Rzut lokalu" fill className="object-contain" />
+                    <Image src={unit.floorPlanUrl} alt="Karta lokalu" fill className="object-contain" />
                   </div>
                 )}
               </div>
@@ -103,6 +105,12 @@ export default async function UnitDetailPage({ params }: { params: { id: string 
             <div className="mt-3">
               <FloorPlanUpload unitId={unit.id} />
             </div>
+          </div>
+
+          {/* Galeria zdjec / wizualizacji — uzywana do generowania kreacji Meta Ads */}
+          <div className="bg-white rounded-xl border border-gray-200 p-6">
+            <h2 className="font-semibold text-gray-900 mb-4">Zdjecia i wizualizacje</h2>
+            <UnitImageGallery unitId={unit.id} initialImages={unit.images} />
           </div>
 
           {/* Service requests */}
