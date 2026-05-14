@@ -78,6 +78,7 @@ model Unit {
   priceGross           Float
   vatRate              Int       @default(8)
   floor                Int?
+  rooms                Int?
   building             String?
   description          String?
   status               String    @default("WOLNY")

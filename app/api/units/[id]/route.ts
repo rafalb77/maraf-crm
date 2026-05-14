@@ -46,6 +46,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
       priceGross,
       vatRate: parseInt(body.vatRate) || 8,
       floor: body.floor !== undefined && body.floor !== '' ? parseInt(body.floor) : null,
+      rooms: body.rooms !== undefined && body.rooms !== '' ? parseInt(body.rooms) : null,
       building: body.building || null,
       description: body.description || null,
       status: body.status,

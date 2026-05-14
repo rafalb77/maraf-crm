@@ -43,6 +43,12 @@ export default async function UnitDetailPage({ params }: { params: { id: string 
         </div>
         <div className="flex gap-2">
           <Link
+            href={`/units/${unit.id}/creative`}
+            className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-sm font-medium transition-colors"
+          >
+            Generuj kreacje
+          </Link>
+          <Link
             href={`/units/${unit.id}/edit`}
             className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
           >
@@ -67,6 +73,7 @@ export default async function UnitDetailPage({ params }: { params: { id: string 
                   : unit.floor === -1 ? 'Podziemie'
                   : `${unit.floor}. piętro`
               } />
+              <Field label="Liczba pokoi" value={unit.rooms != null ? String(unit.rooms) : '—'} />
               <Field label="Budynek" value={unit.building || '—'} />
               <Field label="VAT" value={`${unit.vatRate}%`} />
               <Field label="Cena za m² netto" value={formatCurrency(unit.pricePerSqmNet)} />

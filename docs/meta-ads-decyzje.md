@@ -39,12 +39,16 @@ Cel: z lokalu (zdjęcia + dane + nazwa inwestycji z Settings) wygenerować zesta
   - Powod: wizualizacje zewnetrzne sa wspolne dla wszystkich 158 lokali — nie ma sensu wrzucac do `UnitImage` 158 razy
   - Etykiety w `lib/types.ts` (`UNIT_IMAGE_KIND_LABELS`, `INVESTMENT_IMAGE_KIND_LABELS`)
 
-- **1b. Template engine + render PNG** (status: pending)
-  - `lib/ad-creative-html.ts` — HTML+CSS composer dla 4 formatów: 1080×1080 (FB/IG feed), 1080×1350 (IG portrait 4:5), 1080×1920 (Stories/Reels 9:16), 1200×628 (FB landscape 1.91:1)
-  - Reuse `lib/pdf-generator.ts` (puppeteer + Chrome) → dodać helper `generatePng(html, w, h)` używający `page.screenshot({ type: 'png' })`
-  - Layout: zdjęcie isPrimary jako tło + overlay z logo, nazwą inwestycji ("Nova Staffa" z Settings), numerem lokalu, metrażem, ceną brutto, CTA ("Zobacz szczegóły"); branding NAVY `#2C3E54` + GOLD `#C9A37A`
-  - Endpoint `POST /api/units/[id]/ad-creative` → ZIP (4 PNG-i × N wariantów)
-  - Strona `/units/[id]/creative` — wybór zdjęcia, podgląd live, button "Pobierz ZIP"
+- **1b. Template engine + render PNG** (status: ✅ zrobione 2026-05-14)
+  - `lib/ad-creative-html.ts` — HTML+CSS composer dla 4 formatów: `feed_square` 1080×1080, `feed_portrait` 1080×1350, `story` 1080×1920, `landscape` 1200×628. Skalowanie layoutu per format (`scaleFor`).
+  - `lib/ad-creative-generator.ts` — puppeteer-core + Google Chrome, `generateAdCreativePng(html, w, h)` przez `page.screenshot`. Osobny plik (nie ruszam `pdf-generator.ts`), zduplikowane launch args.
+  - Pole `rooms Int?` dodane do `Unit` (+ UnitForm, API units POST/PUT, widok detalu)
+  - Layout kreacji: tło-zdjęcie + scrim gradient + logo Nova Staffa (góra) + nr lokalu + chipy (metraż / pokoje / piętro) + cena + CTA. Branding NAVY `#2C3E54` / GOLD `#C9A37A`.
+  - **Cena — 4 tryby wybierane w UI**: `EXACT` (konkretna), `FROM` (od X — domyślny), `PER_SQM` (za m²), `NONE` (bez ceny)
+  - **CTA — 3 opcje**: "Zobacz szczegóły" / "Umów prezentację" / "Sprawdź ofertę"
+  - Endpoint `GET /api/units/[id]/ad-creative?format=&priceMode=&cta=&bg=&download=` → pojedynczy PNG on-demand. Auto-wybór tła: story/landscape → InvestmentImage, feed → UnitImage primary; `bg` query nadpisuje.
+  - Strona `/units/[id]/creative` (`AdCreativeStudio`) — wybór ceny/CTA/tła per format, podgląd w zakładkach (1 puppeteer naraz — oszczędność RAM), 4 przyciski "Pobierz PNG"
+  - **Bez ZIP** — 4 osobne pobrania zamiast ZIP-a (uniknięcie nowej dependency `jszip` + komplikacji worktree/node_modules). ZIP "pobierz wszystkie" = ewentualny późniejszy dodatek.
 
 - **1c. AI copy generator** (status: pending — wymaga `ANTHROPIC_API_KEY` w Coolify)
   - Endpoint `POST /api/units/[id]/ad-copy` → 5 wariantów `{headline, primaryText, description}`
