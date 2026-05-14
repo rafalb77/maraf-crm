@@ -141,6 +141,16 @@ export const INVESTMENT_IMAGE_KIND_LABELS: Record<InvestmentImageKind, string> =
   INNE: 'Inne',
 }
 
+// Generowanie kreacji reklamowych Meta Ads dozwolone tylko dla lokali
+// faktycznie sprzedawanych: mieszkalne / uslugowe o statusie != SPRZEDANY.
+// Komorki lokatorskie, miejsca parkingowe/garazowe oraz lokale sprzedane
+// nie maja generatora kreacji.
+export function canGenerateCreative(unit: { type: string; status: string }): boolean {
+  if (unit.status === 'SPRZEDANY') return false
+  if (unit.type === 'KOMORKA' || unit.type === 'PARKING' || unit.type === 'GARAZ') return false
+  return true
+}
+
 // Validation: 1 umowa rezerwacyjna = max 1 MIESZKALNY + 2 PARKING + 2 GARAZ + 1 KOMORKA
 export const RESERVATION_CONTRACT_LIMITS: Record<UnitType, number> = {
   MIESZKALNY: 1,

@@ -10,6 +10,7 @@ import {
   type AdCreativeFormat,
   type PriceMode,
 } from '@/lib/ad-creative-html'
+import { canGenerateCreative } from '@/lib/types'
 import { generateAdCreativePng } from '@/lib/ad-creative-generator'
 
 const VALID_FORMATS = Object.keys(AD_FORMAT_DIMENSIONS) as AdCreativeFormat[]
@@ -54,6 +55,12 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     include: { images: { orderBy: [{ position: 'asc' }, { createdAt: 'asc' }] } },
   })
   if (!unit) return NextResponse.json({ error: 'Lokal nie istnieje' }, { status: 404 })
+  if (!canGenerateCreative(unit)) {
+    return NextResponse.json(
+      { error: 'Generowanie kreacji niedostępne dla tego lokalu (komórka/parking/garaż lub lokal sprzedany).' },
+      { status: 403 },
+    )
+  }
 
   // Nazwa inwestycji z Settings
   const investRow = await prisma.settings.findUnique({ where: { key: 'investmentName' } })

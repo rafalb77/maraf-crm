@@ -4,7 +4,7 @@ import { authOptions } from '@/lib/auth'
 import Anthropic from '@anthropic-ai/sdk'
 import { prisma } from '@/lib/prisma'
 import { isAnthropicConfigured, generateAdCopy } from '@/lib/ad-copy'
-import { UNIT_TYPE_LABELS, type UnitType } from '@/lib/types'
+import { UNIT_TYPE_LABELS, canGenerateCreative, type UnitType } from '@/lib/types'
 
 function unitTypeLabel(type: string, rooms: number | null): string {
   if (type === 'MIESZKALNY') {
@@ -36,6 +36,12 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
 
   const unit = await prisma.unit.findUnique({ where: { id: params.id } })
   if (!unit) return NextResponse.json({ error: 'Lokal nie istnieje' }, { status: 404 })
+  if (!canGenerateCreative(unit)) {
+    return NextResponse.json(
+      { error: 'Generowanie tekstów niedostępne dla tego lokalu (komórka/parking/garaż lub lokal sprzedany).' },
+      { status: 403 },
+    )
+  }
 
   const investRow = await prisma.settings.findUnique({ where: { key: 'investmentName' } })
   const investmentName = investRow?.value || 'Inwestycja'
