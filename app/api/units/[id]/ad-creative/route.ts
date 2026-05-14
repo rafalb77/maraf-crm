@@ -41,6 +41,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   const format = searchParams.get('format') as AdCreativeFormat | null
   const priceModeRaw = (searchParams.get('priceMode') || 'FROM') as PriceMode
   const cta = (searchParams.get('cta') || 'Zobacz szczegóły').slice(0, 60)
+  const headline = (searchParams.get('headline') || '').slice(0, 80)
   const bgParam = searchParams.get('bg') // sciezka /uploads/... lub puste
 
   if (!format || !VALID_FORMATS.includes(format)) {
@@ -83,6 +84,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 
   const html = getAdCreativeHtml({
     format,
+    headline,
     investmentName,
     unitNumber: unit.number,
     unitType: unit.type,

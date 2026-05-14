@@ -3,6 +3,7 @@ import { useState, useMemo } from 'react'
 import {
   AD_FORMAT_DIMENSIONS,
   PRICE_MODE_LABELS,
+  HEADLINE_PRESETS,
   type AdCreativeFormat,
   type PriceMode,
 } from '@/lib/ad-creative-html'
@@ -28,6 +29,9 @@ export function AdCreativeStudio({
 }) {
   const [priceMode, setPriceMode] = useState<PriceMode>('FROM')
   const [cta, setCta] = useState(CTA_OPTIONS[0])
+  // headline: wybor z presetow albo '__custom__' (wtedy uzywamy customHeadline)
+  const [headlineChoice, setHeadlineChoice] = useState<string>(HEADLINE_PRESETS[0])
+  const [customHeadline, setCustomHeadline] = useState('')
   const [activeFormat, setActiveFormat] = useState<AdCreativeFormat>('feed_square')
   // bg per format: '' = auto
   const [bgByFormat, setBgByFormat] = useState<Record<string, string>>({})
@@ -48,11 +52,15 @@ export function AdCreativeStudio({
     return opts
   }, [unitImages, investmentImages])
 
+  const effectiveHeadline =
+    headlineChoice === '__custom__' ? customHeadline.trim() : headlineChoice
+
   function buildUrl(format: AdCreativeFormat, download = false) {
     const p = new URLSearchParams()
     p.set('format', format)
     p.set('priceMode', priceMode)
     p.set('cta', cta)
+    if (effectiveHeadline) p.set('headline', effectiveHeadline)
     const bg = bgByFormat[format] || ''
     if (bg) p.set('bg', bg)
     if (download) p.set('download', '1')
@@ -67,6 +75,32 @@ export function AdCreativeStudio({
     <div className="space-y-5">
       {/* Kontrolki */}
       <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-5">
+        {/* Headline (haslo) */}
+        <div>
+          <p className="text-sm font-medium text-gray-700 mb-2">Hasło reklamowe (najważniejszy element kreacji)</p>
+          <select
+            value={headlineChoice}
+            onChange={(e) => setHeadlineChoice(e.target.value)}
+            className="w-full sm:w-96 text-sm px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-700 focus:border-blue-400 focus:outline-none"
+          >
+            {HEADLINE_PRESETS.map((h) => (
+              <option key={h} value={h}>{h}</option>
+            ))}
+            <option value="">(bez hasła)</option>
+            <option value="__custom__">✏️ Własne hasło…</option>
+          </select>
+          {headlineChoice === '__custom__' && (
+            <input
+              type="text"
+              value={customHeadline}
+              onChange={(e) => setCustomHeadline(e.target.value)}
+              maxLength={80}
+              placeholder="Wpisz własne hasło (max 80 znaków)"
+              className="mt-2 w-full sm:w-96 text-sm px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:border-blue-400 focus:outline-none"
+            />
+          )}
+        </div>
+
         {/* Cena */}
         <div>
           <p className="text-sm font-medium text-gray-700 mb-2">Sposób prezentacji ceny</p>
