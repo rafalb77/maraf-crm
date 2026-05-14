@@ -1,7 +1,8 @@
 import { prisma } from '@/lib/prisma'
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
 import { AdCreativeStudio } from '@/components/units/AdCreativeStudio'
+import { canGenerateCreative } from '@/lib/types'
 
 export default async function UnitCreativePage({ params }: { params: { id: string } }) {
   const unit = await prisma.unit.findUnique({
@@ -9,6 +10,9 @@ export default async function UnitCreativePage({ params }: { params: { id: strin
     include: { images: { orderBy: [{ position: 'asc' }, { createdAt: 'asc' }] } },
   })
   if (!unit) notFound()
+
+  // Generator niedostepny dla komorek/parkingow/garazy oraz lokali sprzedanych
+  if (!canGenerateCreative(unit)) redirect(`/units/${unit.id}`)
 
   const investmentImages = await prisma.investmentImage.findMany({
     orderBy: [{ position: 'asc' }, { createdAt: 'asc' }],

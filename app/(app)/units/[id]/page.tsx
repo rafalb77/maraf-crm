@@ -6,6 +6,7 @@ import { formatCurrency, formatArea, formatDateTime } from '@/lib/utils'
 import {
   UNIT_TYPE_LABELS, UNIT_STATUS_LABELS, UNIT_STATUS_COLORS,
   SERVICE_STATUS_LABELS, SERVICE_STATUS_COLORS, SERVICE_PRIORITY_LABELS,
+  canGenerateCreative,
   type UnitType, type UnitStatus, type ServiceStatus, type ServicePriority
 } from '@/lib/types'
 import { FloorPlanUpload } from '@/components/units/FloorPlanUpload'
@@ -42,12 +43,14 @@ export default async function UnitDetailPage({ params }: { params: { id: string 
           <p className="text-gray-500 text-sm mt-1">{UNIT_TYPE_LABELS[unit.type as UnitType]}</p>
         </div>
         <div className="flex gap-2">
-          <Link
-            href={`/units/${unit.id}/creative`}
-            className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-sm font-medium transition-colors"
-          >
-            Generuj kreacje
-          </Link>
+          {canGenerateCreative(unit) && (
+            <Link
+              href={`/units/${unit.id}/creative`}
+              className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-sm font-medium transition-colors"
+            >
+              Generuj kreacje
+            </Link>
+          )}
           <Link
             href={`/units/${unit.id}/edit`}
             className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
