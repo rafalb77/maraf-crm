@@ -51,6 +51,26 @@ Szybki dostęp do paneli, URL-i, hostingów. Hasła trzymamy w password managerz
 - Test mail: `/settings` → sekcja SMTP → „Wyślij test maila"
 - **Uwaga**: maile z home.pl mogą trafić do folderu „Oferty" w WP.pl — patrz `docs/oferty-decyzje.md` (subject + headers transactional)
 
+## Google Calendar (integracja OAuth)
+
+Moduł `/calendar` integruje się z Google Calendar przez OAuth 2.0. Kod: `lib/google-calendar.ts` (`getOAuthClient`, `getAuthUrl`), endpointy `/api/calendar/connect` (start OAuth) + `/api/calendar/callback` (odbiór tokenu → tabela `CalendarToken`).
+
+**Google Cloud Console** (https://console.cloud.google.com):
+1. Projekt + włączone **Google Calendar API** (APIs & Services → Library → „Google Calendar API" → Enable)
+2. **OAuth consent screen**: User type External, scope `.../auth/calendar`. W trybie „Testing" tylko maile z listy „Test users" mogą się podłączyć — dodaj tam adresy które będą podpinać kalendarz.
+3. **Credentials → Create credentials → OAuth client ID** (typ: **Web application**):
+   - Authorized redirect URI: `https://crm.maraf.pl/api/calendar/callback`
+
+**Coolify env** (server-side — restart kontenera wystarczy, NIE wymaga rebuild bo brak prefiksu `NEXT_PUBLIC_`):
+- `GOOGLE_CLIENT_ID` — z Google Cloud Console
+- `GOOGLE_CLIENT_SECRET` — z Google Cloud Console
+- `GOOGLE_REDIRECT_URI` = `https://crm.maraf.pl/api/calendar/callback`
+
+**Pułapki**:
+- `GOOGLE_REDIRECT_URI` musi być **IDENTYCZNY** w Google Cloud Console i w Coolify env — każda różnica (http/https, trailing slash, ścieżka) → błąd `redirect_uri_mismatch`.
+- Błąd `Missing required parameter: client_id` (400 invalid_request) = `GOOGLE_CLIENT_ID` nieustawione w Coolify.
+- Scope `calendar` jest „sensitive" — publikacja consent screen do „In production" może wymagać weryfikacji Google przy większej liczbie userów; dla kilku osób tryb „Testing" + lista „Test users" w zupełności wystarcza.
+
 ## DNS
 
 - Domeny zarządzane gdzie? — sprawdź u rejestratora (home.pl prawdopodobnie)
