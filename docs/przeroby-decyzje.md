@@ -99,6 +99,14 @@ Label `MANUAL_NOT_FOUND` w UI brzmi „brak u kierownika" — żeby nie mylił z
 
 `ProtocolGenerator` (komponent) tworzy szkic protokołu na podstawie gotowych pozycji.
 
+### 11. `% kontraktu` — umowna wartość vs wyliczona z protokołów
+
+`SubContract` ma **dwa** pola wartości:
+- **`valueNet`** — wyliczana przez `import-protokoly.js` jako `Σ(plannedQty × unitPrice)` pozycji umownych. Pozycje to unia z dotychczasowych protokołów → `valueNet` obejmuje TYLKO zafakturowany zakres. Nadpisywana przy każdym imporcie. Semantycznie: „suma zafakturowanych pozycji".
+- **`agreedValueNet`** — umowna wartość netto **całego** zakresu robót (wszystkie kondygnacje + dach). Wpisywana **ręcznie** w UI (`KontraktStat`, kafelek „% kontraktu" w widoku protokołu). Importer jej NIE dotyka.
+
+Wskaźnik `% kontraktu = cumulativeTotal / agreedValueNet`. Gdy `agreedValueNet` nie ustawione → kafelek pokazuje „—" + zachętę do wpisania. **Nie używać `valueNet` jako mianownika `%`** — był to pierwotny błąd (pokazywał 96,5% przy ~60% budynku, bo arkusze obejmowały tylko 3 sekcje). Endpoint zapisu: `PATCH /api/przeroby/contracts/[id]`.
+
 ## Pułapki
 
 - **`floor` w FloorSummary** to enum-string: `PARTER`, `I_PIETRO`, ..., `IV_PIETRO`, `V_PIETRO`, `DACH`. Unique `[scopeId, floor]` — nie da się mieć dwóch FloorSummary tej samej kondygnacji w tym samym zakresie (np. dwóch źródeł). Jeśli będziemy chcieli porównanie Konrad vs inny kierownik dla tej samej kondygnacji → trzeba rozszerzyć schema.
