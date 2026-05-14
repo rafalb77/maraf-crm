@@ -39,6 +39,43 @@ export function AdCreativeStudio({
   // nonce wymusza reload <img> nawet gdy URL ten sam (np. po bledzie)
   const [nonce, setNonce] = useState(0)
 
+  // Generator tekstow reklamowych (AI) — faza 1c
+  type CopyVariant = { angle: string; headline: string; primaryText: string; description: string }
+  const [copyVariants, setCopyVariants] = useState<CopyVariant[] | null>(null)
+  const [copyLoading, setCopyLoading] = useState(false)
+  const [copyError, setCopyError] = useState('')
+  const [copiedKey, setCopiedKey] = useState<string | null>(null)
+
+  async function generateCopy() {
+    setCopyLoading(true)
+    setCopyError('')
+    try {
+      const res = await fetch(`/api/units/${unitId}/ad-copy`, { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Błąd generowania tekstów')
+      setCopyVariants(data.variants)
+    } catch (e: any) {
+      setCopyError(e.message || 'Błąd generowania tekstów')
+    } finally {
+      setCopyLoading(false)
+    }
+  }
+
+  async function copyToClipboard(text: string, key: string) {
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopiedKey(key)
+      setTimeout(() => setCopiedKey((k) => (k === key ? null : k)), 1500)
+    } catch {
+      setCopyError('Nie udało się skopiować do schowka')
+    }
+  }
+
+  function useAsCreativeHeadline(headline: string) {
+    setHeadlineChoice('__custom__')
+    setCustomHeadline(headline.slice(0, 80))
+  }
+
   const bgOptions = useMemo(() => {
     const opts: Array<{ value: string; label: string }> = [{ value: '', label: 'Auto (wg formatu)' }]
     unitImages.forEach((img, i) => {
@@ -242,6 +279,91 @@ export function AdCreativeStudio({
         <p className="text-xs text-gray-400 mt-3">
           Każdy plik generowany jest na żądanie (puppeteer + Chrome). Generowanie jednego PNG trwa kilka sekund.
         </p>
+      </div>
+
+      {/* Teksty reklamowe AI — faza 1c */}
+      <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <div className="flex items-start justify-between gap-4 mb-3">
+          <div>
+            <p className="text-sm font-medium text-gray-700">Teksty reklamowe (AI)</p>
+            <p className="text-xs text-gray-400 mt-0.5">
+              5 wariantów tekstu do Menedżera Reklam Meta — nagłówek, tekst główny, opis. Generuje Claude na podstawie danych lokalu.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={generateCopy}
+            disabled={copyLoading}
+            className="flex-shrink-0 inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-lg text-sm font-medium transition-colors"
+          >
+            {copyLoading ? 'Generowanie…' : copyVariants ? 'Generuj ponownie' : 'Generuj teksty'}
+          </button>
+        </div>
+
+        {copyError && <p className="text-red-500 text-xs mb-3">{copyError}</p>}
+
+        {copyVariants && (
+          <div className="space-y-3">
+            {copyVariants.map((v, i) => (
+              <div key={i} className="border border-gray-200 rounded-lg p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="inline-block bg-blue-50 text-blue-700 text-[11px] font-semibold px-2 py-0.5 rounded">
+                    {v.angle}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => useAsCreativeHeadline(v.headline)}
+                    className="text-xs text-amber-700 hover:text-amber-800 font-medium"
+                  >
+                    Użyj nagłówka na kreacji →
+                  </button>
+                </div>
+
+                <div className="space-y-2 text-sm">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-gray-400 uppercase tracking-wide">Nagłówek</span>
+                      <button
+                        type="button"
+                        onClick={() => copyToClipboard(v.headline, `h-${i}`)}
+                        className="text-[11px] text-gray-500 hover:text-blue-600"
+                      >
+                        {copiedKey === `h-${i}` ? '✓ skopiowano' : 'kopiuj'}
+                      </button>
+                    </div>
+                    <p className="text-gray-900 font-medium">{v.headline}</p>
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-gray-400 uppercase tracking-wide">Tekst główny</span>
+                      <button
+                        type="button"
+                        onClick={() => copyToClipboard(v.primaryText, `p-${i}`)}
+                        className="text-[11px] text-gray-500 hover:text-blue-600"
+                      >
+                        {copiedKey === `p-${i}` ? '✓ skopiowano' : 'kopiuj'}
+                      </button>
+                    </div>
+                    <p className="text-gray-700">{v.primaryText}</p>
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-gray-400 uppercase tracking-wide">Opis</span>
+                      <button
+                        type="button"
+                        onClick={() => copyToClipboard(v.description, `d-${i}`)}
+                        className="text-[11px] text-gray-500 hover:text-blue-600"
+                      >
+                        {copiedKey === `d-${i}` ? '✓ skopiowano' : 'kopiuj'}
+                      </button>
+                    </div>
+                    <p className="text-gray-700">{v.description}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )
