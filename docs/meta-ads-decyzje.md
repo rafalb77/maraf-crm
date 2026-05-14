@@ -50,11 +50,15 @@ Cel: z lokalu (zdjęcia + dane + nazwa inwestycji z Settings) wygenerować zesta
   - Strona `/units/[id]/creative` (`AdCreativeStudio`) — wybór ceny/CTA/tła per format, podgląd w zakładkach (1 puppeteer naraz — oszczędność RAM), 4 przyciski "Pobierz PNG"
   - **Bez ZIP** — 4 osobne pobrania zamiast ZIP-a (uniknięcie nowej dependency `jszip` + komplikacji worktree/node_modules). ZIP "pobierz wszystkie" = ewentualny późniejszy dodatek.
 
-- **1c. AI copy generator** (status: pending — wymaga `ANTHROPIC_API_KEY` w Coolify)
-  - Endpoint `POST /api/units/[id]/ad-copy` → 5 wariantów `{headline, primaryText, description}`
-  - Prompt: dane lokalu + nazwa inwestycji → 5 kątów (cena/lokalizacja/lifestyle/urgency/value)
-  - Jeśli brak `ANTHROPIC_API_KEY` → 400 z message o konfiguracji
-  - Integracja w UI generatora (krok 2 po wyborze zdjęcia)
+- **1c. AI copy generator** (status: ✅ zrobione 2026-05-14 — wymaga `ANTHROPIC_API_KEY` w Coolify)
+  - `lib/ad-copy.ts` — generator przez Anthropic SDK (`@anthropic-ai/sdk`), model **`claude-opus-4-7`**
+  - **Structured output: wymuszony tool-use** (`tool_choice` + tool `emit_ad_copy`) — niezawodne na SDK 0.91.x, bez zależności od `zod`/`messages.parse()`
+  - **Prompt caching**: `cache_control` na system prompt (dane lokalu w user message, po breakpoincie) — poprawny pattern, choć system prompt jest obecnie krótszy niż minimum cache (~4096 tok.), więc realne trafienia pojawią się gdy urośnie
+  - Endpoint `POST /api/units/[id]/ad-copy` → `{ variants: [{angle, headline, primaryText, description}] }` (5 wariantów)
+  - 5 kątów sprzedażowych: cena/wartość, lokalizacja/wygoda, komfort/styl życia, dostępność, inwestycja
+  - System prompt zawiera **zasady polityki Meta Housing** (zakaz języka dyskryminującego, fałszywej pilności)
+  - Obsługa błędów: brak klucza → 503 z instrukcją, `AuthenticationError` → 502, `RateLimitError` → 429, `APIError` → 502
+  - UI: sekcja "Teksty reklamowe (AI)" w `AdCreativeStudio` — przycisk generowania, 5 kart z copy-to-clipboard + "Użyj nagłówka na kreacji" (wpina headline do generatora kreacji)
 
 ### MVP #2 — Push do Mety jako Draft Ad
 Cel: kreacja wygenerowana w CRM → automatycznie ląduje w Ads Managerze jako **Draft Ad** (user dopina ostateczną publikację ręcznie — minimalizuje ryzyko App Review).
