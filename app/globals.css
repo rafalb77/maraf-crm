@@ -173,6 +173,16 @@ input::placeholder, textarea::placeholder { color: var(--text-muted); }
 .dark .text-green-800 { color: #86EFAC !important; }
 .dark .text-amber-800 { color: #FDE68A !important; }
 
+/* Kolumna "Maraf (obmiar)" w widoku protokołu (/przeroby/protokoly/[id]).
+   Tej kolumny NIE MA w oryginalnych protokołach wykonawcy — wyróżniamy ją
+   odcieniem lawendowym (spójnym z badge "ręcznie"), innym niż niebieskie
+   kolumny wykonawcy i neutralna reszta tabeli. Dedykowane klasy zamiast
+   utility — pełna kontrola nad light i dark, bez zależności od opacity-variantów. */
+.col-maraf { background-color: #F1EEFA; }
+.col-maraf-head { background-color: #E5DFF5; }
+.dark .col-maraf { background-color: rgba(167, 139, 250, 0.08) !important; }
+.dark .col-maraf-head { background-color: rgba(167, 139, 250, 0.16) !important; }
+
 /* Accent (gold) buttons — replace blue primary in dark mode */
 .dark .bg-blue-600 { background-color: var(--accent) !important; color: #1A1F28 !important; }
 .dark .bg-blue-600:hover, .dark .hover\:bg-blue-700:hover { background-color: var(--brand-gold-light, #E8D0B0) !important; }

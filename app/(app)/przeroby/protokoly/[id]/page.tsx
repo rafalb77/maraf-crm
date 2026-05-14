@@ -154,7 +154,7 @@ export default async function ProtokolPage({
                         <th className="text-right px-2 py-2 font-medium">Poprzednio</th>
                         <th className="text-right px-2 py-2 font-medium bg-blue-50/50">W okresie</th>
                         <th className="text-right px-2 py-2 font-medium">Łącznie</th>
-                        <th className="text-right px-3 py-2 font-medium border-l-2 border-gray-200">Maraf (obmiar)</th>
+                        <th className="text-right px-3 py-2 font-medium border-l-2 border-gray-200 col-maraf-head">Maraf (obmiar)</th>
                         <th className="text-right px-2 py-2 font-medium">%</th>
                         <th className="text-right px-3 py-2 font-medium bg-blue-50/50">Wartość</th>
                       </tr>
@@ -181,7 +181,7 @@ export default async function ProtokolPage({
                             <td className="px-2 py-2 text-right tabular-nums text-gray-500">{prevQty > 0 ? fmtQty(prevQty) : '—'}</td>
                             <td className="px-2 py-2 text-right tabular-nums font-medium bg-blue-50/30">{fmtQty(it.qty)}</td>
                             <td className="px-2 py-2 text-right tabular-nums">{fmtQty(totalQty)}</td>
-                            <td className="px-3 py-2 border-l-2 border-gray-100">
+                            <td className="px-3 py-2 border-l-2 border-gray-100 col-maraf">
                               <MarafCompareCell
                                 itemId={it.id}
                                 match={marafMatch}
