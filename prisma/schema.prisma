@@ -375,7 +375,14 @@ model SubContract {
   signedAt        DateTime?
   startDate       DateTime?
   endDate         DateTime?
+  // valueNet — wyliczana z protokołów: Σ(ContractWorkItem.plannedQty × unitPrice).
+  // Obejmuje TYLKO pozycje które weszły do dotychczasowych protokołów — czyli
+  // zafakturowany zakres, NIE cała umowa. Nadpisywana przy każdym imporcie.
   valueNet        Float?
+  // agreedValueNet — umowna wartość netto z dokumentu umowy (CAŁY zakres robót:
+  // wszystkie kondygnacje + dach). Wpisywana ręcznie w UI. Importer jej NIE dotyka.
+  // To prawidłowy mianownik wskaźnika "% kontraktu" w widoku protokołu.
+  agreedValueNet  Float?
   retentionPct    Float    @default(0)
   status          String   @default("AKTYWNA") // AKTYWNA | ZAKONCZONA | ANULOWANA
   notes           String?

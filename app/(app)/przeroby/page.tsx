@@ -22,7 +22,10 @@ export default async function PrzerobyHomePage() {
 
   const contractProgress = contracts.map((c) => {
     const billed = c.protocols.reduce((s, p) => s + p.totalNet, 0)
-    const total = c.valueNet || 0
+    // Mianownik: umowna wartość (agreedValueNet) jeśli wpisana, inaczej wyliczona
+    // z protokołów (valueNet). Patrz schema.prisma — agreedValueNet to wartość
+    // całej umowy, valueNet obejmuje tylko zafakturowany zakres.
+    const total = c.agreedValueNet ?? c.valueNet ?? 0
     const pct = total > 0 ? Math.min(100, (billed / total) * 100) : 0
     return { id: c.id, title: c.title, subName: c.subcontractor.name, billed, total, pct }
   })

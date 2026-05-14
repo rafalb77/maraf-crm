@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { matchProtocolItemToMaraf, type MarafWorkItemLite } from '@/lib/protokol-maraf-match'
 import { MarafCompareCell } from '@/components/przeroby/MarafCompareCell'
 import { MarafObmiarPanel } from '@/components/przeroby/MarafObmiarPanel'
+import { KontraktStat } from '@/components/przeroby/KontraktStat'
 
 const monthNames = ['Styczeń','Luty','Marzec','Kwiecień','Maj','Czerwiec','Lipiec','Sierpień','Wrzesień','Październik','Listopad','Grudzień']
 
@@ -121,10 +122,11 @@ export default async function ProtokolPage({
         <Stat label="Wartość w okresie" value={`${fmtMoney(protocol.totalNet)} zł`} />
         <Stat label="Wg poprzednich" value={`${fmtMoney(cumulativeBefore)} zł`} muted />
         <Stat label="Łącznie do dnia" value={`${fmtMoney(cumulativeBefore + protocol.totalNet)} zł`} accent="green" />
-        <Stat
-          label="% kontraktu"
-          value={protocol.contract.valueNet ? `${(((cumulativeBefore + protocol.totalNet) / protocol.contract.valueNet) * 100).toFixed(1)}%` : '—'}
-          muted
+        <KontraktStat
+          contractId={protocol.contractId}
+          agreedValueNet={protocol.contract.agreedValueNet}
+          computedValueNet={protocol.contract.valueNet}
+          cumulativeTotal={cumulativeBefore + protocol.totalNet}
         />
       </div>
 
