@@ -1,11 +1,8 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
-import {
-  matchProtocolItemToMaraf,
-  type MarafWorkItemLite,
-  type MarafMatch,
-} from '@/lib/protokol-maraf-match'
+import { matchProtocolItemToMaraf, type MarafWorkItemLite } from '@/lib/protokol-maraf-match'
+import { MarafCompareCell } from '@/components/przeroby/MarafCompareCell'
 
 const monthNames = ['Styczeń','Luty','Marzec','Kwiecień','Maj','Czerwiec','Lipiec','Sierpień','Wrzesień','Październik','Listopad','Grudzień']
 
@@ -157,7 +154,7 @@ export default async function ProtokolPage({
                         <th className="text-right px-2 py-2 font-medium">Poprzednio</th>
                         <th className="text-right px-2 py-2 font-medium bg-blue-50/50">W okresie</th>
                         <th className="text-right px-2 py-2 font-medium">Łącznie</th>
-                        <th className="text-right px-2 py-2 font-medium bg-amber-50/60">Maraf (obmiar)</th>
+                        <th className="text-right px-3 py-2 font-medium border-l-2 border-gray-200">Maraf (obmiar)</th>
                         <th className="text-right px-2 py-2 font-medium">%</th>
                         <th className="text-right px-3 py-2 font-medium bg-blue-50/50">Wartość</th>
                       </tr>
@@ -184,8 +181,15 @@ export default async function ProtokolPage({
                             <td className="px-2 py-2 text-right tabular-nums text-gray-500">{prevQty > 0 ? fmtQty(prevQty) : '—'}</td>
                             <td className="px-2 py-2 text-right tabular-nums font-medium bg-blue-50/30">{fmtQty(it.qty)}</td>
                             <td className="px-2 py-2 text-right tabular-nums">{fmtQty(totalQty)}</td>
-                            <td className="px-2 py-2 bg-amber-50/30">
-                              <MarafCell match={marafMatch} totalQty={totalQty} />
+                            <td className="px-3 py-2 border-l-2 border-gray-100">
+                              <MarafCompareCell
+                                itemId={it.id}
+                                match={marafMatch}
+                                totalQty={totalQty}
+                                protocolUnit={it.unit}
+                                manualValue={it.marafManualValue}
+                                manualNote={it.marafManualNote}
+                              />
                             </td>
                             <td className="px-2 py-2 text-right tabular-nums text-xs">
                               <span className={pct >= 100 ? 'text-green-600 font-medium' : 'text-gray-500'}>
@@ -206,43 +210,6 @@ export default async function ProtokolPage({
           })}
         </div>
       )}
-    </div>
-  )
-}
-
-// Komórka kolumny "Maraf (obmiar)" — wartość z obmiaru inżynierskiego dopasowana
-// do pozycji protokołu. Pokazuje status dopasowania + Δ względem "Łącznie" wykonawcy.
-// Pełny opis dopasowania (skąd / dlaczego ręcznie) jest w `title` (tooltip).
-function MarafCell({ match, totalQty }: { match: MarafMatch; totalQty: number }) {
-  if (match.value == null) {
-    return (
-      <div className="text-right cursor-help" title={match.note}>
-        <span className="text-gray-300">—</span>
-        <span className="block text-[10px] text-amber-600">ręcznie ⓘ</span>
-      </div>
-    )
-  }
-  const statusMeta: Record<MarafMatch['status'], { label: string; cls: string }> = {
-    AUTO: { label: 'z obmiaru', cls: 'text-green-600' },
-    CONVERTED: { label: '≈ przeliczone', cls: 'text-blue-600' },
-    APPROX: { label: 'przybliżone', cls: 'text-amber-600' },
-    MANUAL: { label: 'ręcznie', cls: 'text-amber-600' },
-  }
-  const meta = statusMeta[match.status]
-  // Δ — o ile "Łącznie" wykonawcy odbiega od obmiaru Maraf (ta sama jednostka).
-  const diff = match.value > 0 ? ((totalQty - match.value) / match.value) * 100 : null
-  return (
-    <div className="text-right cursor-help" title={match.note}>
-      <span className="tabular-nums font-medium">{fmtQty(match.value)}</span>
-      <span className={`block text-[10px] ${meta.cls}`}>
-        {meta.label}
-        {diff != null && Math.abs(diff) >= 1 && (
-          <span className={Math.abs(diff) > 10 ? 'text-red-500 ml-1' : 'text-gray-400 ml-1'}>
-            (Δ {diff > 0 ? '+' : ''}
-            {diff.toFixed(0)}%)
-          </span>
-        )}
-      </span>
     </div>
   )
 }

@@ -589,6 +589,12 @@ model ProtocolItem {
   unitPrice           Float    @default(0)
   amountNet           Float    @default(0)
   note                String?
+  // Ręczne porównanie z obmiarem Maraf — gdy auto-dopasowanie (lib/protokol-maraf-match.ts)
+  // jest niepewne, błędne lub brakuje reguły, user wpisuje wartość ręcznie.
+  // Wpisana wartość NADPISUJE auto-match w kolumnie "Maraf (obmiar)" w UI protokołu.
+  // marafManualValue jest w jednostce pozycji protokołu (ProtocolItem.unit).
+  marafManualValue    Float?
+  marafManualNote     String?
 
   protocol         Protocol         @relation(fields: [protocolId], references: [id], onDelete: Cascade)
   contractWorkItem ContractWorkItem @relation(fields: [contractWorkItemId], references: [id], onDelete: Restrict)
