@@ -148,9 +148,28 @@ Walidacja progu jest **w UI** (`KonradEditor` ma `reasonMissing` flag). API endp
 
 **Pozycja „gotowa do protokołu"** (`totalReady` w page.tsx) — rozszerzona: zaliczona jest też pozycja z `konradManualValue` jeśli Δ ≤ 5% **lub** wpisane jest uzasadnienie. Plus oryginalne kryteria (`accepted`, `manualValue`, `AUTO_OK` w tolerancji).
 
+### 10. Kolumna porównawcza „Maraf (obmiar)" w widoku protokołu (próbna)
+
+Niezależnie od porównania per kondygnacja (`/przeroby/porownanie`), widok pojedynczego protokołu (`/przeroby/protokoly/[id]`) ma **kolumnę „Maraf (obmiar)"** — przy każdej pozycji rozliczenia wykonawcy pokazuje odpowiadającą wartość z obmiaru inżynierskiego Maraf.
+
+**Tryb**: read-only, liczone **na żywo** przy renderze strony (zero zmian w schemie, brak persystencji). Decyzja uzgodniona z userem — próba na MVP, łatwa do wycofania.
+
+**Mapper** `lib/protokol-maraf-match.ts` — `matchProtocolItemToMaraf(name, section, unit, workItems)`:
+- sekcja protokołu → `level` + kondygnacja Maraf (`FUNDAMENTY`/`PARTER` → Kondygnacja 0 ale różne kategorie; piętra → Kondygnacja N)
+- reguły keyword-based (`RULES[]`) — nazwa pozycji zawiera słowa kluczowe → kategoria + `elementType` + agregacja (`volumeSum`/`areaSum`)
+- **konserwatywne**: mapuje tylko pewne dopasowania. Reszta → `MANUAL` z konkretnym powodem
+- **wykluczenia** (`EXCLUSIONS[]`, sprawdzane przed regułami) → od razu `MANUAL`: stal zbrojeniowa (jednostka T/kg — Maraf nie mierzy stali), chudy beton/podkład, roboty ziemne, izolacje, murowanie, dźwig, łączniki, daszki, jednostki mb/stopni/kpl
+- **konwersja m³→m²** dla ścian: Maraf liczy ściany objętościowo, wykonawca powierzchniowo → `m³ ÷ 0,18 m` (`WALL_THICKNESS_M`, jak w module Konrada)
+
+**Statusy**: `AUTO` (jednostka zgodna), `CONVERTED` (przeliczona m³→m²), `APPROX` (nazwa w obmiarze nie 1:1 — trzpienie/rdzenie/wieńce/belki), `MANUAL` (porównaj ręcznie).
+
+**UI**: kolumna amber po „Łącznie". Komórka `MarafCell` — wartość + status + `Δ%` względem „Łącznie" wykonawcy (czerwone gdy |Δ| > 10%). Pełny opis dopasowania w `title` (tooltip). Banner gdy brak obmiaru Maraf w bazie.
+
+**Status**: próbne (1 protokół). Jeśli reguły się sprawdzą — rozszerzyć/dostroić; ewentualna persystencja + ręczne korekty = osobny temat (wymaga pól w `ProtocolItem`).
+
 ## Otwarte sprawy
 
-- Protokoły przerobowe — `app/(app)/przeroby/protokoly` i scripts `import-protokoly.js` istnieją, ale jeszcze nie zaimportowane dane na produkcji
+- Protokoły przerobowe — **zaimportowane na produkcji 2026-05-13** (7 protokołów, wrzesień 2025 → kwiecień 2026, `scripts/import-protokoly.js`). Kolumna „Maraf (obmiar)" — patrz sekcja 10, status próbny.
 - Per-zakres porównanie — obecnie obsługujemy tylko `konstrukcja-zelbetowa`. Inne zakresy (mury, instalacje) — kierunek na przyszłość, schema już to umożliwia.
 - Konrad „Przedmiar prac" (główny arkusz, kpl/zł) — nie importowany; mógłby trafić jako `ContractWorkItem` w SubContract z generalnym wykonawcą (do rozważenia)
 
@@ -162,3 +181,6 @@ Walidacja progu jest **w UI** (`KonradEditor` ma `reasonMissing` flag). API endp
 - `app/(app)/przeroby/porownanie/[floor]/page.tsx` — widok porównania per kondygnacja (logika auto-dopasowania)
 - `components/przeroby/ComparisonTable.tsx` — tabela z edycją manualValue + accept + historia
 - `scripts/import-obmiar.js` — CLI dla obmiaru Marafu (jednorazowy import)
+- `scripts/import-protokoly.js` — CLI dla protokołów przerobowych wykonawcy (pełny reimport idempotentny)
+- `lib/protokol-maraf-match.ts` — mapper pozycja protokołu → obmiar Maraf (sekcja 10)
+- `app/(app)/przeroby/protokoly/[id]/page.tsx` — widok protokołu z kolumną „Maraf (obmiar)"
