@@ -27,7 +27,7 @@ export const AD_FORMAT_DIMENSIONS: Record<AdCreativeFormat, { w: number; h: numb
 
 export const PRICE_MODE_LABELS: Record<PriceMode, string> = {
   EXACT: 'Konkretna cena',
-  FROM: 'Od (cena)',
+  FROM: 'Od ceny za m²',
   PER_SQM: 'Cena za m²',
   NONE: 'Bez ceny',
 }
@@ -111,7 +111,8 @@ function priceText(p: AdCreativeParams): string | null {
       return p.priceGross > 0 ? `${fmtPrice(p.priceGross)} zł` : null
     case 'FROM':
     default:
-      return p.priceGross > 0 ? `od ${fmtPrice(p.priceGross)} zł` : null
+      // "od X zł/m²" — cena za m2 brutto z prefiksem "od"
+      return p.pricePerSqmGross > 0 ? `od ${fmtPrice(p.pricePerSqmGross)} zł/m²` : null
   }
 }
 
