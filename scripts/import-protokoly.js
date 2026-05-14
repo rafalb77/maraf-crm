@@ -9,15 +9,21 @@
  *  3. Dla każdego arkusza tworzy Protocol + ProtocolItem (pozycje z qty > 0)
  *  4. Status protokołów = ZATWIERDZONY (jak prosił użytkownik)
  *
- * Uruchomienie:
- *   node scripts/import-protokoly.js [ścieżka-xlsx]
+ * PEŁNY REIMPORT — przy istniejącej umowie kasuje stare protokoły + pozycje
+ * umowy i wgrywa świeże z xlsx. Idempotentny (można odpalać wielokrotnie).
+ *
+ * Uruchomienie (Coolify Terminal w kontenerze CRM):
+ *   node scripts/import-protokoly.js                                  # default /app/data/protokoly/...
+ *   node scripts/import-protokoly.js /app/data/protokoly/plik.xlsx     # jawna ścieżka
  */
 const XLSX = require('xlsx')
 const { PrismaClient } = require('@prisma/client')
 
 const prisma = new PrismaClient()
 
-const DEFAULT_FILE = 'C:/Users/Rafał/Documents/Kopia Protokół Przerobowy - Staffa - FBR - Kwiecień 26.xlsx'
+// Default = ścieżka produkcyjna (plik commitowany do repo → w obrazie pod /app/data/).
+// Lokalnie przekaż ścieżkę argumentem: node scripts/import-protokoly.js "C:/.../plik.xlsx"
+const DEFAULT_FILE = '/app/data/protokoly/protokoly-staffa-fbr.xlsx'
 const filePath = process.argv[2] || DEFAULT_FILE
 
 // ---------- Pomocniki ----------
@@ -244,9 +250,16 @@ async function main() {
     })
     console.log(`➕ Utworzono umowę`)
   } else {
-    // Wyczyść stare pozycje, żeby zaimportować świeże
+    // PEŁNY REIMPORT — kasujemy w prawidłowej kolejności:
+    //  1. Protocol (+ ProtocolItem przez onDelete: Cascade)
+    //  2. ContractWorkItem — DOPIERO TERAZ, bo ProtocolItem.contractWorkItem ma
+    //     onDelete: Restrict — próba skasowania CWI z żywymi ProtocolItem padłaby
+    //     na foreign key constraint.
+    const delProtocols = await prisma.protocol.deleteMany({ where: { contractId: contract.id } })
     await prisma.contractWorkItem.deleteMany({ where: { contractId: contract.id } })
-    console.log(`ℹ️  Używam istniejącej umowy — wyczyszczono pozycje`)
+    console.log(
+      `ℹ️  Istniejąca umowa — pełny reimport: skasowano ${delProtocols.count} protokołów + pozycje umowy`,
+    )
   }
 
   // ---------- Pozycje umowne (UNIA z wszystkich protokołów) ----------
