@@ -121,14 +121,19 @@ export function UsersSection({ currentUserEmail }: { currentUserEmail: string })
     }
   }
 
-  async function sendReset(user: User) {
+  async function sendReset(user: User, kind: 'activation' | 'reset') {
     setBusy(user.id)
     try {
-      const res = await fetch(`/api/users/${user.id}/send-reset`, { method: 'POST' })
+      const res = await fetch(`/api/users/${user.id}/send-reset`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kind }),
+      })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Błąd')
+      const what = kind === 'activation' ? 'link aktywacyjny' : 'link resetu hasła'
       if (data.ok) {
-        setInfo({ type: 'ok', msg: `Wysłano link resetujący na ${user.email}.` })
+        setInfo({ type: 'ok', msg: `Wysłano ${what} na ${user.email} (ważny 1 godzinę).` })
       } else {
         setInfo({
           type: 'err',
@@ -207,7 +212,7 @@ export function UsersSection({ currentUserEmail }: { currentUserEmail: string })
               isMe={u.email === currentUserEmail}
               busy={busy === u.id}
               onDelete={() => del(u)}
-              onReset={() => sendReset(u)}
+              onReset={(kind) => sendReset(u, kind)}
               onPermissionsChange={(perms) => savePermissions(u, perms)}
             />
           ))}
@@ -306,7 +311,7 @@ function UserRow({
   isMe: boolean
   busy: boolean
   onDelete: () => void
-  onReset: () => void
+  onReset: (kind: 'activation' | 'reset') => void
   onPermissionsChange: (perms: string[]) => void
 }) {
   // Admin (z env) ma override — w UI checkboxy disabled + komunikat
@@ -369,14 +374,26 @@ function UserRow({
           <p className="text-[10px] text-gray-400 mt-0.5">Dodany {new Date(user.createdAt).toLocaleDateString('pl-PL')}</p>
         </div>
         <div className="inline-flex items-center gap-1">
-          <button
-            onClick={onReset}
-            disabled={busy}
-            className="text-gray-500 hover:text-gray-900 hover:bg-gray-100 p-1.5 rounded inline-flex items-center disabled:opacity-50"
-            title="Wyślij link do resetu hasła"
-          >
-            <RotateCcw className="w-4 h-4" />
-          </button>
+          {user.pendingActivation ? (
+            <button
+              onClick={() => onReset('activation')}
+              disabled={busy}
+              className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 px-2.5 py-1.5 rounded inline-flex items-center gap-1.5 text-xs font-medium disabled:opacity-50"
+              title="Wyślij ponownie link aktywacyjny — poprzedni mógł wygasnąć (ważny 1 godzinę)"
+            >
+              <Mail className="w-4 h-4" />
+              {busy ? 'Wysyłanie…' : 'Wyślij ponownie zaproszenie'}
+            </button>
+          ) : (
+            <button
+              onClick={() => onReset('reset')}
+              disabled={busy}
+              className="text-gray-500 hover:text-gray-900 hover:bg-gray-100 p-1.5 rounded inline-flex items-center disabled:opacity-50"
+              title="Wyślij link do resetu hasła"
+            >
+              <RotateCcw className="w-4 h-4" />
+            </button>
+          )}
           {!isMe && (
             <button
               onClick={onDelete}
