@@ -152,7 +152,11 @@ Walidacja progu jest **w UI** (`KonradEditor` ma `reasonMissing` flag). API endp
 
 Niezależnie od porównania per kondygnacja (`/przeroby/porownanie`), widok pojedynczego protokołu (`/przeroby/protokoly/[id]`) ma **kolumnę „Maraf (obmiar)"** — przy każdej pozycji rozliczenia wykonawcy pokazuje odpowiadającą wartość z obmiaru inżynierskiego Maraf.
 
-**Tryb**: read-only, liczone **na żywo** przy renderze strony (zero zmian w schemie, brak persystencji). Decyzja uzgodniona z userem — próba na MVP, łatwa do wycofania.
+**Tryb**: auto-dopasowanie liczone **na żywo** przy renderze + **ręczna korekta** zapisywana w bazie. Pierwotnie miało być pure read-only, ale po feedbacku usera doszła edytowalność:
+- `ProtocolItem.marafManualValue` + `marafManualNote` — ręczna wartość **nadpisuje** auto-match
+- endpoint `PATCH /api/przeroby/protocols/items/[id]` (gate `przeroby` przez middleware)
+- `components/przeroby/MarafCompareCell.tsx` — client component, klik w komórkę → edycja inline (input + komentarz) → zapis + `router.refresh()`
+- priorytet wyświetlania: `marafManualValue` > auto-match > zachęta „wpisz ręcznie"
 
 **Mapper** `lib/protokol-maraf-match.ts` — `matchProtocolItemToMaraf(name, section, unit, workItems)`:
 - sekcja protokołu → `level` + kondygnacja Maraf (`FUNDAMENTY`/`PARTER` → Kondygnacja 0 ale różne kategorie; piętra → Kondygnacja N)
@@ -163,9 +167,9 @@ Niezależnie od porównania per kondygnacja (`/przeroby/porownanie`), widok poje
 
 **Statusy**: `AUTO` (jednostka zgodna), `CONVERTED` (przeliczona m³→m²), `APPROX` (nazwa w obmiarze nie 1:1 — trzpienie/rdzenie/wieńce/belki), `MANUAL` (porównaj ręcznie).
 
-**UI**: kolumna amber po „Łącznie". Komórka `MarafCell` — wartość + status + `Δ%` względem „Łącznie" wykonawcy (czerwone gdy |Δ| > 10%). Pełny opis dopasowania w `title` (tooltip). Banner gdy brak obmiaru Maraf w bazie.
+**UI**: kolumna po „Łącznie", wyróżniona lewą ramką (nie kolorowym tłem — opacity-variant `bg-amber-50/30` źle renderował się w dark mode). Komórka `MarafCompareCell` — wartość + status badge (`bg-X-50/text-X-700`, pattern jak `StatusBadge`) + `Δ%` względem „Łącznie" wykonawcy (czerwone gdy |Δ| > 10%). Pełny opis dopasowania w `title` (tooltip). Banner gdy brak obmiaru Maraf w bazie.
 
-**Status**: próbne (1 protokół). Jeśli reguły się sprawdzą — rozszerzyć/dostroić; ewentualna persystencja + ręczne korekty = osobny temat (wymaga pól w `ProtocolItem`).
+**Status**: próbne (1 protokół). Jeśli reguły się sprawdzą — rozszerzyć/dostroić listę `RULES[]`. Persystencja ręcznych korekt już jest (`marafManualValue`). Możliwe rozszerzenia: historia zmian ręcznych wartości, ujęcie kolumny w generatorze protokołu, próg ostrzegawczy Δ%.
 
 ## Otwarte sprawy
 
