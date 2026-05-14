@@ -7,7 +7,10 @@ import { canGenerateCreative } from '@/lib/types'
 export default async function UnitCreativePage({ params }: { params: { id: string } }) {
   const unit = await prisma.unit.findUnique({
     where: { id: params.id },
-    include: { images: { orderBy: [{ position: 'asc' }, { createdAt: 'asc' }] } },
+    include: {
+      images: { orderBy: [{ position: 'asc' }, { createdAt: 'asc' }] },
+      creativeSettings: true,
+    },
   })
   if (!unit) notFound()
 
@@ -38,6 +41,16 @@ export default async function UnitCreativePage({ params }: { params: { id: strin
         unitId={unit.id}
         unitImages={unit.images.map((i) => ({ url: i.url, kind: i.kind }))}
         investmentImages={investmentImages.map((i) => ({ url: i.url, kind: i.kind }))}
+        initialSettings={
+          unit.creativeSettings
+            ? {
+                priceMode: unit.creativeSettings.priceMode,
+                ctaText: unit.creativeSettings.ctaText,
+                headline: unit.creativeSettings.headline,
+                backgrounds: unit.creativeSettings.backgrounds,
+              }
+            : null
+        }
       />
     </div>
   )

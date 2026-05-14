@@ -5,24 +5,21 @@ import { prisma } from '@/lib/prisma'
 import { AD_FORMAT_DIMENSIONS, type AdCreativeFormat, type PriceMode } from '@/lib/ad-creative-html'
 import { buildAdCreativePng } from '@/lib/ad-creative-build'
 import { canGenerateCreative } from '@/lib/types'
+import { createZip, type ZipEntry } from '@/lib/zip'
 
-const VALID_FORMATS = Object.keys(AD_FORMAT_DIMENSIONS) as AdCreativeFormat[]
+const FORMATS = Object.keys(AD_FORMAT_DIMENSIONS) as AdCreativeFormat[]
 const VALID_PRICE_MODES: PriceMode[] = ['EXACT', 'FROM', 'PER_SQM', 'NONE']
 
+// Generuje wszystkie 4 formaty kreacji i pakuje do ZIP.
+// bg per format przekazywany jako query: bg_feed_square, bg_feed_portrait, bg_story, bg_landscape.
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { searchParams } = new URL(req.url)
-  const format = searchParams.get('format') as AdCreativeFormat | null
   const priceModeRaw = (searchParams.get('priceMode') || 'FROM') as PriceMode
   const cta = (searchParams.get('cta') || 'Zobacz szczegóły').slice(0, 60)
   const headline = (searchParams.get('headline') || '').slice(0, 80)
-  const bgParam = searchParams.get('bg') // sciezka /uploads/... lub puste
-
-  if (!format || !VALID_FORMATS.includes(format)) {
-    return NextResponse.json({ error: 'Nieprawidlowy format' }, { status: 400 })
-  }
   const priceMode = VALID_PRICE_MODES.includes(priceModeRaw) ? priceModeRaw : 'FROM'
 
   const unit = await prisma.unit.findUnique({
@@ -39,36 +36,43 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 
   const investRow = await prisma.settings.findUnique({ where: { key: 'investmentName' } })
   const investmentName = investRow?.value || 'Inwestycja'
-
   const investImage = await prisma.investmentImage.findFirst({
     orderBy: [{ isPrimary: 'desc' }, { position: 'asc' }],
   })
 
   try {
-    const png = await buildAdCreativePng({
-      format,
-      unit,
-      investmentName,
-      investmentImageUrl: investImage?.url || null,
-      priceMode,
-      cta,
-      headline,
-      bgOverride: bgParam,
-    })
+    // Sekwencyjnie (nie rownolegle) — kazdy puppeteer to osobny Chrome, oszczednosc RAM
+    const entries: ZipEntry[] = []
+    for (const format of FORMATS) {
+      const bgOverride = searchParams.get(`bg_${format}`)
+      const png = await buildAdCreativePng({
+        format,
+        unit,
+        investmentName,
+        investmentImageUrl: investImage?.url || null,
+        priceMode,
+        cta,
+        headline,
+        bgOverride,
+      })
+      const dim = AD_FORMAT_DIMENSIONS[format]
+      const safeNum = unit.number.replace(/[^a-zA-Z0-9._-]/g, '_')
+      entries.push({ name: `${safeNum}-${format}-${dim.w}x${dim.h}.png`, data: png })
+    }
 
-    const download = searchParams.get('download') === '1'
-    const headers: Record<string, string> = {
-      'Content-Type': 'image/png',
-      'Content-Length': String(png.length),
-      'Cache-Control': 'no-store',
-    }
-    if (download) {
-      const safeName = `${unit.number}-${format}`.replace(/[^a-zA-Z0-9._-]/g, '_')
-      headers['Content-Disposition'] = `attachment; filename="${safeName}.png"`
-    }
-    return new NextResponse(new Uint8Array(png), { status: 200, headers })
+    const zip = createZip(entries)
+    const safeNum = unit.number.replace(/[^a-zA-Z0-9._-]/g, '_')
+    return new NextResponse(new Uint8Array(zip), {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/zip',
+        'Content-Length': String(zip.length),
+        'Content-Disposition': `attachment; filename="kreacje-${safeNum}.zip"`,
+        'Cache-Control': 'no-store',
+      },
+    })
   } catch (err: any) {
-    console.error('[ad-creative] generate error:', err)
+    console.error('[ad-creative-zip] generate error:', err)
     return NextResponse.json(
       { error: 'Blad generowania kreacji: ' + (err?.message || 'nieznany') },
       { status: 500 },
