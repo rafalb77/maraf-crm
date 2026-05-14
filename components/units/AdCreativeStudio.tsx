@@ -14,30 +14,68 @@ import {
 
 type ImageRef = { url: string; kind: string }
 
+type InitialSettings = {
+  priceMode: string
+  ctaText: string
+  headline: string
+  backgrounds: string
+} | null
+
 const FORMATS = Object.keys(AD_FORMAT_DIMENSIONS) as AdCreativeFormat[]
 const PRICE_MODES = Object.keys(PRICE_MODE_LABELS) as PriceMode[]
 const CTA_OPTIONS = ['Zobacz szczegóły', 'Umów prezentację', 'Sprawdź ofertę']
+
+function parseBackgrounds(raw: string | undefined): Record<string, string> {
+  if (!raw) return {}
+  try {
+    const obj = JSON.parse(raw)
+    return obj && typeof obj === 'object' ? obj : {}
+  } catch {
+    return {}
+  }
+}
+
+// Z zapisanego headline odtwarza stan kontrolki (preset / wlasne / brak).
+function deriveHeadline(settings: InitialSettings): { choice: string; custom: string } {
+  if (!settings) return { choice: HEADLINE_PRESETS[0], custom: '' }
+  const h = settings.headline
+  if (!h) return { choice: '', custom: '' }
+  if (HEADLINE_PRESETS.includes(h)) return { choice: h, custom: '' }
+  return { choice: '__custom__', custom: h }
+}
 
 export function AdCreativeStudio({
   unitId,
   unitImages,
   investmentImages,
+  initialSettings,
 }: {
   unitId: string
   unitImages: ImageRef[]
   investmentImages: ImageRef[]
+  initialSettings: InitialSettings
 }) {
-  const [priceMode, setPriceMode] = useState<PriceMode>('FROM')
-  const [cta, setCta] = useState(CTA_OPTIONS[0])
+  const initHeadline = deriveHeadline(initialSettings)
+  const [priceMode, setPriceMode] = useState<PriceMode>(
+    (initialSettings?.priceMode as PriceMode) || 'FROM',
+  )
+  const [cta, setCta] = useState(initialSettings?.ctaText || CTA_OPTIONS[0])
   // headline: wybor z presetow albo '__custom__' (wtedy uzywamy customHeadline)
-  const [headlineChoice, setHeadlineChoice] = useState<string>(HEADLINE_PRESETS[0])
-  const [customHeadline, setCustomHeadline] = useState('')
+  const [headlineChoice, setHeadlineChoice] = useState<string>(initHeadline.choice)
+  const [customHeadline, setCustomHeadline] = useState(initHeadline.custom)
   const [activeFormat, setActiveFormat] = useState<AdCreativeFormat>('feed_square')
   // bg per format: '' = auto
-  const [bgByFormat, setBgByFormat] = useState<Record<string, string>>({})
+  const [bgByFormat, setBgByFormat] = useState<Record<string, string>>(
+    parseBackgrounds(initialSettings?.backgrounds),
+  )
   const [loading, setLoading] = useState(true)
   // nonce wymusza reload <img> nawet gdy URL ten sam (np. po bledzie)
   const [nonce, setNonce] = useState(0)
+
+  // Zapis zapamietanych ustawien per lokal
+  const [savingSettings, setSavingSettings] = useState(false)
+  const [settingsSaved, setSettingsSaved] = useState(false)
+  const [settingsError, setSettingsError] = useState('')
 
   // Generator tekstow reklamowych (AI) — faza 1c
   type CopyVariant = { angle: string; headline: string; primaryText: string; description: string }
@@ -103,6 +141,46 @@ export function AdCreativeStudio({
     if (download) p.set('download', '1')
     else p.set('_n', String(nonce))
     return `/api/units/${unitId}/ad-creative?${p.toString()}`
+  }
+
+  function buildZipUrl() {
+    const p = new URLSearchParams()
+    p.set('priceMode', priceMode)
+    p.set('cta', cta)
+    if (effectiveHeadline) p.set('headline', effectiveHeadline)
+    for (const f of FORMATS) {
+      const bg = bgByFormat[f]
+      if (bg) p.set(`bg_${f}`, bg)
+    }
+    return `/api/units/${unitId}/ad-creative-zip?${p.toString()}`
+  }
+
+  async function saveSettings() {
+    setSavingSettings(true)
+    setSettingsError('')
+    setSettingsSaved(false)
+    try {
+      const res = await fetch(`/api/units/${unitId}/creative-settings`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          priceMode,
+          ctaText: cta,
+          headline: effectiveHeadline,
+          backgrounds: bgByFormat,
+        }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error || 'Błąd zapisu ustawień')
+      }
+      setSettingsSaved(true)
+      setTimeout(() => setSettingsSaved(false), 2000)
+    } catch (e: any) {
+      setSettingsError(e.message || 'Błąd zapisu ustawień')
+    } finally {
+      setSavingSettings(false)
+    }
   }
 
   const dim = AD_FORMAT_DIMENSIONS[activeFormat]
@@ -205,6 +283,23 @@ export function AdCreativeStudio({
             </p>
           )}
         </div>
+
+        {/* Zapis ustawien per lokal */}
+        <div className="flex items-center gap-3 pt-2 border-t border-gray-100">
+          <button
+            type="button"
+            onClick={saveSettings}
+            disabled={savingSettings}
+            className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition-colors"
+          >
+            {savingSettings ? 'Zapisywanie…' : 'Zapisz ustawienia dla tego lokalu'}
+          </button>
+          {settingsSaved && <span className="text-sm text-green-600">✓ Zapisano</span>}
+          {settingsError && <span className="text-sm text-red-500">{settingsError}</span>}
+          <span className="text-xs text-gray-400">
+            Cena, CTA, hasło i tła zostaną zapamiętane — przy następnym wejściu wczytają się automatycznie.
+          </span>
+        </div>
       </div>
 
       {/* Podglad — zakladki formatow */}
@@ -261,7 +356,15 @@ export function AdCreativeStudio({
 
       {/* Pobieranie */}
       <div className="bg-white rounded-xl border border-gray-200 p-6">
-        <p className="text-sm font-medium text-gray-700 mb-3">Pobierz kreacje (PNG)</p>
+        <div className="flex items-center justify-between gap-4 mb-3">
+          <p className="text-sm font-medium text-gray-700">Pobierz kreacje (PNG)</p>
+          <a
+            href={buildZipUrl()}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white rounded-lg text-sm font-medium transition-colors"
+          >
+            Pobierz wszystkie (ZIP)
+          </a>
+        </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           {FORMATS.map((f) => (
             <a
@@ -277,7 +380,7 @@ export function AdCreativeStudio({
           ))}
         </div>
         <p className="text-xs text-gray-400 mt-3">
-          Każdy plik generowany jest na żądanie (puppeteer + Chrome). Generowanie jednego PNG trwa kilka sekund.
+          Każdy plik generowany jest na żądanie (puppeteer + Chrome). Pojedynczy PNG — kilka sekund; ZIP ze wszystkimi 4 — kilkanaście.
         </p>
       </div>
 

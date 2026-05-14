@@ -60,6 +60,12 @@ Cel: z lokalu (zdjęcia + dane + nazwa inwestycji z Settings) wygenerować zesta
   - Obsługa błędów: brak klucza → 503 z instrukcją, `AuthenticationError` → 502, `RateLimitError` → 429, `APIError` → 502
   - UI: sekcja "Teksty reklamowe (AI)" w `AdCreativeStudio` — przycisk generowania, 5 kart z copy-to-clipboard + "Użyj nagłówka na kreacji" (wpina headline do generatora kreacji)
 
+- **1d. Usprawnienia generatora** (status: ✅ zrobione 2026-05-14)
+  - **ZIP "pobierz wszystkie 4 formaty"** — `lib/zip.ts` (własny enkoder ZIP STORE + CRC32, **bez zależności** — PNG-i już skompresowane, więc STORE nie traci na rozmiarze). Endpoint `GET /api/units/[id]/ad-creative-zip` generuje 4 PNG sekwencyjnie (oszczędność RAM) i pakuje.
+  - **Zapamiętywanie ustawień per lokal** — model `UnitCreativeSettings` (priceMode, ctaText, headline, backgrounds JSON). Endpoint `PUT /api/units/[id]/creative-settings` (upsert). Przycisk "Zapisz ustawienia" w `AdCreativeStudio`; strona `/creative` wczytuje zapisane przy wejściu.
+  - **Auto-kompresja zdjęć** — `lib/compress-image.ts`: kompresja w przeglądarce (Canvas API) **przed uploadem**. Rendery 10+ MB → ~0.3-0.8 MB JPEG, długa krawędź max 1920px. Wpięte w `UnitImageGallery` i `InvestmentImagesSection`. Zero zależności serwerowych, zmniejsza też transfer.
+  - Refactor: wspólna logika budowy PNG wyciągnięta do `lib/ad-creative-build.ts` (reuse w `/ad-creative` i `/ad-creative-zip`)
+
 ### MVP #2 — Push do Mety jako Draft Ad
 Cel: kreacja wygenerowana w CRM → automatycznie ląduje w Ads Managerze jako **Draft Ad** (user dopina ostateczną publikację ręcznie — minimalizuje ryzyko App Review).
 

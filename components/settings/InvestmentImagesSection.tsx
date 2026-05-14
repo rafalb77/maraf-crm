@@ -3,6 +3,7 @@ import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { INVESTMENT_IMAGE_KIND_LABELS, type InvestmentImageKind } from '@/lib/types'
+import { compressImages } from '@/lib/compress-image'
 
 export type InvestmentImageItem = {
   id: string
@@ -31,8 +32,10 @@ export function InvestmentImagesSection({
     setUploading(true)
     setError('')
     try {
+      // kompresja w przegladarce przed uploadem — duze rendery -> rozsadny rozmiar
+      const compressed = await compressImages(Array.from(files))
       const fd = new FormData()
-      Array.from(files).forEach((f) => fd.append('files', f))
+      compressed.forEach((f) => fd.append('files', f))
       fd.append('kind', uploadKind)
       const res = await fetch(`/api/investment-images`, { method: 'POST', body: fd })
       const data = await res.json()

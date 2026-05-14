@@ -94,6 +94,24 @@ model Unit {
   contractUnits   ContractUnit[]
   offerItems      OfferItem[]
   images          UnitImage[]
+  creativeSettings UnitCreativeSettings?
+}
+
+// Zapamietane ustawienia generatora kreacji Meta Ads per lokal — zeby user
+// nie ustawial ceny/CTA/hasla/tla za kazdym razem. Patrz docs/meta-ads-decyzje.md.
+// backgrounds: JSON map { feed_square: "/uploads/...", feed_portrait: ..., story: ..., landscape: ... }
+//   pusta wartosc dla formatu = auto-wybor tla.
+model UnitCreativeSettings {
+  id          String   @id @default(cuid())
+  unitId      String   @unique
+  priceMode   String   @default("FROM")
+  ctaText     String   @default("Zobacz szczegóły")
+  headline    String   @default("")
+  backgrounds String   @default("{}")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  unit Unit @relation(fields: [unitId], references: [id], onDelete: Cascade)
 }
 
 // Galeria zdjec/wizualizacji per lokal. Uzywana do generowania kreacji

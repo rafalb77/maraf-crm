@@ -3,6 +3,7 @@ import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { UNIT_IMAGE_KIND_LABELS, type UnitImageKind } from '@/lib/types'
+import { compressImages } from '@/lib/compress-image'
 
 export type UnitImageItem = {
   id: string
@@ -32,8 +33,10 @@ export function UnitImageGallery({
     setUploading(true)
     setError('')
     try {
+      // kompresja w przegladarce przed uploadem — duze rendery -> rozsadny rozmiar
+      const compressed = await compressImages(Array.from(files))
       const fd = new FormData()
-      Array.from(files).forEach((f) => fd.append('files', f))
+      compressed.forEach((f) => fd.append('files', f))
       const res = await fetch(`/api/units/${unitId}/images`, { method: 'POST', body: fd })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Blad uploadu')
