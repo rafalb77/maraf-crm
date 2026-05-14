@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import { matchProtocolItemToMaraf, type MarafWorkItemLite } from '@/lib/protokol-maraf-match'
 import { MarafCompareCell } from '@/components/przeroby/MarafCompareCell'
+import { MarafObmiarPanel } from '@/components/przeroby/MarafObmiarPanel'
 
 const monthNames = ['Styczeń','Luty','Marzec','Kwiecień','Maj','Czerwiec','Lipiec','Sierpień','Wrzesień','Październik','Listopad','Grudzień']
 
@@ -210,6 +211,8 @@ export default async function ProtokolPage({
           })}
         </div>
       )}
+
+      <MarafObmiarPanel items={marafItems} />
     </div>
   )
 }
