@@ -38,6 +38,7 @@ export function UnitForm({ unit }: { unit?: Unit }) {
     priceGross: unit?.priceGross?.toString() || '',
     vatRate: unit?.vatRate?.toString() || '8',
     floor: unit?.floor?.toString() || '',
+    rooms: unit?.rooms?.toString() || '',
     building: unit?.building || '',
     description: unit?.description || '',
     status: unit?.status || 'WOLNY',
@@ -179,6 +180,12 @@ export function UnitForm({ unit }: { unit?: Unit }) {
           <input type="number" value={form.floor}
             onChange={(e) => setForm({ ...form, floor: e.target.value })}
             className={inputCls} placeholder="0 = parter, -1 = podziemie" />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Liczba pokoi</label>
+          <input type="number" min="0" value={form.rooms}
+            onChange={(e) => setForm({ ...form, rooms: e.target.value })}
+            className={inputCls} placeholder="np. 3" />
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">VAT (%)</label>
