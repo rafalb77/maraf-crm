@@ -1,6 +1,11 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
+import {
+  matchProtocolItemToMaraf,
+  type MarafWorkItemLite,
+  type MarafMatch,
+} from '@/lib/protokol-maraf-match'
 
 const monthNames = ['Styczeń','Luty','Marzec','Kwiecień','Maj','Czerwiec','Lipiec','Sierpień','Wrzesień','Październik','Listopad','Grudzień']
 
@@ -22,6 +27,27 @@ export default async function ProtokolPage({
     },
   })
   if (!protocol) notFound()
+
+  // Obmiar inżynierski Maraf (WorkItem zakresu konstrukcji żelbetowej) — źródło
+  // kolumny porównawczej "Maraf (obmiar)". Liczone na żywo, read-only.
+  // Logika dopasowania: lib/protokol-maraf-match.ts.
+  const marafRaw = await prisma.workItem.findMany({
+    where: { category: { scope: { slug: 'konstrukcja-zelbetowa' } } },
+    select: {
+      areaM2: true,
+      volumeM3: true,
+      floor: true,
+      elementType: true,
+      category: { select: { name: true } },
+    },
+  })
+  const marafItems: MarafWorkItemLite[] = marafRaw.map((wi) => ({
+    categoryName: wi.category.name,
+    floor: wi.floor,
+    elementType: wi.elementType,
+    areaM2: wi.areaM2,
+    volumeM3: wi.volumeM3,
+  }))
 
   // Wszystkie protokoły tej umowy z mniejszą lub równą datą periodTo
   // (do wyliczenia "wartości wg poprzedniego protokołu" oraz "łącznie do dnia")
@@ -86,6 +112,13 @@ export default async function ProtokolPage({
         </div>
       </div>
 
+      {marafItems.length === 0 && (
+        <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          Brak obmiaru Maraf w bazie (zakres „konstrukcja-zelbetowa"). Kolumna „Maraf (obmiar)" będzie pusta —
+          zaimportuj obmiar skryptem <code className="font-mono text-xs">scripts/import-obmiar.js</code>.
+        </div>
+      )}
+
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <Stat label="Wartość w okresie" value={`${fmtMoney(protocol.totalNet)} zł`} />
         <Stat label="Wg poprzednich" value={`${fmtMoney(cumulativeBefore)} zł`} muted />
@@ -124,6 +157,7 @@ export default async function ProtokolPage({
                         <th className="text-right px-2 py-2 font-medium">Poprzednio</th>
                         <th className="text-right px-2 py-2 font-medium bg-blue-50/50">W okresie</th>
                         <th className="text-right px-2 py-2 font-medium">Łącznie</th>
+                        <th className="text-right px-2 py-2 font-medium bg-amber-50/60">Maraf (obmiar)</th>
                         <th className="text-right px-2 py-2 font-medium">%</th>
                         <th className="text-right px-3 py-2 font-medium bg-blue-50/50">Wartość</th>
                       </tr>
@@ -134,6 +168,12 @@ export default async function ProtokolPage({
                         const totalQty = prevQty + it.qty
                         const planned = it.contractWorkItem.plannedQty
                         const pct = planned > 0 ? (totalQty / planned) * 100 : 0
+                        const marafMatch = matchProtocolItemToMaraf(
+                          it.contractWorkItem.name,
+                          it.contractWorkItem.section,
+                          it.unit,
+                          marafItems,
+                        )
                         return (
                           <tr key={it.id} className="border-t border-gray-100">
                             <td className="px-3 py-2 text-gray-500 text-xs">{idx + 1}.</td>
@@ -144,6 +184,9 @@ export default async function ProtokolPage({
                             <td className="px-2 py-2 text-right tabular-nums text-gray-500">{prevQty > 0 ? fmtQty(prevQty) : '—'}</td>
                             <td className="px-2 py-2 text-right tabular-nums font-medium bg-blue-50/30">{fmtQty(it.qty)}</td>
                             <td className="px-2 py-2 text-right tabular-nums">{fmtQty(totalQty)}</td>
+                            <td className="px-2 py-2 bg-amber-50/30">
+                              <MarafCell match={marafMatch} totalQty={totalQty} />
+                            </td>
                             <td className="px-2 py-2 text-right tabular-nums text-xs">
                               <span className={pct >= 100 ? 'text-green-600 font-medium' : 'text-gray-500'}>
                                 {pct.toFixed(0)}%
@@ -163,6 +206,43 @@ export default async function ProtokolPage({
           })}
         </div>
       )}
+    </div>
+  )
+}
+
+// Komórka kolumny "Maraf (obmiar)" — wartość z obmiaru inżynierskiego dopasowana
+// do pozycji protokołu. Pokazuje status dopasowania + Δ względem "Łącznie" wykonawcy.
+// Pełny opis dopasowania (skąd / dlaczego ręcznie) jest w `title` (tooltip).
+function MarafCell({ match, totalQty }: { match: MarafMatch; totalQty: number }) {
+  if (match.value == null) {
+    return (
+      <div className="text-right cursor-help" title={match.note}>
+        <span className="text-gray-300">—</span>
+        <span className="block text-[10px] text-amber-600">ręcznie ⓘ</span>
+      </div>
+    )
+  }
+  const statusMeta: Record<MarafMatch['status'], { label: string; cls: string }> = {
+    AUTO: { label: 'z obmiaru', cls: 'text-green-600' },
+    CONVERTED: { label: '≈ przeliczone', cls: 'text-blue-600' },
+    APPROX: { label: 'przybliżone', cls: 'text-amber-600' },
+    MANUAL: { label: 'ręcznie', cls: 'text-amber-600' },
+  }
+  const meta = statusMeta[match.status]
+  // Δ — o ile "Łącznie" wykonawcy odbiega od obmiaru Maraf (ta sama jednostka).
+  const diff = match.value > 0 ? ((totalQty - match.value) / match.value) * 100 : null
+  return (
+    <div className="text-right cursor-help" title={match.note}>
+      <span className="tabular-nums font-medium">{fmtQty(match.value)}</span>
+      <span className={`block text-[10px] ${meta.cls}`}>
+        {meta.label}
+        {diff != null && Math.abs(diff) >= 1 && (
+          <span className={Math.abs(diff) > 10 ? 'text-red-500 ml-1' : 'text-gray-400 ml-1'}>
+            (Δ {diff > 0 ? '+' : ''}
+            {diff.toFixed(0)}%)
+          </span>
+        )}
+      </span>
     </div>
   )
 }
