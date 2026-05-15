@@ -222,15 +222,10 @@ model Contract {
   plannedSignDate    DateTime?
   signedAt           DateTime?
   form               String?
-  maxReservationFee  Float?
   reservationFee     Float?
-  maxDiscount        Float?
   discount           Float?
   valueNet           Float?
   valueGross         Float?
-  landSharePrice     Float?
-  salesChance        Int?
-  caretaker          String?
   notes              String?
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt

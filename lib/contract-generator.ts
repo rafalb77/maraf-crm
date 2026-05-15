@@ -117,11 +117,9 @@ export async function buildContractContext(contract: ContractWithRelations): Pro
     komorkaPrice: komorka ? fmt(komorka.priceGross) : '...',
     komorkaPriceWords: komorka ? wordsOr(komorka.priceGross) : '...',
 
-    // Totals & land share
+    // Totals
     totalPrice: fmt(total),
     totalPriceWords: wordsOr(total),
-    landSharePrice: contract.landSharePrice != null ? fmt(contract.landSharePrice) : '...',
-    landSharePriceWords: contract.landSharePrice != null ? wordsOr(contract.landSharePrice) : '...',
 
     // Fee / bank / dates
     bankAccount: bankSetting?.value || '...',

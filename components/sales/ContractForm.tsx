@@ -34,15 +34,10 @@ export function ContractForm({
     investmentName: 'Inwestycja',
     plannedSignDate: '',
     form: '',
-    maxReservationFee: '',
     reservationFee: '',
-    maxDiscount: '',
     discount: '',
     valueNet: '',
     valueGross: '',
-    landSharePrice: '',
-    salesChance: '',
-    caretaker: '',
     notes: '',
   })
 
@@ -140,23 +135,14 @@ export function ContractForm({
             ))}
           </select>
         </Field>
-        <Field label="Opiekun">
-          <input className={inputCls} value={form.caretaker} onChange={set('caretaker')} />
-        </Field>
         <Field label="Planowana data podpisania">
           <input type="date" className={inputCls} value={form.plannedSignDate} onChange={set('plannedSignDate')} />
         </Field>
         <Field label="Forma">
           <input className={inputCls} value={form.form} onChange={set('form')} placeholder="np. akt notarialny" />
         </Field>
-        <Field label="Max. opłata rezerwacyjna">
-          <input type="number" step="0.01" className={inputCls} value={form.maxReservationFee} onChange={set('maxReservationFee')} />
-        </Field>
         <Field label="Opłata rezerwacyjna">
           <input type="number" step="0.01" className={inputCls} value={form.reservationFee} onChange={set('reservationFee')} />
-        </Field>
-        <Field label="Max. dopuszczalny rabat">
-          <input type="number" step="0.01" className={inputCls} value={form.maxDiscount} onChange={set('maxDiscount')} />
         </Field>
         <Field label="Udzielony rabat">
           <input type="number" step="0.01" className={inputCls} value={form.discount} onChange={set('discount')} />
@@ -166,12 +152,6 @@ export function ContractForm({
         </Field>
         <Field label="Wartość umowy brutto">
           <input type="number" step="0.01" className={inputCls} value={form.valueGross} onChange={set('valueGross')} />
-        </Field>
-        <Field label="Cena udziału w gruncie (brutto)">
-          <input type="number" step="0.01" className={inputCls} value={form.landSharePrice} onChange={set('landSharePrice')} />
-        </Field>
-        <Field label="Szansa sprzedaży (%)">
-          <input type="number" min="0" max="100" className={inputCls} value={form.salesChance} onChange={set('salesChance')} />
         </Field>
       </div>
 

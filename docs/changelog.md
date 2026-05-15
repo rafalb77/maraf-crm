@@ -4,6 +4,14 @@ Krótkie wpisy „co i **dlaczego**". Bez listy wszystkich commitów — od tego
 
 ---
 
+## 2026-05-15
+
+### Sprzedaż: wycięte 5 martwych pól z `Contract` (cleanup)
+**Powód**: Sekcja „Warunki finansowe" w `/sales/[id]` pokazywała 8 wierszy z `—` (puste), bo pola `maxReservationFee`, `maxDiscount`, `salesChance`, `landSharePrice`, `caretaker` istniały w schemacie i formularzu, ale **żadne nie wpływało na nic** poza wyświetlaniem — nie były czytane w decyzjach systemowych, nie były w szablonie DOCX (poza `landSharePrice` przez `buildContractContext`, ale nowy szablon umowy z 2026-05-12 ma cenę udziału w gruncie wpisaną na sztywno, więc placeholder `{{landSharePrice}}` nie istnieje). Konwersja oferty → umowa ustawia tylko `valueNet/Gross`, reszta zawsze `null`.
+**Implementacja**: usunięte z `Contract`: `maxReservationFee`, `maxDiscount`, `salesChance`, `landSharePrice`, `caretaker`. Zostają: `reservationFee` (używany w `{{reservationFee}}` w szablonie), `discount`, `valueNet`, `valueGross` (auto-set przy konwersji oferty). Czyszczenie objęło: `prisma/schema.prisma`, `components/sales/ContractForm.tsx` (state + 5 inputów), `app/(app)/sales/[id]/page.tsx` (5 wierszy + sekcja zmniejszona z 8 do 4 pól), `app/api/contracts/route.ts` (POST destructuring + zapis), `app/api/contracts/[id]/route.ts` (PATCH `editableStringFields` / `numberFields` / blok `salesChance`), `lib/contract-generator.ts` (`landSharePrice` + `landSharePriceWords` z `buildContractContext`). `scripts/prepare-template.js` zostawiony — to archiwum (nowy szablon otagowany ręcznie). **WYMAGANE po deployu**: `prisma db push --skip-generate` w Coolify Terminal (5 kolumn DROP w tabeli `Contract` — dane w nich i tak nie były używane). **Pułapka reverse**: gdyby kiedyś wracać do tych pól (np. `salesChance` dla CRM-owego forecastingu, `maxDiscount` jako gate „handlowiec ≤ X%"), commit jest reversible w gicie — schema + endpointy + formularz + widok do odtworzenia naraz.
+
+---
+
 ## 2026-05-13
 
 ### `% kontraktu` liczony wg umownej wartości (`SubContract.agreedValueNet`)

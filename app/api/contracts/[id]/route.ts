@@ -36,16 +36,13 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   const data: any = {}
   const historyEvents: { event: string; details?: string }[] = []
 
-  const editableStringFields = ['form', 'caretaker', 'notes', 'investmentName']
+  const editableStringFields = ['form', 'notes', 'investmentName']
   for (const f of editableStringFields) {
     if (body[f] !== undefined) data[f] = body[f] || null
   }
-  const numberFields = ['maxReservationFee', 'reservationFee', 'maxDiscount', 'discount', 'valueNet', 'valueGross', 'landSharePrice']
+  const numberFields = ['reservationFee', 'discount', 'valueNet', 'valueGross']
   for (const f of numberFields) {
     if (body[f] !== undefined) data[f] = body[f] === '' || body[f] == null ? null : parseFloat(body[f])
-  }
-  if (body.salesChance !== undefined) {
-    data.salesChance = body.salesChance === '' || body.salesChance == null ? null : parseInt(body.salesChance)
   }
   if (body.plannedSignDate !== undefined) {
     data.plannedSignDate = body.plannedSignDate ? new Date(body.plannedSignDate) : null

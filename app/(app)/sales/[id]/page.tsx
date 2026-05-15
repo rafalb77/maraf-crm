@@ -77,7 +77,6 @@ export default async function ContractDetailPage({ params }: { params: { id: str
                 </Link>
               </Row>
             ))}
-            <Row label="Opiekun" value={contract.caretaker || '—'} />
             <Row label="Forma" value={contract.form || '—'} />
             <Row label="Data wprowadzenia" value={formatDate(contract.introducedAt)} />
             <Row label="Planowana data podpisania" value={contract.plannedSignDate ? formatDate(contract.plannedSignDate) : '—'} />
@@ -85,14 +84,10 @@ export default async function ContractDetailPage({ params }: { params: { id: str
           </Panel>
 
           <Panel title="Warunki finansowe">
-            <Row label="Max. opłata rezerwacyjna" value={contract.maxReservationFee != null ? formatCurrency(contract.maxReservationFee) : '—'} />
             <Row label="Opłata rezerwacyjna" value={contract.reservationFee != null ? formatCurrency(contract.reservationFee) : '—'} />
-            <Row label="Max. dopuszczalny rabat" value={contract.maxDiscount != null ? formatCurrency(contract.maxDiscount) : '—'} />
             <Row label="Udzielony rabat" value={contract.discount != null ? formatCurrency(contract.discount) : '—'} />
             <Row label="Wartość netto" value={contract.valueNet != null ? formatCurrency(contract.valueNet) : '—'} />
             <Row label="Wartość brutto" value={contract.valueGross != null ? formatCurrency(contract.valueGross) : '—'} />
-            <Row label="Cena udziału w gruncie" value={contract.landSharePrice != null ? formatCurrency(contract.landSharePrice) : '—'} />
-            <Row label="Szansa sprzedaży" value={contract.salesChance != null ? `${contract.salesChance}%` : '—'} />
           </Panel>
 
           <Panel title="Składniki umowy">

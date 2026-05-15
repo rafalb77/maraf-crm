@@ -16,12 +16,9 @@ Contract (status: W_PRZYGOTOWANIU | PODPISANA | ROZWIAZANA | ANULOWANA)
   ├── attachments: ContractAttachment[] — pliki
   ├── history: ContractHistory[] — audit
   ├── plannedSignDate, signedAt
-  ├── reservationFee / maxReservationFee
-  ├── discount / maxDiscount
-  ├── valueNet, valueGross
-  ├── landSharePrice
-  ├── salesChance (procent — szansa sprzedaży)
-  ├── caretaker (opiekun)
+  ├── reservationFee (opłata rezerwacyjna — używana w szablonie DOCX)
+  ├── discount (udzielony rabat)
+  ├── valueNet, valueGross (auto-ustawiane przy konwersji z oferty z totalNet/totalGross)
   └── form (forma — np. „aktem notarialnym")
 ```
 
