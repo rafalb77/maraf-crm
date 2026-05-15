@@ -56,7 +56,12 @@ export function TopWidget() {
 
   useEffect(() => {
     let cancelled = false
-    fetch('/api/dashboard/widget')
+    // Timeout 10s — gdy endpoint hangs (np. po restarcie kontenera: pusty cache
+    // news/weather, wolne RSS / Open-Meteo), klient wyrwie się ze spinnera
+    // "Ładuję news i pogodę…" zamiast czekać w nieskończoność. Po timeout
+    // traktujemy jak błąd → loading=false, data=null → strona renderuje się
+    // bez widgetu (zamiast wiecznego spinnera).
+    fetch('/api/dashboard/widget', { signal: AbortSignal.timeout(10000) })
       .then((r) => r.json())
       .then((d) => {
         if (!cancelled) {

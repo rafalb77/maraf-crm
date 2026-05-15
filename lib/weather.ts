@@ -87,6 +87,11 @@ export async function getWeather(): Promise<Weather | null> {
     const res = await fetch(url, {
       // Server-side fetch (Node) — bez CORS issues
       next: { revalidate: 1800 }, // 30 min
+      // Timeout 5s — bez tego Open-Meteo potrafi wisieć po restarcie kontenera
+      // (pusty cache) i blokować cały endpoint /api/dashboard/widget → TopWidget
+      // utyka na "Ładuję news i pogodę…". Po timeout fallback do null (lub
+      // ostatnio znanego cache jeśli jest).
+      signal: AbortSignal.timeout(5000),
     })
     if (!res.ok) return cache?.data ?? null
     const json = await res.json()
