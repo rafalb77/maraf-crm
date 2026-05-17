@@ -139,12 +139,11 @@ const WORKSPACES: Workspace[] = [
     ],
   },
   {
-    id: 'ops',
-    label: 'Operacje',
+    id: 'przeroby',
+    label: 'Przeroby',
     icon: ICONS.wsOps,
     sections: [
       {
-        label: 'Przeroby',
         items: [
           { href: '/przeroby', label: 'Pulpit przerobów', icon: ICONS.przeroby },
           { href: '/przeroby/obmiar', label: 'Obmiar Maraf', icon: ICONS.units },
