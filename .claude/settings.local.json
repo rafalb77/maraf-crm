@@ -60,7 +60,21 @@
       "Bash(python)",
       "Bash(DATABASE_URL=\"postgresql://fake:fake@localhost:5432/fake\" npx prisma format)",
       "Bash(cp \"C:\\\\AplikacjeAI\\\\CodeCRM\\\\prisma\\\\schema.prisma\" \"C:\\\\AplikacjeAI\\\\CodeCRM\\\\.claude\\\\worktrees\\\\crazy-kalam-a9de75\\\\prisma\\\\schema.prisma\")",
-      "Bash(DATABASE_URL=\"postgresql://fake:fake@localhost:5432/fake\" npx prisma generate)"
+      "Bash(DATABASE_URL=\"postgresql://fake:fake@localhost:5432/fake\" npx prisma generate)",
+      "Bash(git -C \"C:\\\\AplikacjeAI\\\\CodeCRM\" restore prisma/schema.prisma)",
+      "Bash(git -C \"C:\\\\AplikacjeAI\\\\CodeCRM\" status --short)",
+      "Bash(git -C \"C:\\\\AplikacjeAI\\\\CodeCRM\" fetch origin)",
+      "Bash(git -C \"C:\\\\AplikacjeAI\\\\CodeCRM\" merge claude/crazy-kalam-a9de75)",
+      "Bash(git -C \"C:\\\\AplikacjeAI\\\\CodeCRM\" push origin main)",
+      "Bash(mkdir -p \"C:\\\\AplikacjeAI\\\\CodeCRM\\\\tmp\")",
+      "Bash(cp \"C:\\\\Users\\\\Rafał\\\\Downloads\\\\PŁATNOŚCI 2026.xlsx\" \"C:\\\\AplikacjeAI\\\\CodeCRM\\\\tmp\\\\platnosci-2026.xlsx\")",
+      "Bash(cp \"C:\\\\AplikacjeAI\\\\CodeCRM\\\\.claude\\\\worktrees\\\\crazy-kalam-a9de75\\\\scripts\\\\import-finanse.js\" \"C:\\\\AplikacjeAI\\\\CodeCRM\\\\scripts\\\\import-finanse.js\")",
+      "Bash(node scripts/import-finanse.js tmp/platnosci-2026.xlsx)",
+      "Bash(git -C \"C:\\\\AplikacjeAI\\\\CodeCRM\\\\.claude\\\\worktrees\\\\crazy-kalam-a9de75\" diff --name-only HEAD)",
+      "Bash(git -C \"C:\\\\AplikacjeAI\\\\CodeCRM\\\\.claude\\\\worktrees\\\\crazy-kalam-a9de75\" ls-files --others --exclude-standard)",
+      "Bash(git -C \"C:\\\\AplikacjeAI\\\\CodeCRM\" restore .claude/settings.local.json components/layout/Sidebar.tsx lib/types.ts)",
+      "Bash(git -C \"C:\\\\AplikacjeAI\\\\CodeCRM\\\\.claude\\\\worktrees\\\\crazy-kalam-a9de75\" add components/layout/Sidebar.tsx lib/types.ts lib/finanse-format.ts lib/finanse-import.ts scripts/import-finanse.js \"components/finanse\" \"app/\\(app\\)/finanse\" \"app/api/finanse\" .claude/settings.local.json)",
+      "Bash(git -C \"C:\\\\AplikacjeAI\\\\CodeCRM\\\\.claude\\\\worktrees\\\\crazy-kalam-a9de75\" status --short)"
     ]
   }
 }

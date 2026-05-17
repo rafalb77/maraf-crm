@@ -158,8 +158,18 @@ const WORKSPACES: Workspace[] = [
     id: 'fin',
     label: 'Finanse',
     icon: ICONS.wsFin,
-    // Brak modułów — workspace ukryty do czasu pierwszego ficzera (płatności klientów).
-    sections: [],
+    sections: [
+      {
+        items: [
+          { href: '/finanse', label: 'Pulpit finansów', icon: ICONS.dashboard },
+          { href: '/finanse/do-zatwierdzenia', label: 'Do zatwierdzenia', icon: ICONS.service },
+          { href: '/finanse/kolejka-platnosci', label: 'Kolejka płatności', icon: ICONS.sales },
+          { href: '/finanse/faktury', label: 'Wszystkie faktury', icon: ICONS.offers },
+          { href: '/finanse/kontrahenci', label: 'Kontrahenci', icon: ICONS.contractors },
+          { href: '/finanse/import', label: 'Import xlsx', icon: ICONS.mailing },
+        ],
+      },
+    ],
   },
   {
     id: 'mkt',

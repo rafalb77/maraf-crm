@@ -1,0 +1,82 @@
+import Link from 'next/link'
+import { prisma } from '@/lib/prisma'
+import { fmtMoney } from '@/lib/finanse-format'
+import { VENDOR_CATEGORY_LABELS, type VendorCategory } from '@/lib/types'
+
+export default async function KontrahenciPage() {
+  const vendors = await prisma.vendor.findMany({
+    orderBy: [{ isActive: 'desc' }, { name: 'asc' }],
+    include: {
+      _count: { select: { invoices: true } },
+      invoices: {
+        where: { status: { notIn: ['OPLACONA', 'ANULOWANA'] } },
+        select: { amountGross: true, payments: { select: { amount: true } } },
+      },
+    },
+  })
+
+  return (
+    <div className="p-8">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">Kontrahenci</h1>
+        <p className="text-gray-500 text-sm mt-1">{vendors.length} kontrahentów</p>
+      </div>
+
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <table className="w-full text-sm">
+          <thead className="bg-gray-50 border-b border-gray-200 text-left">
+            <tr>
+              <th className="px-4 py-3 font-medium text-gray-700">Nazwa</th>
+              <th className="px-4 py-3 font-medium text-gray-700">Kategoria</th>
+              <th className="px-4 py-3 font-medium text-gray-700">NIP</th>
+              <th className="px-4 py-3 font-medium text-gray-700 text-right">Faktur razem</th>
+              <th className="px-4 py-3 font-medium text-gray-700 text-right">Do zapłaty</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {vendors.length === 0 && (
+              <tr>
+                <td colSpan={5} className="px-4 py-12 text-center text-gray-400">
+                  Brak kontrahentów. Dodaj pierwszego importując xlsx z{' '}
+                  <Link href="/finanse/import" className="text-blue-600 hover:underline">tej strony</Link>.
+                </td>
+              </tr>
+            )}
+            {vendors.map((v) => {
+              const unpaid = v.invoices.reduce((s, i) => {
+                const paid = i.payments.reduce((p, x) => p + x.amount, 0)
+                return s + Math.max(0, i.amountGross - paid)
+              }, 0)
+              return (
+                <tr key={v.id} className={!v.isActive ? 'opacity-50' : ''}>
+                  <td className="px-4 py-2.5">
+                    <Link
+                      href={`/finanse/faktury?vendor=${v.id}`}
+                      className="font-medium text-gray-900 hover:text-blue-600"
+                    >
+                      {v.name}
+                    </Link>
+                    {!v.isActive && <span className="ml-2 text-xs text-gray-400">(nieaktywny)</span>}
+                  </td>
+                  <td className="px-4 py-2.5 text-gray-600">
+                    {VENDOR_CATEGORY_LABELS[v.category as VendorCategory] || v.category}
+                  </td>
+                  <td className="px-4 py-2.5 text-gray-500 text-xs font-mono">{v.nip || '—'}</td>
+                  <td className="px-4 py-2.5 text-right tabular-nums text-gray-700">{v._count.invoices}</td>
+                  <td className="px-4 py-2.5 text-right tabular-nums font-medium text-gray-900">
+                    {unpaid > 0.01 ? fmtMoney(unpaid) : '—'}
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      <p className="text-xs text-gray-400 mt-4">
+        Dodawanie/edycja kontrahentów ręczna — w przyszłości (Faza 2).
+        Obecnie kontrahenci pojawiają się automatycznie przy imporcie xlsx.
+      </p>
+    </div>
+  )
+}

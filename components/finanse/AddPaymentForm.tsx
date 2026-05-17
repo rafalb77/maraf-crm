@@ -1,0 +1,131 @@
+'use client'
+import { useRouter } from 'next/navigation'
+import { useState } from 'react'
+
+const BANKS = ['ING', 'Santander', 'mBank', 'PKO BP', 'Pekao', 'Millennium', 'Alior', 'BNP Paribas', 'Inny']
+
+export function AddPaymentForm({ invoiceId, remaining }: { invoiceId: string; remaining: number }) {
+  const router = useRouter()
+  const [open, setOpen] = useState(false)
+  const [amount, setAmount] = useState(remaining.toFixed(2))
+  const [paidAt, setPaidAt] = useState(new Date().toISOString().slice(0, 10))
+  const [bank, setBank] = useState('')
+  const [reference, setReference] = useState('')
+  const [notes, setNotes] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  if (!open) {
+    return (
+      <button
+        onClick={() => setOpen(true)}
+        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium"
+      >
+        + Dodaj płatność
+      </button>
+    )
+  }
+
+  async function submit() {
+    setLoading(true)
+    setError(null)
+    try {
+      const r = await fetch(`/api/finanse/invoices/${invoiceId}/payments`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          amount: parseFloat(amount.replace(',', '.')),
+          paidAt,
+          bankAccount: bank || null,
+          reference: reference || null,
+          notes: notes || null,
+        }),
+      })
+      const data = await r.json()
+      if (!r.ok) {
+        setError(data.error || 'Blad')
+        setLoading(false)
+        return
+      }
+      router.refresh()
+      setOpen(false)
+    } catch (e: any) {
+      setError(e.message || 'Blad sieci')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="bg-white border border-gray-200 rounded-xl p-4">
+      <h3 className="font-medium text-gray-900 mb-3">Nowa płatność</h3>
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="text-xs text-gray-500 uppercase font-semibold mb-1 block">Kwota (zł)</label>
+          <input
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm tabular-nums"
+            placeholder="np. 1500,00"
+          />
+          <p className="text-xs text-gray-400 mt-1">Pozostało: {remaining.toFixed(2)} zł</p>
+        </div>
+        <div>
+          <label className="text-xs text-gray-500 uppercase font-semibold mb-1 block">Data zapłaty</label>
+          <input
+            type="date"
+            value={paidAt}
+            onChange={(e) => setPaidAt(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+          />
+        </div>
+        <div>
+          <label className="text-xs text-gray-500 uppercase font-semibold mb-1 block">Bank (opcjonalnie)</label>
+          <select
+            value={bank}
+            onChange={(e) => setBank(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+          >
+            <option value="">— wybierz —</option>
+            {BANKS.map((b) => <option key={b} value={b}>{b}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="text-xs text-gray-500 uppercase font-semibold mb-1 block">Tytuł przelewu (opcjonalnie)</label>
+          <input
+            value={reference}
+            onChange={(e) => setReference(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+            placeholder="np. FV/000299/26"
+          />
+        </div>
+        <div className="col-span-2">
+          <label className="text-xs text-gray-500 uppercase font-semibold mb-1 block">Notatka (opcjonalnie)</label>
+          <input
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+          />
+        </div>
+      </div>
+
+      {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
+
+      <div className="flex gap-2 mt-4">
+        <button
+          onClick={submit}
+          disabled={loading || !amount}
+          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50"
+        >
+          {loading ? 'Zapisuję...' : 'Zapisz płatność'}
+        </button>
+        <button
+          onClick={() => setOpen(false)}
+          className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900"
+        >
+          Anuluj
+        </button>
+      </div>
+    </div>
+  )
+}

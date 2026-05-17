@@ -159,3 +159,59 @@ export const RESERVATION_CONTRACT_LIMITS: Record<UnitType, number> = {
   GARAZ: 2,
   KOMORKA: 1,
 }
+
+// =====================================================================
+// MODUŁ: FINANSE
+// =====================================================================
+
+export type VendorCategory = 'DOSTAWCA' | 'BANK' | 'LEASING' | 'URZAD' | 'PODWYKONAWCA' | 'INNE'
+
+export const VENDOR_CATEGORY_LABELS: Record<VendorCategory, string> = {
+  DOSTAWCA: 'Dostawca',
+  BANK: 'Bank',
+  LEASING: 'Leasing',
+  URZAD: 'Urząd',
+  PODWYKONAWCA: 'Podwykonawca',
+  INNE: 'Inne',
+}
+
+export type PurchaseInvoiceStatus =
+  | 'WPROWADZONA'
+  | 'DO_ZATWIERDZENIA'
+  | 'ZATWIERDZONA'
+  | 'ZAPLANOWANA'
+  | 'OPLACONA'
+  | 'CZESCIOWO_OPLACONA'
+  | 'ODRZUCONA'
+  | 'ANULOWANA'
+
+export const PURCHASE_INVOICE_STATUS_LABELS: Record<PurchaseInvoiceStatus, string> = {
+  WPROWADZONA: 'Wprowadzona',
+  DO_ZATWIERDZENIA: 'Do zatwierdzenia',
+  ZATWIERDZONA: 'Zatwierdzona',
+  ZAPLANOWANA: 'Zaplanowana',
+  OPLACONA: 'Opłacona',
+  CZESCIOWO_OPLACONA: 'Częściowo opłacona',
+  ODRZUCONA: 'Odrzucona',
+  ANULOWANA: 'Anulowana',
+}
+
+export const PURCHASE_INVOICE_STATUS_COLORS: Record<PurchaseInvoiceStatus, string> = {
+  WPROWADZONA: 'bg-gray-100 text-gray-700',
+  DO_ZATWIERDZENIA: 'bg-amber-100 text-amber-700',
+  ZATWIERDZONA: 'bg-blue-100 text-blue-700',
+  ZAPLANOWANA: 'bg-indigo-100 text-indigo-700',
+  OPLACONA: 'bg-green-100 text-green-700',
+  CZESCIOWO_OPLACONA: 'bg-emerald-100 text-emerald-700',
+  ODRZUCONA: 'bg-red-100 text-red-700',
+  ANULOWANA: 'bg-gray-200 text-gray-500',
+}
+
+// Etykiety dla akcji w PurchaseInvoiceApproval.action (audit log)
+export const INVOICE_APPROVAL_ACTION_LABELS: Record<string, string> = {
+  SUBMITTED: 'Wysłana do zatwierdzenia',
+  APPROVED: 'Zatwierdzona',
+  REJECTED: 'Odrzucona',
+  RESET: 'Cofnięta do edycji',
+  EDITED: 'Edytowana',
+}
