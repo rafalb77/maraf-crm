@@ -391,7 +391,7 @@ export type ParseResult = {
 export function parseFinanseXlsx(buffer: Buffer): ParseResult {
   const wb = XLSX.read(buffer, { type: 'buffer', cellDates: true })
 
-  const invoices: ParsedInvoice[] = []
+  const allInvoices: ParsedInvoice[] = []
   const skipped: ParsedSkip[] = []
   const perSheetCounts: Record<string, { invoices: number; payments: number; skipped: number }> = {}
 
@@ -403,7 +403,7 @@ export function parseFinanseXlsx(buffer: Buffer): ParseResult {
       continue
     }
     const { invoices: invs, skipped: sks } = parseSheetByConfig(ws, cfg)
-    invoices.push(...invs)
+    allInvoices.push(...invs)
     skipped.push(...sks)
     perSheetCounts[cfg.sheetName] = {
       invoices: invs.length,
@@ -412,7 +412,36 @@ export function parseFinanseXlsx(buffer: Buffer): ParseResult {
     }
   }
 
-  return { invoices, skipped, perSheetCounts }
+  // Dedup po (vendorName, number) — w xlsx czasem ten sam numer faktury
+  // pojawia sie dwa razy (np. korekta wpisana z tym samym numerem,
+  // pomylka recznego wpisu Marty). Constraint UNIQUE(vendorId, number) w DB
+  // nie pozwala na duplikaty, wiec pomijamy drugie wystapienie.
+  // Pierwsze wystapienie zachowuje swoje platnosci; drugie idzie do skipped.
+  const seenKeys = new Set<string>()
+  const dedupedInvoices: ParsedInvoice[] = []
+  for (const inv of allInvoices) {
+    const key = `${inv.vendorName}::${inv.number}`
+    if (seenKeys.has(key)) {
+      skipped.push({
+        sheetName: inv.sheetName,
+        rowIndex: inv.rowIndex,
+        raw: `FV=${inv.number} brutto=${inv.amountGross} vendor=${inv.vendorName}`,
+        reason: 'Duplikat numeru faktury w xlsx (drugie wystapienie tego samego (kontrahent, FV))',
+      })
+      // skoryguj per-sheet count
+      const c = perSheetCounts[inv.sheetName]
+      if (c) {
+        c.invoices = Math.max(0, c.invoices - 1)
+        c.payments = Math.max(0, c.payments - inv.payments.length)
+        c.skipped += 1
+      }
+      continue
+    }
+    seenKeys.add(key)
+    dedupedInvoices.push(inv)
+  }
+
+  return { invoices: dedupedInvoices, skipped, perSheetCounts }
 }
 
 export async function buildDiff(buffer: Buffer): Promise<DiffResult> {

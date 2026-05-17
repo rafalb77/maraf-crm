@@ -214,7 +214,7 @@ async function main() {
   console.log(`Tryb: ${commit ? 'COMMIT (zapis do DB)' : 'DRY-RUN (tylko podglad)'}\n`)
 
   const wb = XLSX.readFile(file, { cellDates: true })
-  const allInvoices = []
+  const rawInvoices = []
   const allSkipped = []
   const perSheet = {}
 
@@ -226,12 +226,40 @@ async function main() {
       continue
     }
     const { invoices, skipped } = parseSheetByConfig(ws, cfg)
-    allInvoices.push(...invoices)
+    rawInvoices.push(...invoices)
     allSkipped.push(...skipped)
     const paymentsCount = invoices.reduce((s, i) => s + i.payments.length, 0)
     perSheet[cfg.sheetName] = { invoices: invoices.length, payments: paymentsCount, skipped: skipped.length }
     const sumGross = invoices.reduce((s, i) => s + i.amountGross, 0)
     console.log(`  ${cfg.sheetName.padEnd(12)} ${String(invoices.length).padStart(4)} faktur, ${String(paymentsCount).padStart(4)} platnosci, ${String(skipped.length).padStart(3)} pominiete | brutto: ${fmtMoney(sumGross)} zl`)
+  }
+
+  // Dedup po (vendorName, number) — patrz komentarz w lib/finanse-import.ts
+  const seenKeys = new Set()
+  const allInvoices = []
+  for (const inv of rawInvoices) {
+    const key = `${inv.vendorName}::${inv.number}`
+    if (seenKeys.has(key)) {
+      allSkipped.push({
+        sheetName: inv.sheetName,
+        rowIndex: inv.rowIndex,
+        raw: `FV=${inv.number} brutto=${inv.amountGross} vendor=${inv.vendorName}`,
+        reason: 'Duplikat numeru faktury w xlsx (drugie wystapienie tego samego (kontrahent, FV))',
+      })
+      const c = perSheet[inv.sheetName]
+      if (c) {
+        c.invoices = Math.max(0, c.invoices - 1)
+        c.payments = Math.max(0, c.payments - inv.payments.length)
+        c.skipped += 1
+      }
+      continue
+    }
+    seenKeys.add(key)
+    allInvoices.push(inv)
+  }
+  const duplicatesInFile = rawInvoices.length - allInvoices.length
+  if (duplicatesInFile > 0) {
+    console.log(`\n  >>> Dedup: ${duplicatesInFile} duplikatow numeru w xlsx (drugie wystapienia pominiete)`)
   }
 
   console.log(`\nRAZEM: ${allInvoices.length} faktur, ${allInvoices.reduce((s, i) => s + i.payments.length, 0)} platnosci, ${allSkipped.length} pominiete`)
