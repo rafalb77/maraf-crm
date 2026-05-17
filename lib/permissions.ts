@@ -21,9 +21,18 @@ export const ALL_PERMISSIONS = [
   'mailing',
   'calendar',
   'przeroby',
+  'finanse',
+] as const
+
+// Sub-permissions w obrębie sekcji. Stringi z dot-notation, sprawdzane przez
+// hasPermission(perms, 'finanse.approve'). Wymagają posiadania parent permission
+// ('finanse') żeby w ogóle wejść do sekcji.
+export const SUB_PERMISSIONS = [
+  'finanse.approve',  // prawo akceptowania faktur w inboksie /finanse/do-zatwierdzenia
 ] as const
 
 export type Permission = (typeof ALL_PERMISSIONS)[number]
+export type SubPermission = (typeof SUB_PERMISSIONS)[number]
 
 export const PERMISSION_LABELS: Record<Permission, string> = {
   dashboard: 'Pulpit',
@@ -35,6 +44,11 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
   mailing: 'Mailing',
   calendar: 'Kalendarz',
   przeroby: 'Przeroby',
+  finanse: 'Finanse',
+}
+
+export const SUB_PERMISSION_LABELS: Record<SubPermission, string> = {
+  'finanse.approve': 'Finanse — zatwierdzanie faktur',
 }
 
 // Kolejność preferowana — po logowaniu user ląduje na pierwszej dostępnej.
@@ -43,6 +57,7 @@ const PREFERRED_LANDING_ORDER: Permission[] = [
   'przeroby',
   'oferty',
   'sales',
+  'finanse',
   'clients',
   'units',
   'service',
@@ -74,6 +89,7 @@ export function getRequiredPermission(pathname: string): Permission | 'admin' | 
   if (pathname.startsWith('/mailing')) return 'mailing'
   if (pathname.startsWith('/calendar')) return 'calendar'
   if (pathname.startsWith('/przeroby')) return 'przeroby'
+  if (pathname.startsWith('/finanse')) return 'finanse'
   if (pathname.startsWith('/settings')) return 'admin'
 
   // API
@@ -86,6 +102,7 @@ export function getRequiredPermission(pathname: string): Permission | 'admin' | 
   if (pathname.startsWith('/api/mailing')) return 'mailing'
   if (pathname.startsWith('/api/calendar')) return 'calendar'
   if (pathname.startsWith('/api/przeroby')) return 'przeroby'
+  if (pathname.startsWith('/api/finanse')) return 'finanse'
 
   // Admin-only API (zarządzanie userami, settings)
   if (pathname.startsWith('/api/users')) return 'admin'

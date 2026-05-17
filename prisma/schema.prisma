@@ -21,17 +21,23 @@ datasource db {
 //
 // Endpoint /api/dashboard/widget czyta interests z DB po userId — zmiana działa natychmiast (bez re-login).
 model User {
-  id                String    @id @default(cuid())
-  email             String    @unique
-  password          String
-  name              String?
-  preferredName     String?
-  interests         String[]  @default([])
-  customInterests   String[]  @default([])
-  resetToken        String?   @unique
-  resetTokenExpiry  DateTime?
-  permissions       String[]  @default([])
-  createdAt         DateTime  @default(now())
+  id               String    @id @default(cuid())
+  email            String    @unique
+  password         String
+  name             String?
+  preferredName    String?
+  interests        String[]  @default([])
+  customInterests  String[]  @default([])
+  resetToken       String?   @unique
+  resetTokenExpiry DateTime?
+  permissions      String[]  @default([])
+  createdAt        DateTime  @default(now())
+
+  // Moduł Finanse
+  createdInvoices            PurchaseInvoice[]           @relation("InvoiceCreator")
+  createdPayments            PurchaseInvoicePayment[]    @relation("PaymentCreator")
+  invoiceApprovals           PurchaseInvoiceApproval[]
+  uploadedInvoiceAttachments PurchaseInvoiceAttachment[]
 }
 
 // status: ZAPYTANIE | OFERTA | REZERWACJA | UMOWA | ODBIOR
@@ -56,12 +62,12 @@ model Client {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  activities       Activity[]
-  clientUnits      ClientUnit[]
-  serviceRequests  ServiceRequest[]
-  contracts        Contract[]
-  contractClients  ContractClient[]
-  offers           Offer[]
+  activities      Activity[]
+  clientUnits     ClientUnit[]
+  serviceRequests ServiceRequest[]
+  contracts       Contract[]
+  contractClients ContractClient[]
+  offers          Offer[]
 }
 
 // type: MIESZKALNY | USLUGOWY | PARKING | GARAZ | KOMORKA
@@ -89,11 +95,11 @@ model Unit {
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
 
-  clientUnits     ClientUnit[]
-  serviceRequests ServiceRequest[]
-  contractUnits   ContractUnit[]
-  offerItems      OfferItem[]
-  images          UnitImage[]
+  clientUnits      ClientUnit[]
+  serviceRequests  ServiceRequest[]
+  contractUnits    ContractUnit[]
+  offerItems       OfferItem[]
+  images           UnitImage[]
   creativeSettings UnitCreativeSettings?
 }
 
@@ -212,23 +218,23 @@ model Settings {
 // type: REZERWACYJNA | DEWELOPERSKA | PRZENIESIENIA
 // status: W_PRZYGOTOWANIU | PODPISANA | ROZWIAZANA | ANULOWANA
 model Contract {
-  id                 String    @id @default(cuid())
-  number             String    @unique
-  type               String
-  status             String    @default("W_PRZYGOTOWANIU")
-  investmentName     String    @default("Inwestycja")
-  clientId           String
-  introducedAt       DateTime  @default(now())
-  plannedSignDate    DateTime?
-  signedAt           DateTime?
-  form               String?
-  reservationFee     Float?
-  discount           Float?
-  valueNet           Float?
-  valueGross         Float?
-  notes              String?
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
+  id              String    @id @default(cuid())
+  number          String    @unique
+  type            String
+  status          String    @default("W_PRZYGOTOWANIU")
+  investmentName  String    @default("Inwestycja")
+  clientId        String
+  introducedAt    DateTime  @default(now())
+  plannedSignDate DateTime?
+  signedAt        DateTime?
+  form            String?
+  reservationFee  Float?
+  discount        Float?
+  valueNet        Float?
+  valueGross      Float?
+  notes           String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   client          Client               @relation(fields: [clientId], references: [id], onDelete: Cascade)
   contractClients ContractClient[]
@@ -278,24 +284,24 @@ model DrawingProject {
 
 // Rysunek (plik DXF/PDF/DWG)
 model Drawing {
-  id           String   @id @default(cuid())
-  projectId    String?
-  name         String
-  originalName String
-  fileType     String            // DXF | PDF | DWG | IMAGE
-  filePath     String
-  fileSize     Int?
-  scaleLabel   String   @default("1:50") // np. "1:50", "1:100"
-  pixelsPerMeter Float?                   // kalibracja: ile px = 1m
-  pageWidth    Int?
-  pageHeight   Int?
-  status       String   @default("UPLOADED") // UPLOADED | READY | ERROR
-  aiAnalyzed   Boolean  @default(false)
-  notes        String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id             String   @id @default(cuid())
+  projectId      String?
+  name           String
+  originalName   String
+  fileType       String // DXF | PDF | DWG | IMAGE
+  filePath       String
+  fileSize       Int?
+  scaleLabel     String   @default("1:50") // np. "1:50", "1:100"
+  pixelsPerMeter Float? // kalibracja: ile px = 1m
+  pageWidth      Int?
+  pageHeight     Int?
+  status         String   @default("UPLOADED") // UPLOADED | READY | ERROR
+  aiAnalyzed     Boolean  @default(false)
+  notes          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-  project  DrawingProject? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  project  DrawingProject?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
   elements DrawingElement[]
 }
 
@@ -303,30 +309,30 @@ model Drawing {
 // KONSTRUKCYJNY: STROP | PODCIAG | SLUP | WIENIEC | SCIANA_ZB | LAW_FUND | STOP_FUND | NADPROZ
 // ARCHITEKTONICZNY: ELEWACJA | TYNK_ZEW | TYNK_WEW | POSADZKA | DACH | OKNO | DRZWI | OCIEPLENIE
 model DrawingElement {
-  id          String   @id @default(cuid())
-  drawingId   String
-  type        String            // patrz komentarz wyżej
-  label       String            // np. "Strop nad parterem", "Słup S-01"
-  floor       String?           // "PIWNICA" | "PARTER" | "PIETRO_1" | ...
-  geometry    String            // JSON: [{x,y},...] punkty w px na canvas
+  id         String   @id @default(cuid())
+  drawingId  String
+  type       String // patrz komentarz wyżej
+  label      String // np. "Strop nad parterem", "Słup S-01"
+  floor      String? // "PIWNICA" | "PARTER" | "PIETRO_1" | ...
+  geometry   String // JSON: [{x,y},...] punkty w px na canvas
   // Przeliczone wymiary (w metrach)
-  lengthM     Float?
-  widthM      Float?
-  heightM     Float?
-  perimeterM  Float?
-  areaM2      Float?
-  volumeM3    Float?
+  lengthM    Float?
+  widthM     Float?
+  heightM    Float?
+  perimeterM Float?
+  areaM2     Float?
+  volumeM3   Float?
   // Szacunki materiałowe
-  concreteM3  Float?            // beton wg normy
-  steelKg     Float?            // stal wg wskaźnika kg/m³ lub kg/m²
+  concreteM3 Float? // beton wg normy
+  steelKg    Float? // stal wg wskaźnika kg/m³ lub kg/m²
   // Rozliczenie
-  unit        String   @default("M2") // M2 | M3 | MB | SZT | KG | T
-  qty         Float    @default(0)
-  notes       String?
-  verified    Boolean  @default(false)
-  source      String   @default("MANUAL") // MANUAL | AI | DXF_AUTO
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  unit       String   @default("M2") // M2 | M3 | MB | SZT | KG | T
+  qty        Float    @default(0)
+  notes      String?
+  verified   Boolean  @default(false)
+  source     String   @default("MANUAL") // MANUAL | AI | DXF_AUTO
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   drawing Drawing @relation(fields: [drawingId], references: [id], onDelete: Cascade)
 }
@@ -358,33 +364,33 @@ model ContractHistory {
 
 // Podwykonawca — firma wykonawcza
 model Subcontractor {
-  id           String   @id @default(cuid())
-  name         String
-  nip          String?
-  regon        String?
-  address      String?
-  city         String?
-  zipCode      String?
-  contactName  String?
-  email        String?
-  phone        String?
-  bankAccount  String?
-  notes        String?
-  active       Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id          String   @id @default(cuid())
+  name        String
+  nip         String?
+  regon       String?
+  address     String?
+  city        String?
+  zipCode     String?
+  contactName String?
+  email       String?
+  phone       String?
+  bankAccount String?
+  notes       String?
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  contracts        SubContract[]
-  protocols        Protocol[]
+  contracts SubContract[]
+  protocols Protocol[]
 }
 
 // Umowa z podwykonawcą — kosztorys umowny w pozycjach (ContractWorkItem)
 model SubContract {
-  id              String   @id @default(cuid())
+  id              String    @id @default(cuid())
   subcontractorId String
   number          String?
   title           String
-  scopeText       String?  // np. "Roboty konstrukcyjne"
+  scopeText       String? // np. "Roboty konstrukcyjne"
   signedAt        DateTime?
   startDate       DateTime?
   endDate         DateTime?
@@ -396,11 +402,11 @@ model SubContract {
   // wszystkie kondygnacje + dach). Wpisywana ręcznie w UI. Importer jej NIE dotyka.
   // To prawidłowy mianownik wskaźnika "% kontraktu" w widoku protokołu.
   agreedValueNet  Float?
-  retentionPct    Float    @default(0)
-  status          String   @default("AKTYWNA") // AKTYWNA | ZAKONCZONA | ANULOWANA
+  retentionPct    Float     @default(0)
+  status          String    @default("AKTYWNA") // AKTYWNA | ZAKONCZONA | ANULOWANA
   notes           String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   subcontractor Subcontractor      @relation(fields: [subcontractorId], references: [id], onDelete: Cascade)
   workItems     ContractWorkItem[]
@@ -412,19 +418,19 @@ model SubContract {
 model ContractWorkItem {
   id          String   @id @default(cuid())
   contractId  String
-  section     String?           // "FUNDAMENTY", "PARTER", "I Piętro" (kondygnacja)
-  position    Int      @default(0)  // numer w sekcji
-  globalOrder Int      @default(0)  // globalny porządek w umowie
-  name        String              // opis prac
-  unit        String              // m3 | m2 | T | kpl | mb | stopni | kg
+  section     String? // "FUNDAMENTY", "PARTER", "I Piętro" (kondygnacja)
+  position    Int      @default(0) // numer w sekcji
+  globalOrder Int      @default(0) // globalny porządek w umowie
+  name        String // opis prac
+  unit        String // m3 | m2 | T | kpl | mb | stopni | kg
   unitPrice   Float    @default(0)
-  plannedQty  Float    @default(0)  // ilość planowana
+  plannedQty  Float    @default(0) // ilość planowana
   notes       String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  contract       SubContract     @relation(fields: [contractId], references: [id], onDelete: Cascade)
-  protocolItems  ProtocolItem[]
+  contract      SubContract    @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  protocolItems ProtocolItem[]
 
   @@index([contractId, globalOrder])
 }
@@ -433,8 +439,8 @@ model ContractWorkItem {
 // Każdy zakres ma własny obmiar i własne kategorie.
 model WorkScope {
   id          String   @id @default(cuid())
-  name        String   @unique  // "Konstrukcja żelbetowa"
-  slug        String   @unique  // "konstrukcja-zelbetowa"
+  name        String   @unique // "Konstrukcja żelbetowa"
+  slug        String   @unique // "konstrukcja-zelbetowa"
   order       Int      @default(0)
   description String?
   active      Boolean  @default(true)
@@ -447,14 +453,14 @@ model WorkScope {
 // Kategoria robót = jeden arkusz Excela (Fundamenty, Piony 0, Belki nad 0...)
 // należy do konkretnego zakresu (WorkScope).
 model WorkCategory {
-  id            String   @id @default(cuid())
-  scopeId       String
-  name          String
-  slug          String
-  order         Int      @default(0)
-  primaryUnit   String   @default("M3")  // M3 | M2 | SZT
-  description   String?
-  createdAt     DateTime @default(now())
+  id          String   @id @default(cuid())
+  scopeId     String
+  name        String
+  slug        String
+  order       Int      @default(0)
+  primaryUnit String   @default("M3") // M3 | M2 | SZT
+  description String?
+  createdAt   DateTime @default(now())
 
   scope WorkScope  @relation(fields: [scopeId], references: [id], onDelete: Cascade)
   items WorkItem[]
@@ -465,16 +471,15 @@ model WorkCategory {
 // Powiązanie odwrotne — WorkScope ma summaries
 // (Prisma wymaga relacji w obie strony)
 
-
 // Podsumowanie kondygnacji — agregat kierownika łączący obmiar inżynierski
 // z pozycjami umownymi (i protokołami). Per kondygnacja: PARTER, I_PIETRO, ...
 model FloorSummary {
-  id          String   @id @default(cuid())
-  scopeId     String                       // np. konstrukcja-zelbetowa
-  floor       String                       // "PARTER", "I_PIETRO", "II_PIETRO", "DACH"
-  source      String?                       // ścieżka pliku xlsx
-  importedAt  DateTime @default(now())
-  notes       String?
+  id         String   @id @default(cuid())
+  scopeId    String // np. konstrukcja-zelbetowa
+  floor      String // "PARTER", "I_PIETRO", "II_PIETRO", "DACH"
+  source     String? // ścieżka pliku xlsx
+  importedAt DateTime @default(now())
+  notes      String?
 
   scope WorkScope          @relation(fields: [scopeId], references: [id], onDelete: Cascade)
   items FloorSummaryItem[]
@@ -492,27 +497,27 @@ model FloorSummary {
 //   MANUAL_OVERRIDE    — użytkownik świadomie nadpisał wartość
 //   MANUAL_ADDED       — pozycja dodana ręcznie przez usera w UI (poza pozycjami z buildPositionsForFloor); zachowywane przy reimporcie
 model FloorSummaryItem {
-  id            String   @id @default(cuid())
-  summaryId     String
-  position      Int      @default(0)
-  name          String
-  unit          String                  // m3, m2, mb, kpl, szt, T, kg
-  laborQty      Float    @default(0)    // "Robocizny" — to co rozliczane w protokole
-  concreteVol   Float    @default(0)    // m³ betonu C25/30
-  rebarMass     Float    @default(0)    // kg zbrojenia
+  id          String @id @default(cuid())
+  summaryId   String
+  position    Int    @default(0)
+  name        String
+  unit        String // m3, m2, mb, kpl, szt, T, kg
+  laborQty    Float  @default(0) // "Robocizny" — to co rozliczane w protokole
+  concreteVol Float  @default(0) // m³ betonu C25/30
+  rebarMass   Float  @default(0) // kg zbrojenia
 
-  matchMode     String   @default("AUTO_OK")
-  matchReason   String?                 // automatyczny opis dlaczego nie matchuje
-  mappingRule   String?                 // JSON: { categoryName, elementType?, floorName?, namePattern? }
-  manualValue   Float?                  // ręczna wartość Marafu (override autoValue z reguły)
-  manualNote    String?                 // komentarz do manualValue
-  konradManualValue  Float?             // ręczna wartość Konrada (gdy nie ma detalu w xlsx) — wpisuje kierownik lub admin
-  konradManualReason String?            // uzasadnienie wartości Konrada — WYMAGANE gdy |Δ| > 5% vs Maraf
+  matchMode             String    @default("AUTO_OK")
+  matchReason           String? // automatyczny opis dlaczego nie matchuje
+  mappingRule           String? // JSON: { categoryName, elementType?, floorName?, namePattern? }
+  manualValue           Float? // ręczna wartość Marafu (override autoValue z reguły)
+  manualNote            String? // komentarz do manualValue
+  konradManualValue     Float? // ręczna wartość Konrada (gdy nie ma detalu w xlsx) — wpisuje kierownik lub admin
+  konradManualReason    String? // uzasadnienie wartości Konrada — WYMAGANE gdy |Δ| > 5% vs Maraf
   // DEPRECATED — zastąpione przez investorApproved*. Pola zostają w schemie/bazie żeby
   // nie tracić historycznych danych (kto co kiedy kierowniczo zaakceptował). Nie używane w UI.
-  accepted      Boolean  @default(false)
-  acceptedAt    DateTime?
-  acceptedNote  String?
+  accepted              Boolean   @default(false)
+  acceptedAt            DateTime?
+  acceptedNote          String?
   // Akceptacja przez Inwestora (admin) — warunek konieczny przejścia pozycji do protokołu.
   // investorApprovedValue = snapshot wartości kierownika w momencie akceptacji (do auditingu —
   // jeśli wartość się zmieni po akceptacji, widać że potrzeba reakceptacji).
@@ -525,7 +530,7 @@ model FloorSummaryItem {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  summary FloorSummary             @relation(fields: [summaryId], references: [id], onDelete: Cascade)
+  summary FloorSummary              @relation(fields: [summaryId], references: [id], onDelete: Cascade)
   history FloorSummaryItemHistory[]
 
   @@index([summaryId])
@@ -536,11 +541,11 @@ model FloorSummaryItem {
 model FloorSummaryItemHistory {
   id        String   @id @default(cuid())
   itemId    String
-  action    String   // ACCEPT | UNACCEPT | SET_MANUAL_VALUE | CLEAR_MANUAL_VALUE | SET_KONRAD_VALUE | CLEAR_KONRAD_VALUE | INVESTOR_APPROVE | INVESTOR_UNAPPROVE | ITEM_ADDED | EDIT_NOTE | REIMPORT
-  oldValue  String?  // poprzednia wartość (JSON serialized)
-  newValue  String?  // nowa wartość (JSON serialized)
-  note      String?  // komentarz / uzasadnienie z formularza
-  userEmail String?  // email użytkownika z sesji
+  action    String // ACCEPT | UNACCEPT | SET_MANUAL_VALUE | CLEAR_MANUAL_VALUE | SET_KONRAD_VALUE | CLEAR_KONRAD_VALUE | INVESTOR_APPROVE | INVESTOR_UNAPPROVE | ITEM_ADDED | EDIT_NOTE | REIMPORT
+  oldValue  String? // poprzednia wartość (JSON serialized)
+  newValue  String? // nowa wartość (JSON serialized)
+  note      String? // komentarz / uzasadnienie z formularza
+  userEmail String? // email użytkownika z sesji
   createdAt DateTime @default(now())
 
   item FloorSummaryItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
@@ -551,29 +556,29 @@ model FloorSummaryItemHistory {
 // Pozycja obmiaru (master, niezmienna po imporcie)
 // primaryUnit dziedziczy z kategorii ale może być nadpisana per pozycja
 model WorkItem {
-  id           String   @id @default(cuid())
-  categoryId   String
-  floor        String?           // "Kondygnacja 0", "+1", "Dach"
-  elementType  String?           // "Ławy fund.", "Słupy 0", "Belki stropu K0"
-  name         String             // "Łf-01", "S-P.01"
-  count        Int?               // liczba sztuk
-  lengthM      Float?
-  widthM       Float?
-  heightM      Float?
-  areaM2       Float?
-  volumeM3     Float?
-  primaryUnit  String   @default("M3") // którą wartością rozliczamy
-  primaryQty   Float    @default(0)    // wartość w primaryUnit (np. V dla M3, A dla M2)
-  notes        String?
-  sourceRow    Int?                    // numer wiersza w Excelu (debug)
+  id          String  @id @default(cuid())
+  categoryId  String
+  floor       String? // "Kondygnacja 0", "+1", "Dach"
+  elementType String? // "Ławy fund.", "Słupy 0", "Belki stropu K0"
+  name        String // "Łf-01", "S-P.01"
+  count       Int? // liczba sztuk
+  lengthM     Float?
+  widthM      Float?
+  heightM     Float?
+  areaM2      Float?
+  volumeM3    Float?
+  primaryUnit String  @default("M3") // którą wartością rozliczamy
+  primaryQty  Float   @default(0) // wartość w primaryUnit (np. V dla M3, A dla M2)
+  notes       String?
+  sourceRow   Int? // numer wiersza w Excelu (debug)
 
-  category      WorkCategory   @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  category WorkCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
 }
 
 // Protokół przerobowy — okres rozliczeniowy (od/do), powiązany z umową
 // status: SZKIC | ZATWIERDZONY | ZAFAKTUROWANY | ANULOWANY
 model Protocol {
-  id              String   @id @default(cuid())
+  id              String    @id @default(cuid())
   number          String?
   subcontractorId String
   contractId      String
@@ -582,16 +587,16 @@ model Protocol {
   // Cache miesiąca/roku do sortowania i list (= miesiąc/rok periodTo)
   periodYear      Int
   periodMonth     Int
-  status          String   @default("SZKIC")
-  issuedAt        DateTime @default(now())
+  status          String    @default("SZKIC")
+  issuedAt        DateTime  @default(now())
   approvedAt      DateTime?
   invoicedAt      DateTime?
   notes           String?
-  totalNet        Float    @default(0)   // suma w tym okresie
-  retentionAmount Float    @default(0)
-  payableNet      Float    @default(0)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  totalNet        Float     @default(0) // suma w tym okresie
+  retentionAmount Float     @default(0)
+  payableNet      Float     @default(0)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   subcontractor Subcontractor  @relation(fields: [subcontractorId], references: [id], onDelete: Cascade)
   contract      SubContract    @relation(fields: [contractId], references: [id], onDelete: Cascade)
@@ -601,20 +606,20 @@ model Protocol {
 // Pozycja w protokole — odnosi się do pozycji umownej (ContractWorkItem).
 // qty = ilość wykonana w TYM okresie (delta).
 model ProtocolItem {
-  id                  String   @id @default(cuid())
-  protocolId          String
-  contractWorkItemId  String
-  qty                 Float    @default(0)
-  unit                String   @default("m3")
-  unitPrice           Float    @default(0)
-  amountNet           Float    @default(0)
-  note                String?
+  id                 String  @id @default(cuid())
+  protocolId         String
+  contractWorkItemId String
+  qty                Float   @default(0)
+  unit               String  @default("m3")
+  unitPrice          Float   @default(0)
+  amountNet          Float   @default(0)
+  note               String?
   // Ręczne porównanie z obmiarem Maraf — gdy auto-dopasowanie (lib/protokol-maraf-match.ts)
   // jest niepewne, błędne lub brakuje reguły, user wpisuje wartość ręcznie.
   // Wpisana wartość NADPISUJE auto-match w kolumnie "Maraf (obmiar)" w UI protokołu.
   // marafManualValue jest w jednostce pozycji protokołu (ProtocolItem.unit).
-  marafManualValue    Float?
-  marafManualNote     String?
+  marafManualValue   Float?
+  marafManualNote    String?
 
   protocol         Protocol         @relation(fields: [protocolId], references: [id], onDelete: Cascade)
   contractWorkItem ContractWorkItem @relation(fields: [contractWorkItemId], references: [id], onDelete: Restrict)
@@ -628,52 +633,187 @@ model ProtocolItem {
 // =============================================================
 // status: SZKIC | WYSLANA | ZAAKCEPTOWANA | ODRZUCONA | ANULOWANA
 model Offer {
-  id          String    @id @default(cuid())
-  number      String?   @unique
-  clientId    String?
-  title       String?
-  validUntil  DateTime?
-  status      String    @default("SZKIC")
-  notes       String?
+  id                 String    @id @default(cuid())
+  number             String?   @unique
+  clientId           String?
+  title              String?
+  validUntil         DateTime?
+  status             String    @default("SZKIC")
+  notes              String?
   // Sumy snapshot (przeliczane przy każdej zmianie pozycji)
-  subtotalNet         Float @default(0)  // suma netto przed rabatem
-  subtotalGross       Float @default(0)  // suma brutto przed rabatem
-  totalDiscountNet    Float @default(0)
-  totalDiscountGross  Float @default(0)
-  totalNet            Float @default(0)  // po rabacie
-  totalGross          Float @default(0)  // po rabacie
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  subtotalNet        Float     @default(0) // suma netto przed rabatem
+  subtotalGross      Float     @default(0) // suma brutto przed rabatem
+  totalDiscountNet   Float     @default(0)
+  totalDiscountGross Float     @default(0)
+  totalNet           Float     @default(0) // po rabacie
+  totalGross         Float     @default(0) // po rabacie
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
   client Client?     @relation(fields: [clientId], references: [id], onDelete: SetNull)
   items  OfferItem[]
 }
 
+// =============================================================
+// MODUŁ: FINANSE (faktury zakupowe + workflow akceptacji)
+// =============================================================
+// Zastępuje plik PŁATNOŚCI 2026.xlsx (siostra Marta wprowadza, tata Bohdan
+// akceptuje kolorem). Patrz docs/finanse-rozpoczecie.md.
+//
+// Workflow: WPROWADZONA → DO_ZATWIERDZENIA → ZATWIERDZONA/ODRZUCONA → OPLACONA
+// Permissions: 'finanse' (czyta+wprowadza), 'finanse.approve' (zatwierdza).
+
+// category: DOSTAWCA | BANK | LEASING | URZAD | PODWYKONAWCA | INNE
+model Vendor {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  shortCode String?
+  nip       String?
+  category  String   @default("DOSTAWCA")
+  notes     String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  invoices PurchaseInvoice[]
+}
+
+// status: WPROWADZONA | DO_ZATWIERDZENIA | ZATWIERDZONA | ZAPLANOWANA | OPLACONA | CZESCIOWO_OPLACONA | ODRZUCONA | ANULOWANA
+//
+// Workflow:
+//  WPROWADZONA       — Marta wpisała, nie wysłała jeszcze do akceptacji
+//  DO_ZATWIERDZENIA  — w inboksie Bohdana
+//  ZATWIERDZONA      — Bohdan zaakceptował, Marta może płacić
+//  ZAPLANOWANA       — Marta zleciła przelew, ale nie wykonano (opcjonalne)
+//  OPLACONA          — Σ(payments.amount) >= amountGross
+//  CZESCIOWO_OPLACONA — 0 < Σ(payments) < amountGross
+//  ODRZUCONA         — Bohdan odrzucił (komentarz wymagany); Marta poprawia → wraca do WPROWADZONA
+//  ANULOWANA         — faktura skorygowana, anulowana po stronie dostawcy
+//
+// importedFromColor — jaki kolor wiersza był w xlsx przy imporcie (do auditu mapowania).
+// subVendor — dla zakładek STAFFA/MURARZ gdzie w kol A jest subkontrahent (PATRIMEX, AL-BUD).
+model PurchaseInvoice {
+  id                String    @id @default(cuid())
+  number            String // numer faktury od dostawcy (FV)
+  vendorId          String
+  subVendor         String?
+  issueDate         DateTime
+  dueDate           DateTime?
+  vatRate           Float // 0.23, 0.08, 0.05
+  amountGross       Float
+  amountNet         Float
+  amountVat         Float
+  currency          String    @default("PLN")
+  status            String    @default("WPROWADZONA")
+  description       String? // np. "murowanie ścian I piętro" (z MURARZ.M)
+  notes             String?
+  // Pola dodatkowe — w większości faktur puste, używane głównie dla MURARZ
+  deposit           Float?
+  buildingCosts     Float?
+  electricity       Float?
+  // Pola powiązań przyszłościowych (Faza 2)
+  investmentId      String? // przyszłość: powiązanie z inwestycją
+  saldeoId          String? // ID faktury w Saldeo (po integracji w Fazie 2)
+  // Audit
+  importedFromColor String? // np. "FFE6B8AF" — z którego koloru w xlsx
+  importSheet       String? // np. "STAFFA" — z której zakładki
+  importRow         Int? // numer wiersza w xlsx (debug)
+  createdById       String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  vendor      Vendor                      @relation(fields: [vendorId], references: [id], onDelete: Restrict)
+  createdBy   User?                       @relation("InvoiceCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  payments    PurchaseInvoicePayment[]
+  approvals   PurchaseInvoiceApproval[]
+  attachments PurchaseInvoiceAttachment[]
+
+  @@unique([vendorId, number])
+  @@index([status, dueDate])
+  @@index([vendorId, issueDate])
+  @@index([dueDate])
+}
+
+// Bookkeeping płatności — 1 faktura = N płatności (wspiera częściowe).
+// Płatności NIE wymagają osobnej akceptacji (decyzja 2026-05-17 — Bohdan
+// akceptuje całą fakturę raz, Marta dowolnie wiele płatności do niej).
+model PurchaseInvoicePayment {
+  id          String   @id @default(cuid())
+  invoiceId   String
+  amount      Float
+  paidAt      DateTime
+  bankAccount String? // skrót banku: ING, Santander, mBank...
+  reference   String? // tytuł przelewu
+  notes       String?
+  createdById String?
+  createdAt   DateTime @default(now())
+
+  invoice   PurchaseInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  createdBy User?           @relation("PaymentCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([invoiceId])
+  @@index([paidAt])
+}
+
+// action: SUBMITTED | APPROVED | REJECTED | RESET | EDITED
+// Audit trail decyzji akceptacyjnych. SUBMITTED = Marta wysłała do akceptacji.
+// APPROVED/REJECTED = decyzja Bohdana. RESET = cofnięcie do WPROWADZONA (np. po edycji).
+model PurchaseInvoiceApproval {
+  id        String   @id @default(cuid())
+  invoiceId String
+  action    String
+  comment   String?
+  userId    String?
+  userEmail String? // snapshot na wypadek usunięcia usera
+  createdAt DateTime @default(now())
+
+  invoice PurchaseInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  user    User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([invoiceId, createdAt])
+}
+
+model PurchaseInvoiceAttachment {
+  id           String   @id @default(cuid())
+  invoiceId    String
+  filename     String
+  url          String // ścieżka pod /uploads/finanse/...
+  mimeType     String
+  size         Int?
+  uploadedById String?
+  uploadedAt   DateTime @default(now())
+
+  invoice    PurchaseInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  uploadedBy User?           @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+
+  @@index([invoiceId])
+}
+
 // Pozycja oferty — lokal/parking/komórka itp. Snapshot cen z chwili dodania.
 // discountType: PCT (procent) | AMOUNT_NET (kwota netto)
 model OfferItem {
-  id          String  @id @default(cuid())
-  offerId     String
-  unitId      String?
-  position    Int     @default(0)
+  id               String  @id @default(cuid())
+  offerId          String
+  unitId           String?
+  position         Int     @default(0)
   // Snapshot z Unit (lub custom)
-  label       String  // np. "M-01" lub własny opis
-  unitType    String  // MIESZKALNY | USLUGOWY | PARKING | GARAZ | KOMORKA
-  area        Float   @default(0)
-  pricePerSqmNet   Float @default(0)
-  pricePerSqmGross Float @default(0)
-  priceNet    Float   @default(0)  // cena całkowita pozycji netto (przed rabatem)
-  priceGross  Float   @default(0)
-  vatRate     Int     @default(8)
+  label            String // np. "M-01" lub własny opis
+  unitType         String // MIESZKALNY | USLUGOWY | PARKING | GARAZ | KOMORKA
+  area             Float   @default(0)
+  pricePerSqmNet   Float   @default(0)
+  pricePerSqmGross Float   @default(0)
+  priceNet         Float   @default(0) // cena całkowita pozycji netto (przed rabatem)
+  priceGross       Float   @default(0)
+  vatRate          Int     @default(8)
   // Rabat
-  discountType  String @default("PCT")
-  discountValue Float  @default(0)  // w PCT albo w zł netto
-  discountNet   Float  @default(0)  // wyliczony rabat netto
-  discountGross Float  @default(0)
+  discountType     String  @default("PCT")
+  discountValue    Float   @default(0) // w PCT albo w zł netto
+  discountNet      Float   @default(0) // wyliczony rabat netto
+  discountGross    Float   @default(0)
   // Wartości końcowe
-  finalNet    Float   @default(0)
-  finalGross  Float   @default(0)
-  notes       String?
+  finalNet         Float   @default(0)
+  finalGross       Float   @default(0)
+  notes            String?
 
   offer Offer @relation(fields: [offerId], references: [id], onDelete: Cascade)
   unit  Unit? @relation(fields: [unitId], references: [id], onDelete: SetNull)

@@ -56,7 +56,11 @@
       "WebFetch(domain:www.lh.pl)",
       "WebSearch",
       "WebFetch(domain:rankinghostingow.pl)",
-      "WebFetch(domain:cyberfolks.pl)"
+      "WebFetch(domain:cyberfolks.pl)",
+      "Bash(python)",
+      "Bash(DATABASE_URL=\"postgresql://fake:fake@localhost:5432/fake\" npx prisma format)",
+      "Bash(cp \"C:\\\\AplikacjeAI\\\\CodeCRM\\\\prisma\\\\schema.prisma\" \"C:\\\\AplikacjeAI\\\\CodeCRM\\\\.claude\\\\worktrees\\\\crazy-kalam-a9de75\\\\prisma\\\\schema.prisma\")",
+      "Bash(DATABASE_URL=\"postgresql://fake:fake@localhost:5432/fake\" npx prisma generate)"
     ]
   }
 }

@@ -17,6 +17,7 @@ Zanim zaczniesz pracę nad konkretnym modułem — przeczytaj odpowiedni plik. T
 
 ### Otwarte sprawy (do dokończenia)
 
+- **`docs/finanse-rozpoczecie.md`** — 🔴 **PRIORYTET WYSOKI** (nowy moduł). Zastąpienie `PŁATNOŚCI 2026.xlsx` (siostra wprowadza, Bohdan akceptuje kolorem) modułem **Finanse** w aplikacji. Decyzje 2026-05-17: pełna Faza 1 (model danych + 7 widoków + workflow akceptacji + importer xlsx), księgowość zewnętrzna (eksport do biura), import całej historii z pliku xlsx. Następny krok: schema Prisma + importer CLI.
 - **`docs/integracja-3destate-rozpoczecie.md`** — 🔴 **PRIORYTET WYSOKI** (przed odpaleniem systemu). Integracja po API z matrycą 3D Estate (`novastaffa.pl/mieszkania`) — ceny i statusy lokali. Bloker: dokumentacja + klucz API od 3D Estate. Claude nie komunikuje się z nimi bezpośrednio — user jest kanałem.
 - **`docs/raportowanie-dane-gov-rozpoczecie.md`** — 🔴 **PRIORYTET WYSOKI** (przed odpaleniem systemu). **Obowiązek ustawowy** — codzienne raportowanie cen lokali na dane.gov.pl. Pierwszy krok: research publicznego formatu/schematu. Wymaga modelu `PriceHistory` (wspólny z 3D Estate).
 - **`docs/karty-mieszkan-status.md`** — **🟢 ZAMKNIĘTE 2026-05-13** (zostawiam plik dla historii; jest 1 mini-TODO: poprawić w UI 2 literówki w `Unit.floor` — `B1.2.M18` 3→2, `B1.4.M59` 5→4).
