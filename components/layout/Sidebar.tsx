@@ -207,9 +207,10 @@ function workspaceForPath(pathname: string): string | null {
 export function Sidebar() {
   const pathname = usePathname()
   const router = useRouter()
-  const { data: session } = useSession()
+  const { data: session, status } = useSession()
   const userIsAdmin = isAdmin(session?.user?.email)
   const userPermissions = (session?.user as any)?.permissions as string[] | undefined
+  const sessionLoading = status === 'loading'
 
   // Workspace ulubiony (zapamiętany w localStorage) — używany gdy pathname nie pasuje
   // do żadnego workspace'a (np. /dashboard, /profil).
@@ -242,15 +243,21 @@ export function Sidebar() {
     return { ...ws, sections }
   }
 
-  const visibleWorkspaces = WORKSPACES.map(filterByPermissions).filter(
-    (ws) => ws.sections.length > 0,
-  )
+  // W trakcie ładowania sesji POKAZUJEMY wszystkie workspace'y żeby uniknąć
+  // pustego sidebara (gdy useSession() zwraca undefined). Po loaded — filtrujemy
+  // normalnie. Inaczej user ma 1-2 sekundy pustego menu po każdym odświeżeniu.
+  const visibleWorkspaces = sessionLoading
+    ? WORKSPACES.filter((ws) => ws.sections.length > 0)
+    : WORKSPACES.map(filterByPermissions).filter((ws) => ws.sections.length > 0)
   const activeWs =
     visibleWorkspaces.find((w) => w.id === activeWsId) ?? visibleWorkspaces[0] ?? null
 
-  // Pulpit — widoczny dla każdego z permission 'dashboard' (lub admin)
+  // Pulpit — widoczny dla każdego z permission 'dashboard' (lub admin).
+  // W loading state pokazujemy zawsze, żeby user nie miał pustego sidebara
+  // gdy useSession() jeszcze nie zwróciło danych.
   const dashboardRequired = getRequiredPermission(DASHBOARD_ITEM.href)
   const showDashboard =
+    sessionLoading ||
     userIsAdmin ||
     dashboardRequired === null ||
     (dashboardRequired !== 'admin' && (userPermissions || []).includes(dashboardRequired))
