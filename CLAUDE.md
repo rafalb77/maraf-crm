@@ -6,6 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Zanim zaczniesz pracę nad konkretnym modułem — przeczytaj odpowiedni plik. Tam są **decyzje projektowe**, mapowania danych, pułapki i otwarte sprawy. Pliki:
 
+- **`docs/system-core.md`** — **🔥 KRĘGOSŁUP SYSTEMU**: architektura (Coolify+OVH+Docker prostym językiem), stan bezpieczeństwa po pakiecie z 2026-05-15 (security headers, rate limit, audit log, sesja 8h), **checklist przed wprowadzeniem prawdziwych danych klientów**, backup w OVH Object Storage, faza 2 (2FA, szyfrowanie PESEL, DSR). Pierwszy plik do przeczytania w nowej sesji która dotyczy infrastruktury/bezpieczeństwa.
 - **`docs/przeroby-decyzje.md`** — moduł Przeroby (porównanie Maraf vs Konrad, mapowania kondygnacji, idempotencja reimportu)
 - **`docs/oferty-decyzje.md`** — kalkulator ofert, rabat brutto/netto, druk PDF, wysyłka mailem
 - **`docs/dashboard-decyzje.md`** — TopWidget (powitanie/news/pogoda), RSS, Open-Meteo
