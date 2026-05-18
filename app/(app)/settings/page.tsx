@@ -31,9 +31,17 @@ export default async function SettingsPage({
 
   return (
     <div className="p-8 max-w-5xl">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Ustawienia</h1>
-        <p className="text-gray-500 text-sm mt-1">Konfiguracja integracji i parametrów systemu</p>
+      <div className="mb-6 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Ustawienia</h1>
+          <p className="text-gray-500 text-sm mt-1">Konfiguracja integracji i parametrów systemu</p>
+        </div>
+        <a
+          href="/settings/audit-log"
+          className="text-sm text-blue-600 hover:text-blue-700 underline whitespace-nowrap"
+        >
+          📋 Rejestr działań →
+        </a>
       </div>
 
       {searchParams.success === 'calendar_connected' && (

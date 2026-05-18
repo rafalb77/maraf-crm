@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { prisma } from '@/lib/prisma'
+import { audit, extractRequestMeta } from '@/lib/audit-log'
 
 export const runtime = 'nodejs'
 
@@ -62,6 +63,18 @@ export async function POST(req: NextRequest) {
         resetToken: null,
         resetTokenExpiry: null,
       },
+    })
+
+    const meta = extractRequestMeta(req)
+    void audit({
+      action: 'PASSWORD_RESET',
+      userId: user.id,
+      userEmail: user.email,
+      entity: 'User',
+      entityId: user.id,
+      path: req.nextUrl.pathname,
+      ip: meta.ip,
+      userAgent: meta.userAgent,
     })
 
     return NextResponse.json({ ok: true })

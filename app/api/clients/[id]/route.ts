@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { audit, extractRequestMeta } from '@/lib/audit-log'
 
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions)
@@ -20,6 +21,20 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   })
 
   if (!client) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+
+  // RODO audit — kto, kiedy oglądał pełne dane klienta (z PESEL/idNumber).
+  const meta = extractRequestMeta(req)
+  void audit({
+    action: 'VIEW_CLIENT',
+    userId: (session.user as any)?.id,
+    userEmail: session.user?.email,
+    entity: 'Client',
+    entityId: client.id,
+    path: req.nextUrl.pathname,
+    ip: meta.ip,
+    userAgent: meta.userAgent,
+  })
+
   return NextResponse.json(client)
 }
 
@@ -28,6 +43,11 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await req.json()
+  // Pobierz stare dane do diff w audit
+  const before = await prisma.client.findUnique({
+    where: { id: params.id },
+    select: { firstName: true, lastName: true, email: true, phone: true, pesel: true, status: true },
+  })
   const client = await prisma.client.update({
     where: { id: params.id },
     data: {
@@ -50,6 +70,19 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     },
   })
 
+  const meta = extractRequestMeta(req)
+  void audit({
+    action: 'UPDATE',
+    userId: (session.user as any)?.id,
+    userEmail: session.user?.email,
+    entity: 'Client',
+    entityId: client.id,
+    path: req.nextUrl.pathname,
+    ip: meta.ip,
+    userAgent: meta.userAgent,
+    metadata: { before, statusChange: before?.status !== client.status ? { from: before?.status, to: client.status } : undefined },
+  })
+
   return NextResponse.json(client)
 }
 
@@ -57,6 +90,25 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+  // Snapshot do audit przed usunięciem
+  const before = await prisma.client.findUnique({
+    where: { id: params.id },
+    select: { firstName: true, lastName: true, email: true, status: true },
+  })
   await prisma.client.delete({ where: { id: params.id } })
+
+  const meta = extractRequestMeta(req)
+  void audit({
+    action: 'DELETE',
+    userId: (session.user as any)?.id,
+    userEmail: session.user?.email,
+    entity: 'Client',
+    entityId: params.id,
+    path: req.nextUrl.pathname,
+    ip: meta.ip,
+    userAgent: meta.userAgent,
+    metadata: { deletedSnapshot: before },
+  })
+
   return NextResponse.json({ success: true })
 }

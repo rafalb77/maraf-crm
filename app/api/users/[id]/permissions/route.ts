@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { isAdmin } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
 import { ALL_PERMISSIONS } from '@/lib/permissions'
+import { audit, extractRequestMeta } from '@/lib/audit-log'
 
 export const runtime = 'nodejs'
 
@@ -38,10 +39,32 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     ),
   )
 
+  // Pobierz poprzednie permissions dla diff w audit
+  const before = await prisma.user.findUnique({
+    where: { id },
+    select: { permissions: true, email: true },
+  })
   const updated = await prisma.user.update({
     where: { id },
     data: { permissions: cleaned },
     select: { id: true, email: true, permissions: true },
+  })
+
+  const meta = extractRequestMeta(req)
+  void audit({
+    action: 'PERMISSION_CHANGE',
+    userId: (session.user as any)?.id,
+    userEmail: session.user.email,
+    entity: 'User',
+    entityId: updated.id,
+    path: req.nextUrl.pathname,
+    ip: meta.ip,
+    userAgent: meta.userAgent,
+    metadata: {
+      targetEmail: updated.email,
+      before: before?.permissions ?? [],
+      after: updated.permissions,
+    },
   })
 
   return NextResponse.json(updated)

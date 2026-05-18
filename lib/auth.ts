@@ -2,6 +2,22 @@ import { NextAuthOptions } from 'next-auth'
 import CredentialsProvider from 'next-auth/providers/credentials'
 import { prisma } from './prisma'
 import bcrypt from 'bcryptjs'
+import { rateLimit, resetRateLimit } from './rate-limit'
+import { audit } from './audit-log'
+
+/**
+ * Wyciąga IP klienta z nagłówków (NextAuth daje `req.headers` w authorize).
+ * Coolify/Traefik dodaje x-forwarded-for; req.url ma 0.0.0.0:3000 (wewnętrzne).
+ */
+function extractIp(req: { headers?: Record<string, string | string[] | undefined> } | undefined): string {
+  const h = req?.headers || {}
+  const xff = h['x-forwarded-for']
+  if (typeof xff === 'string') return xff.split(',')[0].trim()
+  if (Array.isArray(xff) && xff[0]) return String(xff[0]).split(',')[0].trim()
+  const xri = h['x-real-ip']
+  if (typeof xri === 'string') return xri
+  return 'unknown'
+}
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -11,23 +27,63 @@ export const authOptions: NextAuthOptions = {
         email: { label: 'Email', type: 'email' },
         password: { label: 'Hasło', type: 'password' },
       },
-      async authorize(credentials) {
+      async authorize(credentials, req) {
         if (!credentials?.email || !credentials?.password) return null
+        const email = credentials.email.trim().toLowerCase()
+        const ip = extractIp(req as any)
 
-        const user = await prisma.user.findUnique({
-          where: { email: credentials.email },
-        })
+        // Rate limit per email — chroni konkretne konto przed credential stuffing
+        // (atakujący zna mail, próbuje hasła). 5 prób / 15 min.
+        const emailLimit = rateLimit(`signin:email:${email}`, 5, 15 * 60 * 1000)
+        if (!emailLimit.allowed) {
+          const mins = Math.ceil(emailLimit.retryAfterMs / 60000)
+          console.warn(`[auth.signin] rate limit email=${email} ip=${ip} retry=${mins}min`)
+          throw new Error(`Za dużo prób logowania na to konto. Spróbuj ponownie za ${mins} min.`)
+        }
+        // Rate limit per IP — chroni przed brute force z jednego źródła (atakujący
+        // próbuje wielu mailów). 20 prób / 15 min — wyższy niż email bo legalni
+        // userzy w jednym biurze mają wspólne IP.
+        const ipLimit = rateLimit(`signin:ip:${ip}`, 20, 15 * 60 * 1000)
+        if (!ipLimit.allowed) {
+          const mins = Math.ceil(ipLimit.retryAfterMs / 60000)
+          console.warn(`[auth.signin] rate limit ip=${ip} retry=${mins}min`)
+          throw new Error(`Za dużo prób logowania z tego adresu. Spróbuj ponownie za ${mins} min.`)
+        }
 
-        if (!user) return null
+        const user = await prisma.user.findUnique({ where: { email } })
+        if (!user) {
+          // Audytujemy próby na nieistniejące maile — sygnalizują enumerację
+          // kont (atakujący próbuje zgadywać kto ma konto). Fire-and-forget.
+          void audit({ action: 'LOGIN_FAIL', userEmail: email, ip, metadata: { reason: 'no_user' } })
+          return null
+        }
 
         const passwordValid = await bcrypt.compare(credentials.password, user.password)
-        if (!passwordValid) return null
+        if (!passwordValid) {
+          void audit({
+            action: 'LOGIN_FAIL',
+            userId: user.id,
+            userEmail: email,
+            ip,
+            metadata: { reason: 'bad_password' },
+          })
+          return null
+        }
 
+        // Sukces — wyczyść licznik prób dla tego emaila (atakującym zostaje IP)
+        resetRateLimit(`signin:email:${email}`)
+        void audit({ action: 'LOGIN_SUCCESS', userId: user.id, userEmail: email, ip })
         return { id: user.id, email: user.email, name: user.name }
       },
     }),
   ],
-  session: { strategy: 'jwt' },
+  session: {
+    strategy: 'jwt',
+    // 8h zamiast domyślnych 30 dni — CRM przechowuje wrażliwe dane (PESEL, kontakty,
+    // umowy), więc utracony laptop = max 8h ekspozycji zamiast miesiąca.
+    // User loguje się rano, sesja trzyma cały dzień pracy. Po 8h logowanie ponowne.
+    maxAge: 8 * 60 * 60,
+  },
   pages: { signIn: '/auth/signin' },
   callbacks: {
     async jwt({ token, user, trigger }) {

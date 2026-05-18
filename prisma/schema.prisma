@@ -215,6 +215,43 @@ model Settings {
   value String
 }
 
+// =============================================================
+// AUDIT LOG — rejestr dostępu / zmian na danych wrażliwych
+// =============================================================
+// RODO Art. 30/32 — administrator musi wykazać kto, kiedy, jakie dane przeglądał
+// lub zmieniał. Bez tego po incydencie nie da się oszacować zakresu wycieku.
+//
+// Logowanie selektywne (NIE każdy request), żeby tabela nie eksplodowała:
+//  - LOGIN_SUCCESS / LOGIN_FAIL  — z lib/auth.ts authorize()
+//  - VIEW_CLIENT                  — GET /api/clients/[id] (kto oglądał dane konkretnego klienta z PESEL)
+//  - CREATE / UPDATE / DELETE     — POST/PATCH/DELETE na wrażliwych encjach
+//  - EXPORT                       — pobranie PDF/xlsx z danymi klientów
+//  - PERMISSION_CHANGE            — admin zmienił komuś permissions
+//
+// action: enum-string. entity/entityId: na co działanie się odnosiło (np. Client/cli_xyz).
+// metadata: opcjonalny JSON z dodatkowymi info (np. starych wartości przy UPDATE).
+//
+// Retencja: na razie BEZ auto-cleanup. RODO sugeruje przynajmniej 12 mc dla audit
+// (proporcjonalnie do ryzyka). Po roku można dodać cron usuwający > 12 mc.
+model AuditLog {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  userId    String?  // null gdy LOGIN_FAIL bez znanego usera
+  userEmail String?  // duplikat do filtrowania (nawet po usunięciu Usera log zostaje)
+  action    String   // LOGIN_SUCCESS | LOGIN_FAIL | VIEW_CLIENT | CREATE | UPDATE | DELETE | EXPORT | PERMISSION_CHANGE | ...
+  entity    String?  // 'Client' | 'Unit' | 'Offer' | 'Contract' | 'User' | 'PurchaseInvoice' | ...
+  entityId  String?
+  path      String?  // ścieżka URL żądania (do debugu)
+  ip        String?
+  userAgent String?
+  metadata  String?  // JSON stringified — old/new values, reason, etc.
+
+  @@index([createdAt])
+  @@index([userId, createdAt])
+  @@index([entity, entityId])
+  @@index([action, createdAt])
+}
+
 // type: REZERWACYJNA | DEWELOPERSKA | PRZENIESIENIA
 // status: W_PRZYGOTOWANIU | PODPISANA | ROZWIAZANA | ANULOWANA
 model Contract {

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { audit, extractRequestMeta } from '@/lib/audit-log'
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions)
@@ -59,6 +60,19 @@ export async function POST(req: NextRequest) {
       source: body.source || null,
       notes: body.notes || null,
     },
+  })
+
+  const meta = extractRequestMeta(req)
+  void audit({
+    action: 'CREATE',
+    userId: (session.user as any)?.id,
+    userEmail: session.user?.email,
+    entity: 'Client',
+    entityId: client.id,
+    path: req.nextUrl.pathname,
+    ip: meta.ip,
+    userAgent: meta.userAgent,
+    metadata: { firstName: client.firstName, lastName: client.lastName },
   })
 
   return NextResponse.json(client, { status: 201 })
