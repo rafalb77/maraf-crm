@@ -210,7 +210,13 @@ export function Sidebar() {
   const { data: session, status } = useSession()
   const userIsAdmin = isAdmin(session?.user?.email)
   const userPermissions = (session?.user as any)?.permissions as string[] | undefined
-  const sessionLoading = status === 'loading'
+  // sessionNotReady = nie mamy potwierdzonych danych sesji. Obejmuje WSZYSTKIE
+  // stany inne niż 'authenticated': 'loading' (świeży refresh), 'unauthenticated'
+  // (cookie wygasł / fetch sesji padł / wolny network). W każdym z nich nie znamy
+  // permissions usera — pokazujemy wszystko niż pusty sidebar; gdy user kliknie
+  // niedostępną pozycję, middleware go przekieruje. Po loaded sesji filtrujemy
+  // normalnie.
+  const sessionNotReady = status !== 'authenticated'
 
   // Workspace ulubiony (zapamiętany w localStorage) — używany gdy pathname nie pasuje
   // do żadnego workspace'a (np. /dashboard, /profil).
@@ -243,10 +249,11 @@ export function Sidebar() {
     return { ...ws, sections }
   }
 
-  // W trakcie ładowania sesji POKAZUJEMY wszystkie workspace'y żeby uniknąć
-  // pustego sidebara (gdy useSession() zwraca undefined). Po loaded — filtrujemy
-  // normalnie. Inaczej user ma 1-2 sekundy pustego menu po każdym odświeżeniu.
-  const visibleWorkspaces = sessionLoading
+  // Gdy sesja niepotwierdzona (loading / unauthenticated / fetch padł) POKAZUJEMY
+  // wszystkie workspace'y żeby uniknąć pustego sidebara. Po authenticated —
+  // filtrujemy normalnie. Inaczej user ma flashe pustego menu albo zostaje z nim
+  // na stałe gdy session fetch nie wraca.
+  const visibleWorkspaces = sessionNotReady
     ? WORKSPACES.filter((ws) => ws.sections.length > 0)
     : WORKSPACES.map(filterByPermissions).filter((ws) => ws.sections.length > 0)
   const activeWs =
@@ -257,7 +264,7 @@ export function Sidebar() {
   // gdy useSession() jeszcze nie zwróciło danych.
   const dashboardRequired = getRequiredPermission(DASHBOARD_ITEM.href)
   const showDashboard =
-    sessionLoading ||
+    sessionNotReady ||
     userIsAdmin ||
     dashboardRequired === null ||
     (dashboardRequired !== 'admin' && (userPermissions || []).includes(dashboardRequired))
