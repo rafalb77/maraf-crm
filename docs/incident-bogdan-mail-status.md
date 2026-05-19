@@ -1,6 +1,6 @@
 # Incident report — skrzynka `bogdan.boruch@maraf.pl` (2026-05-18)
 
-**Status**: 🟡 częściowo opanowane. Hasło zmienione, atakujący odcięty od SMTP. WordPress cleanup wykonany 2026-05-19 (sekcja „Update 2026-05-19" niżej). Pozostały zadania po stronie usera (skan komputera, zmiana haseł na innych serwisach, audyt maraf.pl, decyzja o migracji poczty).
+**Status**: 🟡 częściowo opanowane. Hasło zmienione, atakujący odcięty od SMTP. WordPress cleanup wykonany 2026-05-19 (sekcja „Update 2026-05-19" niżej). Maile od początku roku które „zniknęły" odnalezione w Koszu Outlooka — backup PST + przywrócenie zaplanowane (sekcja „Update 2026-05-19 (wieczór)"). Hipoteza wycieku hasła z publicznego repo GitHub sprawdzona i odrzucona — pozostaje Synthient credential stuffing. Pozostały zadania po stronie usera (skan komputera, zmiana haseł na innych serwisach, audyt maraf.pl, czekanie na logi IMAP od home.pl, decyzja o migracji poczty).
 
 **Plik dla nowej sesji** — gdy ten temat wraca, czytaj od góry, lista TODO na dole.
 
@@ -166,12 +166,73 @@ Wysłany 2026-05-19: prośba o skasowanie katalogu `/do-usuniecia/` (FileZilla n
 
 ---
 
+## Update 2026-05-19 (wieczór) — odkryte skasowane maile + sprawdzenie git + nowy timeline
+
+### Skasowane maile od początku roku — odzyskane w Koszu Outlooka
+
+Rafał wieczorem 2026-05-19 odkrył, że **wszystkie maile od początku roku zniknęły** ze skrzynki bogdan.boruch@maraf.pl (zarówno z Inbox, jak i z serwera). Pierwsza reakcja: ocena 🔴 — atakujący miał pełny dostęp IMAP + skasował. Po sprawdzeniu Outlooka Bogdana: **maile są w folderze Kosz/Deleted Items** (move-to-trash, nie permanent delete). **Bogdan zarzeka się, że nie kasował.**
+
+**Krytyczne instrukcje przekazane userowi**:
+- NIE OPRÓŻNIAĆ Kosza
+- Wyłączyć auto-empty kosza (Outlook → Options → Advanced → odznacz „Empty Deleted Items folder when exiting Outlook")
+- Backup PST całego konta zanim Outlook się zsynchronizuje (File → Open & Export → Export to .pst)
+- Przywrócić maile z Kosza do Inboxu (Ctrl+A → Move → Inbox)
+
+**Trzy realne scenariusze**:
+1. **Bogdan jednak skasował nieświadomie** — najbardziej prawdopodobne (Ctrl+A → Del, „pokaż nieprzeczytane" + zaznacz wszystko + przenieś, etc.)
+2. **Reguła w Outlooku** — auto-przeniesienie do kosza (sprawdzić w Outlook → File → Manage Rules & Alerts)
+3. **Atakujący IMAP** — jeśli to samo hasło SMTP=IMAP=webmail w home.pl, atakujący technicznie miał dostęp. Kasacja do Kosza (nie Shift+Delete) byłaby dziwna jak na bota, ale możliwa. **Mniej prawdopodobne**
+
+To rozstrzygną **logi home.pl** (zażądane w tickecie). Login IMAP z obcego IP w okresie kasacji → scenariusz 3.
+
+### Nowy timeline ataku — wcześniejszy niż zakładaliśmy
+
+Rafał znalazł nowy ślad w mailach Bogdana: **niedziela 2026-05-17 o 11:54 — test SMTP z bogdan.boruch@maraf.pl do bogdan.boruch@maraf.pl**. To **dzień przed** głównym odkryciem incydentu.
+
+To **klasyczny pattern bota credential stuffing**: po znalezieniu pasujących credentials bot najpierw testuje SMTP (wysyła test mail do siebie potwierdzający że relay działa), POTEM rozpoczyna masówkę. Czyli:
+
+```
+17.05 (niedziela) 11:54 → atakujący testuje SMTP
+17-18.05            → atakujący rozpoczyna masówkę
+18.05 (poniedziałek)→ 969 bounce'ów zauważone w skrzynce, odkrycie incydentu
+18.05               → zmiana hasła, atakujący odcięty od SMTP
+19.05               → echo bounce'ów (24-72h retry zewnętrznych mailerów)
+19.05               → diagnostyka, WordPress cleanup, odkrycie skasowanych maili
+```
+
+R00TXATTACKER (handle z bounce'ów) to znany pattern handlu skradzionymi SMTP credentials na darknetach. Sygnatura zgodna.
+
+### Hipoteza „wyciek z publicznego repo na GitHub" — SPRAWDZONA i ODRZUCONA
+
+Rafał zaproponował hipotezę: repo było **publiczne do 2026-05-08** (10 dni przed atakiem), może hasło Bogdana wyciekło stamtąd przez bot-scrapery GitHub'a.
+
+Sprawdziłem git history:
+- ❌ `.env` nigdy nie był commitowany — tylko `.env.example` z placeholderami (`zmien-natychmiast-po-pierwszym-logowaniu`)
+- ❌ Brak hardcoded credentials w kodzie (sprawdzone pattern `password = "..."` z prawdziwymi wartościami)
+- ❌ `bogdan.boruch@maraf.pl` nigdy nie występował w żadnym pliku w historii repo — pierwsze wzmianki to `docs/incident-bogdan-mail-status.md` z 2026-05-19 (po incydencie)
+- ❌ `prisma/seed.ts` używa `process.env.ADMIN_PASSWORD`, brak hardcoded
+- ✅ `data/karty/` (karty mieszkań z cenami) dodane 2026-05-13 — **po** zmianie repo na private. Nigdy nie były publiczne.
+- ⚠️ Publiczne w okresie 2026-05-05 → 2026-05-08: kod aplikacji + `data/przedmiary/maraf.xlsx` (obmiary inżynieryjne, nie credentials ani dane klientów)
+
+**Konkluzja**: hasło Bogdana **nigdy nie istniało w repo**. Publiczne repo wyciekło co innego (kod, struktura aplikacji, plik obmiarów budowlanych) — biznesowo niefortunne, ale nie wyjaśnia kompromitacji SMTP.
+
+**Najbardziej prawdopodobna hipoteza pozostaje pierwotną**: **Synthient credential stuffing**. Hasło Bogdana wyciekło z **innego serwisu** (jakieś forum / shop / social media gdzie używał tego samego hasła) — Synthient breach na haveibeenpwned to potwierdza (3 wycieki dla tego adresu).
+
+### Nowe lekcje
+→ Dopisane do sekcji „Lessons learned" na końcu pliku (punkty #9-11).
+
+---
+
 ## Otwarte sprawy po 2026-05-19
 
 ### 🔴 Priorytet (przed full go-live CRM)
 
 - [ ] **Audyt wp-admin maraf.pl** — wersja WP, lista aktywnych pluginów, instalacja security pluginów (Wordfence/AIOS jeśli brak), lista administratorów (szukanie wirusowych jak na rafalboruch.com w marcu), sprawdzenie co konkretnie zmodyfikowano dziś (cache vs backdoor), konfiguracja CloudFW (widoczna w zakładkach Chrome'a Rafała). **Realne ryzyko: powtórka marcowego scenariusza, tym razem na maraf.pl**.
 - [ ] **rafalboruch.com modyfikowane 2026-05-18** mimo że Rafał nic nie robił od miesiąca — wejść w Wordfence Live Traffic + ostatnie logowania administratora w `/administracja`. Może to UpdraftPlus / WP auto-update (legit), może nowy atak po marcowym czyszczeniu.
+- [ ] **Backup PST + przywrócenie maili Bogdana** z Outlook Kosza do Inboxu (Bogdan: NIE OPRÓŻNIAĆ KOSZA, wyłączyć auto-empty w Options → Advanced, eksport PST, potem Move → Inbox). Po przywróceniu zweryfikować że maile wróciły też na serwer (jeśli IMAP).
+- [ ] **Czekać na logi IMAP od home.pl** (ticket wysłany 2026-05-19) — to rozstrzygnie scenariusz kasacji maili: Bogdan user-error vs reguła Outlook vs atakujący IMAP. Jeśli pokażą login z obcego IP → potencjalne RODO, konsultacja z prawnikiem/IOD.
+- [ ] **Sprawdzić reguły w Outlook** (File → Manage Rules & Alerts) — wykluczyć auto-delete / auto-move
+- [ ] **Sprawdzić typ konta pocztowego** Bogdana (IMAP/POP3 — File → Account Settings) — wpływa na to czy lokalna kopia synchronizuje się z serwerem
 
 ### 🟡 Pilne (w ciągu tygodnia)
 
@@ -197,6 +258,9 @@ Wysłany 2026-05-19: prośba o skasowanie katalogu `/do-usuniecia/` (FileZilla n
 6. **Inwentaryzacja hostingu raz na rok** (lessons z 2026-05-19). Konto home.pl Rafała miało 4 instalacje WP — 2 zombie z 2013/2014 bez przypisanej domeny, 1 zapomniana fotografia-lodz.pl. Każda = nieaktualizowany attack surface. **Co najmniej raz na 6 miesięcy** przejrzeć panel autoinstalatora + `/www` w FTP — wszystko czego nie używasz odinstalować.
 7. **Avast (i podobne AV) MITM-uje HTTPS** (lessons z 2026-05-19). Jeśli widzisz dziwne problemy z certem, sprawdź najpierw issuer — jeśli `Avast Web/Mail Shield Root` → to Twój lokalny AV, nie serwer. Dla dewelopera robi to debugowanie potwornie trudnym. Windows Defender nie robi MITM — zalecany.
 8. **Echa bounce'ów po ataku trwają 24-72h** (lessons z 2026-05-19). Mailery zewnętrzne ponawiają próby dostarczenia przez dni — bounce'y wracają z opóźnieniem nawet PO odcięciu atakującego. Nie panikować i nie zmieniać hasła kolejny raz tylko dlatego że bounce'y wciąż lecą. Sprawdzić `Date:` w treści bounce'a — jeśli sprzed odcięcia → echo, jeśli świeży → atak nadal trwa.
+9. **Maile w Koszu klienta pocztowego po pozornej kasacji z serwera** (lessons z 2026-05-19 wieczór). Zanim panika RODO — **najpierw sprawdzić Outlook/Thunderbird Trash** + lokalny PST/OST. Klient pocztowy synchronizuje przez IMAP, ale lokalna kopia może żyć dłużej niż na serwerze. Procedura: `[backup PST → przywróć z kosza → ponowna synchronizacja]` zanim ogłosi się incydent danych osobowych.
+10. **Każdy ślad SMTP-TEST w skrzynce to czerwony alarm** (lessons z 2026-05-19 wieczór). Bot credential stuffing **zawsze** testuje SMTP przed masówką — wysyła mail do siebie / na publiczny adres testowy (proton.me, gmail.com). Jeśli widzisz mail `From: ja@moja-domena.pl To: ja@moja-domena.pl Subject: SMTP-TEST` którego nie wysyłałeś — bot potwierdził działanie SMTP i za chwilę odpali masówkę. **Reaguj natychmiast, nie czekaj na bounce'y.** Pattern: test w niedzielę 2026-05-17 11:54 → masówka 2026-05-18.
+11. **Sprawdzenie hipotezy „wyciek z gita" — szybkie i konkretne** (lessons z 2026-05-19 wieczór). Komendy: `git log --all -p -S "<wartość>"` szuka kiedy dany string był dodany/usunięty. `git log --all --diff-filter=D --name-only` lista plików kiedyś tracked, potem usuniętych. `git ls-tree -r <commit> --name-only` snapshot drzewa w danym momencie. 5 minut roboty, daje pewną odpowiedź. **W tym przypadku: hasło Bogdana nigdy nie istniało w repo, hipoteza odrzucona.**
 
 ---
 
