@@ -1,6 +1,10 @@
 # Integracja z 3D Estate (matryca 3D) — punkt startowy
 
-**Status**: 🔴 niezaczęte. **Priorytet: WYSOKI** — wymagane przed faktycznym odpaleniem systemu (ustalone z userem 2026-05-14).
+**Status**: 🟡 projektujemy. **Priorytet: WYSOKI** — wymagane przed faktycznym odpaleniem systemu (ustalone z userem 2026-05-14).
+
+**Stan na 2026-05-19**: ✅ mamy odpowiedź od 3DE + dokument techniczny "Smart Makieta — Jak integrujemy CRM". Spec, mapowanie pól na nasz model, fazowanie i decyzje do podjęcia → **`docs/integracja-3destate-decyzje.md`** (źródło prawdy od teraz). Plik `docs/integracja-3destate-pytania.md` zostaje jako archiwum (treść wysłanego maila).
+
+**Kluczowe ustalenia od 3DE**: model PULL (oni odpytują nas co 15-30 min), my wybieramy autoryzację, format JSON/XML/CSV (wybieramy JSON), stałe IP 3DE: `213.189.56.203`, kontakt: support@3destate.pl, kod zgłoszenia `86c9vnnau`.
 
 ## Kontekst
 

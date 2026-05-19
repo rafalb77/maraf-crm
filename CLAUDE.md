@@ -17,7 +17,7 @@ Zanim zaczniesz pracę nad konkretnym modułem — przeczytaj odpowiedni plik. T
 
 ### Otwarte sprawy (do dokończenia)
 
-- **`docs/integracja-3destate-rozpoczecie.md`** — 🔴 **PRIORYTET WYSOKI** (przed odpaleniem systemu). Integracja po API z matrycą 3D Estate (`novastaffa.pl/mieszkania`) — ceny i statusy lokali. Bloker: dokumentacja + klucz API od 3D Estate. Claude nie komunikuje się z nimi bezpośrednio — user jest kanałem.
+- **`docs/integracja-3destate-rozpoczecie.md`** — 🟡 **PRIORYTET WYSOKI** (przed odpaleniem systemu). Integracja po API z matrycą 3D Estate (`novastaffa.pl/mieszkania`) — ceny i statusy lokali. Stan 2026-05-19: ✅ spec od 3DE dostarczony (model PULL, JSON, IP 213.189.56.203), projektujemy. Mapowanie pól + fazowanie + decyzje → **`docs/integracja-3destate-decyzje.md`** (źródło prawdy). Archiwum mailowe: `docs/integracja-3destate-pytania.md`. Framing wobec 3DE: **nie ujawniamy że budujemy własny CRM** ("rozważamy zmianę"). Claude nie komunikuje się z nimi bezpośrednio — user jest kanałem.
 - **`docs/raportowanie-dane-gov-rozpoczecie.md`** — 🔴 **PRIORYTET WYSOKI** (przed odpaleniem systemu). **Obowiązek ustawowy** — codzienne raportowanie cen lokali na dane.gov.pl. Pierwszy krok: research publicznego formatu/schematu. Wymaga modelu `PriceHistory` (wspólny z 3D Estate).
 - **`docs/karty-mieszkan-status.md`** — **🟢 ZAMKNIĘTE 2026-05-13** (zostawiam plik dla historii; jest 1 mini-TODO: poprawić w UI 2 literówki w `Unit.floor` — `B1.2.M18` 3→2, `B1.4.M59` 5→4).
 - **`docs/obmiary-rozpoczecie.md`** — moduł obmiarów z rysunków (DXF/PDF). Schema + dependencies gotowe, ale brak UI/API. 4 warianty MVP do wyboru z user'em (manualne klikanie / DXF parser / AI / pełna integracja z Przerobami).

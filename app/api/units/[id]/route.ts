@@ -34,6 +34,19 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
   const priceGross = usePerSqm
     ? Math.round(area * ppmGross * 100) / 100
     : Math.round((parseFloat(body.priceGross) || 0) * 100) / 100
+  // Promo prices — mirror tej samej logiki per-sqm vs ryczalt.
+  // Wartości promo zapisujemy zawsze (nie tylko gdy promoActive=true) — żeby
+  // zachować wpisane wartości po odznaczeniu/zaznaczeniu checkboxa "Promocja aktywna".
+  const promoPpmNet = parseFloat(body.promoPricePerSqmNet)
+  const promoPpmGross = parseFloat(body.promoPricePerSqmGross)
+  const promoPriceNetRaw = parseFloat(body.promoPriceNet)
+  const promoPriceGrossRaw = parseFloat(body.promoPriceGross)
+  const promoPriceNet = usePerSqm
+    ? (isNaN(promoPpmNet) ? null : Math.round(area * promoPpmNet * 100) / 100)
+    : (isNaN(promoPriceNetRaw) ? null : Math.round(promoPriceNetRaw * 100) / 100)
+  const promoPriceGross = usePerSqm
+    ? (isNaN(promoPpmGross) ? null : Math.round(area * promoPpmGross * 100) / 100)
+    : (isNaN(promoPriceGrossRaw) ? null : Math.round(promoPriceGrossRaw * 100) / 100)
   const unit = await prisma.unit.update({
     where: { id: params.id },
     data: {
@@ -51,6 +64,13 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
       description: body.description || null,
       status: body.status,
       floorPlanUrl: body.floorPlanUrl !== undefined ? body.floorPlanUrl : undefined,
+      // Pola integracji 3D Estate
+      visibleOnMatrix: body.visibleOnMatrix !== undefined ? !!body.visibleOnMatrix : undefined,
+      promoActive: body.promoActive !== undefined ? !!body.promoActive : undefined,
+      promoPricePerSqmNet: isNaN(promoPpmNet) ? null : promoPpmNet,
+      promoPricePerSqmGross: isNaN(promoPpmGross) ? null : promoPpmGross,
+      promoPriceNet,
+      promoPriceGross,
     },
   })
 

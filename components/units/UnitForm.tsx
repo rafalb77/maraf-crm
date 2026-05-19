@@ -42,6 +42,13 @@ export function UnitForm({ unit }: { unit?: Unit }) {
     building: unit?.building || '',
     description: unit?.description || '',
     status: unit?.status || 'WOLNY',
+    // Pola integracji 3D Estate — visibleOnMatrix + promocje
+    visibleOnMatrix: unit?.visibleOnMatrix ?? true,
+    promoActive: unit?.promoActive ?? false,
+    promoPricePerSqmNet: unit?.promoPricePerSqmNet?.toString() || '',
+    promoPricePerSqmGross: unit?.promoPricePerSqmGross?.toString() || '',
+    promoPriceNet: unit?.promoPriceNet?.toString() || '',
+    promoPriceGross: unit?.promoPriceGross?.toString() || '',
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -112,6 +119,56 @@ export function UnitForm({ unit }: { unit?: Unit }) {
       if (!isNaN(pNet)) {
         next.priceGross = (pNet * (1 + vat / 100)).toFixed(2)
       }
+      // Promo prices — same VAT recalculation
+      const promoPpmNet = parseFloat(form.promoPricePerSqmNet)
+      if (!isNaN(promoPpmNet)) {
+        next.promoPricePerSqmGross = (promoPpmNet * (1 + vat / 100)).toFixed(2)
+      }
+      const promoNet = parseFloat(form.promoPriceNet)
+      if (!isNaN(promoNet)) {
+        next.promoPriceGross = (promoNet * (1 + vat / 100)).toFixed(2)
+      }
+    }
+    setForm((f) => ({ ...f, ...next }))
+  }
+
+  // --- PROMO price setters (mirror logiki cen bazowych) ---
+  function setPromoPpmNet(value: string) {
+    const v = parseFloat(value)
+    const vat = parseInt(form.vatRate)
+    const next: Partial<typeof form> = { promoPricePerSqmNet: value }
+    if (!isNaN(v) && !isNaN(vat)) {
+      next.promoPricePerSqmGross = (v * (1 + vat / 100)).toFixed(2)
+    }
+    setForm((f) => ({ ...f, ...next }))
+  }
+
+  function setPromoPpmGross(value: string) {
+    const v = parseFloat(value)
+    const vat = parseInt(form.vatRate)
+    const next: Partial<typeof form> = { promoPricePerSqmGross: value }
+    if (!isNaN(v) && !isNaN(vat) && vat >= 0) {
+      next.promoPricePerSqmNet = (v / (1 + vat / 100)).toFixed(2)
+    }
+    setForm((f) => ({ ...f, ...next }))
+  }
+
+  function setPromoPriceNet(value: string) {
+    const v = parseFloat(value)
+    const vat = parseInt(form.vatRate)
+    const next: Partial<typeof form> = { promoPriceNet: value }
+    if (!isNaN(v) && !isNaN(vat)) {
+      next.promoPriceGross = (v * (1 + vat / 100)).toFixed(2)
+    }
+    setForm((f) => ({ ...f, ...next }))
+  }
+
+  function setPromoPriceGross(value: string) {
+    const v = parseFloat(value)
+    const vat = parseInt(form.vatRate)
+    const next: Partial<typeof form> = { promoPriceGross: value }
+    if (!isNaN(v) && !isNaN(vat) && vat >= 0) {
+      next.promoPriceNet = (v / (1 + vat / 100)).toFixed(2)
     }
     setForm((f) => ({ ...f, ...next }))
   }
@@ -130,9 +187,13 @@ export function UnitForm({ unit }: { unit?: Unit }) {
       // Server will compute priceNet/priceGross = area × ppm
       payload.priceNet = ''
       payload.priceGross = ''
+      payload.promoPriceNet = ''
+      payload.promoPriceGross = ''
     } else {
       payload.pricePerSqmNet = '0'
       payload.pricePerSqmGross = '0'
+      payload.promoPricePerSqmNet = '0'
+      payload.promoPricePerSqmGross = '0'
     }
 
     const res = await fetch(url, {
@@ -268,6 +329,83 @@ export function UnitForm({ unit }: { unit?: Unit }) {
         <label className="block text-sm font-medium text-gray-700 mb-1">Opis</label>
         <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })}
           rows={3} className={inputCls + ' resize-none'} placeholder="Dodatkowe informacje o lokalu..." />
+      </div>
+
+      {/* Sekcja: Widoczność na matrycy 3D + promocja (integracja 3D Estate) */}
+      <div className="border-t border-gray-100 pt-5">
+        <h3 className="font-semibold text-gray-900 mb-1">Matryca 3D (3D Estate)</h3>
+        <p className="text-xs text-gray-500 mb-4">
+          Pola wpływające na to jak lokal wyświetla się na matrycy 3D na stronie inwestycji.
+        </p>
+
+        <div className="space-y-4">
+          <label className="flex items-start gap-2 text-sm text-gray-700 cursor-pointer">
+            <input type="checkbox"
+              checked={form.visibleOnMatrix}
+              onChange={(e) => setForm({ ...form, visibleOnMatrix: e.target.checked })}
+              className="mt-0.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+            <span>
+              Widoczny na matrycy 3D
+              <span className="block text-xs text-gray-500 mt-0.5">
+                Odznacz, żeby ukryć lokal na matrycy niezależnie od statusu (np. przed wprowadzeniem do sprzedaży).
+              </span>
+            </span>
+          </label>
+
+          <label className="flex items-start gap-2 text-sm text-gray-700 cursor-pointer">
+            <input type="checkbox"
+              checked={form.promoActive}
+              onChange={(e) => setForm({ ...form, promoActive: e.target.checked })}
+              className="mt-0.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+            <span>
+              Promocja aktywna
+              <span className="block text-xs text-gray-500 mt-0.5">
+                Po zaznaczeniu 3D Estate pokaże cenę promocyjną z przekreśloną ceną bazową.
+                <strong className="text-amber-700"> ⚠️ Uwaga Omnibus:</strong> w pierwszych 30 dniach od uruchomienia integracji
+                3DE może nie wyświetlić poprawnej najniższej ceny z 30 dni (nie ma jeszcze pełnej historii odczytów).
+              </span>
+            </span>
+          </label>
+
+          {form.promoActive && (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 space-y-3">
+              <p className="text-xs font-medium text-amber-900">Ceny promocyjne</p>
+              <div className="grid grid-cols-2 gap-4">
+                {perSqm ? (
+                  <>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Promo cena za m² netto</label>
+                      <input type="number" step="0.01" value={form.promoPricePerSqmNet}
+                        onChange={(e) => setPromoPpmNet(e.target.value)}
+                        className={inputCls} placeholder="np. 8500" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Promo cena za m² brutto</label>
+                      <input type="number" step="0.01" value={form.promoPricePerSqmGross}
+                        onChange={(e) => setPromoPpmGross(e.target.value)}
+                        className={inputCls} />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Promo cena netto</label>
+                      <input type="number" step="0.01" value={form.promoPriceNet}
+                        onChange={(e) => setPromoPriceNet(e.target.value)}
+                        className={inputCls} placeholder="np. 45000" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Promo cena brutto</label>
+                      <input type="number" step="0.01" value={form.promoPriceGross}
+                        onChange={(e) => setPromoPriceGross(e.target.value)}
+                        className={inputCls} />
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {error && <p className="text-red-500 text-sm">{error}</p>}
