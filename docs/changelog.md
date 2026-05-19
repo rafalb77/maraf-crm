@@ -4,6 +4,16 @@ Krótkie wpisy „co i **dlaczego**". Bez listy wszystkich commitów — od tego
 
 ---
 
+## 2026-05-19
+
+### WordPress cleanup na hostingu home.pl + diagnoza SSL maraf.pl (operacyjne, nie kod)
+**Powód**: Kontynuacja incydentu z 2026-05-18 (hack SMTP bogdan.boruch@maraf.pl). Drugi kanał spamu (`[text your-subject]`) prowadził do **zapomnianego WordPressa** w `/autoinstalator/wordpress` na hostingu home.pl. Plus odkryto że konto home.pl ma 4 instalacje WP, w tym 2 zombie z 2013/2014 bez przypisanej domeny + 1 zapomniana fotografia-lodz.pl.
+**Wykonane (po stronie usera w panelu home.pl)**: skasowane 3 zombie WP (oba `/autoinstalator/wordpress` 2013-07-27 + 2014-04-02 + `/autoinstalator/wordpress1` fotografia-lodz.pl). Zostawione: novastaffa.pl (żywa firmowa). Ticket do home.pl o skasowanie `/do-usuniecia/` (FileZilla nie kasuje, UID 31189 = admin home.pl).
+**Diagnoza SSL maraf.pl — fałszywy alarm**: cert wygląda na zepsuty z komputera Rafała, ale to **Avast Antivirus MITM-uje HTTPS** lokalnie (issuer `CN=Avast Web/Mail Shield Root`). Prawdziwy cert serwera (z crt.sh + bezpośredniego fetch) jest OK — wystawca home.pl S.A., SAN obejmuje maraf.pl, ważny do 2027-03-12. Chrome (własny store certów) mówi „Połączenie jest bezpieczne".
+**Otwarte (do następnej sesji)**: audyt wp-admin maraf.pl (motyw envision z ~2013, prawdopodobnie nieaudytowany — analogiczne ryzyko jak rafalboruch.com miała przed marcowym hackiem 2026-03), sprawdzenie czemu rafalboruch.com modyfikowane 18.05 mimo „nic nie robiłem od miesiąca", prewencyjna lista + zmiana haseł wszystkich skrzynek @maraf.pl. Pełna lista TODO + odkrycia (marcowy hack rafalboruch.com, inwentaryzacja WP) → `docs/incident-bogdan-mail-status.md` sekcja „Update 2026-05-19".
+
+---
+
 ## 2026-05-15
 
 ### Sprzedaż: wycięte 5 martwych pól z `Contract` (cleanup)
