@@ -92,6 +92,16 @@ model Unit {
   reservationType      String?
   reservationExpiresAt DateTime?
   reservedById         String?
+  // Pola integracji z 3D Estate (matryca 3D) — patrz docs/integracja-3destate-decyzje.md
+  // visibleOnMatrix=false ukrywa lokal na matrycy 3DE niezależnie od statusu (np. lokale przed wprowadzeniem do sprzedaży)
+  visibleOnMatrix       Boolean   @default(true)
+  // Promocje cenowe (rabat czasowy). promoActive=true → 3DE wyświetla cenę promo przekreśloną cenę bazową.
+  // Uwaga Omnibus: 3DE liczy najniższą cenę z 30 dni po swojej stronie z odczytów naszego endpointu.
+  promoPriceNet         Float?
+  promoPriceGross       Float?
+  promoPricePerSqmNet   Float?
+  promoPricePerSqmGross Float?
+  promoActive           Boolean   @default(false)
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
 

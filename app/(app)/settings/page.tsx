@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { SettingsForm } from '@/components/settings/SettingsForm'
 import { UsersSection } from '@/components/settings/UsersSection'
 import { InvestmentImagesSection } from '@/components/settings/InvestmentImagesSection'
+import { IntegrationsSection } from '@/components/settings/IntegrationsSection'
 
 export default async function SettingsPage({
   searchParams,
@@ -110,6 +111,9 @@ GOOGLE_REDIRECT_URI="https://crm.maraf.pl/api/calendar/callback"`}</pre>
 
         {/* Wizualizacje wspolne dla calej inwestycji (tlo dla kreacji Meta Ads) */}
         <InvestmentImagesSection initialImages={investmentImages} />
+
+        {/* Integracja 3D Estate (matryca 3D) — pull endpoint dla matrycy 3D */}
+        <IntegrationsSection />
 
         {/* Info about app */}
         <div className="bg-white rounded-xl border border-gray-200 p-6">
