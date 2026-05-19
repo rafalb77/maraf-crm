@@ -36,13 +36,19 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   const data: any = {}
   const historyEvents: { event: string; details?: string }[] = []
 
-  const editableStringFields = ['form', 'notes', 'investmentName']
+  // form field usunięty z Contract — nieużywany w szablonie DOCX, mylący w UI.
+  // discount/valueNet/valueGross zostają w schemie (auto-set przy konwersji
+  // oferty), ale nie są już edytowalne przez to API — usunięte z formularza.
+  // reservationFee ZOSTAJE (kluczowy placeholder w szablonie umowy).
+  const editableStringFields = ['notes', 'investmentName']
   for (const f of editableStringFields) {
     if (body[f] !== undefined) data[f] = body[f] || null
   }
-  const numberFields = ['reservationFee', 'discount', 'valueNet', 'valueGross']
-  for (const f of numberFields) {
-    if (body[f] !== undefined) data[f] = body[f] === '' || body[f] == null ? null : parseFloat(body[f])
+  if (body.reservationFee !== undefined) {
+    data.reservationFee =
+      body.reservationFee === '' || body.reservationFee == null
+        ? null
+        : parseFloat(body.reservationFee)
   }
   if (body.plannedSignDate !== undefined) {
     data.plannedSignDate = body.plannedSignDate ? new Date(body.plannedSignDate) : null

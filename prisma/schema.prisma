@@ -264,7 +264,6 @@ model Contract {
   introducedAt    DateTime  @default(now())
   plannedSignDate DateTime?
   signedAt        DateTime?
-  form            String?
   reservationFee  Float?
   discount        Float?
   valueNet        Float?

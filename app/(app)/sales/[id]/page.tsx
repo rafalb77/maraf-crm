@@ -9,6 +9,7 @@ import {
 } from '@/lib/types'
 import { ContractStatusChanger } from '@/components/sales/ContractStatusChanger'
 import { DeleteContractButton } from '@/components/sales/DeleteContractButton'
+import { ContractAttachments } from '@/components/sales/ContractAttachments'
 
 export default async function ContractDetailPage({ params }: { params: { id: string } }) {
   const contract = await prisma.contract.findUnique({
@@ -77,17 +78,10 @@ export default async function ContractDetailPage({ params }: { params: { id: str
                 </Link>
               </Row>
             ))}
-            <Row label="Forma" value={contract.form || '—'} />
             <Row label="Data wprowadzenia" value={formatDate(contract.introducedAt)} />
             <Row label="Planowana data podpisania" value={contract.plannedSignDate ? formatDate(contract.plannedSignDate) : '—'} />
             <Row label="Data podpisania" value={contract.signedAt ? formatDate(contract.signedAt) : '—'} />
-          </Panel>
-
-          <Panel title="Warunki finansowe">
             <Row label="Opłata rezerwacyjna" value={contract.reservationFee != null ? formatCurrency(contract.reservationFee) : '—'} />
-            <Row label="Udzielony rabat" value={contract.discount != null ? formatCurrency(contract.discount) : '—'} />
-            <Row label="Wartość netto" value={contract.valueNet != null ? formatCurrency(contract.valueNet) : '—'} />
-            <Row label="Wartość brutto" value={contract.valueGross != null ? formatCurrency(contract.valueGross) : '—'} />
           </Panel>
 
           <Panel title="Składniki umowy">
@@ -123,19 +117,7 @@ export default async function ContractDetailPage({ params }: { params: { id: str
 
         <div className="space-y-5">
           <Panel title="Skany i załączniki">
-            {contract.attachments.length === 0 ? (
-              <p className="text-gray-400 text-sm">Brak załączników</p>
-            ) : (
-              <ul className="space-y-1">
-                {contract.attachments.map((a) => (
-                  <li key={a.id}>
-                    <a href={a.url} target="_blank" className="text-sm text-blue-600 hover:text-blue-700">
-                      {a.filename}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            )}
+            <ContractAttachments contractId={contract.id} initialAttachments={contract.attachments} />
           </Panel>
 
           <Panel title="Historia umowy">

@@ -52,11 +52,7 @@ export async function POST(req: NextRequest) {
     unitIds = [],
     investmentName,
     plannedSignDate,
-    form,
     reservationFee,
-    discount,
-    valueNet,
-    valueGross,
     notes,
   } = body
 
@@ -88,11 +84,7 @@ export async function POST(req: NextRequest) {
       investmentName: investmentName || 'Inwestycja',
       clientId,
       plannedSignDate: plannedSignDate ? new Date(plannedSignDate) : null,
-      form: form || null,
       reservationFee: reservationFee != null && reservationFee !== '' ? parseFloat(reservationFee) : null,
-      discount: discount != null && discount !== '' ? parseFloat(discount) : null,
-      valueNet: valueNet != null && valueNet !== '' ? parseFloat(valueNet) : null,
-      valueGross: valueGross != null && valueGross !== '' ? parseFloat(valueGross) : null,
       notes: notes || null,
       contractUnits: {
         create: unitIds.map((unitId: string) => ({ unitId })),

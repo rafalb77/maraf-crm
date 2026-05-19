@@ -1,6 +1,6 @@
 'use client'
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Client } from '@prisma/client'
 
 const STATUSES = [
@@ -13,6 +13,11 @@ const STATUSES = [
 
 export function ClientForm({ client }: { client?: Client }) {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  // ?returnTo=/sales/new — gdy klient utworzony z poziomu formularza umowy:
+  // po zapisie wracamy do tego URL z `?clientId=<nowyId>` żeby formularz
+  // od razu go preselectował (sales/new.tsx odczytuje clientId z URL).
+  const returnTo = searchParams?.get('returnTo')
   const [form, setForm] = useState({
     firstName: client?.firstName || '',
     lastName: client?.lastName || '',
@@ -54,7 +59,13 @@ export function ClientForm({ client }: { client?: Client }) {
 
     if (res.ok) {
       const data = await res.json()
-      router.push(`/clients/${data.id}`)
+      if (!client && returnTo) {
+        // Tylko przy CREATE (nie PUT) + jeśli był returnTo — wracamy z clientId
+        const sep = returnTo.includes('?') ? '&' : '?'
+        router.push(`${returnTo}${sep}clientId=${data.id}`)
+      } else {
+        router.push(`/clients/${data.id}`)
+      }
       router.refresh()
     } else {
       const data = await res.json()

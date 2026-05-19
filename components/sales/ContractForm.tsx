@@ -1,4 +1,5 @@
 'use client'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useMemo, useState } from 'react'
 import type { Client, Unit } from '@prisma/client'
@@ -33,11 +34,7 @@ export function ContractForm({
     secondaryClientId: '',
     investmentName: 'Inwestycja',
     plannedSignDate: '',
-    form: '',
     reservationFee: '',
-    discount: '',
-    valueNet: '',
-    valueGross: '',
     notes: '',
   })
 
@@ -115,7 +112,17 @@ export function ContractForm({
         <Field label="Nazwa inwestycji">
           <input className={inputCls} value={form.investmentName} onChange={set('investmentName')} />
         </Field>
-        <Field label="Klient *">
+        <Field
+          label="Klient *"
+          extra={
+            <Link
+              href="/clients/new?returnTo=/sales/new"
+              className="text-xs text-blue-600 hover:text-blue-700 underline"
+            >
+              + Nowy klient
+            </Link>
+          }
+        >
           <select className={inputCls} value={form.clientId} onChange={set('clientId')} required>
             <option value="">— wybierz —</option>
             {clients.map((c) => (
@@ -135,23 +142,14 @@ export function ContractForm({
             ))}
           </select>
         </Field>
-        <Field label="Planowana data podpisania">
+        <Field
+          label="Planowana data podpisania"
+          hint="Pole wpływa na wygenerowaną umowę: termin opłaty rezerwacyjnej + data zakończenia rezerwacji"
+        >
           <input type="date" className={inputCls} value={form.plannedSignDate} onChange={set('plannedSignDate')} />
-        </Field>
-        <Field label="Forma">
-          <input className={inputCls} value={form.form} onChange={set('form')} placeholder="np. akt notarialny" />
         </Field>
         <Field label="Opłata rezerwacyjna">
           <input type="number" step="0.01" className={inputCls} value={form.reservationFee} onChange={set('reservationFee')} />
-        </Field>
-        <Field label="Udzielony rabat">
-          <input type="number" step="0.01" className={inputCls} value={form.discount} onChange={set('discount')} />
-        </Field>
-        <Field label="Wartość umowy netto">
-          <input type="number" step="0.01" className={inputCls} value={form.valueNet} onChange={set('valueNet')} />
-        </Field>
-        <Field label="Wartość umowy brutto">
-          <input type="number" step="0.01" className={inputCls} value={form.valueGross} onChange={set('valueGross')} />
         </Field>
       </div>
 
@@ -217,11 +215,25 @@ export function ContractForm({
   )
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({
+  label,
+  children,
+  extra,
+  hint,
+}: {
+  label: string
+  children: React.ReactNode
+  extra?: React.ReactNode
+  hint?: string
+}) {
   return (
     <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+      <div className="flex items-end justify-between gap-2 mb-1">
+        <label className="block text-sm font-medium text-gray-700">{label}</label>
+        {extra}
+      </div>
       {children}
+      {hint && <p className="text-[11px] text-gray-500 mt-1 leading-tight">{hint}</p>}
     </div>
   )
 }
