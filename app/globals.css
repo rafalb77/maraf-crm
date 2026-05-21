@@ -197,6 +197,19 @@ input::placeholder, textarea::placeholder { color: var(--text-muted); }
   transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
 }
 
+/* ===== Klikalne wiersze tabel (lista lokali/klientów/ofert/sprzedaży) =====
+   Tailwindowy hover:bg-gray-50 (#f9fafb) na białym tle jest praktycznie
+   niewidoczny. Używamy brandowego --surface-hover (ciepły beż w light, slate
+   w dark) — wyraźne ale delikatne podświetlenie, spójne w obu motywach.
+   !important żeby wygrać z ewentualnym hover:bg-gray-50 na tym samym elemencie. */
+.row-link {
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+.row-link:hover {
+  background-color: var(--surface-hover) !important;
+}
+
 /* ===== Animacje ikon pogody (TopWidget na dashboardzie) ===== */
 @keyframes weather-spin-kf {
   from { transform: rotate(0deg); }

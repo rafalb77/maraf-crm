@@ -213,7 +213,7 @@ export function UnitsTable({ units }: { units: UnitRow[] }) {
                 <tr
                   key={unit.id}
                   onClick={() => router.push(`/units/${unit.id}`)}
-                  className="border-b border-gray-50 hover:bg-gray-50 transition-colors cursor-pointer"
+                  className="row-link border-b border-gray-50"
                 >
                   {visibleCols.map((c) => (
                     <td

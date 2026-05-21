@@ -17,7 +17,7 @@ export function ClickableRow({
 }) {
   const router = useRouter()
   return (
-    <tr onClick={() => router.push(href)} className={`cursor-pointer ${className ?? ''}`}>
+    <tr onClick={() => router.push(href)} className={`row-link ${className ?? ''}`}>
       {children}
     </tr>
   )
