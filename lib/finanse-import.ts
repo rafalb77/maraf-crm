@@ -329,19 +329,13 @@ function parseSheetByConfig(
     // cfg.vendorName ("STAŁE") gdy faktura przed pierwszym naglowkiem.
     const vendorName = cfg.sectionMode ? (currentSection || cfg.vendorName) : cfg.vendorName
 
-    // Pola MURARZ (tylko jesli layout B i wartosci sa)
-    let deposit: number | null = null
-    let buildingCosts: number | null = null
-    let electricity: number | null = null
-    if (cfg.layout === 'B') {
-      const colsB = cols as typeof COLS.B
-      const d = parseAmount(toCell(r, colsB.deposit))
-      const b = parseAmount(toCell(r, colsB.buildingCosts))
-      const e = parseAmount(toCell(r, colsB.electricity))
-      if (d > 0) deposit = d
-      if (b > 0) buildingCosts = b
-      if (e > 0) electricity = e
-    }
+    // Kaucja/KB/prad — NIE czytamy z importu. Te kolumny (N/P/Q) byly tylko
+    // w usunietej zakladce MURARZ; w STAFFA/STAŁE/INNE (ten sam layout B)
+    // zawieraja przypadkowe dane (numery/daty) -> dawaly absurdalne kwoty kaucji.
+    // Kaucje wpisuje sie wylacznie recznie w UI (sekcja "Kaucja i potracenia").
+    const deposit: number | null = null
+    const buildingCosts: number | null = null
+    const electricity: number | null = null
 
     const payments: ParsedPayment[] = []
     // Jesli jest data zaplaty bezposrednio na fakturze (kolumna ZAPŁACONO)
