@@ -106,13 +106,26 @@ export function FakturyTable({ rows, totals }: { rows: FakturaRow[]; totals: Tot
                     <input type="checkbox" checked={isSel} onChange={() => toggle(r.id)} />
                   </td>
                   <td className="px-3 py-2">
-                    <div className="font-medium text-gray-900 flex items-center gap-1.5">
-                      {r.vendorName}
-                      {r.company === 'MARAF_DEVELOPMENT' && (
-                        <span className="text-[10px] bg-purple-100 text-purple-700 px-1 rounded">MD</span>
-                      )}
-                    </div>
-                    {r.subVendor && <div className="text-xs text-gray-500">{r.subVendor}</div>}
+                    {/* Gdy jest podkontrahent (np. Janpol/PATRIMEX pod STAFFA) — to ON
+                        jest faktycznym kontrahentem (duzy), a parasol (STAFFA) maly nad nim. */}
+                    {r.subVendor ? (
+                      <>
+                        <div className="text-[11px] text-gray-400 leading-tight">{r.vendorName}</div>
+                        <div className="font-semibold text-gray-900 flex items-center gap-1.5">
+                          {r.subVendor}
+                          {r.company === 'MARAF_DEVELOPMENT' && (
+                            <span className="text-[10px] bg-purple-100 text-purple-700 px-1 rounded">MD</span>
+                          )}
+                        </div>
+                      </>
+                    ) : (
+                      <div className="font-semibold text-gray-900 flex items-center gap-1.5">
+                        {r.vendorName}
+                        {r.company === 'MARAF_DEVELOPMENT' && (
+                          <span className="text-[10px] bg-purple-100 text-purple-700 px-1 rounded">MD</span>
+                        )}
+                      </div>
+                    )}
                   </td>
                   <td className="px-3 py-2">
                     <Link href={`/finanse/faktury/${r.id}`} className="text-blue-600 hover:underline font-mono text-xs">{r.number}</Link>

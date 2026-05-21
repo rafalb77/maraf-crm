@@ -47,17 +47,18 @@ export default async function InvoiceDetailsPage({ params }: { params: { id: str
         <Link href="/finanse/faktury" className="text-sm text-gray-500 hover:text-gray-700">← Wszystkie faktury</Link>
         <div className="flex items-start justify-between mt-2 gap-4">
           <div>
-            {/* Nazwa kontrahenta duza i czytelna (feedback Marty), numer FV pomocniczo */}
+            {/* Gdy jest podkontrahent (Janpol/PATRIMEX pod STAFFA) — to ON jest
+                glownym, czytelnym tytulem; parasol (STAFFA) maly nad nim. */}
+            {inv.subVendor && (
+              <p className="text-xs text-gray-400 leading-tight">{inv.vendor.name}</p>
+            )}
             <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2 flex-wrap">
-              {inv.vendor.name}
+              {inv.subVendor || inv.vendor.name}
               <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded font-normal">
                 {COMPANY_LABELS[inv.company as Company] || inv.company}
               </span>
             </h1>
             <p className="text-sm text-gray-500 font-mono mt-1">FV {inv.number}</p>
-            {inv.subVendor && (
-              <p className="text-sm text-gray-500 mt-0.5">Podkontrahent: <strong>{inv.subVendor}</strong></p>
-            )}
           </div>
           <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium whitespace-nowrap ${
             PURCHASE_INVOICE_STATUS_COLORS[inv.status as PurchaseInvoiceStatus] || 'bg-gray-100 text-gray-700'
