@@ -138,7 +138,9 @@ Po recreate konta → wracamy do `docs/incident-bogdan-mail-status.md` sekcja **
 
 **Reputacja maraf.pl — sprawdzona, CZYSTA.** Proton VPN blokował stronę. Sprawdzone 3 niezależne źródła: Google Safe Browsing (czysto), 6 DNSBL spamowych (czysto), Proton malware engine (czysto — po przełączeniu NetShield na „malware only" strona się otworzyła). Blokada była przez listę „ads & trackers" (WordPress ma Google Analytics/podobne — nieszkodliwe). **Brak sygnałów infekcji maraf.pl.** Audyt WP nadal warto zrobić prewencyjnie (envision 2013), ale to nie pożar.
 
-**TODO komputer #2**: powtórzyć konfigurację konta z serwerem `poczta.home.pl`. Nie powtarzać błędu z `maraf.pl`/`imap.home.pl` w polu Serwer.
+**KOMPUTER #1 — ✅ ZAMKNIĘTE.** Pełna synchronizacja zakończona: folder Sent ma 2000+ maili (cała historia). Maile rafal.boruch@maraf.pl były bezpieczne na serwerze (w przeciwieństwie do skrzynki Bogdana). Błąd „Elementy wysłane" był trybem offline — po przejściu online wysyłka działa.
+
+**TODO komputer #2**: powtórzyć konfigurację konta z serwerem `poczta.home.pl`. Nie powtarzać błędu z `maraf.pl`/`imap.home.pl` w polu Serwer. Po połączeniu sprawdzić że nie został w trybie offline (wstążka → Wysyłanie/odbieranie).
 
 ---
 
