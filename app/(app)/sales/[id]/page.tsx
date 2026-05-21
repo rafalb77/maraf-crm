@@ -10,6 +10,7 @@ import {
 import { ContractStatusChanger } from '@/components/sales/ContractStatusChanger'
 import { DeleteContractButton } from '@/components/sales/DeleteContractButton'
 import { ContractAttachments } from '@/components/sales/ContractAttachments'
+import { ContractEmailButton } from '@/components/sales/ContractEmailButton'
 
 export default async function ContractDetailPage({ params }: { params: { id: string } }) {
   const contract = await prisma.contract.findUnique({
@@ -55,6 +56,12 @@ export default async function ContractDetailPage({ params }: { params: { id: str
               Generuj .docx
             </a>
           )}
+          <ContractEmailButton
+            id={contract.id}
+            number={contract.number}
+            clientEmail={contract.client.email}
+            isReservation={contract.type === 'REZERWACYJNA'}
+          />
           <ContractStatusChanger contractId={contract.id} currentStatus={contract.status as ContractStatus} />
           <DeleteContractButton id={contract.id} number={contract.number} />
         </div>
