@@ -13,10 +13,11 @@ import {
   type PurchaseInvoiceStatus,
   type Company,
 } from '@/lib/types'
-import { fmtDate, fmtMoney, isOverdue } from '@/lib/finanse-format'
+import { fmtDate, fmtMoney, isOverdue, payableAmount } from '@/lib/finanse-format'
 import { InvoiceActions } from '@/components/finanse/InvoiceActions'
 import { AddPaymentForm } from '@/components/finanse/AddPaymentForm'
 import { DeletePaymentButton } from '@/components/finanse/DeletePaymentButton'
+import { DepositForm } from '@/components/finanse/DepositForm'
 
 export default async function InvoiceDetailsPage({ params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions)
@@ -38,7 +39,8 @@ export default async function InvoiceDetailsPage({ params }: { params: { id: str
   const canApprove = userIsAdmin || hasPermission(userPerms, 'finanse.approve')
 
   const sumPaid = inv.payments.reduce((s, p) => s + p.amount, 0)
-  const remaining = inv.amountGross - sumPaid
+  const payable = payableAmount(inv) // brutto - kaucja - KB - prad
+  const remaining = payable - sumPaid // do zaplaty (po potraceniach)
   const overdue = isOverdue(inv.dueDate, inv.status)
 
   return (
@@ -90,24 +92,26 @@ export default async function InvoiceDetailsPage({ params }: { params: { id: str
         <Field label="Kwota brutto" value={fmtMoney(inv.amountGross)} bold />
         <Field label="Zapłacono" value={fmtMoney(sumPaid)} />
         <Field
-          label="Pozostało"
+          label="Do zapłaty"
           value={remaining > 0.01 ? fmtMoney(remaining) : '—'}
           bold={remaining > 0.01}
         />
         <Field label="Waluta" value={inv.currency || 'PLN'} />
       </div>
 
-      {/* Pola dodatkowe MURARZ — jesli niezerowe */}
-      {(inv.deposit || inv.buildingCosts || inv.electricity) && (
-        <div className="mt-4 bg-amber-50 border border-amber-200 rounded-lg p-4">
-          <p className="text-xs text-amber-700 uppercase font-semibold mb-2">Pola dodatkowe (MURARZ)</p>
-          <div className="grid grid-cols-3 gap-4 text-sm">
-            {inv.deposit && <div><span className="text-gray-500">Kaucja:</span> {fmtMoney(inv.deposit)}</div>}
-            {inv.buildingCosts && <div><span className="text-gray-500">Koszty budowy:</span> {fmtMoney(inv.buildingCosts)}</div>}
-            {inv.electricity && <div><span className="text-gray-500">Prąd:</span> {fmtMoney(inv.electricity)}</div>}
-          </div>
-        </div>
-      )}
+      {/* Kaucja gwarancyjna i potrącenia (edytowalne) */}
+      <div className="mt-4">
+        <DepositForm
+          invoiceId={inv.id}
+          amountGross={inv.amountGross}
+          deposit={inv.deposit}
+          depositPct={inv.depositPct}
+          buildingCosts={inv.buildingCosts}
+          electricity={inv.electricity}
+          depositReturnDate={inv.depositReturnDate ? inv.depositReturnDate.toISOString() : null}
+          depositReturnedAt={inv.depositReturnedAt ? inv.depositReturnedAt.toISOString() : null}
+        />
+      </div>
 
       {inv.description && (
         <div className="mt-4 bg-gray-50 border border-gray-200 rounded-lg p-4">

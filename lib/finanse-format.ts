@@ -41,6 +41,21 @@ export function fmtDaysFromNow(d: Date | string | null | undefined): string {
   return `${-diff} dni temu`
 }
 
+/**
+ * Kwota faktycznie należna podwykonawcy = brutto minus potrącenia
+ * (kaucja gwarancyjna + koszty budowy + prąd). Dla faktur bez potrąceń = brutto.
+ * To kwota którą trzeba przelać; kaucja jest zwracana osobno po okresie gwarancji.
+ */
+export function payableAmount(inv: {
+  amountGross: number
+  deposit?: number | null
+  buildingCosts?: number | null
+  electricity?: number | null
+}): number {
+  const ded = (inv.deposit || 0) + (inv.buildingCosts || 0) + (inv.electricity || 0)
+  return Math.round((inv.amountGross - ded) * 100) / 100
+}
+
 export function isOverdue(dueDate: Date | string | null | undefined, status: string): boolean {
   if (!dueDate) return false
   if (status === 'OPLACONA' || status === 'ANULOWANA') return false

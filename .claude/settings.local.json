@@ -85,7 +85,9 @@
       "Bash(git pull *)",
       "PowerShell($src = \"C:\\\\AplikacjeAI\\\\CodeCRM\\\\.claude\\\\worktrees\\\\crazy-kalam-a9de75\"; $dst = \"C:\\\\AplikacjeAI\\\\CodeCRM\"; $files = @\\( \"app\\\\\\(app\\)\\\\finanse\\\\faktury\\\\page.tsx\", \"app\\\\\\(app\\)\\\\finanse\\\\faktury\\\\[id]\\\\page.tsx\", \"app\\\\\\(app\\)\\\\finanse\\\\kolejka-platnosci\\\\page.tsx\", \"components\\\\finanse\\\\FakturyTable.tsx\", \"app\\\\api\\\\finanse\\\\invoices\\\\[id]\\\\notes\\\\route.ts\" \\); foreach \\($f in $files\\) { $s = Join-Path $src $f; $d = Join-Path $dst $f; $dd = Split-Path $d -Parent; if \\(!\\(Test-Path $dd\\)\\) { New-Item -ItemType Directory -Force -Path $dd | Out-Null }; Copy-Item -LiteralPath $s -Destination $d -Force }; Write-Output \"Copied $\\($files.Length\\)\")",
       "Bash(rm -f \"components/finanse/FakturyTable.tsx\" \"app/api/finanse/invoices/[id]/notes/route.ts\")",
-      "Bash(rmdir \"app/api/finanse/invoices/[id]/notes\")"
+      "Bash(rmdir \"app/api/finanse/invoices/[id]/notes\")",
+      "Bash(git checkout *)",
+      "Bash(git merge *)"
     ]
   }
 }

@@ -757,8 +757,15 @@ model PurchaseInvoice {
   status            String    @default("WPROWADZONA")
   description       String? // np. "murowanie ścian I piętro" (z MURARZ.M)
   notes             String?
-  // Pola dodatkowe — w większości faktur puste, używane głównie dla MURARZ
+  // Potracenia z faktury podwykonawcy (głównie podwykonawcy budowlani):
+  //  deposit       — kaucja gwarancyjna (zatrzymana, ZWRACANA po okresie gwarancji)
+  //  buildingCosts — koszty budowy/refaktury (potracenie BEZZWROTNE)
+  //  electricity   — prad (potracenie bezzwrotne)
+  // Kwota faktycznie nalezna podwykonawcy = brutto - deposit - buildingCosts - electricity.
   deposit           Float?
+  depositPct        Float? // % kaucji (opcjonalny — gdy wpisany jako procent; kwota w deposit)
+  depositReturnDate DateTime? // termin zwrotu kaucji (wpisywany ręcznie)
+  depositReturnedAt DateTime? // kiedy faktycznie zwrócona (null = jeszcze zatrzymana)
   buildingCosts     Float?
   electricity       Float?
   // Pola powiązań przyszłościowych (Faza 2)
@@ -783,6 +790,7 @@ model PurchaseInvoice {
   @@index([vendorId, issueDate])
   @@index([dueDate])
   @@index([company, status])
+  @@index([depositReturnDate])
 }
 
 // Bookkeeping płatności — 1 faktura = N płatności (wspiera częściowe).

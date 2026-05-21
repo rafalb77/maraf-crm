@@ -26,9 +26,10 @@ export async function DELETE(_req: NextRequest, { params }: { params: { id: stri
   })
   if (!inv) return NextResponse.json({ ok: true })
 
+  const payable = Math.round((inv.amountGross - (inv.deposit || 0) - (inv.buildingCosts || 0) - (inv.electricity || 0)) * 100) / 100
   const sumPaid = inv.payments.reduce((s, p) => s + p.amount, 0)
   let newStatus = inv.status
-  if (sumPaid >= inv.amountGross - 0.01) newStatus = 'OPLACONA'
+  if (sumPaid >= payable - 0.01) newStatus = 'OPLACONA'
   else if (sumPaid > 0.01) newStatus = 'CZESCIOWO_OPLACONA'
   else if (inv.status === 'OPLACONA' || inv.status === 'CZESCIOWO_OPLACONA') newStatus = 'ZATWIERDZONA'
 

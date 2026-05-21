@@ -38,18 +38,21 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     }, { status: 400 })
   }
 
+  // Kwota nalezna = brutto - potracenia (kaucja/KB/prad). Status OPLACONA gdy
+  // splacono nalezna kwote (nie cale brutto — bo kaucja jest zatrzymana, nie placona).
+  const payable = Math.round((inv.amountGross - (inv.deposit || 0) - (inv.buildingCosts || 0) - (inv.electricity || 0)) * 100) / 100
   const currentSum = inv.payments.reduce((s, p) => s + p.amount, 0)
   const newSum = currentSum + amount
   // Pozwalamy na lekkie nadplaty (max +1zl) — czasem zaokraglenia. Powyzej blad.
-  if (newSum > inv.amountGross + 1) {
+  if (newSum > payable + 1) {
     return NextResponse.json({
-      error: `Suma platnosci (${newSum.toFixed(2)}) przekroczy brutto faktury (${inv.amountGross.toFixed(2)})`,
+      error: `Suma platnosci (${newSum.toFixed(2)}) przekroczy kwote nalezna po potraceniach (${payable.toFixed(2)})`,
     }, { status: 400 })
   }
 
   // Wyznacz nowy status
   let newStatus = inv.status
-  if (newSum >= inv.amountGross - 0.01) newStatus = 'OPLACONA'
+  if (newSum >= payable - 0.01) newStatus = 'OPLACONA'
   else if (newSum > 0.01) newStatus = 'CZESCIOWO_OPLACONA'
 
   const [created] = await prisma.$transaction([

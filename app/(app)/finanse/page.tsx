@@ -78,6 +78,18 @@ export default async function FinanseHomePage() {
     }),
   ])
 
+  // Kaucje gwarancyjne — zatrzymane (niezwrocone)
+  const [depositActive, depositSoon] = await Promise.all([
+    prisma.purchaseInvoice.aggregate({
+      where: { deposit: { gt: 0 }, depositReturnedAt: null },
+      _sum: { deposit: true },
+      _count: true,
+    }),
+    prisma.purchaseInvoice.count({
+      where: { deposit: { gt: 0 }, depositReturnedAt: null, depositReturnDate: { lte: in30 } },
+    }),
+  ])
+
   // Resolve vendor names for top vendors
   const vendorIds = topVendorsRaw.map((v) => v.vendorId)
   const vendors = vendorIds.length
@@ -136,6 +148,25 @@ export default async function FinanseHomePage() {
           accent="green"
         />
       </div>
+
+      {(depositActive._count > 0) && (
+        <Link
+          href="/finanse/kaucje"
+          className="block bg-white rounded-xl border border-gray-200 hover:border-gray-300 p-5 mb-6 transition-colors"
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-1">Kaucje gwarancyjne (zatrzymane)</p>
+              <p className="text-2xl font-bold text-gray-900 tabular-nums">{fmtMoney(depositActive._sum.deposit || 0)}</p>
+              <p className="text-xs text-gray-500 mt-1">
+                {depositActive._count} {depositActive._count === 1 ? 'kaucja' : 'kaucji'}
+                {depositSoon > 0 && <span className="text-amber-600"> • {depositSoon} z terminem zwrotu ≤ 30 dni</span>}
+              </p>
+            </div>
+            <span className="text-gray-400 text-sm">Zobacz kaucje →</span>
+          </div>
+        </Link>
+      )}
 
       {topVendors.length > 0 && (
         <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
