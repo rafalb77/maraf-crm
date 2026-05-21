@@ -22,6 +22,7 @@ export const ALL_PERMISSIONS = [
   'calendar',
   'przeroby',
   'finanse',
+  'statystyki',
 ] as const
 
 // Sub-permissions w obrębie sekcji. Stringi z dot-notation, sprawdzane przez
@@ -45,6 +46,7 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
   calendar: 'Kalendarz',
   przeroby: 'Przeroby',
   finanse: 'Finanse',
+  statystyki: 'Statystyki',
 }
 
 export const SUB_PERMISSION_LABELS: Record<SubPermission, string> = {
@@ -90,6 +92,7 @@ export function getRequiredPermission(pathname: string): Permission | 'admin' | 
   if (pathname.startsWith('/calendar')) return 'calendar'
   if (pathname.startsWith('/przeroby')) return 'przeroby'
   if (pathname.startsWith('/finanse')) return 'finanse'
+  if (pathname.startsWith('/statystyki')) return 'statystyki'
   if (pathname.startsWith('/settings')) return 'admin'
 
   // API
@@ -103,6 +106,7 @@ export function getRequiredPermission(pathname: string): Permission | 'admin' | 
   if (pathname.startsWith('/api/calendar')) return 'calendar'
   if (pathname.startsWith('/api/przeroby')) return 'przeroby'
   if (pathname.startsWith('/api/finanse')) return 'finanse'
+  if (pathname.startsWith('/api/statystyki')) return 'statystyki'
 
   // Admin-only API (zarządzanie userami, settings)
   if (pathname.startsWith('/api/users')) return 'admin'
