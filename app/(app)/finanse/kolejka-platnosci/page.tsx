@@ -95,8 +95,8 @@ export default async function KolejkaPlatnosciPage({
                     return (
                       <tr key={inv.id} className="hover:bg-gray-50">
                         <td className="px-4 py-2.5">
+                          {inv.subVendor && <span className="font-medium text-gray-900 mr-2">{inv.subVendor}</span>}
                           <Link href={`/finanse/faktury/${inv.id}`} className="text-blue-600 hover:underline font-mono text-xs">{inv.number}</Link>
-                          {inv.subVendor && <span className="text-xs text-gray-500 ml-2">{inv.subVendor}</span>}
                         </td>
                         <td className={`px-4 py-2.5 tabular-nums text-sm whitespace-nowrap ${overdue ? 'text-red-700 font-semibold' : 'text-gray-700'}`}>
                           termin: {fmtDate(inv.dueDate)}{overdue && ' ⚠'}

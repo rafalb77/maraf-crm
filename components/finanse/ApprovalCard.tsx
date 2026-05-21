@@ -49,8 +49,14 @@ export function ApprovalCard({ invoice, canApprove }: { invoice: Invoice; canApp
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 min-w-0">
           <div className="flex items-baseline gap-2 flex-wrap">
-            <h3 className="font-semibold text-gray-900">{invoice.vendorName}</h3>
-            {invoice.subVendor && <span className="text-sm text-gray-500">/ {invoice.subVendor}</span>}
+            {invoice.subVendor ? (
+              <>
+                <h3 className="font-semibold text-gray-900">{invoice.subVendor}</h3>
+                <span className="text-xs text-gray-400">{invoice.vendorName}</span>
+              </>
+            ) : (
+              <h3 className="font-semibold text-gray-900">{invoice.vendorName}</h3>
+            )}
             <Link href={`/finanse/faktury/${invoice.id}`} className="text-sm text-blue-600 hover:underline font-mono">
               {invoice.number}
             </Link>
