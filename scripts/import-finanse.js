@@ -168,15 +168,9 @@ function parseSheetByConfig(ws, cfg) {
     const description = String(toCell(r, cols.description) || '').trim() || null
     const vendorName = cfg.sectionMode ? (currentSection || cfg.vendorName) : cfg.vendorName
 
-    let deposit = null, buildingCosts = null, electricity = null
-    if (cfg.layout === 'B') {
-      const d = parseAmount(toCell(r, cols.deposit))
-      const b = parseAmount(toCell(r, cols.buildingCosts))
-      const e = parseAmount(toCell(r, cols.electricity))
-      if (d > 0) deposit = d
-      if (b > 0) buildingCosts = b
-      if (e > 0) electricity = e
-    }
+    // Kaucja/KB/prad NIE z importu (kolumny N/P/Q byly tylko w MURARZ; w STAFFA
+    // to smieci dajace absurdalne kwoty). Kaucje wpisuje sie recznie w UI.
+    const deposit = null, buildingCosts = null, electricity = null
 
     const payments = []
     if (paidDateRaw) {
