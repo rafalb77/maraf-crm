@@ -1,8 +1,10 @@
 import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
 import { fmtMoney, fmtMoneyShort } from '@/lib/finanse-format'
+import { getActiveCompany } from '@/lib/finanse-company'
 
 export default async function FinanseHomePage() {
+  const company = getActiveCompany()
   const today = new Date()
   today.setHours(0, 0, 0, 0)
   const in7 = new Date(today.getTime() + 7 * 86400000)
@@ -21,19 +23,21 @@ export default async function FinanseHomePage() {
     paidThisMonthSum,
     topVendorsRaw,
   ] = await Promise.all([
-    prisma.purchaseInvoice.count({ where: { status: 'DO_ZATWIERDZENIA' } }),
+    prisma.purchaseInvoice.count({ where: { company, status: 'DO_ZATWIERDZENIA' } }),
     prisma.purchaseInvoice.aggregate({
-      where: { status: 'DO_ZATWIERDZENIA' },
+      where: { company, status: 'DO_ZATWIERDZENIA' },
       _sum: { amountGross: true },
     }),
     prisma.purchaseInvoice.count({
       where: {
+        company,
         status: { in: ['ZATWIERDZONA', 'WPROWADZONA', 'DO_ZATWIERDZENIA', 'CZESCIOWO_OPLACONA', 'ZAPLANOWANA'] },
         dueDate: { lt: today },
       },
     }),
     prisma.purchaseInvoice.aggregate({
       where: {
+        company,
         status: { in: ['ZATWIERDZONA', 'WPROWADZONA', 'DO_ZATWIERDZENIA', 'CZESCIOWO_OPLACONA', 'ZAPLANOWANA'] },
         dueDate: { lt: today },
       },
@@ -41,12 +45,14 @@ export default async function FinanseHomePage() {
     }),
     prisma.purchaseInvoice.count({
       where: {
+        company,
         status: { in: ['ZATWIERDZONA', 'CZESCIOWO_OPLACONA', 'ZAPLANOWANA'] },
         dueDate: { gte: today, lte: in7 },
       },
     }),
     prisma.purchaseInvoice.aggregate({
       where: {
+        company,
         status: { in: ['ZATWIERDZONA', 'CZESCIOWO_OPLACONA', 'ZAPLANOWANA'] },
         dueDate: { gte: today, lte: in7 },
       },
@@ -54,24 +60,26 @@ export default async function FinanseHomePage() {
     }),
     prisma.purchaseInvoice.count({
       where: {
+        company,
         status: { in: ['ZATWIERDZONA', 'CZESCIOWO_OPLACONA', 'ZAPLANOWANA'] },
         dueDate: { gte: today, lte: in30 },
       },
     }),
     prisma.purchaseInvoice.aggregate({
       where: {
+        company,
         status: { in: ['ZATWIERDZONA', 'CZESCIOWO_OPLACONA', 'ZAPLANOWANA'] },
         dueDate: { gte: today, lte: in30 },
       },
       _sum: { amountGross: true },
     }),
     prisma.purchaseInvoicePayment.aggregate({
-      where: { paidAt: { gte: monthStart } },
+      where: { paidAt: { gte: monthStart }, invoice: { company } },
       _sum: { amount: true },
     }),
     prisma.purchaseInvoice.groupBy({
       by: ['vendorId'],
-      where: { status: { notIn: ['OPLACONA', 'ANULOWANA'] } },
+      where: { company, status: { notIn: ['OPLACONA', 'ANULOWANA'] } },
       _sum: { amountGross: true },
       orderBy: { _sum: { amountGross: 'desc' } },
       take: 10,
@@ -81,12 +89,12 @@ export default async function FinanseHomePage() {
   // Kaucje gwarancyjne — zatrzymane (niezwrocone)
   const [depositActive, depositSoon] = await Promise.all([
     prisma.purchaseInvoice.aggregate({
-      where: { deposit: { gt: 0 }, depositReturnedAt: null },
+      where: { company, deposit: { gt: 0 }, depositReturnedAt: null },
       _sum: { deposit: true },
       _count: true,
     }),
     prisma.purchaseInvoice.count({
-      where: { deposit: { gt: 0 }, depositReturnedAt: null, depositReturnDate: { lte: in30 } },
+      where: { company, deposit: { gt: 0 }, depositReturnedAt: null, depositReturnDate: { lte: in30 } },
     }),
   ])
 

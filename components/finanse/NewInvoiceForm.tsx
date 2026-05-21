@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 
 type Vendor = { id: string; name: string; category: string }
 
-export function NewInvoiceForm({ vendors }: { vendors: Vendor[] }) {
+export function NewInvoiceForm({ vendors, company }: { vendors: Vendor[]; company: string }) {
   const router = useRouter()
   const [vendorId, setVendorId] = useState(vendors[0]?.id || '')
   const [number, setNumber] = useState('')
@@ -40,6 +40,7 @@ export function NewInvoiceForm({ vendors }: { vendors: Vendor[] }) {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
+          company,
           vendorId,
           number: number.trim(),
           subVendor: subVendor.trim() || null,

@@ -2,15 +2,13 @@ import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
 import {
   PURCHASE_INVOICE_STATUS_LABELS,
-  COMPANY_LABELS,
-  type Company,
 } from '@/lib/types'
+import { getActiveCompany } from '@/lib/finanse-company'
 import { FakturyTable, type FakturaRow } from '@/components/finanse/FakturyTable'
 
 type SearchParams = {
   vendor?: string
   status?: string
-  company?: string
   q?: string
   overdue?: string
   from?: string
@@ -25,13 +23,13 @@ export default async function FakturyListPage({
 }: {
   searchParams: SearchParams
 }) {
+  const company = getActiveCompany()
   const today = new Date()
   today.setHours(0, 0, 0, 0)
 
-  const filters: any[] = []
+  const filters: any[] = [{ company }]
   if (searchParams.vendor) filters.push({ vendorId: searchParams.vendor })
   if (searchParams.status) filters.push({ status: searchParams.status })
-  if (searchParams.company) filters.push({ company: searchParams.company })
   if (searchParams.q) {
     filters.push({
       OR: [
@@ -94,7 +92,7 @@ export default async function FakturyListPage({
     return s ? `?${s}` : ''
   }
 
-  const hasFilters = !!(searchParams.vendor || searchParams.status || searchParams.company || searchParams.q || searchParams.overdue || searchParams.from || searchParams.to)
+  const hasFilters = !!(searchParams.vendor || searchParams.status || searchParams.q || searchParams.overdue || searchParams.from || searchParams.to)
 
   const rows: FakturaRow[] = invoices.map((inv) => {
     const sumPaid = inv.payments.reduce((s, p) => s + p.amount, 0)
@@ -152,12 +150,6 @@ export default async function FakturyListPage({
         <select name="vendor" defaultValue={searchParams.vendor || ''} className="px-3 py-2 border border-gray-300 rounded-lg text-sm">
           <option value="">Wszyscy kontrahenci</option>
           {vendors.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}
-        </select>
-        <select name="company" defaultValue={searchParams.company || ''} className="px-3 py-2 border border-gray-300 rounded-lg text-sm">
-          <option value="">Obie firmy</option>
-          {(Object.keys(COMPANY_LABELS) as Company[]).map((c) => (
-            <option key={c} value={c}>{COMPANY_LABELS[c]}</option>
-          ))}
         </select>
         <select name="status" defaultValue={searchParams.status || ''} className="px-3 py-2 border border-gray-300 rounded-lg text-sm">
           <option value="">Wszystkie statusy</option>

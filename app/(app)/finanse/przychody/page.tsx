@@ -3,18 +3,18 @@ import { prisma } from '@/lib/prisma'
 import {
   SALES_INVOICE_STATUS_LABELS,
   SALES_INVOICE_STATUS_COLORS,
-  COMPANY_LABELS,
   COMPANY_SHORT,
   type SalesInvoiceStatus,
   type Company,
 } from '@/lib/types'
 import { fmtDate, fmtMoney, isOverdue } from '@/lib/finanse-format'
+import { getActiveCompany } from '@/lib/finanse-company'
 
-type SearchParams = { company?: string; status?: string; q?: string; year?: string }
+type SearchParams = { status?: string; q?: string; year?: string }
 
 export default async function PrzychodyPage({ searchParams }: { searchParams: SearchParams }) {
-  const filters: any[] = []
-  if (searchParams.company) filters.push({ company: searchParams.company })
+  const company = getActiveCompany()
+  const filters: any[] = [{ company }]
   if (searchParams.status) filters.push({ status: searchParams.status })
   if (searchParams.q) {
     filters.push({ OR: [
@@ -38,7 +38,7 @@ export default async function PrzychodyPage({ searchParams }: { searchParams: Se
     prisma.salesInvoice.aggregate({ where, _sum: { amountNet: true, amountVat: true, amountGross: true } }),
   ])
 
-  const hasFilters = !!(searchParams.company || searchParams.status || searchParams.q || searchParams.year)
+  const hasFilters = !!(searchParams.status || searchParams.q || searchParams.year)
 
   return (
     <div className="p-8">
@@ -52,12 +52,8 @@ export default async function PrzychodyPage({ searchParams }: { searchParams: Se
         </Link>
       </div>
 
-      <form method="get" className="bg-white rounded-xl border border-gray-200 p-4 mb-4 grid grid-cols-1 md:grid-cols-5 gap-3">
+      <form method="get" className="bg-white rounded-xl border border-gray-200 p-4 mb-4 grid grid-cols-1 md:grid-cols-4 gap-3">
         <input name="q" defaultValue={searchParams.q || ''} placeholder="Nr FV lub odbiorca..." className="md:col-span-2 px-3 py-2 border border-gray-300 rounded-lg text-sm" />
-        <select name="company" defaultValue={searchParams.company || ''} className="px-3 py-2 border border-gray-300 rounded-lg text-sm">
-          <option value="">Obie firmy</option>
-          {(Object.keys(COMPANY_LABELS) as Company[]).map((c) => <option key={c} value={c}>{COMPANY_LABELS[c]}</option>)}
-        </select>
         <select name="status" defaultValue={searchParams.status || ''} className="px-3 py-2 border border-gray-300 rounded-lg text-sm">
           <option value="">Wszystkie statusy</option>
           {Object.entries(SALES_INVOICE_STATUS_LABELS).map(([k, l]) => <option key={k} value={k}>{l}</option>)}

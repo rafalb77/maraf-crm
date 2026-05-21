@@ -1,29 +1,22 @@
 import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
 import { fmtDate, fmtMoney, isOverdue } from '@/lib/finanse-format'
-import { COMPANY_LABELS, type Company } from '@/lib/types'
+import { getActiveCompany } from '@/lib/finanse-company'
 
 const RANGE_DAYS = 30
 
-export default async function KolejkaPlatnosciPage({
-  searchParams,
-}: {
-  searchParams: { company?: string }
-}) {
+export default async function KolejkaPlatnosciPage() {
+  const company = getActiveCompany()
   const today = new Date()
   today.setHours(0, 0, 0, 0)
   const horizon = new Date(today.getTime() + RANGE_DAYS * 86400000)
 
-  const companyFilter = searchParams.company
-    ? { company: searchParams.company }
-    : {}
-
   // Faktury "do zaplaty": zatwierdzone/czesciowo/zaplanowane, termin <= horyzont lub brak terminu.
   const invoices = await prisma.purchaseInvoice.findMany({
     where: {
+      company,
       status: { in: ['ZATWIERDZONA', 'CZESCIOWO_OPLACONA', 'ZAPLANOWANA'] },
       OR: [{ dueDate: { lte: horizon } }, { dueDate: null }],
-      ...companyFilter,
     },
     orderBy: [{ dueDate: 'asc' }, { issueDate: 'asc' }],
     include: {
@@ -53,21 +46,12 @@ export default async function KolejkaPlatnosciPage({
 
   return (
     <div className="p-8 max-w-6xl">
-      <div className="mb-6 flex items-baseline justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Kolejka płatności</h1>
-          <p className="text-gray-500 text-sm mt-1">
-            Zatwierdzone do zapłaty (najbliższe {RANGE_DAYS} dni) — łącznie <strong className="text-gray-900">{fmtMoney(totalRemaining)}</strong>
-            {overdueCount > 0 && <span className="text-red-600"> • {overdueCount} po terminie</span>}
-          </p>
-        </div>
-        {/* Filtr firmy */}
-        <div className="flex gap-1 text-sm">
-          <CompanyTab label="Obie firmy" href="/finanse/kolejka-platnosci" active={!searchParams.company} />
-          {(Object.keys(COMPANY_LABELS) as Company[]).map((c) => (
-            <CompanyTab key={c} label={COMPANY_LABELS[c]} href={`/finanse/kolejka-platnosci?company=${c}`} active={searchParams.company === c} />
-          ))}
-        </div>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">Kolejka płatności</h1>
+        <p className="text-gray-500 text-sm mt-1">
+          Zatwierdzone do zapłaty (najbliższe {RANGE_DAYS} dni) — łącznie <strong className="text-gray-900">{fmtMoney(totalRemaining)}</strong>
+          {overdueCount > 0 && <span className="text-red-600"> • {overdueCount} po terminie</span>}
+        </p>
       </div>
 
       {sortedGroups.length === 0 && (
@@ -120,16 +104,5 @@ export default async function KolejkaPlatnosciPage({
         ))}
       </div>
     </div>
-  )
-}
-
-function CompanyTab({ label, href, active }: { label: string; href: string; active: boolean }) {
-  return (
-    <Link
-      href={href}
-      className={`px-3 py-1.5 rounded-lg border ${active ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'}`}
-    >
-      {label}
-    </Link>
   )
 }
