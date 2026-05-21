@@ -14,9 +14,10 @@ const ENC_PREFIX = 'enc::v1::'
 const FIELDS = ['pesel', 'nip', 'idNumber', 'fatherName', 'motherName', 'address']
 
 function getKey() {
-  const raw = process.env.ENCRYPTION_KEY
-  if (!raw || !/^[0-9a-fA-F]{64}$/.test(raw)) {
-    console.error('BŁĄD: ENCRYPTION_KEY musi być 64 znakami hex (32 bajty).')
+  const rawEnv = process.env.ENCRYPTION_KEY || ''
+  const raw = rawEnv.trim().replace(/^["']|["']$/g, '').trim()
+  if (!/^[0-9a-fA-F]{64}$/.test(raw)) {
+    console.error(`BŁĄD: ENCRYPTION_KEY musi być 64 znakami hex (32 bajty). Otrzymano: ${raw.length} znaków.`)
     console.error('Wygeneruj: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"')
     process.exit(1)
   }

@@ -36,11 +36,15 @@ let warnedNoKey = false
 
 function getKey(): Buffer | null {
   if (cachedKey) return cachedKey
-  const raw = process.env.ENCRYPTION_KEY
-  if (!raw) return null
+  const rawEnv = process.env.ENCRYPTION_KEY
+  if (!rawEnv) return null
+  // Toleruj otaczające cudzysłowy/apostrofy i białe znaki (częsty błąd przy
+  // wklejaniu wartości w panelu Coolify).
+  const raw = rawEnv.trim().replace(/^["']|["']$/g, '').trim()
   if (!/^[0-9a-fA-F]{64}$/.test(raw)) {
     throw new Error(
-      'ENCRYPTION_KEY musi być 64 znakami hex (32 bajty). Wygeneruj: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"',
+      `ENCRYPTION_KEY musi być 64 znakami hex (32 bajty). Otrzymano: ${raw.length} znaków. ` +
+        'Wygeneruj: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"',
     )
   }
   cachedKey = Buffer.from(raw, 'hex')
