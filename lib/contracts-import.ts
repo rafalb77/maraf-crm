@@ -5,39 +5,88 @@ import type { ContractType, ContractStatus } from './types'
 // =====================================================================
 // Importer umów (Contract) z xlsx — backfill historii sprzedaży.
 //
-// Format pliku (z nagłówkiem w wierszu 1):
-//   A Nr umowy* · B Typ · C Status · D Klient(zy) · E Telefon · F Email
-//   G Lokale (numery, przecinkami) · H Inwestycja · I Data wprowadzenia
-//   J Data podpisania · K Wartość netto · L Wartość brutto · M Kaucja
-//   N Rabat · O Notatki · P Źródło
+// Mapowanie kolumn PO NAZWACH nagłówków (odporne na kolejność i format
+// eksportu). Rozpoznawane nagłówki (case-insensitive) — patrz HEADER_ALIASES.
+// Wspiera m.in. eksport z polami: Nazwa(=nr umowy), Typ umowy, Status umowy,
+// Klienci, Email, Inwestycja, Data wprowadzenia, Planowana data podpisania,
+// Data podpisania — oraz starszy format (Nr umowy, Telefon, Lokale, Wartości...).
 //
 // Zachowanie:
-//  - idempotentny po "Nr umowy" (istniejąca → update, nowa → create)
-//  - klient dopasowany po imię+nazwisko; brakujący tworzony (createMissingClients)
+//  - idempotentny po numerze umowy (istniejąca → update, nowa → create)
+//  - klient dopasowany NAJPIERW po emailu (pewniejsze), potem po imię+nazwisko;
+//    brakujący tworzony (createMissingClients)
 //  - data wprowadzenia → introducedAt umowy ORAZ createdAt nowo tworzonego klienta
-//    (żeby "cykl sprzedaży" liczył się też dla historii)
 //  - lokale dopasowane po numerze; brakujące → ostrzeżenie (lokale importuj wcześniej)
-//  - NIE zmienia statusu lokali (to robi import lokali) — patrz docs/statystyki-decyzje.md
+//  - NIE zmienia statusu lokali (to robi import lokali)
 // =====================================================================
 
-const COL = {
-  number: 0,
-  type: 1,
-  status: 2,
-  clients: 3,
-  phone: 4,
-  email: 5,
-  units: 6,
-  investment: 7,
-  introducedAt: 8,
-  signedAt: 9,
-  valueNet: 10,
-  valueGross: 11,
-  reservationFee: 12,
-  discount: 13,
-  notes: 14,
-  source: 15,
-} as const
+type ColKey =
+  | 'number' | 'type' | 'status' | 'clients' | 'phone' | 'email' | 'units'
+  | 'investment' | 'introducedAt' | 'plannedSignDate' | 'signedAt'
+  | 'valueNet' | 'valueGross' | 'reservationFee' | 'discount' | 'notes' | 'source'
+
+// Aliasy nagłówków → klucz kolumny (po normalizacji: lower+trim).
+// Kolejność wpisana jest tak, by specyficzne nazwy ('nr umowy') miały
+// pierwszeństwo nad ogólnymi ('nazwa') — patrz resolveColumns().
+const HEADER_ALIASES: Record<string, ColKey> = {
+  'nr umowy': 'number',
+  'numer umowy': 'number',
+  'numer': 'number',
+  'nazwa': 'number', // eksport "Umowa sprzedaży" nazywa numer umowy "Nazwa"
+  'typ umowy': 'type',
+  'typ': 'type',
+  'status umowy': 'status',
+  'status': 'status',
+  'klienci': 'clients',
+  'klient': 'clients',
+  'klient(zy)': 'clients',
+  'klienci(zy)': 'clients',
+  'email': 'email',
+  'e-mail': 'email',
+  'telefon': 'phone',
+  'numer telefonu': 'phone',
+  'lokale': 'units',
+  'lokal': 'units',
+  'inwestycja': 'investment',
+  'data wprowadzenia': 'introducedAt',
+  'planowana data podpisania': 'plannedSignDate',
+  'data podpisania': 'signedAt',
+  'wartość netto': 'valueNet',
+  'wartosc netto': 'valueNet',
+  'wartość brutto': 'valueGross',
+  'wartosc brutto': 'valueGross',
+  'kaucja': 'reservationFee',
+  'opłata rezerwacyjna': 'reservationFee',
+  'oplata rezerwacyjna': 'reservationFee',
+  'rabat': 'discount',
+  'notatki': 'notes',
+  'źródło': 'source',
+  'zrodlo': 'source',
+}
+
+// Aliasy o NIŻSZYM priorytecie — używane tylko gdy pole nie zostało
+// rozpoznane przez bardziej specyficzny nagłówek (np. 'nazwa' → number
+// tylko gdy brak kolumny 'nr umowy'/'numer umowy').
+const LOW_PRIORITY = new Set<string>(['nazwa', 'typ', 'status', 'numer'])
+
+function resolveColumns(header: unknown[]): Partial<Record<ColKey, number>> {
+  const colOf: Partial<Record<ColKey, number>> = {}
+  // Pierwsze przejście: tylko nagłówki o wysokim priorytecie.
+  for (let c = 0; c < header.length; c++) {
+    const key = String(header[c] ?? '').trim().toLowerCase()
+    if (LOW_PRIORITY.has(key)) continue
+    const field = HEADER_ALIASES[key]
+    if (field && colOf[field] === undefined) colOf[field] = c
+  }
+  // Drugie przejście: nagłówki niskiego priorytetu uzupełniają braki.
+  for (let c = 0; c < header.length; c++) {
+    const key = String(header[c] ?? '').trim().toLowerCase()
+    if (!LOW_PRIORITY.has(key)) continue
+    const field = HEADER_ALIASES[key]
+    if (field && colOf[field] === undefined) colOf[field] = c
+  }
+  return colOf
+}
 
 export type ImportContractsOptions = {
   createMissingClients: boolean
@@ -54,6 +103,7 @@ export type ContractRowData = {
   unitNumbers: string[]
   investmentName: string
   introducedAt: Date | null
+  plannedSignDate: Date | null
   signedAt: Date | null
   valueNet: number | null
   valueGross: number | null
@@ -169,31 +219,43 @@ function parseSheet(buffer: Buffer): ParsedRow[] {
   const wb = XLSX.read(buffer, { type: 'buffer', cellDates: true })
   const sheet = wb.Sheets[wb.SheetNames[0]]
   if (!sheet) throw new Error('Plik nie zawiera żadnego arkusza')
-  const rows = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: '' })
+  // blankrows:false — niektóre eksporty mają ogromny "used range" z pustymi
+  // wierszami (sheet_to_json zwróciłby setki tysięcy pustych tablic).
+  const rows = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: '', blankrows: false })
+  if (rows.length < 2) throw new Error('Plik nie zawiera danych (brak wierszy poza nagłówkiem)')
+
+  const colOf = resolveColumns(rows[0])
+  if (colOf.number === undefined) {
+    throw new Error('Nie znaleziono kolumny z numerem umowy ("Nazwa"/"Nr umowy"). Sprawdź nagłówek pliku.')
+  }
+  if (colOf.clients === undefined) {
+    throw new Error('Nie znaleziono kolumny "Klienci"/"Klient". Sprawdź nagłówek pliku.')
+  }
+  const get = (r: unknown[], f: ColKey): unknown => (colOf[f] !== undefined ? r[colOf[f]!] : '')
 
   const out: ParsedRow[] = []
   for (let i = 1; i < rows.length; i++) {
     const r = rows[i]
     const rowIndex = i + 1
-    const number = String(r[COL.number] || '').trim()
+    const number = String(get(r, 'number') || '').trim()
     if (!number) continue
 
-    const type = matchType(String(r[COL.type] || '').trim())
+    const type = matchType(String(get(r, 'type') || '').trim())
     if (!type) {
-      out.push({ rowIndex, error: { rowIndex, number, reason: `Nieznany typ umowy: "${String(r[COL.type] || '')}"` } })
+      out.push({ rowIndex, error: { rowIndex, number, reason: `Nieznany typ umowy: "${String(get(r, 'type') || '')}"` } })
       continue
     }
 
-    const clientNames = splitNames(r[COL.clients])
+    const clientNames = splitNames(get(r, 'clients'))
     if (clientNames.length === 0) {
       out.push({ rowIndex, error: { rowIndex, number, reason: 'Brak klienta' } })
       continue
     }
 
-    const signedAt = parseDate(r[COL.signedAt])
-    const status = matchStatus(String(r[COL.status] || '').trim(), !!signedAt)
+    const signedAt = parseDate(get(r, 'signedAt'))
+    const status = matchStatus(String(get(r, 'status') || '').trim(), !!signedAt)
 
-    const unitNumbers = String(r[COL.units] || '')
+    const unitNumbers = String(get(r, 'units') || '')
       .split(/[,;]/)
       .map((p) => p.trim())
       .filter(Boolean)
@@ -205,18 +267,19 @@ function parseSheet(buffer: Buffer): ParsedRow[] {
         type,
         status,
         clientNames,
-        phone: String(r[COL.phone] || '').trim() || null,
-        email: String(r[COL.email] || '').trim() || null,
-        source: String(r[COL.source] || '').trim() || null,
+        phone: String(get(r, 'phone') || '').trim() || null,
+        email: String(get(r, 'email') || '').trim() || null,
+        source: String(get(r, 'source') || '').trim() || null,
         unitNumbers,
-        investmentName: String(r[COL.investment] || '').trim() || 'Inwestycja',
-        introducedAt: parseDate(r[COL.introducedAt]),
+        investmentName: String(get(r, 'investment') || '').trim() || 'Inwestycja',
+        introducedAt: parseDate(get(r, 'introducedAt')),
+        plannedSignDate: parseDate(get(r, 'plannedSignDate')),
         signedAt,
-        valueNet: parseMoney(r[COL.valueNet]),
-        valueGross: parseMoney(r[COL.valueGross]),
-        reservationFee: parseMoney(r[COL.reservationFee]),
-        discount: parseMoney(r[COL.discount]),
-        notes: String(r[COL.notes] || '').trim() || null,
+        valueNet: parseMoney(get(r, 'valueNet')),
+        valueGross: parseMoney(get(r, 'valueGross')),
+        reservationFee: parseMoney(get(r, 'reservationFee')),
+        discount: parseMoney(get(r, 'discount')),
+        notes: String(get(r, 'notes') || '').trim() || null,
       },
     })
   }
@@ -247,15 +310,17 @@ export async function buildContractsDiff(
 
   const [existingContracts, allClients, allUnits] = await Promise.all([
     prisma.contract.findMany({ select: { number: true } }),
-    prisma.client.findMany({ select: { id: true, firstName: true, lastName: true } }),
+    prisma.client.findMany({ select: { id: true, firstName: true, lastName: true, email: true } }),
     prisma.unit.findMany({ select: { number: true } }),
   ])
   const existingNumbers = new Set(existingContracts.map((c) => c.number))
   const unitNumberSet = new Set(allUnits.map((u) => u.number))
   const clientCountByName = new Map<string, number>()
+  const emailSet = new Set<string>()
   for (const c of allClients) {
     const key = `${c.firstName} ${c.lastName}`.trim().toLowerCase()
     clientCountByName.set(key, (clientCountByName.get(key) || 0) + 1)
+    if (c.email) emailSet.add(c.email.trim().toLowerCase())
   }
 
   const rows: PreviewRow[] = []
@@ -266,9 +331,12 @@ export async function buildContractsDiff(
     const d = v.data
     const primary = d.clientNames[0]
     const key = primary.trim().toLowerCase()
+    const emailKey = d.email ? d.email.trim().toLowerCase() : ''
     const matchCount = clientCountByName.get(key) || 0
     let clientResolution: PreviewRow['clientResolution']
-    if (matchCount === 1) clientResolution = 'matched'
+    // Email ma pierwszeństwo — pewniejszy niż imię+nazwisko.
+    if (emailKey && emailSet.has(emailKey)) clientResolution = 'matched'
+    else if (matchCount === 1) clientResolution = 'matched'
     else if (matchCount > 1) clientResolution = 'ambiguous'
     else {
       if (!opts.createMissingClients) {
@@ -345,17 +413,25 @@ export async function commitContractsImport(
     const units = await tx.unit.findMany({ select: { id: true, number: true } })
     const unitIdByNumber = new Map(units.map((u) => [u.number, u.id]))
 
-    // Cache klientów po nazwie (lower) → lista id
-    const clients = await tx.client.findMany({ select: { id: true, firstName: true, lastName: true } })
+    // Cache klientów po nazwie (lower) → lista id, oraz po emailu (lower) → id.
+    const clients = await tx.client.findMany({ select: { id: true, firstName: true, lastName: true, email: true } })
     const clientIdsByName = new Map<string, string[]>()
+    const clientIdByEmail = new Map<string, string>()
     for (const c of clients) {
       const key = `${c.firstName} ${c.lastName}`.trim().toLowerCase()
       const arr = clientIdsByName.get(key) || []
       arr.push(c.id)
       clientIdsByName.set(key, arr)
+      if (c.email) clientIdByEmail.set(c.email.trim().toLowerCase(), c.id)
     }
 
-    async function resolveClientId(fullName: string, d: ContractRowData): Promise<string | null> {
+    // useEmail: tylko dla GŁÓWNEGO klienta umowy — email z pliku należy do niego.
+    // Współkupujący (2..n) dopasowywani wyłącznie po nazwisku.
+    async function resolveClientId(fullName: string, d: ContractRowData, useEmail: boolean): Promise<string | null> {
+      if (useEmail && d.email) {
+        const eid = clientIdByEmail.get(d.email.trim().toLowerCase())
+        if (eid) return eid
+      }
       const key = fullName.trim().toLowerCase()
       const ids = clientIdsByName.get(key)
       if (ids && ids.length >= 1) return ids[0]
@@ -365,8 +441,8 @@ export async function commitContractsImport(
         data: {
           firstName,
           lastName,
-          phone: d.phone,
-          email: d.email,
+          phone: useEmail ? d.phone : null,
+          email: useEmail ? d.email : null, // email przypisujemy tylko głównemu
           source: d.source,
           // status pochodny z umowy (pomaga ożywić lejek/ROI dla historii)
           status: d.status === 'PODPISANA' ? 'UMOWA' : 'REZERWACJA',
@@ -376,13 +452,14 @@ export async function commitContractsImport(
         select: { id: true },
       })
       clientIdsByName.set(key, [created.id])
+      if (useEmail && d.email) clientIdByEmail.set(d.email.trim().toLowerCase(), created.id)
       clientsCreated++
       return created.id
     }
 
     for (const v of valid) {
       const d = v.data
-      const primaryId = await resolveClientId(d.clientNames[0], d)
+      const primaryId = await resolveClientId(d.clientNames[0], d, true)
       if (!primaryId) {
         errors.push({ rowIndex: v.rowIndex, number: d.number, reason: `Klient "${d.clientNames[0]}" nie istnieje (tworzenie wyłączone)` })
         continue
@@ -393,6 +470,7 @@ export async function commitContractsImport(
         status: d.status,
         investmentName: d.investmentName,
         clientId: primaryId,
+        plannedSignDate: d.plannedSignDate,
         signedAt: d.signedAt,
         valueNet: d.valueNet,
         valueGross: d.valueGross,
@@ -419,10 +497,11 @@ export async function commitContractsImport(
         contractsCreated++
       }
 
-      // Współkupujący (pozycje 2..n) — primary trzymamy też w ContractClient pos 1
+      // Współkupujący (pozycje 2..n) — primary trzymamy też w ContractClient pos 1.
+      // Główny (idx 0) z useEmail, reszta tylko po nazwisku.
       const allNameIds: string[] = []
-      for (const name of d.clientNames) {
-        const id = await resolveClientId(name, d)
+      for (let ni = 0; ni < d.clientNames.length; ni++) {
+        const id = await resolveClientId(d.clientNames[ni], d, ni === 0)
         if (id) allNameIds.push(id)
       }
       let pos = 1
