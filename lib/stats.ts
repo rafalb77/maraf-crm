@@ -54,16 +54,45 @@ export type Heatmap = {
   buildings: HeatmapBuilding[]
 }
 
+export type Delta = { current: number; prev: number; changePct: number | null; spark: number[] }
+export type Momentum = {
+  monthLabel: string
+  leads: Delta
+  signed: Delta
+  revenue: Delta
+}
+
 export type CrmStats = {
   funnel: FunnelStep[]
   totalClients: number
   leadSources: LeadSourceRow[]
   velocity: VelocityMonth[]
   heatmap: Heatmap
+  momentum: Momentum
 }
 
 const CONVERTED_STATUSES = new Set(['UMOWA', 'ODBIOR'])
 const MONTH_LABELS = ['sty', 'lut', 'mar', 'kwi', 'maj', 'cze', 'lip', 'sie', 'wrz', 'paź', 'lis', 'gru']
+
+function monthKey(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+}
+
+function median(values: number[]): number {
+  if (values.length === 0) return 0
+  const s = [...values].sort((a, b) => a - b)
+  const mid = Math.floor(s.length / 2)
+  return s.length % 2 ? s[mid] : Math.round((s[mid - 1] + s[mid]) / 2)
+}
+
+function daysBetween(later: Date, earlier: Date): number {
+  return Math.round((later.getTime() - earlier.getTime()) / 86_400_000)
+}
+
+function changePct(current: number, prev: number): number | null {
+  if (prev === 0) return current > 0 ? null : 0 // null = "nowość" (brak bazy), wyświetlamy jako —
+  return (current - prev) / prev
+}
 
 /** Budynek z pola Unit.building, a gdy puste — prefiks numeru (np. "B1.1.M3" → "B1"). */
 function buildingKey(building: string | null, number: string): string {
@@ -74,7 +103,7 @@ function buildingKey(building: string | null, number: string): string {
 
 export async function getCrmStats(): Promise<CrmStats> {
   const [clients, contracts, units] = await Promise.all([
-    prisma.client.findMany({ select: { status: true, source: true } }),
+    prisma.client.findMany({ select: { status: true, source: true, createdAt: true } }),
     prisma.contract.findMany({
       where: { status: 'PODPISANA' },
       select: { signedAt: true, introducedAt: true, valueGross: true },
@@ -179,6 +208,30 @@ export async function getCrmStats(): Promise<CrmStats> {
     if (u.status === 'SPRZEDANY') cell.sold += 1
     floors.set(floor, cell)
   }
+  // ---- Momentum: bieżący miesiąc vs poprzedni + sparkline 6 mc ----
+  // Leady per miesiąc z client.createdAt (te same 12 bucketów co velocity).
+  const leadsByKey = new Map(buckets.map((b) => [b.month, 0]))
+  for (const c of clients) {
+    const key = monthKey(c.createdAt)
+    if (leadsByKey.has(key)) leadsByKey.set(key, (leadsByKey.get(key) || 0) + 1)
+  }
+  const leadsSeries = buckets.map((b) => leadsByKey.get(b.month) || 0)
+  const signedSeries = buckets.map((b) => b.signed)
+  const revenueSeries = buckets.map((b) => b.revenue)
+  const last = buckets.length - 1
+  const mkDelta = (series: number[]): Delta => ({
+    current: series[last] ?? 0,
+    prev: series[last - 1] ?? 0,
+    changePct: changePct(series[last] ?? 0, series[last - 1] ?? 0),
+    spark: series.slice(-6),
+  })
+  const momentum: Momentum = {
+    monthLabel: buckets[last]?.label ?? '',
+    leads: mkDelta(leadsSeries),
+    signed: mkDelta(signedSeries),
+    revenue: mkDelta(revenueSeries),
+  }
+
   const floors = [...floorsSet].sort((a, b) => a - b)
   const buildings: HeatmapBuilding[] = [...byBuilding.entries()]
     .map(([building, floorMap]) => {
@@ -200,5 +253,180 @@ export async function getCrmStats(): Promise<CrmStats> {
     leadSources,
     velocity: buckets,
     heatmap: { floors, buildings },
+    momentum,
   }
+}
+
+// =============================================================
+// Insighty (paczka #2) — cykl sprzedaży, czas do sprzedaży per typ,
+// leady do odgrzania, prognoza pipeline, puls aktywności.
+// =============================================================
+
+export type CycleStats = {
+  overallMedianDays: number
+  sampleSize: number
+  bySource: { source: string; medianDays: number; count: number }[]
+}
+
+export type TimeToSaleRow = { type: string; soldCount: number; medianDays: number }
+
+export type StaleLead = {
+  id: string
+  name: string
+  status: string
+  daysSinceTouch: number
+  lastTouch: Date
+}
+
+export type Pipeline = {
+  prepContractsValue: number
+  prepContractsCount: number
+  sentOffersValue: number
+  sentOffersCount: number
+  weightedForecast: number
+}
+
+export type ActivityMonth = {
+  label: string
+  NOTATKA: number
+  TELEFON: number
+  EMAIL: number
+  SPOTKANIE: number
+  DOKUMENT: number
+}
+
+export type CrmInsights = {
+  cycle: CycleStats
+  timeToSale: TimeToSaleRow[]
+  staleLeads: StaleLead[]
+  pipeline: Pipeline
+  activity: ActivityMonth[]
+}
+
+// Wagi prognozy pipeline (dokumentowane, do strojenia). Umowa w przygotowaniu
+// jest bliżej finalizacji niż świeżo wysłana oferta.
+const PREP_CONTRACT_WEIGHT = 0.6
+const SENT_OFFER_WEIGHT = 0.25
+
+// Próg "leadu do odgrzania" — brak kontaktu od tylu dni.
+export const STALE_LEAD_DAYS = 21
+const STALE_LEAD_STATUSES = ['ZAPYTANIE', 'OFERTA', 'REZERWACJA']
+const ACTIVITY_TYPES = ['NOTATKA', 'TELEFON', 'EMAIL', 'SPOTKANIE', 'DOKUMENT'] as const
+
+export async function getCrmInsights(): Promise<CrmInsights> {
+  const now = new Date()
+
+  const [signedContracts, prepContracts, sentOffers, leadClients, activities] = await Promise.all([
+    prisma.contract.findMany({
+      where: { status: 'PODPISANA', signedAt: { not: null } },
+      select: {
+        signedAt: true,
+        client: { select: { createdAt: true, source: true } },
+        contractUnits: { select: { unit: { select: { type: true, createdAt: true } } } },
+      },
+    }),
+    prisma.contract.findMany({
+      where: { status: 'W_PRZYGOTOWANIU' },
+      select: { valueGross: true },
+    }),
+    prisma.offer.findMany({ where: { status: 'WYSLANA' }, select: { totalGross: true } }),
+    prisma.client.findMany({
+      where: { status: { in: STALE_LEAD_STATUSES } },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        status: true,
+        createdAt: true,
+        activities: { select: { date: true }, orderBy: { date: 'desc' }, take: 1 },
+      },
+    }),
+    prisma.activity.findMany({ select: { date: true, type: true } }),
+  ])
+
+  // ---- Cykl sprzedaży: dni od client.createdAt do contract.signedAt ----
+  const cycleDays: number[] = []
+  const cycleBySource = new Map<string, number[]>()
+  for (const ct of signedContracts) {
+    if (!ct.signedAt || !ct.client) continue
+    const d = daysBetween(ct.signedAt, ct.client.createdAt)
+    if (d < 0) continue // dane niespójne (umowa przed dodaniem klienta) — pomijamy
+    cycleDays.push(d)
+    const src = ct.client.source?.trim() || 'Bez źródła'
+    if (!cycleBySource.has(src)) cycleBySource.set(src, [])
+    cycleBySource.get(src)!.push(d)
+  }
+  const cycle: CycleStats = {
+    overallMedianDays: median(cycleDays),
+    sampleSize: cycleDays.length,
+    bySource: [...cycleBySource.entries()]
+      .map(([source, arr]) => ({ source, medianDays: median(arr), count: arr.length }))
+      .sort((a, b) => b.count - a.count),
+  }
+
+  // ---- Co schodzi najszybciej: mediana dni do sprzedaży per typ lokalu ----
+  const daysByType = new Map<string, number[]>()
+  for (const ct of signedContracts) {
+    if (!ct.signedAt) continue
+    for (const cu of ct.contractUnits) {
+      const u = cu.unit
+      if (!u) continue
+      const d = daysBetween(ct.signedAt, u.createdAt)
+      if (d < 0) continue
+      if (!daysByType.has(u.type)) daysByType.set(u.type, [])
+      daysByType.get(u.type)!.push(d)
+    }
+  }
+  const timeToSale: TimeToSaleRow[] = [...daysByType.entries()]
+    .map(([type, arr]) => ({ type, soldCount: arr.length, medianDays: median(arr) }))
+    .sort((a, b) => a.medianDays - b.medianDays)
+
+  // ---- Leady do odgrzania: brak kontaktu od STALE_LEAD_DAYS dni ----
+  const staleLeads: StaleLead[] = leadClients
+    .map((c) => {
+      const lastTouch = c.activities[0]?.date ?? c.createdAt
+      return {
+        id: c.id,
+        name: `${c.firstName} ${c.lastName}`,
+        status: c.status,
+        daysSinceTouch: daysBetween(now, lastTouch),
+        lastTouch,
+      }
+    })
+    .filter((l) => l.daysSinceTouch >= STALE_LEAD_DAYS)
+    .sort((a, b) => b.daysSinceTouch - a.daysSinceTouch)
+    .slice(0, 15)
+
+  // ---- Prognoza pipeline ----
+  const prepValue = prepContracts.reduce((s, c) => s + (c.valueGross ?? 0), 0)
+  const offersValue = sentOffers.reduce((s, o) => s + (o.totalGross ?? 0), 0)
+  const pipeline: Pipeline = {
+    prepContractsValue: prepValue,
+    prepContractsCount: prepContracts.length,
+    sentOffersValue: offersValue,
+    sentOffersCount: sentOffers.length,
+    weightedForecast: prepValue * PREP_CONTRACT_WEIGHT + offersValue * SENT_OFFER_WEIGHT,
+  }
+
+  // ---- Puls aktywności: ostatnie 12 mc, stackowane po typie ----
+  const actBuckets: ActivityMonth[] = []
+  const actByKey = new Map<string, ActivityMonth>()
+  for (let i = 11; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+    const m: ActivityMonth = {
+      label: `${MONTH_LABELS[d.getMonth()]} ${String(d.getFullYear()).slice(2)}`,
+      NOTATKA: 0, TELEFON: 0, EMAIL: 0, SPOTKANIE: 0, DOKUMENT: 0,
+    }
+    actBuckets.push(m)
+    actByKey.set(monthKey(d), m)
+  }
+  for (const a of activities) {
+    const m = actByKey.get(monthKey(a.date))
+    if (!m) continue
+    if ((ACTIVITY_TYPES as readonly string[]).includes(a.type)) {
+      m[a.type as (typeof ACTIVITY_TYPES)[number]] += 1
+    }
+  }
+
+  return { cycle, timeToSale, staleLeads, pipeline, activity: actBuckets }
 }
