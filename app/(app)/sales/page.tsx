@@ -1,11 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
-import { formatDate } from '@/lib/utils'
-import { ClickableRow } from '@/components/ui/ClickableRow'
-import {
-  CONTRACT_TYPE_LABELS, CONTRACT_STATUS_LABELS, CONTRACT_STATUS_COLORS,
-  type ContractType, type ContractStatus,
-} from '@/lib/types'
+import { SalesTable } from '@/components/sales/SalesTable'
 
 export default async function SalesPage({
   searchParams,
@@ -92,58 +87,18 @@ export default async function SalesPage({
         ))}
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-gray-50 text-xs text-gray-500 uppercase">
-            <tr>
-              <th className="text-left px-4 py-3 font-medium">Numer</th>
-              <th className="text-left px-4 py-3 font-medium">Inwestycja</th>
-              <th className="text-left px-4 py-3 font-medium">Typ</th>
-              <th className="text-left px-4 py-3 font-medium">Klient</th>
-              <th className="text-left px-4 py-3 font-medium">Data wprow.</th>
-              <th className="text-left px-4 py-3 font-medium">Data podpisania</th>
-              <th className="text-left px-4 py-3 font-medium">Status</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {contracts.length === 0 ? (
-              <tr>
-                <td colSpan={7} className="text-center py-12 text-gray-400">
-                  Brak umów
-                </td>
-              </tr>
-            ) : (
-              contracts.map((c) => (
-                <ClickableRow key={c.id} href={`/sales/${c.id}`} className="hover:bg-gray-50">
-                  <td className="px-4 py-3">
-                    <Link href={`/sales/${c.id}`} className="text-sm font-medium text-blue-600 hover:text-blue-700">
-                      {c.number}
-                    </Link>
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-700">{c.investmentName}</td>
-                  <td className="px-4 py-3 text-sm text-gray-700">
-                    {CONTRACT_TYPE_LABELS[c.type as ContractType]}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-900">
-                    {c.client.firstName} {c.client.lastName}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-500">{formatDate(c.introducedAt)}</td>
-                  <td className="px-4 py-3 text-sm text-gray-500">
-                    {c.signedAt ? formatDate(c.signedAt) : '—'}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`px-2 py-0.5 rounded text-xs font-medium ${CONTRACT_STATUS_COLORS[c.status as ContractStatus]}`}
-                    >
-                      {CONTRACT_STATUS_LABELS[c.status as ContractStatus]}
-                    </span>
-                  </td>
-                </ClickableRow>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+      <SalesTable
+        rows={contracts.map((c) => ({
+          id: c.id,
+          number: c.number,
+          investmentName: c.investmentName,
+          type: c.type,
+          clientName: `${c.client.firstName} ${c.client.lastName}`,
+          introducedAt: c.introducedAt.toISOString(),
+          signedAt: c.signedAt ? c.signedAt.toISOString() : null,
+          status: c.status,
+        }))}
+      />
     </div>
   )
 }

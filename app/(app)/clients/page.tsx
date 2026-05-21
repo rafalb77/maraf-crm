@@ -1,12 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
-import { formatDateTime } from '@/lib/utils'
-import {
-  CLIENT_STATUS_LABELS, CLIENT_STATUS_COLORS,
-  type ClientStatus
-} from '@/lib/types'
 import { ClientFilters } from '@/components/clients/ClientFilters'
-import { ClickableRow } from '@/components/ui/ClickableRow'
+import { ClientsTable } from '@/components/clients/ClientsTable'
 
 async function getClients(status?: string, search?: string) {
   return prisma.client.findMany({
@@ -69,62 +64,20 @@ export default async function ClientsPage({
 
       <ClientFilters />
 
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-gray-100 bg-gray-50">
-              <th className="text-left px-4 py-3 font-medium text-gray-500">Klient</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-500">Kontakt</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-500">Status</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-500">Lokale</th>
-              <th className="text-right px-4 py-3 font-medium text-gray-500">Działania</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-500">Ostatnia aktywność</th>
-            </tr>
-          </thead>
-          <tbody>
-            {clients.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="px-4 py-12 text-center text-gray-400">
-                  Brak klientów spełniających kryteria
-                </td>
-              </tr>
-            ) : (
-              clients.map((client) => (
-                <ClickableRow key={client.id} href={`/clients/${client.id}`} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-medium text-sm flex-shrink-0">
-                        {client.firstName[0]}{client.lastName[0]}
-                      </div>
-                      <div>
-                        <p className="font-medium text-gray-900">{client.firstName} {client.lastName}</p>
-                        {client.source && <p className="text-xs text-gray-400">{client.source}</p>}
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-gray-600">
-                    <div>{client.phone || '—'}</div>
-                    {client.email && <div className="text-xs text-gray-400">{client.email}</div>}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={`px-2 py-0.5 rounded text-xs font-medium ${CLIENT_STATUS_COLORS[client.status as ClientStatus]}`}>
-                      {CLIENT_STATUS_LABELS[client.status as ClientStatus]}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-gray-600">
-                    {client.clientUnits.length > 0
-                      ? client.clientUnits.map((cu) => cu.unit.number).join(', ')
-                      : <span className="text-gray-400">—</span>
-                    }
-                  </td>
-                  <td className="px-4 py-3 text-right text-gray-600">{client._count.activities}</td>
-                  <td className="px-4 py-3 text-xs text-gray-400">{formatDateTime(client.updatedAt)}</td>
-                </ClickableRow>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+      <ClientsTable
+        rows={clients.map((c) => ({
+          id: c.id,
+          firstName: c.firstName,
+          lastName: c.lastName,
+          source: c.source,
+          phone: c.phone,
+          email: c.email,
+          status: c.status,
+          unitNumbers: c.clientUnits.map((cu) => cu.unit.number),
+          activitiesCount: c._count.activities,
+          updatedAt: c.updatedAt.toISOString(),
+        }))}
+      />
     </div>
   )
 }
