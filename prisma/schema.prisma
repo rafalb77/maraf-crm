@@ -727,6 +727,9 @@ model PurchaseInvoice {
   // Pola powiązań przyszłościowych (Faza 2)
   investmentId      String? // przyszłość: powiązanie z inwestycją
   saldeoId          String? // ID faktury w Saldeo (po integracji w Fazie 2)
+  // Cross-company: gdy ten koszt powstał z faktury przychodowej innej firmy grupy
+  // (np. Maraf wystawił FV dla MD → tu koszt w MD). ID źródłowej SalesInvoice.
+  sourceSalesInvoiceId String?
   // Audit
   importedFromColor String? // np. "FFE6B8AF" — z którego koloru w xlsx
   importSheet       String? // np. "STAFFA" — z której zakładki
@@ -836,6 +839,9 @@ model SalesInvoice {
   status           String    @default("WYSTAWIONA")
   description      String?
   notes            String?
+  // Cross-company: gdy z tej FV przychodowej utworzono koszt u odbiorcy (firma grupy).
+  // ID utworzonej PurchaseInvoice — zapobiega duplikatom.
+  linkedPurchaseInvoiceId String?
   createdById      String?
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
