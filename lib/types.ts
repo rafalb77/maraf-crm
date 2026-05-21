@@ -228,3 +228,23 @@ export const INVOICE_APPROVAL_ACTION_LABELS: Record<string, string> = {
   RESET: 'Cofnięta do edycji',
   EDITED: 'Edytowana',
 }
+
+// Faktury przychodowe (sprzedazowe)
+export type SalesInvoiceStatus = 'WYSTAWIONA' | 'CZESCIOWO_OPLACONA' | 'OPLACONA' | 'ANULOWANA'
+
+export const SALES_INVOICE_STATUS_LABELS: Record<SalesInvoiceStatus, string> = {
+  WYSTAWIONA: 'Wystawiona',
+  CZESCIOWO_OPLACONA: 'Częściowo opłacona',
+  OPLACONA: 'Opłacona',
+  ANULOWANA: 'Anulowana',
+}
+
+export const SALES_INVOICE_STATUS_COLORS: Record<SalesInvoiceStatus, string> = {
+  WYSTAWIONA: 'bg-blue-100 text-blue-700',
+  CZESCIOWO_OPLACONA: 'bg-emerald-100 text-emerald-700',
+  OPLACONA: 'bg-green-100 text-green-700',
+  ANULOWANA: 'bg-gray-200 text-gray-500',
+}
+
+// Orientacyjna stawka CIT (mały podatnik). Zmienialna w przyszłości per firma.
+export const CIT_RATE = 0.09

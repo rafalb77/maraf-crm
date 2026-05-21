@@ -44,6 +44,19 @@ Marta (siostra, `biuro@maraf.pl`) przejrzała MVP. Uwagi pogrupowane:
 
 **Status feedbacku:** do rozplanowania (priorytety + decyzje multi-firma / faktury przychodowe / semantyka STAŁE — patrz „Pytania otwarte").
 
+### Postęp realizacji feedbacku (aktualizowane na bieżąco)
+
+- ✅ **A (UI listy)** — kolumny netto/VAT%/VAT/brutto, czerwone niezapłacone, komentarz inline, podsumowanie na dole. Wdrożone.
+- ✅ **B (przelew zbiorczy)** — multi-select + pasek sumy brutto/VAT. Wdrożone.
+- ✅ **A1 (font)** — podkontrahent (Janpol/PATRIMEX) duży, STAFFA mały parasol. Wdrożone.
+- ✅ **A6 (filtr firma)** + kolejka grupowana po kontrahencie. Wdrożone.
+- ✅ **D (restrukturyzacja)** — usunięte MURARZ/SANTANDER/EFL, STAŁE rozbite na kontrahentów, multi-firma (company). Wdrożone.
+- ✅ **E (kaucje)** — kaucja % lub kwota, KB, prąd, „do zapłaty po potrąceniach", data zwrotu, widok /finanse/kaucje, kafelek dashboard. Wdrożone. (mail przypominający = Faza 2 cron)
+- ✅ **F (faktury przychodowe + CIT/VAT)** — rejestr /finanse/przychody (CRUD + wpłaty + kaucja/KB + zaliczkowe), widok /finanse/podatki (CIT 9% orientacyjny + VAT do zapłaty per firma/rok). Wdrożone.
+- ⏳ **C (checkboxy akceptacji Bohdana na liście)** — workflow akceptacji działa przez inbox; dodatkowe checkboxy na liście do rozważenia.
+- ⏳ **G (cross-company Maraf↔MD)** — pole recipientCompany gotowe w SalesInvoice; logika auto-tworzenia kosztu u odbiorcy do zrobienia.
+- ⏳ **Drobne**: mail przypominający o kaucji (cron), normalizacja wielkości liter subkontrahentów STAFFA (bauma/Bauma/patrimex/PATRIMEX...).
+
 ## Diagnoza obecnego stanu (Excel)
 
 Plik `PŁATNOŚCI 2026.xlsx` — 9 zakładek, ~220 faktur za 2026, ~3 mln zł niezapłaconego, ~20 zaległych.

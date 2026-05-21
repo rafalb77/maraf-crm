@@ -38,6 +38,8 @@ model User {
   createdPayments            PurchaseInvoicePayment[]    @relation("PaymentCreator")
   invoiceApprovals           PurchaseInvoiceApproval[]
   uploadedInvoiceAttachments PurchaseInvoiceAttachment[]
+  createdSalesInvoices       SalesInvoice[]              @relation("SalesInvoiceCreator")
+  createdSalesPayments       SalesInvoicePayment[]       @relation("SalesPaymentCreator")
 }
 
 // status: ZAPYTANIE | OFERTA | REZERWACJA | UMOWA | ODBIOR
@@ -846,6 +848,68 @@ model PurchaseInvoiceAttachment {
   uploadedBy User?           @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
 
   @@index([invoiceId])
+}
+
+// =============================================================
+// FINANSE: FAKTURY PRZYCHODOWE (sprzedazowe) — wystawiane przez nas.
+// Patrz docs/finanse-rozpoczecie.md grupa F.
+// =============================================================
+// status: WYSTAWIONA | CZESCIOWO_OPLACONA | OPLACONA | ANULOWANA
+// company — ktora nasza firma WYSTAWIA fakture (MARAF | MARAF_DEVELOPMENT).
+// recipientName — odbiorca (FIRMA z Excela Marty).
+// recipientCompany — gdy odbiorca to firma grupy (np. Maraf wystawia dla MD):
+//   MARAF | MARAF_DEVELOPMENT. Pod cross-company (grupa G — auto-koszt u odbiorcy).
+// deposit — kaucja zatrzymana przez klienta z naszej faktury (dostajemy mniej).
+// buildingCosts — koszty budowy potracone przez klienta.
+// isAdvance — faktura zaliczkowa: NIE wliczana do CIT/VAT dopoki nie skonwertowana
+//   na zwykla (isAdvance=false). Kwota nalezna = brutto - kaucja - KB.
+model SalesInvoice {
+  id               String    @id @default(cuid())
+  company          String    @default("MARAF")
+  number           String
+  recipientName    String
+  recipientCompany String?
+  issueDate        DateTime
+  dueDate          DateTime?
+  vatRate          Float
+  amountNet        Float
+  amountVat        Float
+  amountGross      Float
+  currency         String    @default("PLN")
+  deposit          Float?
+  buildingCosts    Float?
+  isAdvance        Boolean   @default(false)
+  status           String    @default("WYSTAWIONA")
+  description      String?
+  notes            String?
+  createdById      String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  createdBy User?                 @relation("SalesInvoiceCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  payments  SalesInvoicePayment[]
+
+  @@unique([company, number])
+  @@index([company, issueDate])
+  @@index([status, dueDate])
+  @@index([recipientCompany])
+}
+
+model SalesInvoicePayment {
+  id          String   @id @default(cuid())
+  invoiceId   String
+  amount      Float
+  paidAt      DateTime
+  reference   String?
+  notes       String?
+  createdById String?
+  createdAt   DateTime @default(now())
+
+  invoice   SalesInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  createdBy User?        @relation("SalesPaymentCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([invoiceId])
+  @@index([paidAt])
 }
 
 // Pozycja oferty — lokal/parking/komórka itp. Snapshot cen z chwili dodania.
