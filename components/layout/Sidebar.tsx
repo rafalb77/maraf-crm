@@ -165,6 +165,7 @@ const WORKSPACES: Workspace[] = [
           { href: '/finanse/do-zatwierdzenia', label: 'Do zatwierdzenia', icon: ICONS.service },
           { href: '/finanse/kolejka-platnosci', label: 'Kolejka płatności', icon: ICONS.sales },
           { href: '/finanse/faktury', label: 'Wszystkie faktury', icon: ICONS.offers },
+          { href: '/finanse/kaucje', label: 'Kaucje gwarancyjne', icon: ICONS.units },
           { href: '/finanse/kontrahenci', label: 'Kontrahenci', icon: ICONS.contractors },
           { href: '/finanse/import', label: 'Import xlsx', icon: ICONS.mailing },
         ],
