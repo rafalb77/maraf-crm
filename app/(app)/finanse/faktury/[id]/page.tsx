@@ -9,7 +9,9 @@ import {
   PURCHASE_INVOICE_STATUS_LABELS,
   PURCHASE_INVOICE_STATUS_COLORS,
   INVOICE_APPROVAL_ACTION_LABELS,
+  COMPANY_LABELS,
   type PurchaseInvoiceStatus,
+  type Company,
 } from '@/lib/types'
 import { fmtDate, fmtMoney, isOverdue } from '@/lib/finanse-format'
 import { InvoiceActions } from '@/components/finanse/InvoiceActions'
@@ -43,21 +45,26 @@ export default async function InvoiceDetailsPage({ params }: { params: { id: str
     <div className="p-8 max-w-5xl">
       <div className="mb-6">
         <Link href="/finanse/faktury" className="text-sm text-gray-500 hover:text-gray-700">← Wszystkie faktury</Link>
-        <div className="flex items-baseline justify-between mt-2">
-          <h1 className="text-2xl font-bold text-gray-900">
-            <span className="text-gray-500 font-mono text-base">{inv.vendor.name}</span>
-            {' / '}
-            <span className="font-mono">{inv.number}</span>
-          </h1>
-          <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
+        <div className="flex items-start justify-between mt-2 gap-4">
+          <div>
+            {/* Nazwa kontrahenta duza i czytelna (feedback Marty), numer FV pomocniczo */}
+            <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2 flex-wrap">
+              {inv.vendor.name}
+              <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded font-normal">
+                {COMPANY_LABELS[inv.company as Company] || inv.company}
+              </span>
+            </h1>
+            <p className="text-sm text-gray-500 font-mono mt-1">FV {inv.number}</p>
+            {inv.subVendor && (
+              <p className="text-sm text-gray-500 mt-0.5">Podkontrahent: <strong>{inv.subVendor}</strong></p>
+            )}
+          </div>
+          <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium whitespace-nowrap ${
             PURCHASE_INVOICE_STATUS_COLORS[inv.status as PurchaseInvoiceStatus] || 'bg-gray-100 text-gray-700'
           }`}>
             {PURCHASE_INVOICE_STATUS_LABELS[inv.status as PurchaseInvoiceStatus] || inv.status}
           </span>
         </div>
-        {inv.subVendor && (
-          <p className="text-sm text-gray-500 mt-1">Podkontrahent: {inv.subVendor}</p>
-        )}
       </div>
 
       {/* Akcje workflow */}

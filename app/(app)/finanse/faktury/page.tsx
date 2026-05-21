@@ -2,14 +2,15 @@ import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
 import {
   PURCHASE_INVOICE_STATUS_LABELS,
-  PURCHASE_INVOICE_STATUS_COLORS,
-  type PurchaseInvoiceStatus,
+  COMPANY_LABELS,
+  type Company,
 } from '@/lib/types'
-import { fmtDate, fmtMoney, isOverdue } from '@/lib/finanse-format'
+import { FakturyTable, type FakturaRow } from '@/components/finanse/FakturyTable'
 
 type SearchParams = {
   vendor?: string
   status?: string
+  company?: string
   q?: string
   overdue?: string
   from?: string
@@ -17,7 +18,7 @@ type SearchParams = {
   page?: string
 }
 
-const PAGE_SIZE = 50
+const PAGE_SIZE = 100
 
 export default async function FakturyListPage({
   searchParams,
@@ -30,6 +31,7 @@ export default async function FakturyListPage({
   const filters: any[] = []
   if (searchParams.vendor) filters.push({ vendorId: searchParams.vendor })
   if (searchParams.status) filters.push({ status: searchParams.status })
+  if (searchParams.company) filters.push({ company: searchParams.company })
   if (searchParams.q) {
     filters.push({
       OR: [
@@ -52,7 +54,7 @@ export default async function FakturyListPage({
   const page = Math.max(1, parseInt(searchParams.page || '1', 10) || 1)
   const skip = (page - 1) * PAGE_SIZE
 
-  const [invoices, total, vendors, statusCountsRaw] = await Promise.all([
+  const [invoices, total, vendors, statusCountsRaw, sums] = await Promise.all([
     prisma.purchaseInvoice.findMany({
       where,
       orderBy: [{ dueDate: 'asc' }, { issueDate: 'desc' }],
@@ -69,9 +71,11 @@ export default async function FakturyListPage({
       select: { id: true, name: true },
       orderBy: { name: 'asc' },
     }),
-    prisma.purchaseInvoice.groupBy({
-      by: ['status'],
-      _count: true,
+    prisma.purchaseInvoice.groupBy({ by: ['status'], _count: true }),
+    // Podsumowanie CALEGO filtra (nie tylko strony)
+    prisma.purchaseInvoice.aggregate({
+      where,
+      _sum: { amountNet: true, amountVat: true, amountGross: true },
     }),
   ])
 
@@ -90,7 +94,27 @@ export default async function FakturyListPage({
     return s ? `?${s}` : ''
   }
 
-  const hasFilters = !!(searchParams.vendor || searchParams.status || searchParams.q || searchParams.overdue || searchParams.from || searchParams.to)
+  const hasFilters = !!(searchParams.vendor || searchParams.status || searchParams.company || searchParams.q || searchParams.overdue || searchParams.from || searchParams.to)
+
+  const rows: FakturaRow[] = invoices.map((inv) => {
+    const sumPaid = inv.payments.reduce((s, p) => s + p.amount, 0)
+    return {
+      id: inv.id,
+      vendorName: inv.vendor.name,
+      subVendor: inv.subVendor,
+      number: inv.number,
+      company: inv.company,
+      issueDate: inv.issueDate.toISOString(),
+      dueDate: inv.dueDate ? inv.dueDate.toISOString() : null,
+      vatRate: inv.vatRate,
+      amountNet: inv.amountNet,
+      amountVat: inv.amountVat,
+      amountGross: inv.amountGross,
+      sumPaid,
+      status: inv.status,
+      notes: inv.notes,
+    }
+  })
 
   return (
     <div className="p-8">
@@ -125,152 +149,56 @@ export default async function FakturyListPage({
           placeholder="Numer FV, podkontr., opis..."
           className="md:col-span-2 px-3 py-2 border border-gray-300 rounded-lg text-sm"
         />
-        <select
-          name="vendor"
-          defaultValue={searchParams.vendor || ''}
-          className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
-        >
+        <select name="vendor" defaultValue={searchParams.vendor || ''} className="px-3 py-2 border border-gray-300 rounded-lg text-sm">
           <option value="">Wszyscy kontrahenci</option>
-          {vendors.map((v) => (
-            <option key={v.id} value={v.id}>{v.name}</option>
+          {vendors.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}
+        </select>
+        <select name="company" defaultValue={searchParams.company || ''} className="px-3 py-2 border border-gray-300 rounded-lg text-sm">
+          <option value="">Obie firmy</option>
+          {(Object.keys(COMPANY_LABELS) as Company[]).map((c) => (
+            <option key={c} value={c}>{COMPANY_LABELS[c]}</option>
           ))}
         </select>
-        <select
-          name="status"
-          defaultValue={searchParams.status || ''}
-          className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
-        >
+        <select name="status" defaultValue={searchParams.status || ''} className="px-3 py-2 border border-gray-300 rounded-lg text-sm">
           <option value="">Wszystkie statusy</option>
           {Object.entries(PURCHASE_INVOICE_STATUS_LABELS).map(([k, label]) => (
-            <option key={k} value={k}>
-              {label} ({statusCounts[k] || 0})
-            </option>
+            <option key={k} value={k}>{label} ({statusCounts[k] || 0})</option>
           ))}
         </select>
-        <input
-          type="date"
-          name="from"
-          defaultValue={searchParams.from || ''}
-          className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
-          title="Data wystawienia od"
-        />
-        <input
-          type="date"
-          name="to"
-          defaultValue={searchParams.to || ''}
-          className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
-          title="Data wystawienia do"
-        />
+        <input type="date" name="from" defaultValue={searchParams.from || ''} className="px-3 py-2 border border-gray-300 rounded-lg text-sm" title="Data wystawienia od" />
+        <input type="date" name="to" defaultValue={searchParams.to || ''} className="px-3 py-2 border border-gray-300 rounded-lg text-sm" title="Data wystawienia do" />
         <label className="flex items-center gap-2 text-sm text-gray-700 md:col-span-2">
-          <input
-            type="checkbox"
-            name="overdue"
-            value="1"
-            defaultChecked={searchParams.overdue === '1'}
-          />
+          <input type="checkbox" name="overdue" value="1" defaultChecked={searchParams.overdue === '1'} />
           Tylko zaległe (po terminie i niezapłacone)
         </label>
         <div className="md:col-span-4 flex gap-2 justify-end">
           {hasFilters && (
-            <Link href="/finanse/faktury" className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900">
-              Wyczyść filtry
-            </Link>
+            <Link href="/finanse/faktury" className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900">Wyczyść filtry</Link>
           )}
-          <button type="submit" className="bg-gray-900 hover:bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-medium">
-            Zastosuj
-          </button>
+          <button type="submit" className="bg-gray-900 hover:bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-medium">Zastosuj</button>
         </div>
       </form>
 
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b border-gray-200 text-left">
-              <tr>
-                <th className="px-4 py-3 font-medium text-gray-700">Kontrahent</th>
-                <th className="px-4 py-3 font-medium text-gray-700">Nr FV</th>
-                <th className="px-4 py-3 font-medium text-gray-700">Data wyst.</th>
-                <th className="px-4 py-3 font-medium text-gray-700">Termin</th>
-                <th className="px-4 py-3 font-medium text-gray-700 text-right">Brutto</th>
-                <th className="px-4 py-3 font-medium text-gray-700 text-right">Zapłacono</th>
-                <th className="px-4 py-3 font-medium text-gray-700">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {invoices.length === 0 && (
-                <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-gray-400">
-                    Brak faktur dla wybranych filtrów.
-                  </td>
-                </tr>
-              )}
-              {invoices.map((inv) => {
-                const sumPaid = inv.payments.reduce((s, p) => s + p.amount, 0)
-                const overdue = isOverdue(inv.dueDate, inv.status)
-                return (
-                  <tr key={inv.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-2">
-                      <div className="font-medium text-gray-900">{inv.vendor.name}</div>
-                      {inv.subVendor && (
-                        <div className="text-xs text-gray-500">{inv.subVendor}</div>
-                      )}
-                    </td>
-                    <td className="px-4 py-2">
-                      <Link
-                        href={`/finanse/faktury/${inv.id}`}
-                        className="text-blue-600 hover:underline font-mono text-xs"
-                      >
-                        {inv.number}
-                      </Link>
-                    </td>
-                    <td className="px-4 py-2 text-gray-700 tabular-nums">{fmtDate(inv.issueDate)}</td>
-                    <td className={`px-4 py-2 tabular-nums ${overdue ? 'text-red-600 font-medium' : 'text-gray-700'}`}>
-                      {fmtDate(inv.dueDate)}
-                      {overdue && <span className="ml-1 text-xs">⚠</span>}
-                    </td>
-                    <td className="px-4 py-2 text-right tabular-nums font-medium text-gray-900">{fmtMoney(inv.amountGross)}</td>
-                    <td className="px-4 py-2 text-right tabular-nums text-gray-600">
-                      {sumPaid > 0 ? fmtMoney(sumPaid) : '—'}
-                    </td>
-                    <td className="px-4 py-2">
-                      <span
-                        className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
-                          PURCHASE_INVOICE_STATUS_COLORS[inv.status as PurchaseInvoiceStatus] ||
-                          'bg-gray-100 text-gray-700'
-                        }`}
-                      >
-                        {PURCHASE_INVOICE_STATUS_LABELS[inv.status as PurchaseInvoiceStatus] || inv.status}
-                      </span>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <FakturyTable
+        rows={rows}
+        totals={{
+          net: sums._sum.amountNet || 0,
+          vat: sums._sum.amountVat || 0,
+          gross: sums._sum.amountGross || 0,
+          count: total,
+          onPage: rows.length,
+        }}
+      />
 
       {totalPages > 1 && (
         <div className="mt-4 flex items-center justify-between text-sm">
-          <p className="text-gray-500">
-            Strona {page} z {totalPages} • {total} faktur
-          </p>
+          <p className="text-gray-500">Strona {page} z {totalPages} • {total} faktur</p>
           <div className="flex gap-2">
             {page > 1 && (
-              <Link
-                href={`/finanse/faktury${qs({ page: String(page - 1) })}`}
-                className="px-3 py-1.5 border border-gray-300 rounded-lg hover:bg-gray-50"
-              >
-                ← Poprzednia
-              </Link>
+              <Link href={`/finanse/faktury${qs({ page: String(page - 1) })}`} className="px-3 py-1.5 border border-gray-300 rounded-lg hover:bg-gray-50">← Poprzednia</Link>
             )}
             {page < totalPages && (
-              <Link
-                href={`/finanse/faktury${qs({ page: String(page + 1) })}`}
-                className="px-3 py-1.5 border border-gray-300 rounded-lg hover:bg-gray-50"
-              >
-                Następna →
-              </Link>
+              <Link href={`/finanse/faktury${qs({ page: String(page + 1) })}`} className="px-3 py-1.5 border border-gray-300 rounded-lg hover:bg-gray-50">Następna →</Link>
             )}
           </div>
         </div>
