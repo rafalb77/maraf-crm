@@ -4,6 +4,26 @@ Krótkie wpisy „co i **dlaczego**". Bez listy wszystkich commitów — od tego
 
 ---
 
+## 2026-05-21
+
+### Bezpieczeństwo danych klientów — szyfrowanie at-rest + załatana luka authz
+**Kontekst**: przed importem prawdziwej bazy klientów (z PESEL-ami) user poprosił o audyt bezpieczeństwa. Ustalenia: anonimowy dostęp dobrze chroniony (HTTPS, wszystkie endpointy z `getServerSession`, repo private, hasła bcrypt, brak PII w logach/repo), ale **2 realne luki**.
+
+**Luka 1 — authz (naprawiona, commit `ed116da`)**: `getRequiredPermission` (lib/permissions.ts) mapowała `/api/sales` → 'sales', ale realny endpoint umów to `/api/contracts/*`. Brak go w mapie → każdy **zalogowany** user (np. podwykonawca z dostępem tylko 'przeroby') mógł `GET /api/contracts/[id]` (pełny klient: PESEL, dowód, rodzice, adres) i `/generate` (DOCX z PESEL). Analogicznie `/api/activities` (notatki klienta). Fix: `/api/contracts` → 'sales', `/api/activities` → 'clients'. Plus usunięto adres e-mail odbiorcy z `console.log` w `oferty/[id]/email`.
+
+**Luka 2 — brak szyfrowania at-rest (naprawiona)**: pola wrażliwe `Client` były plaintextem → dump bazy / wyciek `DATABASE_URL` = czytelny PESEL. Wdrożone szyfrowanie AES-256-GCM:
+- `lib/crypto.ts` — `encryptField`/`decryptField` (format `enc::v1::base64(iv[12]|tag[16]|ct)`), `deepDecrypt` (rekurencyjny walk wyniku — odszyfrowuje stringi z prefiksem, bezpieczny dla całego grafu). Klucz: `ENCRYPTION_KEY` (64 hex). Idempotentny + no-op dla legacy plaintext.
+- `lib/prisma.ts` — `$extends`: write na modelu `client` szyfruje podzbiór pól, `$allModels.$allOperations` deszyfruje KAŻDY wynik (w tym **nested includes** — `contract.client.pesel`, `contractClients[].client`). **Przezroczyste — zero zmian w endpointach** (zapis auto-szyfruje, odczyt auto-deszyfruje). Pominięcie ścieżki odczytu niemożliwe (wszystko idzie przez Prisma).
+- **Szyfrowane pola**: `pesel`, `nip`, `idNumber`, `fatherName`, `motherName`, `address`. **NIE szyfrowane** (świadomie): `firstName`/`lastName`/`email`/`phone` (używane w wyszukiwaniu `/api/clients`), `city`/`zipCode` (filtry). Kompromis funkcjonalność↔ochrona — najwrażliwsze (kradzież tożsamości) zaszyfrowane.
+- `scripts/encrypt-existing-clients.js` — migracja istniejących rekordów (self-contained CommonJS, ten sam format, idempotentny, używa bazowego PrismaClient bez extension).
+- Test: `lib/crypto.ts` zweryfikowany lokalnie (21 asercji — round-trip, idempotencja, unikalny IV, legacy passthrough, deep nested decrypt, wykrywanie manipulacji auth-tagiem, rezylientność bez klucza). Bez bazy (czysta krypto).
+
+**Schema NIE zmieniona** — pola zostają `String?`, zmienia się tylko zawartość → `prisma db push` NIEpotrzebny. **Po deployu**: (1) wygeneruj `ENCRYPTION_KEY`, dodaj w Coolify env, **restart** (nie rebuild — to nie `NEXT_PUBLIC_`). (2) Uruchom `node scripts/encrypt-existing-clients.js` w Coolify Terminal. (3) Klucz do password managera. **Pułapka**: zmiana klucza po zaszyfrowaniu = nieodczytywalne dane (brak rotacji). Bez klucza aplikacja działa, ale pisze plaintext (ostrzeżenie w logu).
+
+**Pozostałe rekomendacje (infra, NIE kod — do zrobienia przez admina)**: Coolify panel na czystym HTTP (`:8000`) — za HTTPS/VPN; brak backupów bazy (infrastruktura.md: „TODO"); brak rate-limit na logowaniu; brak 2FA. Patrz audyt w tej sesji.
+
+---
+
 ## 2026-05-19
 
 ### Integracja z 3D Estate (matryca 3D) — MVP endpoint (Faza 1)

@@ -103,6 +103,7 @@ Folder `scripts/` zawiera importery xlsx → DB uruchamiane w Coolify Terminal p
 Poza standardowymi (`DATABASE_URL`, `NEXTAUTH_SECRET`, `NEXTAUTH_URL`, `ADMIN_EMAIL`/`ADMIN_PASSWORD`):
 
 - `NEXT_PUBLIC_ADMIN_EMAIL` — gate dla `/settings/*` + sidebar link. **MUSI być rebuild** (nie restart) po zmianie — `NEXT_PUBLIC_*` są inline'owane w buildtime.
+- `ENCRYPTION_KEY` — **64 znaki hex (32 bajty)**, szyfrowanie at-rest danych osobowych klientów (PESEL, NIP, dowód, imiona rodziców, adres) — patrz `lib/crypto.ts` + `lib/prisma.ts` ($extends). Wygeneruj: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`. **Bez klucza dane zapisują się PLAINTEXT** (z ostrzeżeniem w logu) — aplikacja nie pada, ale ochrona nie działa. Po pierwszym ustawieniu klucza uruchom **raz** `node scripts/encrypt-existing-clients.js` w Coolify Terminal (szyfruje istniejące rekordy; idempotentny). **NIE zmieniaj klucza** po zaszyfrowaniu danych — stare rekordy staną się nieodczytywalne (rotacja kluczy nie jest zaimplementowana). Klucz trzymaj w password managerze obok `DATABASE_URL`.
 - `WEATHER_LAT`, `WEATHER_LON`, `WEATHER_CITY` — opcjonalne, domyślnie Zgierz (TopWidget na dashboardzie pobiera pogodę z Open-Meteo).
 - `PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome-stable` — ustawione w Dockerfile.
 - SMTP — **nie przez env**, konfiguracja w UI Settings.
