@@ -12,6 +12,7 @@ import { fmtDate, fmtMoney, isOverdue } from '@/lib/finanse-format'
 import { AddSalesPaymentForm } from '@/components/finanse/AddSalesPaymentForm'
 import { DeleteSalesPaymentButton } from '@/components/finanse/DeleteSalesPaymentButton'
 import { SalesInvoiceActions } from '@/components/finanse/SalesInvoiceActions'
+import { CreateCostButton } from '@/components/finanse/CreateCostButton'
 
 export default async function SalesInvoiceDetailsPage({ params }: { params: { id: string } }) {
   const inv = await prisma.salesInvoice.findUnique({
@@ -45,6 +46,16 @@ export default async function SalesInvoiceDetailsPage({ params }: { params: { id
       </div>
 
       <SalesInvoiceActions invoiceId={inv.id} isAdvance={inv.isAdvance} status={inv.status} />
+
+      {inv.recipientCompany && (
+        <div className="mt-4">
+          <CreateCostButton
+            invoiceId={inv.id}
+            recipientCompany={inv.recipientCompany}
+            linkedPurchaseInvoiceId={inv.linkedPurchaseInvoiceId}
+          />
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
         <Field label="Data wystawienia" value={fmtDate(inv.issueDate)} />
