@@ -138,20 +138,30 @@ function parseSheet(buffer: Buffer): ParsedRow[] {
   return result
 }
 
+// Klucz tożsamości dla wierszy bez PESEL: imię|nazwisko|email (lowercase).
+function identityKey(firstName: unknown, lastName: unknown, email: unknown): string {
+  return `${cleanStr(firstName).toLowerCase()}|${cleanStr(lastName).toLowerCase()}|${cleanStr(email).toLowerCase()}`
+}
+
 export async function buildClientDiff(buffer: Buffer): Promise<ClientDiffResult> {
   const parsed = parseSheet(buffer)
 
   // Istniejący klienci — PESEL odszyfrowany automatycznie (extension lib/prisma.ts).
-  const existing = await prisma.client.findMany({ select: { pesel: true } })
+  const existing = await prisma.client.findMany({
+    select: { firstName: true, lastName: true, email: true, pesel: true },
+  })
   const existingPesels = new Set<string>()
+  const existingIdentity = new Set<string>()
   for (const c of existing) {
     const p = normPesel(c.pesel)
     if (p) existingPesels.add(p)
+    existingIdentity.add(identityKey(c.firstName, c.lastName, c.email))
   }
 
   const newRows: NewClientRow[] = []
   const skipRows: SkipClientRow[] = []
-  const seenInFile = new Set<string>()
+  const seenPesel = new Set<string>()
+  const seenIdentity = new Set<string>()
   let withoutPeselCount = 0
   let total = 0
 
@@ -163,20 +173,32 @@ export async function buildClientDiff(buffer: Buffer): Promise<ClientDiffResult>
     }
     const { rowIndex, data } = p
     const name = `${data.firstName} ${data.lastName}`.trim()
+    const idKey = identityKey(data.firstName, data.lastName, data.email)
 
     if (data.pesel) {
       if (existingPesels.has(data.pesel)) {
         skipRows.push({ rowIndex, name, reason: `Klient z PESEL ${data.pesel} już istnieje w bazie` })
         continue
       }
-      if (seenInFile.has(data.pesel)) {
+      if (seenPesel.has(data.pesel)) {
         skipRows.push({ rowIndex, name, reason: `Duplikat PESEL ${data.pesel} w pliku` })
         continue
       }
-      seenInFile.add(data.pesel)
+      seenPesel.add(data.pesel)
+      seenIdentity.add(idKey)
       newRows.push({ rowIndex, data, hasPesel: true })
     } else {
-      // Brak PESEL — nie da się deduplikować. Dodajemy jako nowego, ale flagujemy.
+      // Brak PESEL — dedup po tożsamości (imię+nazwisko+email), żeby ponowny
+      // import nie tworzył duplikatów (PESEL-em nie da się ich rozróżnić).
+      if (existingIdentity.has(idKey)) {
+        skipRows.push({ rowIndex, name, reason: 'Klient o tym nazwisku i e-mailu już istnieje (brak PESEL)' })
+        continue
+      }
+      if (seenIdentity.has(idKey)) {
+        skipRows.push({ rowIndex, name, reason: 'Duplikat (nazwisko + e-mail) w pliku (brak PESEL)' })
+        continue
+      }
+      seenIdentity.add(idKey)
       withoutPeselCount++
       newRows.push({ rowIndex, data, hasPesel: false })
     }
