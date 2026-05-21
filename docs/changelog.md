@@ -6,6 +6,12 @@ Krótkie wpisy „co i **dlaczego**". Bez listy wszystkich commitów — od tego
 
 ## 2026-05-21
 
+### Import klientów z xlsx (`/clients/import`) — create-only, dedup po PESEL
+**Powód**: migracja istniejącej bazy klientów (eksport z poprzedniego CRM) — wcześniej brak importu klientów (był tylko dla lokali/przerobów). Plik eksportu: kolumny `Nazwa | Imiona | Nazwisko | Miasto | Ulica | E-mail | Numer telefonu | PESEL | Umowy | Data utworzenia | Data modyfikacji`.
+**Implementacja**: wzorzec jak import lokali (preview/commit). `lib/clients-import.ts` — parser mapuje kolumny **po nazwach nagłówków** (case-insensitive aliasy: Imiona/Imię→firstName, Nazwisko→lastName, Miasto→city, Ulica/Adres→address, E-mail/Email→email, Numer telefonu/Telefon→phone, PESEL→pesel; reszta ignorowana) — odporne na kolejność kolumn. `buildClientDiff` / `commitClientImport`, endpoint `POST /api/clients/import` (preview|commit, gate 'clients'), `components/clients/ClientsImporter.tsx`, strona `/clients/import`, przycisk „Importuj z Excela" na liście klientów.
+**Dedup po PESEL** (wybór usera): istniejący klienci wczytywani przez `prisma.client.findMany` — PESEL **odszyfrowany automatycznie** przez extension, więc porównanie plaintext↔plaintext działa wprost (gdyby trzymać tylko ciphertext, dedup byłby niemożliwy — losowy IV). Tryb **tylko dodawanie nowych** — istniejący PESEL = skip, duplikat PESEL w pliku = skip. Wiersze **bez PESEL** dodawane jako nowi z flagą (brak deduplikacji przy reimporcie) — w pliku testowym 9/27 bez PESEL. Nowi dostają `status: 'ZAPYTANIE'`, `source: 'import'`. Tworzenie w `$transaction` → `tx.client.create` przez extension → PESEL/adres szyfrowane przy zapisie.
+**Pułapka**: `ENCRYPTION_KEY` MUSI być ustawiony **przed** importem — inaczej PESEL-e zapiszą się plaintext (z ostrzeżeniem w logu). Kolumny `Umowy` i daty z pliku na razie ignorowane (linkowanie do umów to osobny temat). Plik eksportu z PESEL-ami trzymać poza repo (nie commitować).
+
 ### Bezpieczeństwo danych klientów — szyfrowanie at-rest + załatana luka authz
 **Kontekst**: przed importem prawdziwej bazy klientów (z PESEL-ami) user poprosił o audyt bezpieczeństwa. Ustalenia: anonimowy dostęp dobrze chroniony (HTTPS, wszystkie endpointy z `getServerSession`, repo private, hasła bcrypt, brak PII w logach/repo), ale **2 realne luki**.
 
