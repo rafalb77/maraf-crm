@@ -59,7 +59,7 @@ export default async function OfertyPage() {
             </thead>
             <tbody>
               {offers.map((o) => (
-                <ClickableRow key={o.id} href={`/oferty/${o.id}`} className="border-t border-gray-100 hover:bg-gray-50/40">
+                <ClickableRow key={o.id} href={`/oferty/${o.id}`} className="border-t border-gray-100 hover:bg-gray-50 transition-colors">
                   <td className="px-5 py-3">
                     <Link href={`/oferty/${o.id}`} className="font-medium text-gray-900 hover:text-blue-600">
                       {o.title || (o.number ? `Oferta #${o.number}` : 'Oferta bez tytułu')}
