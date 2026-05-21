@@ -741,6 +741,10 @@ model Vendor {
 model PurchaseInvoice {
   id                String    @id @default(cuid())
   number            String // numer faktury od dostawcy (FV)
+  // company — która z naszych firm ponosi koszt: MARAF | MARAF_DEVELOPMENT.
+  // Multi-firma od początku (decyzja 2026-05-21). Default MARAF (import historii to Maraf).
+  // W przyszłości: FV przychodowa Marafu dla MD generuje tu wpis kosztowy z company=MARAF_DEVELOPMENT.
+  company           String    @default("MARAF")
   vendorId          String
   subVendor         String?
   issueDate         DateTime
@@ -778,6 +782,7 @@ model PurchaseInvoice {
   @@index([status, dueDate])
   @@index([vendorId, issueDate])
   @@index([dueDate])
+  @@index([company, status])
 }
 
 // Bookkeeping płatności — 1 faktura = N płatności (wspiera częściowe).

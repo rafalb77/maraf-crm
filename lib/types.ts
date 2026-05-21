@@ -164,6 +164,19 @@ export const RESERVATION_CONTRACT_LIMITS: Record<UnitType, number> = {
 // MODUŁ: FINANSE
 // =====================================================================
 
+// Multi-firma. Faktury (kosztowe i przychodowe) przypisane do jednej z firm grupy.
+export type Company = 'MARAF' | 'MARAF_DEVELOPMENT'
+
+export const COMPANY_LABELS: Record<Company, string> = {
+  MARAF: 'Maraf',
+  MARAF_DEVELOPMENT: 'Maraf Development',
+}
+
+export const COMPANY_SHORT: Record<Company, string> = {
+  MARAF: 'Maraf',
+  MARAF_DEVELOPMENT: 'MD',
+}
+
 export type VendorCategory = 'DOSTAWCA' | 'BANK' | 'LEASING' | 'URZAD' | 'PODWYKONAWCA' | 'INNE'
 
 export const VENDOR_CATEGORY_LABELS: Record<VendorCategory, string> = {

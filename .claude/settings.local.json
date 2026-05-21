@@ -77,7 +77,8 @@
       "Bash(git -C \"C:\\\\AplikacjeAI\\\\CodeCRM\\\\.claude\\\\worktrees\\\\crazy-kalam-a9de75\" status --short)",
       "Bash(git -C 'C:\\\\AplikacjeAI\\\\CodeCRM\\\\.claude\\\\worktrees\\\\crazy-kalam-a9de75' commit -m ' *)",
       "Bash(git -C \"C:\\\\AplikacjeAI\\\\CodeCRM\" restore lib/finanse-import.ts scripts/import-finanse.js)",
-      "Bash(git -C \"C:\\\\AplikacjeAI\\\\CodeCRM\\\\.claude\\\\worktrees\\\\crazy-kalam-a9de75\" add lib/finanse-import.ts scripts/import-finanse.js .claude/settings.local.json)"
+      "Bash(git -C \"C:\\\\AplikacjeAI\\\\CodeCRM\\\\.claude\\\\worktrees\\\\crazy-kalam-a9de75\" add lib/finanse-import.ts scripts/import-finanse.js .claude/settings.local.json)",
+      "Bash(git restore *)"
     ]
   }
 }
