@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
+import { ClickableRow } from '@/components/ui/ClickableRow'
 
 export default async function OfertyPage() {
   const offers = await prisma.offer.findMany({
@@ -58,7 +59,7 @@ export default async function OfertyPage() {
             </thead>
             <tbody>
               {offers.map((o) => (
-                <tr key={o.id} className="border-t border-gray-100 hover:bg-gray-50/40">
+                <ClickableRow key={o.id} href={`/oferty/${o.id}`} className="border-t border-gray-100 hover:bg-gray-50/40">
                   <td className="px-5 py-3">
                     <Link href={`/oferty/${o.id}`} className="font-medium text-gray-900 hover:text-blue-600">
                       {o.title || (o.number ? `Oferta #${o.number}` : 'Oferta bez tytułu')}
@@ -84,7 +85,7 @@ export default async function OfertyPage() {
                   <td className="px-5 py-3 text-right">
                     <StatusBadge status={o.status} />
                   </td>
-                </tr>
+                </ClickableRow>
               ))}
             </tbody>
           </table>

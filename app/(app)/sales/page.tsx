@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
 import { formatDate } from '@/lib/utils'
+import { ClickableRow } from '@/components/ui/ClickableRow'
 import {
   CONTRACT_TYPE_LABELS, CONTRACT_STATUS_LABELS, CONTRACT_STATUS_COLORS,
   type ContractType, type ContractStatus,
@@ -93,7 +94,7 @@ export default async function SalesPage({
               </tr>
             ) : (
               contracts.map((c) => (
-                <tr key={c.id} className="hover:bg-gray-50">
+                <ClickableRow key={c.id} href={`/sales/${c.id}`} className="hover:bg-gray-50">
                   <td className="px-4 py-3">
                     <Link href={`/sales/${c.id}`} className="text-sm font-medium text-blue-600 hover:text-blue-700">
                       {c.number}
@@ -117,7 +118,7 @@ export default async function SalesPage({
                       {CONTRACT_STATUS_LABELS[c.status as ContractStatus]}
                     </span>
                   </td>
-                </tr>
+                </ClickableRow>
               ))
             )}
           </tbody>

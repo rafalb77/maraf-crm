@@ -6,6 +6,7 @@ import {
   type ClientStatus
 } from '@/lib/types'
 import { ClientFilters } from '@/components/clients/ClientFilters'
+import { ClickableRow } from '@/components/ui/ClickableRow'
 
 async function getClients(status?: string, search?: string) {
   return prisma.client.findMany({
@@ -67,19 +68,18 @@ export default async function ClientsPage({
               <th className="text-left px-4 py-3 font-medium text-gray-500">Lokale</th>
               <th className="text-right px-4 py-3 font-medium text-gray-500">Działania</th>
               <th className="text-left px-4 py-3 font-medium text-gray-500">Ostatnia aktywność</th>
-              <th className="px-4 py-3" />
             </tr>
           </thead>
           <tbody>
             {clients.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-4 py-12 text-center text-gray-400">
+                <td colSpan={6} className="px-4 py-12 text-center text-gray-400">
                   Brak klientów spełniających kryteria
                 </td>
               </tr>
             ) : (
               clients.map((client) => (
-                <tr key={client.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
+                <ClickableRow key={client.id} href={`/clients/${client.id}`} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-medium text-sm flex-shrink-0">
@@ -108,12 +108,7 @@ export default async function ClientsPage({
                   </td>
                   <td className="px-4 py-3 text-right text-gray-600">{client._count.activities}</td>
                   <td className="px-4 py-3 text-xs text-gray-400">{formatDateTime(client.updatedAt)}</td>
-                  <td className="px-4 py-3">
-                    <Link href={`/clients/${client.id}`} className="text-blue-600 hover:text-blue-700 font-medium text-xs">
-                      Karta
-                    </Link>
-                  </td>
-                </tr>
+                </ClickableRow>
               ))
             )}
           </tbody>

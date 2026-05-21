@@ -100,12 +100,6 @@ const ICONS = {
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
     </svg>
   ),
-  wsCfg: (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-    </svg>
-  ),
   chevronDown: (
     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -178,17 +172,12 @@ const WORKSPACES: Workspace[] = [
     // Brak modułów — workspace ukryty do czasu Meta Ads.
     sections: [],
   },
-  {
-    id: 'cfg',
-    label: 'Konfiguracja',
-    icon: ICONS.wsCfg,
-    sections: [
-      {
-        items: [{ href: '/settings', label: 'Ustawienia', icon: ICONS.settings }],
-      },
-    ],
-  },
+  // Konfiguracja NIE jest workspace'em w switcherze — link „Ustawienia" jest
+  // przypięty na dole sidebara, nad „Wyloguj" (tylko admin).
 ]
+
+// Link Ustawienia (admin-only) — przypięty na dole, poza switcherem workspace'ów.
+const SETTINGS_ITEM: NavItem = { href: '/settings', label: 'Ustawienia', icon: ICONS.settings }
 
 const LS_KEY = 'sidebar.workspace'
 
@@ -281,9 +270,11 @@ export function Sidebar() {
       className="fixed left-0 top-0 h-full w-64 flex flex-col z-30 border-r"
       style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}
     >
-      {/* Logo */}
+      {/* Logo — klik prowadzi na stronę główną (Pulpit) */}
       <div className="px-5 py-5 border-b" style={{ borderColor: 'var(--border)' }}>
-        <LogoFull />
+        <Link href="/dashboard" prefetch={false} aria-label="Strona główna" className="inline-block">
+          <LogoFull />
+        </Link>
       </div>
 
       {/* Workspace switcher */}
@@ -330,8 +321,13 @@ export function Sidebar() {
         ))}
       </nav>
 
-      {/* Logout — Settings żył wcześniej tu, teraz jest w workspace 'cfg'. */}
-      <div className="px-3 py-4 border-t" style={{ borderColor: 'var(--border)' }}>
+      {/* Konfiguracja + Logout — przypięte na dole. Ustawienia tylko dla admina. */}
+      <div className="px-3 py-4 border-t space-y-0.5" style={{ borderColor: 'var(--border)' }}>
+        {(userIsAdmin || sessionNotReady) && (
+          <ul className="space-y-0.5">
+            <NavLink item={SETTINGS_ITEM} active={isActive(SETTINGS_ITEM.href)} itemBase={itemBase} />
+          </ul>
+        )}
         <button
           onClick={() => signOut({ callbackUrl: '/auth/signin' })}
           className={itemBase + ' w-full'}

@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { formatCurrency, formatArea } from '@/lib/utils'
 import {
@@ -61,6 +62,7 @@ function floorLabel(f: number | null) {
 }
 
 export function UnitsTable({ units }: { units: UnitRow[] }) {
+  const router = useRouter()
   const [visible, setVisible] = useState<Record<ColumnKey, boolean>>(() => {
     const init = {} as Record<ColumnKey, boolean>
     for (const c of COLUMNS) init[c.key] = c.defaultVisible
@@ -197,19 +199,22 @@ export function UnitsTable({ units }: { units: UnitRow[] }) {
                   </span>
                 </th>
               ))}
-              <th className="px-4 py-3" />
             </tr>
           </thead>
           <tbody>
             {sorted.length === 0 ? (
               <tr>
-                <td colSpan={visibleCols.length + 1} className="px-4 py-12 text-center text-gray-400">
+                <td colSpan={visibleCols.length} className="px-4 py-12 text-center text-gray-400">
                   Brak lokali spełniających kryteria
                 </td>
               </tr>
             ) : (
               sorted.map((unit) => (
-                <tr key={unit.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
+                <tr
+                  key={unit.id}
+                  onClick={() => router.push(`/units/${unit.id}`)}
+                  className="border-b border-gray-50 hover:bg-gray-50 transition-colors cursor-pointer"
+                >
                   {visibleCols.map((c) => (
                     <td
                       key={c.key}
@@ -218,11 +223,6 @@ export function UnitsTable({ units }: { units: UnitRow[] }) {
                       {renderCell(unit, c.key)}
                     </td>
                   ))}
-                  <td className="px-4 py-3 text-right">
-                    <Link href={`/units/${unit.id}`} className="text-blue-600 hover:text-blue-700 font-medium text-xs">
-                      Szczegóły
-                    </Link>
-                  </td>
                 </tr>
               ))
             )}
@@ -235,7 +235,6 @@ export function UnitsTable({ units }: { units: UnitRow[] }) {
                     {idx === 0 ? `Suma (${sorted.length})` : c.summable ? renderSum(c.key, sums) : ''}
                   </td>
                 ))}
-                <td className="px-4 py-3" />
               </tr>
             </tfoot>
           )}
@@ -282,7 +281,12 @@ function renderCell(u: UnitRow, key: ColumnKey) {
     case 'client': return u.clientUnits.length > 0 ? (
       <span className="space-x-1">
         {u.clientUnits.map((cu) => (
-          <Link key={cu.clientId} href={`/clients/${cu.clientId}`} className="hover:text-blue-600">
+          <Link
+            key={cu.clientId}
+            href={`/clients/${cu.clientId}`}
+            onClick={(e) => e.stopPropagation()}
+            className="hover:text-blue-600"
+          >
             {cu.client.firstName} {cu.client.lastName}
           </Link>
         ))}
