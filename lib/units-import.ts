@@ -6,7 +6,9 @@ import type { UnitType, UnitStatus } from './types'
 // Format pliku xlsx (eksport CRM):
 //   A=Numer, B=Typ lokalu, C=Status, D=Klient, E=Kolejka,
 //   F=Budynek, G=Klatka, H=Kondygnacja, I=Pokoje, J=Pietro,
-//   K=Powierzchnia, L=Cena/m2 brutto, M=Cena brutto, N=Cechy, O=Umowa
+//   K=Powierzchnia, L=Cena/m2 brutto, M=Cena brutto, N=Cechy, O=Umowa,
+//   P=Data wystawienia (opcjonalna — backfill Unit.createdAt pod statystykę
+//     „czas do sprzedaży"; pusta → createdAt zostaje datą importu)
 // =====================================================================
 
 const COL = {
@@ -19,6 +21,7 @@ const COL = {
   kondygnacja: 7,
   area: 10,
   priceGross: 12,
+  listingDate: 15,
 } as const
 
 const TYPE_MAP: Record<string, UnitType> = {
@@ -62,6 +65,8 @@ export type UnitData = {
   vatRate: number
   floor: number | null
   building: string | null
+  // Data wystawienia (opcjonalna) — backfill Unit.createdAt. Niezależna od sync.
+  listingDate: Date | null
   // Te pola tylko gdy syncStatusAndClients = true:
   status?: UnitStatus
   clientNames?: string[]
@@ -149,6 +154,23 @@ function parseFloor(raw: unknown): number | null {
   return Number.isFinite(n) ? n : null
 }
 
+function parseDate(raw: unknown): Date | null {
+  if (raw === null || raw === undefined || raw === '') return null
+  if (raw instanceof Date) return isNaN(raw.getTime()) ? null : raw
+  if (typeof raw === 'number') {
+    // Excel serial date → JS Date (epoch 1899-12-30)
+    const d = new Date(Math.round((raw - 25569) * 86400 * 1000))
+    return isNaN(d.getTime()) ? null : d
+  }
+  const s = String(raw).trim()
+  let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/)
+  if (m) return new Date(+m[1], +m[2] - 1, +m[3])
+  m = s.match(/^(\d{1,2})[.\/-](\d{1,2})[.\/-](\d{4})/)
+  if (m) return new Date(+m[3], +m[2] - 1, +m[1])
+  const d = new Date(s)
+  return isNaN(d.getTime()) ? null : d
+}
+
 function parseClientNames(raw: unknown): string[] {
   const s = String(raw || '').trim()
   if (!s) return []
@@ -161,7 +183,7 @@ function parseClientNames(raw: unknown): string[] {
 type ParsedRow = { rowIndex: number; data: UnitData } | { rowIndex: number; skip: SkipRow }
 
 function parseSheet(buffer: Buffer, opts: ImportOptions): ParsedRow[] {
-  const wb = XLSX.read(buffer, { type: 'buffer' })
+  const wb = XLSX.read(buffer, { type: 'buffer', cellDates: true })
   const sheet = wb.Sheets[wb.SheetNames[0]]
   if (!sheet) throw new Error('Plik nie zawiera żadnego arkusza')
   const rows = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: '' })
@@ -211,6 +233,7 @@ function parseSheet(buffer: Buffer, opts: ImportOptions): ParsedRow[] {
       vatRate: VAT_RATE,
       floor: parseFloor(r[COL.kondygnacja]),
       building: normalizeBuilding(r[COL.building], r[COL.klatka]),
+      listingDate: parseDate(r[COL.listingDate]),
     }
 
     if (opts.syncStatusAndClients) {
@@ -240,6 +263,7 @@ const FIELD_LABELS: Record<keyof UnitData, string> = {
   vatRate: 'VAT',
   floor: 'Kondygnacja',
   building: 'Budynek/Klatka',
+  listingDate: 'Data wystawienia',
   status: 'Status',
   clientNames: 'Klienci',
 }
@@ -472,6 +496,8 @@ export async function commitImport(
         // - jeśli sync włączony i xlsx ma rozpoznany status → użyj go
         // - inaczej domyślnie WOLNY
         status: opts.syncStatusAndClients && n.data.status ? n.data.status : 'WOLNY',
+        // Backfill daty wystawienia → realny „czas do sprzedaży" dla historii
+        ...(n.data.listingDate ? { createdAt: n.data.listingDate } : {}),
       }
       await tx.unit.create({ data: createData as never })
       created++
@@ -492,6 +518,10 @@ export async function commitImport(
       }
       if (opts.syncStatusAndClients && u.data.status) {
         updateData.status = u.data.status
+      }
+      // Backfill daty wystawienia także przy aktualizacji (gdy podana w pliku)
+      if (u.data.listingDate) {
+        updateData.createdAt = u.data.listingDate
       }
       await tx.unit.update({ where: { number: u.data.number }, data: updateData as never })
       updated++

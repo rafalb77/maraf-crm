@@ -37,8 +37,9 @@ których import lokali NIE tworzy.
 
 Importer `lib/units-import.ts` (UI: `/units/import`) czyta kolumny xlsx (z nagłówkiem):
 
-- **A** Numer · **B** Typ lokalu · **C** Status · **D** Klient · **F** Budynek · **G** Klatka · **H** Kondygnacja · **K** Powierzchnia · **M** Cena brutto
+- **A** Numer · **B** Typ lokalu · **C** Status · **D** Klient · **F** Budynek · **G** Klatka · **H** Kondygnacja · **K** Powierzchnia · **M** Cena brutto · **P** Data wystawienia (opcjonalna)
 - Pomijane: E (kolejka), I (pokoje), J (piętro display), L (cena/m²), N (cechy), O (umowa). Cena netto i cena/m² liczone automatycznie.
+- **P „Data wystawienia"** (opcjonalna) → `Unit.createdAt`, żeby statystyka „czas do sprzedaży" działała dla historii.
 
 Żeby heatmapa pokazała sprzedane:
 1. **Włącz przełącznik „synchronizuj status i klientów"** w importerze — domyślnie jest **WYŁĄCZONY**. Bez niego status nie jest importowany (nowe lokale → `WOLNY`), więc heatmapa = 0% sprzedanych.
@@ -61,7 +62,7 @@ Zachowanie:
 - **Klient**: dopasowanie po imię+nazwisko; brakujący tworzony (opcja `createMissingClients`, domyślnie ON) z tel/email/źródłem. Status nowego klienta pochodny z umowy (PODPISANA→`UMOWA`, inaczej `REZERWACJA`) — **ożywia też lejek i ROI źródeł dla historii**.
 - **`Data wprowadzenia` → `client.createdAt`** nowego klienta → **cykl sprzedaży liczy się też dla historii** (= signedAt − introducedAt).
 - **Lokale**: dopasowanie po numerze; brakujące → ostrzeżenie (importuj lokale wcześniej). **NIE zmienia statusu lokali** (to robi import lokali — rozdział źródeł prawdy).
-- **Nie** ustawia `unit.createdAt`, więc **„czas do sprzedaży / typ"** dla historii pozostaje ograniczony (lokale mają `createdAt` = data importu). Zadziała dla nowych lokali/umów wprowadzanych po wdrożeniu; ewentualny pełny backfill wymaga kolumny „data wystawienia" w imporcie lokali.
+- **Nie** ustawia `unit.createdAt` (to robi import lokali). Aby **„czas do sprzedaży / typ"** liczył się też dla historii, w imporcie lokali jest opcjonalna kolumna **P „Data wystawienia"**, która backfill-uje `unit.createdAt` (`lib/units-import.ts`, create + update). Bez niej lokale mają `createdAt` = data importu i ten stat ożywa dopiero dla nowych transakcji.
 
 ## Parametry do strojenia
 

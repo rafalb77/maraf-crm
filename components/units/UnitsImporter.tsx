@@ -200,7 +200,7 @@ export function UnitsImporter() {
               Plik xlsx
             </h2>
             <p className="text-xs text-gray-500 mt-1">
-              Limit: 5 MB. Format zgodny z eksportem CRM (kolumny: Numer, Typ, Status, Klient, Budynek, Klatka, Kondygnacja, Powierzchnia, Cena brutto).
+              Limit: 5 MB. Format zgodny z eksportem CRM (kolumny: Numer, Typ, Status, Klient, Budynek, Klatka, Kondygnacja, Powierzchnia, Cena brutto). Opcjonalna kolumna P „Data wystawienia" backfill-uje datę utworzenia lokalu (potrzebna do statystyki „czas do sprzedaży").
             </p>
           </div>
           {file && (
