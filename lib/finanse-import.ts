@@ -38,21 +38,28 @@ type SheetConfig = {
   headerRow: number
   /** Czy importowac (false = pomin, np. PODATKI) */
   enabled: boolean
+  /**
+   * sectionMode — zakladka zorganizowana w SEKCJE per kontrahent (jak STAŁE):
+   * nazwa kontrahenta to naglowek sekcji (kol A wypelnione, FV puste), pod nim
+   * wiersze faktur (kol A puste). Vendor faktury = nazwa biezacej sekcji (NIE sheetName).
+   * Kazda sekcja staje sie osobnym Vendorem (EURON, PLAY, Develogic...).
+   */
+  sectionMode?: boolean
 }
 
 // Konfiguracja per zakladka. Jesli plik bedzie mial inne zakladki w przyszlych
 // latach (np. nowy podwykonawca) — dodajemy tu lub fallback do INNE.
+//
+// USUNIETE z importu (decyzja Marty 2026-05-21):
+//  - MURARZ — faktury BANASZCZYK/AL-BUD dubluja sie ze STAFFA
+//  - SANTANDER, EFL — stare leasingi AUDI z 2023, juz nieaktualne
+//  - PODATKI — inny uklad (osobny pod-modul w Fazie 2)
 const SHEET_CONFIGS: SheetConfig[] = [
   { sheetName: 'PROMATBUD', vendorName: 'PROMATBUD', vendorCategory: 'DOSTAWCA', layout: 'A', headerRow: 2, enabled: true },
   { sheetName: 'BAUTER', vendorName: 'BAUTER', vendorCategory: 'DOSTAWCA', layout: 'A', headerRow: 2, enabled: true },
-  { sheetName: 'SANTANDER', vendorName: 'SANTANDER', vendorCategory: 'BANK', layout: 'A', headerRow: 2, enabled: true },
-  { sheetName: 'EFL', vendorName: 'EFL', vendorCategory: 'LEASING', layout: 'A', headerRow: 2, enabled: true },
   { sheetName: 'STAFFA', vendorName: 'STAFFA', vendorCategory: 'DOSTAWCA', layout: 'B', headerRow: 2, enabled: true },
-  { sheetName: 'MURARZ', vendorName: 'MURARZ', vendorCategory: 'PODWYKONAWCA', layout: 'B', headerRow: 4, enabled: true },
-  { sheetName: 'STAŁE', vendorName: 'STAŁE', vendorCategory: 'INNE', layout: 'B', headerRow: 2, enabled: true },
+  { sheetName: 'STAŁE', vendorName: 'STAŁE', vendorCategory: 'INNE', layout: 'B', headerRow: 2, enabled: true, sectionMode: true },
   { sheetName: 'INNE', vendorName: 'INNE', vendorCategory: 'INNE', layout: 'B', headerRow: 2, enabled: true },
-  // PODATKI — pomijane w MVP (inny uklad, osobny pod-modul w Fazie 2)
-  { sheetName: 'PODATKI', vendorName: 'PODATKI', vendorCategory: 'URZAD', layout: 'A', headerRow: 2, enabled: false },
 ]
 
 // Indeksy kolumn (0-based) per layout
@@ -235,6 +242,8 @@ function parseSheetByConfig(
   // Wyjasnienie: rows[] jest 0-based, sheet_to_json zwraca rzad 0 = wiersz Excel 1.
   // Wiec dane zaczynaja sie od rows[cfg.headerRow] (gdzie cfg.headerRow=2 oznacza wiersz Excel 3 = pierwszy wiersz danych).
   let currentInvoice: ParsedInvoice | null = null
+  // sectionMode (STAŁE): biezaca sekcja = nazwa kontrahenta z naglowka.
+  let currentSection: string | null = null
 
   for (let i = startIdx; i < rows.length; i++) {
     const r = rows[i]
@@ -242,6 +251,18 @@ function parseSheetByConfig(
 
     const fvRaw = toCell(r, cols.fv)
     const fv = String(fvRaw || '').trim()
+
+    // sectionMode: wiersz z kol A wypelnione + FV puste = naglowek sekcji (nowy kontrahent)
+    if (cfg.sectionMode && !fv) {
+      const sectionName = String(toCell(r, 0) || '').trim()
+      if (sectionName) {
+        // Zamknij biezaca fakture przed zmiana sekcji
+        if (currentInvoice) { invoices.push(finalizeInvoice(currentInvoice)); currentInvoice = null }
+        currentSection = sectionName
+        continue
+      }
+      // kol A puste tez — moze byc subwiersz "zaplacono" pod faktura (oblsuga nizej)
+    }
 
     // Pusty wiersz lub naglowek powtorzony — sprawdz czy to subwiersz "zaplacono/pozostalo"
     if (!fv) {
@@ -299,10 +320,14 @@ function parseSheetByConfig(
     const amountVat = parseAmount(toCell(r, cols.amountVat))
     const amountNet = parseAmount(toCell(r, cols.amountNet)) || (amountGross - amountVat)
     const paidDateRaw = parseDate(toCell(r, cols.paidDate))
-    const subVendor = cfg.layout === 'B'
+    // subVendor: w sectionMode kol A to naglowki (nie sub) — wiersze faktur maja kol A puste.
+    const subVendor = (cfg.layout === 'B' && !cfg.sectionMode)
       ? String(toCell(r, (cols as typeof COLS.B).subVendor) || '').trim() || null
       : null
     const description = String(toCell(r, cols.description) || '').trim() || null
+    // sectionMode: vendor = nazwa biezacej sekcji (EURON, PLAY...). Fallback do
+    // cfg.vendorName ("STAŁE") gdy faktura przed pierwszym naglowkiem.
+    const vendorName = cfg.sectionMode ? (currentSection || cfg.vendorName) : cfg.vendorName
 
     // Pola MURARZ (tylko jesli layout B i wartosci sa)
     let deposit: number | null = null
@@ -332,7 +357,7 @@ function parseSheetByConfig(
     currentInvoice = {
       sheetName: cfg.sheetName,
       rowIndex,
-      vendorName: cfg.vendorName,
+      vendorName,
       subVendor,
       number: fv,
       issueDate,
@@ -444,10 +469,18 @@ export function parseFinanseXlsx(buffer: Buffer): ParseResult {
   return { invoices: dedupedInvoices, skipped, perSheetCounts }
 }
 
+/** Kategoria vendora po nazwie: z SHEET_CONFIGS gdy to glowna zakladka,
+ *  inaczej INNE (vendory-sekcje ze STAŁE — EURON, PLAY, Develogic...). */
+function categoryForVendor(vendorName: string): string {
+  const cfg = SHEET_CONFIGS.find((c) => c.vendorName === vendorName)
+  return cfg ? cfg.vendorCategory : 'INNE'
+}
+
 export async function buildDiff(buffer: Buffer): Promise<DiffResult> {
   const parse = parseFinanseXlsx(buffer)
 
-  // Vendors istniejacy w bazie
+  // Vendors istniejacy w bazie. wantedVendorNames moze zawierac vendorow-sekcje
+  // ze STAŁE (EURON, PLAY...) ktorych nie ma w SHEET_CONFIGS.
   const wantedVendorNames = Array.from(new Set(parse.invoices.map((i) => i.vendorName)))
   const existingVendors = await prisma.vendor.findMany({
     where: { name: { in: wantedVendorNames } },
@@ -455,9 +488,9 @@ export async function buildDiff(buffer: Buffer): Promise<DiffResult> {
   })
   const existingVendorNames = new Set(existingVendors.map((v) => v.name))
 
-  const newVendors = SHEET_CONFIGS
-    .filter((c) => c.enabled && wantedVendorNames.includes(c.vendorName) && !existingVendorNames.has(c.vendorName))
-    .map((c) => ({ name: c.vendorName, category: c.vendorCategory }))
+  const newVendors = wantedVendorNames
+    .filter((name) => !existingVendorNames.has(name))
+    .map((name) => ({ name, category: categoryForVendor(name) }))
 
   // Faktury istniejace — sprawdz po (vendorName, number)
   // Najprosciej: pobierz wszystkie faktury z wantedVendorNames + ich numery
@@ -520,6 +553,7 @@ export async function commitImport(buffer: Buffer, createdById?: string): Promis
       }
       const created = await tx.purchaseInvoice.create({
         data: {
+          company: 'MARAF', // import historii = koszty Maraf
           vendorId,
           number: inv.number,
           subVendor: inv.subVendor,

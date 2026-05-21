@@ -18,16 +18,20 @@ const { PrismaClient } = require('@prisma/client')
 
 const prisma = new PrismaClient()
 
+// USUNIETE (decyzja Marty 2026-05-21): MURARZ (dubluje STAFFA), SANTANDER/EFL
+// (stare leasingi 2023). STAŁE ma sectionMode (sekcje per kontrahent).
 const SHEET_CONFIGS = [
   { sheetName: 'PROMATBUD', vendorName: 'PROMATBUD', vendorCategory: 'DOSTAWCA', layout: 'A', headerRow: 2 },
   { sheetName: 'BAUTER', vendorName: 'BAUTER', vendorCategory: 'DOSTAWCA', layout: 'A', headerRow: 2 },
-  { sheetName: 'SANTANDER', vendorName: 'SANTANDER', vendorCategory: 'BANK', layout: 'A', headerRow: 2 },
-  { sheetName: 'EFL', vendorName: 'EFL', vendorCategory: 'LEASING', layout: 'A', headerRow: 2 },
   { sheetName: 'STAFFA', vendorName: 'STAFFA', vendorCategory: 'DOSTAWCA', layout: 'B', headerRow: 2 },
-  { sheetName: 'MURARZ', vendorName: 'MURARZ', vendorCategory: 'PODWYKONAWCA', layout: 'B', headerRow: 4 },
-  { sheetName: 'STAŁE', vendorName: 'STAŁE', vendorCategory: 'INNE', layout: 'B', headerRow: 2 },
+  { sheetName: 'STAŁE', vendorName: 'STAŁE', vendorCategory: 'INNE', layout: 'B', headerRow: 2, sectionMode: true },
   { sheetName: 'INNE', vendorName: 'INNE', vendorCategory: 'INNE', layout: 'B', headerRow: 2 },
 ]
+
+function categoryForVendor(vendorName) {
+  const cfg = SHEET_CONFIGS.find((c) => c.vendorName === vendorName)
+  return cfg ? cfg.vendorCategory : 'INNE'
+}
 
 const COLS = {
   A: { fv: 0, issueDate: 1, vatRate: 2, amountGross: 3, dueDate: 4, paidDate: 7, amountVat: 8, amountNet: 10, description: 12 },
@@ -97,11 +101,22 @@ function parseSheetByConfig(ws, cfg) {
   const skipped = []
   const cols = cfg.layout === 'A' ? COLS.A : COLS.B
   let currentInvoice = null
+  let currentSection = null
 
   for (let i = cfg.headerRow; i < rows.length; i++) {
     const r = rows[i]
     const rowIndex = i + 1
     const fv = String(toCell(r, cols.fv) || '').trim()
+
+    // sectionMode (STAŁE): kol A wypelnione + FV puste = naglowek sekcji
+    if (cfg.sectionMode && !fv) {
+      const sectionName = String(toCell(r, 0) || '').trim()
+      if (sectionName) {
+        if (currentInvoice) { invoices.push(finalizeInvoice(currentInvoice)); currentInvoice = null }
+        currentSection = sectionName
+        continue
+      }
+    }
 
     if (!fv) {
       if (!currentInvoice) continue
@@ -147,10 +162,11 @@ function parseSheetByConfig(ws, cfg) {
     const amountVat = parseAmount(toCell(r, cols.amountVat))
     const amountNet = parseAmount(toCell(r, cols.amountNet)) || (amountGross - amountVat)
     const paidDateRaw = parseDate(toCell(r, cols.paidDate))
-    const subVendor = cfg.layout === 'B'
+    const subVendor = (cfg.layout === 'B' && !cfg.sectionMode)
       ? (String(toCell(r, cols.subVendor) || '').trim() || null)
       : null
     const description = String(toCell(r, cols.description) || '').trim() || null
+    const vendorName = cfg.sectionMode ? (currentSection || cfg.vendorName) : cfg.vendorName
 
     let deposit = null, buildingCosts = null, electricity = null
     if (cfg.layout === 'B') {
@@ -174,7 +190,7 @@ function parseSheetByConfig(ws, cfg) {
     currentInvoice = {
       sheetName: cfg.sheetName,
       rowIndex,
-      vendorName: cfg.vendorName,
+      vendorName,
       subVendor,
       number: fv,
       issueDate,
@@ -274,23 +290,26 @@ async function main() {
     console.log(`  ${s.padEnd(22)} ${n}`)
   }
 
+  // Vendory z faktur (moga zawierac sekcje ze STAŁE: EURON, PLAY, Develogic...)
+  const wantedVendorNames = Array.from(new Set(allInvoices.map((i) => i.vendorName)))
+
   // Vendory + duplikaty — wymagaja DB. Soft-fail gdy DB niedostepne (lokalny dry-run).
   let existingVendorNames = new Set()
-  let newVendors = SHEET_CONFIGS.map((c) => ({ name: c.vendorName, category: c.vendorCategory }))
+  let newVendors = wantedVendorNames.map((name) => ({ name, category: categoryForVendor(name) }))
   let existingKeys = new Set()
   let dbAvailable = true
   try {
     const existingVendors = await prisma.vendor.findMany({
-      where: { name: { in: SHEET_CONFIGS.map((c) => c.vendorName) } },
+      where: { name: { in: wantedVendorNames } },
       select: { name: true },
     })
     existingVendorNames = new Set(existingVendors.map((v) => v.name))
-    newVendors = SHEET_CONFIGS
-      .filter((c) => !existingVendorNames.has(c.vendorName))
-      .map((c) => ({ name: c.vendorName, category: c.vendorCategory }))
+    newVendors = wantedVendorNames
+      .filter((name) => !existingVendorNames.has(name))
+      .map((name) => ({ name, category: categoryForVendor(name) }))
 
     const existingInvoices = await prisma.purchaseInvoice.findMany({
-      where: { vendor: { name: { in: SHEET_CONFIGS.map((c) => c.vendorName) } } },
+      where: { vendor: { name: { in: wantedVendorNames } } },
       select: { number: true, vendor: { select: { name: true } } },
     })
     existingKeys = new Set(existingInvoices.map((i) => `${i.vendor.name}::${i.number}`))
@@ -338,7 +357,7 @@ async function main() {
   await prisma.$transaction(async (tx) => {
     const vendorIdByName = new Map()
     const allVendorRows = await tx.vendor.findMany({
-      where: { name: { in: SHEET_CONFIGS.map((c) => c.vendorName) } },
+      where: { name: { in: wantedVendorNames } },
       select: { id: true, name: true },
     })
     for (const v of allVendorRows) vendorIdByName.set(v.name, v.id)
@@ -360,6 +379,7 @@ async function main() {
       }
       const created = await tx.purchaseInvoice.create({
         data: {
+          company: 'MARAF',
           vendorId,
           number: inv.number,
           subVendor: inv.subVendor,

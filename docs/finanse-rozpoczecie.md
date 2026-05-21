@@ -4,6 +4,46 @@
 
 Dyskusja założycielska: 2026-05-17 (rozmowa user × Claude). Decyzje na dole sekcji „Decyzje już podjęte".
 
+> **MVP Fazy 1 wdrożony 2026-05-21** (commity od `4cdbaf5`). Schema + importer + 8 widoków + workflow akceptacji. Niżej sekcja „Feedback Marty 2026-05-21" z listą poprawek i nowych ficzerów do kolejnych iteracji.
+
+## Feedback Marty 2026-05-21 (pierwszy realny użytkownik)
+
+Marta (siostra, `biuro@maraf.pl`) przejrzała MVP. Uwagi pogrupowane:
+
+### A. Szybkie poprawki UI (strona kosztowa)
+1. **Szczegóły faktury** — nazwa kontrahenta większa, numer FV mniejszy (czytelność).
+2. **Lista faktur** — rozbić kwoty na osobne kolumny: **netto / VAT% / kwota VAT / brutto** (wszystkie pola są już w DB).
+3. **Lista** — niezapłacone FV wyróżnione czerwoną czcionką / statusem „nieopłacona".
+4. **Lista** — kolumna **komentarz** (pole `notes` jest w DB — pokazać + edycja inline).
+5. **Lista** — **podsumowanie łączne na dole** (suma netto/VAT/brutto przy aktywnym filtrze, np. filtr „Janpol" → suma wszystkich jego FV).
+6. **Kolejka płatności** — rozbić/pogrupować po kontrahencie (Staffa, stałe, promatbud, bauter, inne) zamiast po terminie (lub dodatkowo).
+
+### B. Multi-select + przelew zbiorczy
+7. **Zaznaczanie kilku faktur tego samego kontrahenta** → podlicza łącznie **kwotę przelewu brutto** + osobno **kwotę VAT** (do robienia jednego przelewu za kilka FV).
+
+### C. Akceptacja Bohdana
+8. Możliwość zaznaczania przez tatę „co jest do zapłacenia" — workflow akceptacji już istnieje (inbox), ale Marta może oczekiwać prostszych **checkboxów na liście** (do doprecyzowania).
+
+### D. Restrukturyzacja danych (zmiany w imporcie + bazie)
+9. **MURARZ — usunąć zakładkę.** Faktury BANASZCZYK / AL-BUD **dublują się ze STAFFA**. W Excelu Marta trzymała MURARZ osobno tylko po to, by liczyć kaucję + koszty budowy + wartość-do-zapłaty-po-odjęciu. → Usunąć duplikaty, a kaucję/KB obsłużyć ficzerem (pkt E).
+10. **STAŁE — podzielić na firmy/kontrahentów.** Zakładka jest zorganizowana w **sekcje per kontrahent** (nagłówek w kol A, faktury pod nim): EURON, PLAY, TOYA, POLISA (dostawcy zewn.) oraz **Jawne, Develogic, MD, Bogdan, Marta, Rafał** (podmioty wewnętrzne/rodzinne — semantyka do potwierdzenia). Importer MVP tego NIE rozpoznał — wrzucił wszystko pod jednego vendora „STAŁE". **Trzeba poprawić parser** (rozpoznawanie section headerów) + re-import.
+11. **SANTANDER — usunąć** (4 stare wpisy leasingowe z 2023, AUDI; Marta: „nie ma czegoś takiego").
+12. **EFL — usunąć** (stary leasing AUDI z 2023).
+
+### E. Kaucja gwarancyjna (nowy ficzer)
+13. Obliczanie **kaucji gwarancyjnej** + **koszty budowy (KB)** + **wartość do zapłaty po odjęciu kaucji/KB**. Plus **przypomnienie o zwrocie kaucji** (termin zwrotu). Pola `deposit`/`buildingCosts` są w schemie, ale brak logiki i przypomnień. Dotyczy głównie podwykonawców (Banaszczyk/AL-BUD w STAFFA).
+
+### F. Faktury przychodowe (DUŻY nowy moduł)
+14. Osobny rejestr **faktur przychodowych (sprzedażowych)**. Kolumny: `FIRMA | FV | DATA WYST | TERMIN | NETTO | % | VAT | BRUTTO | KAUCJA | KB | WPŁATA | DATA WPŁATY | POZOSTAŁO`.
+15. **CIT 9%** liczony na bieżąco (przychód − koszty) → Marta widzi ile FV może jeszcze wystawić na Maraf Development lub ile kosztów szukać.
+16. **VAT do zapłaty** = VAT przychodowy − VAT kosztowy.
+17. **Faktury zaliczkowe nie są kosztem** dopóki nie zmienią się na zwykłą fakturę (trzeba flagę „zaliczkowa" + konwersja).
+
+### G. Multi-firma (Maraf + Maraf Development)
+18. Ten sam moduł dla **Maraf Development**. Faktury **przychodowe Marafu wystawione dla MD** powinny **automatycznie zaczytywać się w MD jako kosztowe**. To wymaga pola `company` (wystawca/odbiorca) na fakturach + mechanizmu „cross-company" (FV sprzedażowa firmy A z kontrahentem = firma B → tworzy FV kosztową u B).
+
+**Status feedbacku:** do rozplanowania (priorytety + decyzje multi-firma / faktury przychodowe / semantyka STAŁE — patrz „Pytania otwarte").
+
 ## Diagnoza obecnego stanu (Excel)
 
 Plik `PŁATNOŚCI 2026.xlsx` — 9 zakładek, ~220 faktur za 2026, ~3 mln zł niezapłaconego, ~20 zaległych.
