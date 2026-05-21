@@ -3,9 +3,8 @@ import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { COMPANY_LABELS, type Company } from '@/lib/types'
 
-export function NewSalesInvoiceForm() {
+export function NewSalesInvoiceForm({ company }: { company: string }) {
   const router = useRouter()
-  const [company, setCompany] = useState<string>('MARAF')
   const [number, setNumber] = useState('')
   const [recipientName, setRecipientName] = useState('')
   const [recipientCompany, setRecipientCompany] = useState('')
@@ -59,16 +58,9 @@ export function NewSalesInvoiceForm() {
 
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-6 space-y-4">
-      <div className="grid grid-cols-2 gap-4">
-        <Row label="Firma wystawiająca">
-          <select value={company} onChange={(e) => setCompany(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
-            {(Object.keys(COMPANY_LABELS) as Company[]).map((c) => <option key={c} value={c}>{COMPANY_LABELS[c]}</option>)}
-          </select>
-        </Row>
-        <Row label="Numer faktury">
-          <input value={number} onChange={(e) => setNumber(e.target.value)} placeholder="np. FV/12/2026" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono" />
-        </Row>
-      </div>
+      <Row label="Numer faktury">
+        <input value={number} onChange={(e) => setNumber(e.target.value)} placeholder="np. FV/12/2026" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono" />
+      </Row>
 
       <div className="grid grid-cols-2 gap-4">
         <Row label="Odbiorca (firma)">

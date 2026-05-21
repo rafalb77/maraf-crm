@@ -2,14 +2,15 @@ import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
 import { fmtMoney } from '@/lib/finanse-format'
 import { COMPANY_LABELS, CIT_RATE, type Company } from '@/lib/types'
+import { getActiveCompany } from '@/lib/finanse-company'
 
-// Orientacyjne podatki per firma/rok:
+// Orientacyjne podatki per firma (z kontekstu)/rok:
 //  CIT 9% od (przychod netto - koszty netto), bez faktur zaliczkowych/anulowanych
 //  VAT do zaplaty = VAT nalezny (przychod) - VAT naliczony (koszt)
-export default async function PodatkiPage({ searchParams }: { searchParams: { company?: string; year?: string } }) {
+export default async function PodatkiPage({ searchParams }: { searchParams: { year?: string } }) {
   const now = new Date()
   const year = parseInt(searchParams.year || String(now.getFullYear()), 10) || now.getFullYear()
-  const company = searchParams.company || 'MARAF'
+  const company = getActiveCompany()
   const yStart = new Date(year, 0, 1)
   const yEnd = new Date(year + 1, 0, 1)
 
@@ -44,17 +45,10 @@ export default async function PodatkiPage({ searchParams }: { searchParams: { co
         <p className="text-gray-500 text-sm mt-1">CIT {(CIT_RATE * 100).toFixed(0)}% + VAT do zapłaty, narastająco za rok. Bez faktur zaliczkowych.</p>
       </div>
 
-      {/* Filtry firma + rok */}
+      {/* Filtr rok (firma z globalnego przelacznika u gory) */}
       <div className="flex gap-2 mb-6 flex-wrap">
-        {(Object.keys(COMPANY_LABELS) as Company[]).map((c) => (
-          <Link key={c} href={`/finanse/podatki?company=${c}&year=${year}`}
-            className={`px-3 py-1.5 rounded-lg border text-sm ${company === c ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'}`}>
-            {COMPANY_LABELS[c]}
-          </Link>
-        ))}
-        <span className="mx-2 border-l border-gray-200" />
         {years.map((y) => (
-          <Link key={y} href={`/finanse/podatki?company=${company}&year=${y}`}
+          <Link key={y} href={`/finanse/podatki?year=${y}`}
             className={`px-3 py-1.5 rounded-lg border text-sm ${year === y ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'}`}>
             {y}
           </Link>

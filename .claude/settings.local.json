@@ -87,7 +87,9 @@
       "Bash(rm -f \"components/finanse/FakturyTable.tsx\" \"app/api/finanse/invoices/[id]/notes/route.ts\")",
       "Bash(rmdir \"app/api/finanse/invoices/[id]/notes\")",
       "Bash(git checkout *)",
-      "Bash(git merge *)"
+      "Bash(git merge *)",
+      "Bash(rm -f \"lib/finanse-company.ts\" \"components/finanse/CompanySwitcher.tsx\" \"app/\\(app\\)/finanse/layout.tsx\")",
+      "Bash(rm -rf \"app/api/finanse/company\")"
     ]
   }
 }

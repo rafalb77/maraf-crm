@@ -55,8 +55,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Faktura o tym numerze juz istnieje dla tego kontrahenta', existingId: dup.id }, { status: 409 })
   }
 
+  const company = body.company === 'MARAF_DEVELOPMENT' ? 'MARAF_DEVELOPMENT' : 'MARAF'
+
   const created = await prisma.purchaseInvoice.create({
     data: {
+      company,
       vendorId,
       number,
       subVendor: body.subVendor ? String(body.subVendor).trim() : null,

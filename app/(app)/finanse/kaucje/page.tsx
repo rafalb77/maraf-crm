@@ -1,15 +1,17 @@
 import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
 import { fmtDate, fmtMoney } from '@/lib/finanse-format'
+import { getActiveCompany } from '@/lib/finanse-company'
 import { MarkDepositReturnedButton } from '@/components/finanse/MarkDepositReturnedButton'
 
 export default async function KaucjePage() {
+  const company = getActiveCompany()
   const today = new Date()
   today.setHours(0, 0, 0, 0)
 
   // Faktury z kaucja (deposit > 0)
   const invoices = await prisma.purchaseInvoice.findMany({
-    where: { deposit: { gt: 0 } },
+    where: { company, deposit: { gt: 0 } },
     orderBy: [{ depositReturnedAt: 'asc' }, { depositReturnDate: 'asc' }],
     include: { vendor: { select: { name: true } } },
   })

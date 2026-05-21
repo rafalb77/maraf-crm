@@ -2,18 +2,23 @@ import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
 import { fmtMoney } from '@/lib/finanse-format'
 import { VENDOR_CATEGORY_LABELS, type VendorCategory } from '@/lib/types'
+import { getActiveCompany } from '@/lib/finanse-company'
 
 export default async function KontrahenciPage() {
-  const vendors = await prisma.vendor.findMany({
+  const company = getActiveCompany()
+  // Kontrahenci aktywnej firmy = ci, ktorzy maja przynajmniej 1 fakture tej firmy.
+  // Liczniki/sumy liczone tylko z faktur aktywnej firmy.
+  const allVendors = await prisma.vendor.findMany({
     orderBy: [{ isActive: 'desc' }, { name: 'asc' }],
     include: {
-      _count: { select: { invoices: true } },
+      _count: { select: { invoices: { where: { company } } } },
       invoices: {
-        where: { status: { notIn: ['OPLACONA', 'ANULOWANA'] } },
+        where: { company, status: { notIn: ['OPLACONA', 'ANULOWANA'] } },
         select: { amountGross: true, payments: { select: { amount: true } } },
       },
     },
   })
+  const vendors = allVendors.filter((v) => v._count.invoices > 0)
 
   return (
     <div className="p-8">
