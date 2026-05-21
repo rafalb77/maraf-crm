@@ -77,10 +77,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       },
     })
     console.log('[oferty.email] sent:', {
-      to,
+      // NIE logujemy adresów (to/accepted/rejected) — PII w logach Coolify
+      acceptedCount: mailInfo?.accepted?.length ?? 0,
+      rejectedCount: mailInfo?.rejected?.length ?? 0,
       messageId: mailInfo?.messageId,
-      accepted: mailInfo?.accepted,
-      rejected: mailInfo?.rejected,
       response: mailInfo?.response,
     })
   } catch (e: any) {

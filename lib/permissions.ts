@@ -98,9 +98,11 @@ export function getRequiredPermission(pathname: string): Permission | 'admin' | 
   // API
   if (pathname.startsWith('/api/dashboard')) return 'dashboard'
   if (pathname.startsWith('/api/clients')) return 'clients'
+  if (pathname.startsWith('/api/activities')) return 'clients' // notatki/aktywności klienta
   if (pathname.startsWith('/api/units')) return 'units'
   if (pathname.startsWith('/api/oferty')) return 'oferty'
   if (pathname.startsWith('/api/sales')) return 'sales'
+  if (pathname.startsWith('/api/contracts')) return 'sales' // umowy (zawierają dane klienta) — endpoint to /api/contracts, NIE /api/sales
   if (pathname.startsWith('/api/service')) return 'service'
   if (pathname.startsWith('/api/mailing')) return 'mailing'
   if (pathname.startsWith('/api/calendar')) return 'calendar'
