@@ -88,9 +88,10 @@ Klasyczny Outlook:
 - **Konta poczty e-mail**
 - Zaznacz `rafal.boruch@maraf.pl` → **Usuń** → Potwierdź
 - **Nowe** → wpisz `rafal.boruch@maraf.pl` → wybierz IMAP/POP3 jeśli pyta (zwykle IMAP) → **NOWE hasło** → Outlook autodetektnie ustawienia z home.pl
-- Jeśli autodetect nie wykryje — ustawienia ręczne (sprawdzone u home.pl):
-  - **IMAP** — host `imap.home.pl`, port `993`, SSL/TLS
-  - **SMTP** — host `smtp.home.pl`, port `465`, SSL/TLS (albo `587` STARTTLS)
+- Ustawienia serwera — **ZWERYFIKOWANE 2026-05-19** (testem TCP, nie zgadywane):
+  - **IMAP (poczta przychodząca)** — host **`poczta.home.pl`**, port `993`, SSL/TLS
+  - **SMTP (poczta wychodząca)** — host **`poczta.home.pl`**, port `465` SSL/TLS (lub `587` STARTTLS — oba otwarte), uwierzytelnianie wymagane (te same dane co IMAP)
+  - ⚠️ **NIE wpisywać `maraf.pl` ani `imap.home.pl` jako serwera** — `maraf.pl` to domena (nie nasłuchuje na 993), `imap.home.pl` NIE ISTNIEJE w DNS. Błąd „nie można odnaleźć serwera poczty" 2026-05-19 wynikał z wpisanego `maraf.pl` w polu Serwer. Poprawny host dla home.pl to `poczta.home.pl` (ten sam co webmail).
 - **Zakończ**
 
 New Outlook (jeśli okaże się że to ta wersja):
@@ -128,6 +129,16 @@ Po recreate konta → wracamy do `docs/incident-bogdan-mail-status.md` sekcja **
 - [ ] **Lista wszystkich skrzynek @maraf.pl** w panelu home.pl + prewencyjna zmiana haseł
 - [ ] **TODO Bogdana**: skan komputera Defender + Malwarebytes, zmiana haseł na innych serwisach
 - [ ] Wyłączyć **Avast HTTPS scanning** na komputerze Rafała
+
+---
+
+## Update 2026-05-19 (późny wieczór) — konto skonfigurowane, dwie sprawy
+
+**Outlook na komputerze #1 — DZIAŁA.** Klucz: serwer to **`poczta.home.pl`** (nie `maraf.pl`, nie `imap.home.pl`). Po wpisaniu poprawnego serwera konto się połączyło i ruszyła synchronizacja. Pozostały drobiazg: błąd `0x80040119` „nie można zapisać w folderze Elementy wysłane — Outlook w trybie offline lub serwer nie zezwala". Przyczyna prawie na pewno: **Outlook w trybie offline** (przełączony wcześniej żeby chronić maile). Fix: wstążka → Wysyłanie/odbieranie → wyłącz „Pracuj w trybie offline". Jeśli zostanie po przejściu online → zmapować folder Sent (Plik → Ustawienia konta → Zmień → Więcej ustawień → Foldery wysłanych elementów → wskazać folder „Wysłane"/„Sent" serwera).
+
+**Reputacja maraf.pl — sprawdzona, CZYSTA.** Proton VPN blokował stronę. Sprawdzone 3 niezależne źródła: Google Safe Browsing (czysto), 6 DNSBL spamowych (czysto), Proton malware engine (czysto — po przełączeniu NetShield na „malware only" strona się otworzyła). Blokada była przez listę „ads & trackers" (WordPress ma Google Analytics/podobne — nieszkodliwe). **Brak sygnałów infekcji maraf.pl.** Audyt WP nadal warto zrobić prewencyjnie (envision 2013), ale to nie pożar.
+
+**TODO komputer #2**: powtórzyć konfigurację konta z serwerem `poczta.home.pl`. Nie powtarzać błędu z `maraf.pl`/`imap.home.pl` w polu Serwer.
 
 ---
 
