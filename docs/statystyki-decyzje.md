@@ -47,6 +47,22 @@ Importer `lib/units-import.ts` (UI: `/units/import`) czyta kolumny xlsx (z nagł
 4. **Kolumna F/G (Budynek/Klatka)** → grupowanie wierszy heatmapy (importer zapisuje np. `B1 / Klatka 2`). Gdy puste — fallback na prefiks numeru (`B1.1.M3` → `B1`).
 5. **Kolumna H (Kondygnacja)** → kolumny heatmapy (liczba; 0=Parter, -1=Podziemie).
 
+## Backfill umów (import) — `lib/contracts-import.ts` + `/sales/import`
+
+Importer umów (UI: lista `/sales` → „Import z Excela") ożywia statystyki czasowe.
+Wzorzec preview/commit jak przy lokalach. Format xlsx (nagłówek w 1. wierszu):
+
+`A` Nr umowy* · `B` Typ · `C` Status · `D` Klient(zy, przecinkami) · `E` Telefon · `F` Email ·
+`G` Lokale (numery, przecinkami) · `H` Inwestycja · `I` Data wprowadzenia · `J` Data podpisania ·
+`K` Wartość netto · `L` Wartość brutto · `M` Kaucja · `N` Rabat · `O` Notatki · `P` Źródło
+
+Zachowanie:
+- **Idempotentny po „Nr umowy"** (istniejąca → update, nowa → create).
+- **Klient**: dopasowanie po imię+nazwisko; brakujący tworzony (opcja `createMissingClients`, domyślnie ON) z tel/email/źródłem. Status nowego klienta pochodny z umowy (PODPISANA→`UMOWA`, inaczej `REZERWACJA`) — **ożywia też lejek i ROI źródeł dla historii**.
+- **`Data wprowadzenia` → `client.createdAt`** nowego klienta → **cykl sprzedaży liczy się też dla historii** (= signedAt − introducedAt).
+- **Lokale**: dopasowanie po numerze; brakujące → ostrzeżenie (importuj lokale wcześniej). **NIE zmienia statusu lokali** (to robi import lokali — rozdział źródeł prawdy).
+- **Nie** ustawia `unit.createdAt`, więc **„czas do sprzedaży / typ"** dla historii pozostaje ograniczony (lokale mają `createdAt` = data importu). Zadziała dla nowych lokali/umów wprowadzanych po wdrożeniu; ewentualny pełny backfill wymaga kolumny „data wystawienia" w imporcie lokali.
+
 ## Parametry do strojenia
 
 - `PREP_CONTRACT_WEIGHT = 0.6`, `SENT_OFFER_WEIGHT = 0.25` — wagi prognozy pipeline.
