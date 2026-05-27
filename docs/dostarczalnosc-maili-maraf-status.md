@@ -86,6 +86,31 @@ Gotowiec ticketu:
 
 ---
 
+## Update 2026-05-25 — pierwszy raport DMARC od Google (RUA działa)
+
+Kilka godzin po dodaniu DMARC przyszedł pierwszy agregowany raport od Google (`noreply-dmarc-support@google.com` → rafal.boruch@maraf.pl). DMARC `rua=` działa, DNS się spropagował. Zawartość XML (okno ~25-26.05):
+
+```
+policy_published: domain=maraf.pl, p=none, adkim=r, aspf=r, pct=100
+record:
+  source_ip: 89.161.166.193  (legalny serwer maraf.pl/home.pl)
+  count: 1
+  dkim: PASS (selector "dkim", domain maraf.pl)
+  spf:  PASS (domain maraf.pl)
+  disposition: none
+```
+
+**Wnioski (rewizja diagnozy):**
+
+1. ✅ **DKIM aktywnie podpisuje** wychodzące maile (nie tylko rekord w DNS) — `dkim: pass` + selektor `dkim`. **Punkt DKIM z ticketu do home.pl można SKREŚLIĆ — działa.**
+2. ✅ **SPF przechodzi** mimo braku `~all` — bo IP 89.161.166.193 jest w `ip4:` rekordu (dla autoryzowanego IP pass). Dodanie `~all` nadal warto (twarda polityka + obsługa innych IP), ale fundament działał.
+3. ✅ **DMARC alignment pass** — Google w pełni akceptuje uwierzytelnianie maraf.pl.
+4. 🔑 **Tylko jeden source_ip (89.161.166.193, legalny)** — BRAK nieautoryzowanych źródeł/spoofingu. **Potwierdzenie z niezależnego źródła (Google) że atakujący NIE wysyła już z maraf.pl** — zmiana hasła skutecznie odcięła. (Istotne dla `docs/incident-bogdan-mail-status.md`.)
+
+**Konsekwencja dla score 250**: skoro SPF+DKIM+DMARC wszystkie pass, odrzucenie przez nieruchomosciwozniak.pl to **NIE brak uwierzytelniania** → prawie na pewno **reputacja IP po incydencie**. Ticket do home.pl zawęża się do: **reputacja/delisting IP + PTR mismatch** (DKIM skreślony). Reputacja goi się z czasem (tygodnie bez nowego spamu) — raporty DMARC pozwolą monitorować.
+
+**Uwaga praktyczna**: raporty DMARC będą przychodzić codziennie z wielu serwerów (Google, Microsoft, Yahoo...) na rafal.boruch@maraf.pl → zaśmiecą skrzynkę. Rozważyć: zmiana `rua=` na osobny adres (np. dmarc@maraf.pl) albo darmowy agregator (dmarcian / postmark DMARC).
+
 ## Czy problem zniknie po SPF+DMARC?
 
 Częściowo. SPF (z `~all`) + DMARC + DKIM to fundament — usunie dużą część scoringu. ALE score 250 sugeruje że dochodzi **reputacja IP po incydencie** (działka home.pl + czas) i ewentualnie **PTR mismatch** (działka home.pl). Dlatego ticket do home.pl równolegle, nie tylko DNS. Realistycznie: poprawa stopniowa przez dni-tygodnie w miarę gojenia reputacji + po działaniach home.pl.
