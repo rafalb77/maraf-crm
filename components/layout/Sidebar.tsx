@@ -162,7 +162,6 @@ const WORKSPACES: Workspace[] = [
       {
         items: [
           { href: '/finanse', label: 'Pulpit finansów', icon: ICONS.dashboard },
-          { href: '/finanse/do-zatwierdzenia', label: 'Do zatwierdzenia', icon: ICONS.service },
           { href: '/finanse/kolejka-platnosci', label: 'Kolejka płatności', icon: ICONS.sales },
           { href: '/finanse/faktury', label: 'Faktury kosztowe', icon: ICONS.offers },
           { href: '/finanse/przychody', label: 'Faktury przychodowe', icon: ICONS.offers },

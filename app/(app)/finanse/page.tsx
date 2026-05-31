@@ -12,8 +12,6 @@ export default async function FinanseHomePage() {
   const monthStart = new Date(today.getFullYear(), today.getMonth(), 1)
 
   const [
-    toApproveCount,
-    toApproveSum,
     overdueCount,
     overdueSum,
     due7Count,
@@ -23,11 +21,6 @@ export default async function FinanseHomePage() {
     paidThisMonthSum,
     topVendorsRaw,
   ] = await Promise.all([
-    prisma.purchaseInvoice.count({ where: { company, status: 'DO_ZATWIERDZENIA' } }),
-    prisma.purchaseInvoice.aggregate({
-      where: { company, status: 'DO_ZATWIERDZENIA' },
-      _sum: { amountGross: true },
-    }),
     prisma.purchaseInvoice.count({
       where: {
         company,
@@ -121,18 +114,11 @@ export default async function FinanseHomePage() {
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Finanse</h1>
         <p className="text-gray-500 text-sm mt-1">
-          Faktury zakupowe, akceptacje, płatności
+          Faktury kosztowe, przychodowe, płatności
         </p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <KpiTile
-          href="/finanse/do-zatwierdzenia"
-          title="Do zatwierdzenia"
-          count={toApproveCount}
-          sum={toApproveSum._sum.amountGross || 0}
-          accent="amber"
-        />
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         <KpiTile
           href="/finanse/faktury?overdue=1"
           title="Zaległe"

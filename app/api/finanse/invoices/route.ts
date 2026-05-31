@@ -73,7 +73,7 @@ export async function POST(req: NextRequest) {
       deposit: isFinite(Number(body.deposit)) ? Number(body.deposit) : null,
       buildingCosts: isFinite(Number(body.buildingCosts)) ? Number(body.buildingCosts) : null,
       electricity: isFinite(Number(body.electricity)) ? Number(body.electricity) : null,
-      status: 'WPROWADZONA',
+      status: 'ZATWIERDZONA',
       createdById: session.user.id || null,
     },
     select: { id: true, number: true },

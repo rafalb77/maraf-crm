@@ -208,11 +208,9 @@ function inferStatus(invoice: {
   const sumPaid = invoice.payments.reduce((s, p) => s + p.amount, 0)
   if (sumPaid >= invoice.amountGross - 0.01) return 'OPLACONA'
   if (sumPaid > 0.01) return 'CZESCIOWO_OPLACONA'
-  // Brak platnosci — jesli ma termin, traktujemy jako zatwierdzona (bo skoro
-  // jest w pliku Bohdana, to bylo "do zaplaty"). Jesli brak terminu i kwoty
-  // platnosci — wprowadzona ale jeszcze nie przeszla przez akceptacje.
-  if (invoice.dueDate) return 'ZATWIERDZONA'
-  return 'WPROWADZONA'
+  // Brak platnosci — od razu ZATWIERDZONA (Marta sama zatwierdza, brak fazy
+  // "do zatwierdzenia" jako osobnej kolejki).
+  return 'ZATWIERDZONA'
 }
 
 // =====================================================================
