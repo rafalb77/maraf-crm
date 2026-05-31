@@ -1,6 +1,7 @@
 import { getActiveCompany } from '@/lib/finanse-company'
 import { COMPANY_LABELS } from '@/lib/types'
 import { CompanySwitcher } from '@/components/finanse/CompanySwitcher'
+import { AutoSyncOnMount } from '@/components/finanse/AutoSyncOnMount'
 
 // Layout modulu Finanse — pasek z przelacznikiem aktywnej firmy na gorze.
 // Maraf i Maraf Development sa osobnymi podmiotami; wszystkie podstrony
@@ -18,11 +19,12 @@ export default function FinanseLayout({ children }: { children: React.ReactNode 
           borderColor: isMD ? '#e9d5ff' : '#e5e7eb',
         }}
       >
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           <span className="text-sm font-semibold" style={{ color: isMD ? '#7c3aed' : '#111827' }}>
             {COMPANY_LABELS[company]}
           </span>
           <span className="text-xs text-gray-400">— moduł Finanse</span>
+          <AutoSyncOnMount />
         </div>
         <CompanySwitcher active={company} />
       </div>
