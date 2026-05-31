@@ -452,7 +452,7 @@ export async function syncCompanyFromKsef(company: Company): Promise<{ ok: boole
           amountVat: parsed.amountVat,
           amountGross: parsed.amountGross,
           currency: parsed.currency,
-          status: 'WPROWADZONA',
+          status: 'ZATWIERDZONA',
           ksefNumber: meta.ksefNumber,
           description: `Z KSeF (${meta.ksefNumber})`,
         },

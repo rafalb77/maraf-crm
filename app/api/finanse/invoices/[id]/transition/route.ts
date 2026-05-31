@@ -24,10 +24,12 @@ import { isAdmin } from '@/lib/auth-utils'
 //  ZATWIERDZONA          → RESET   → WPROWADZONA (admin override, np. blad)
 //  dowolny != OPLACONA   → CANCEL  → ANULOWANA (admin only)
 
+// Workflow uproszczony 2026-05-31: Marta sama zatwierdza, brak osobnej fazy
+// "do zatwierdzenia". Nowe faktury wpadaja od razu jako ZATWIERDZONA. Akcje
+// zostaja dla cofania/anulowania jesli pomylka.
 const TRANSITIONS: Record<string, { from: string[]; to: string; requirePerm?: string; requireAdmin?: boolean; requireComment?: boolean }> = {
-  SUBMIT: { from: ['WPROWADZONA', 'ODRZUCONA'], to: 'DO_ZATWIERDZENIA' },
-  APPROVE: { from: ['DO_ZATWIERDZENIA'], to: 'ZATWIERDZONA', requirePerm: 'finanse.approve' },
-  REJECT: { from: ['DO_ZATWIERDZENIA'], to: 'ODRZUCONA', requirePerm: 'finanse.approve', requireComment: true },
+  APPROVE: { from: ['WPROWADZONA', 'DO_ZATWIERDZENIA', 'ODRZUCONA'], to: 'ZATWIERDZONA' },
+  REJECT: { from: ['WPROWADZONA', 'DO_ZATWIERDZENIA', 'ZATWIERDZONA'], to: 'ODRZUCONA', requireComment: true },
   RESET: { from: ['DO_ZATWIERDZENIA', 'ZATWIERDZONA', 'ODRZUCONA'], to: 'WPROWADZONA' },
   CANCEL: { from: ['WPROWADZONA', 'DO_ZATWIERDZENIA', 'ZATWIERDZONA', 'ZAPLANOWANA', 'CZESCIOWO_OPLACONA', 'ODRZUCONA'], to: 'ANULOWANA', requireAdmin: true },
 }

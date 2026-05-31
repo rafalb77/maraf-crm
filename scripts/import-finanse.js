@@ -79,8 +79,8 @@ function inferStatus(invoice) {
   const sumPaid = invoice.payments.reduce((s, p) => s + p.amount, 0)
   if (sumPaid >= invoice.amountGross - 0.01) return 'OPLACONA'
   if (sumPaid > 0.01) return 'CZESCIOWO_OPLACONA'
-  if (invoice.dueDate) return 'ZATWIERDZONA'
-  return 'WPROWADZONA'
+  // Marta sama zatwierdza — faktury bez platnosci sa od razu ZATWIERDZONA
+  return 'ZATWIERDZONA'
 }
 
 function finalizeInvoice(inv) {

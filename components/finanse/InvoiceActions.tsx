@@ -9,12 +9,13 @@ type Props = {
   isAdmin: boolean
 }
 
-// Mapa: jakie akcje sa dostepne dla jakiego statusu
-const ACTIONS_BY_STATUS: Record<string, ('SUBMIT' | 'APPROVE' | 'REJECT' | 'RESET' | 'CANCEL')[]> = {
-  WPROWADZONA: ['SUBMIT', 'CANCEL'],
-  DO_ZATWIERDZENIA: ['APPROVE', 'REJECT', 'RESET', 'CANCEL'],
-  ZATWIERDZONA: ['RESET', 'CANCEL'],
-  ODRZUCONA: ['SUBMIT', 'RESET', 'CANCEL'],
+// Mapa akcji per status. Workflow uproszczony — Marta sama zatwierdza,
+// faktury wpadaja od razu jako ZATWIERDZONA. Akcje glownie do cofania pomylek.
+const ACTIONS_BY_STATUS: Record<string, ('APPROVE' | 'REJECT' | 'RESET' | 'CANCEL')[]> = {
+  WPROWADZONA: ['APPROVE', 'REJECT', 'CANCEL'],
+  DO_ZATWIERDZENIA: ['APPROVE', 'REJECT', 'CANCEL'], // legacy, gdy faktury miały starszy status
+  ZATWIERDZONA: ['REJECT', 'RESET', 'CANCEL'],
+  ODRZUCONA: ['APPROVE', 'RESET', 'CANCEL'],
   ZAPLANOWANA: ['CANCEL'],
   CZESCIOWO_OPLACONA: ['CANCEL'],
   OPLACONA: [],
@@ -22,7 +23,6 @@ const ACTIONS_BY_STATUS: Record<string, ('SUBMIT' | 'APPROVE' | 'REJECT' | 'RESE
 }
 
 const ACTION_CONFIG = {
-  SUBMIT: { label: 'Wyślij do zatwierdzenia', color: 'bg-blue-600 hover:bg-blue-700', requireComment: false },
   APPROVE: { label: 'Zatwierdź', color: 'bg-green-600 hover:bg-green-700', requireComment: false },
   REJECT: { label: 'Odrzuć', color: 'bg-red-600 hover:bg-red-700', requireComment: true },
   RESET: { label: 'Cofnij do edycji', color: 'bg-gray-600 hover:bg-gray-700', requireComment: false },

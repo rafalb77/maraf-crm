@@ -14,9 +14,23 @@ type SearchParams = {
   from?: string
   to?: string
   page?: string
+  sort?: string  // klucz z SORT_OPTIONS, np. 'dueDate-asc'
 }
 
 const PAGE_SIZE = 100
+
+const SORT_OPTIONS: Record<string, { label: string; orderBy: any }> = {
+  'dueDate-asc':     { label: 'Termin płatności (najbliższe)', orderBy: [{ dueDate: 'asc' }, { issueDate: 'desc' }] },
+  'dueDate-desc':    { label: 'Termin płatności (najpóźniejsze)', orderBy: [{ dueDate: 'desc' }, { issueDate: 'desc' }] },
+  'issueDate-desc':  { label: 'Data wystawienia (od nowszych)', orderBy: { issueDate: 'desc' } },
+  'issueDate-asc':   { label: 'Data wystawienia (od starszych)', orderBy: { issueDate: 'asc' } },
+  'vendor-asc':      { label: 'Kontrahent (A-Z)', orderBy: { vendor: { name: 'asc' } } },
+  'vendor-desc':     { label: 'Kontrahent (Z-A)', orderBy: { vendor: { name: 'desc' } } },
+  'amountGross-desc':{ label: 'Kwota brutto (od największych)', orderBy: { amountGross: 'desc' } },
+  'amountGross-asc': { label: 'Kwota brutto (od najmniejszych)', orderBy: { amountGross: 'asc' } },
+  'status-asc':      { label: 'Status (A-Z)', orderBy: [{ status: 'asc' }, { dueDate: 'asc' }] },
+}
+const DEFAULT_SORT_KEY = 'dueDate-asc'
 
 export default async function FakturyListPage({
   searchParams,
@@ -52,10 +66,14 @@ export default async function FakturyListPage({
   const page = Math.max(1, parseInt(searchParams.page || '1', 10) || 1)
   const skip = (page - 1) * PAGE_SIZE
 
+  // Sortowanie
+  const sortKey = searchParams.sort && SORT_OPTIONS[searchParams.sort] ? searchParams.sort : DEFAULT_SORT_KEY
+  const sortDef = SORT_OPTIONS[sortKey]
+
   const [invoices, total, vendors, statusCountsRaw, sums] = await Promise.all([
     prisma.purchaseInvoice.findMany({
       where,
-      orderBy: [{ dueDate: 'asc' }, { issueDate: 'desc' }],
+      orderBy: sortDef.orderBy,
       include: {
         vendor: { select: { name: true } },
         payments: { select: { amount: true } },
@@ -155,6 +173,11 @@ export default async function FakturyListPage({
           <option value="">Wszystkie statusy</option>
           {Object.entries(PURCHASE_INVOICE_STATUS_LABELS).map(([k, label]) => (
             <option key={k} value={k}>{label} ({statusCounts[k] || 0})</option>
+          ))}
+        </select>
+        <select name="sort" defaultValue={sortKey} className="md:col-span-2 px-3 py-2 border border-gray-300 rounded-lg text-sm" title="Sortowanie">
+          {Object.entries(SORT_OPTIONS).map(([k, def]) => (
+            <option key={k} value={k}>↕ {def.label}</option>
           ))}
         </select>
         <input type="date" name="from" defaultValue={searchParams.from || ''} className="px-3 py-2 border border-gray-300 rounded-lg text-sm" title="Data wystawienia od" />
