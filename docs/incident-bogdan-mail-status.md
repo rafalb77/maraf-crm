@@ -185,6 +185,10 @@ Rafał wieczorem 2026-05-19 odkrył, że **wszystkie maile od początku roku zni
 
 To rozstrzygną **logi home.pl** (zażądane w tickecie). Login IMAP z obcego IP w okresie kasacji → scenariusz 3.
 
+### Potwierdzenie z DMARC (2026-05-25): atakujący NIE wysyła już z maraf.pl
+
+Po dodaniu rekordu DMARC (2026-05-25, w ramach naprawy dostarczalności — patrz `docs/dostarczalnosc-maili-maraf-status.md`) przyszedł pierwszy agregowany raport od Google. Zawiera **tylko jeden source_ip: `89.161.166.193` (legalny serwer maraf.pl)**, z SPF pass + DKIM pass. Gdyby atakujący nadal wysyłał z maraf.pl z obcego IP, pojawiłby się drugi rekord z innym IP i fail. Brak takiego = **niezależne potwierdzenie (Google) że zmiana hasła skutecznie odcięła atakującego od SMTP maraf.pl**. DMARC `rua=` będzie dalej monitorował — jeśli haker wróci z innego IP, zobaczymy to w raportach.
+
 ### Nowy timeline ataku — wcześniejszy niż zakładaliśmy
 
 Rafał znalazł nowy ślad w mailach Bogdana: **niedziela 2026-05-17 o 11:54 — test SMTP z bogdan.boruch@maraf.pl do bogdan.boruch@maraf.pl**. To **dzień przed** głównym odkryciem incydentu.

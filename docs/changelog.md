@@ -6,6 +6,10 @@ Krótkie wpisy „co i **dlaczego**". Bez listy wszystkich commitów — od tego
 
 ## 2026-05-21
 
+### Podgląd umowy w UI (`/sales/[id]/preview`)
+**Powód**: handlowiec chce zobaczyć treść wygenerowanej umowy przed pobraniem .docx (z sprzedaz-decyzje.md pkt „Preview w UI"). Wcześniej endpoint zwracał plik bezpośrednio.
+**Implementacja**: dodano dep **`mammoth`** (docx→html). `lib/contract-generator.ts` → `generateContractHtml(contract)`: generuje DOCX z szablonu (jedno źródło prawdy) i konwertuje przez mammoth na HTML → wierne odwzorowanie treści (akapity, tabele, pogrubienia). Strona `/sales/[id]/preview` (server component, force-dynamic dziedziczone z `(app)`) renderuje HTML w stylizowanym kontenerze + przycisk „Pobierz .docx". Tylko dla REZERWACYJNEJ (jedyny szablon) — inne typy pokazują komunikat. Przycisk „Podgląd" na `/sales/[id]` obok „Generuj .docx". Pola bez danych pokazują się jako „…" (jak w DOCX). **Uwaga build**: `npm install mammoth --package-lock-only` w worktree (node_modules współdzielone z głównym repo przez junction) — package.json + lock spójne, Docker `npm ci` podchwyci.
+
 ### Wysyłka umowy mailem (`POST /api/contracts/[id]/email`)
 **Powód**: analogicznie do ofert — handlowiec chce wysłać umowę do klienta z aplikacji, bez ręcznego pobierania i załączania. Z generatora umów (sprzedaz-decyzje.md, pkt „Wysyłka mailem").
 **Implementacja**: endpoint reuse `lib/mailer.ts` (`sendEmail` + `toFriendlyMailError`) i `generateContractDocx`. DOCX dołączany **tylko dla REZERWACYJNEJ** (jedyny szablon) — dla DEWELOPERSKIEJ/PRZENIESIENIA mail leci bez załącznika (non-blocking, dialog informuje). Body minimalne + opcjonalna stopka z `Settings.emailSignature` (jak oferty). Obsługa błędów SMTP (rejected/accepted:[]), audyt: `Activity` typu EMAIL na kliencie + wpis `ContractHistory` (`WYSLANO_MAILEM`). NIE logujemy adresów (PII). `components/sales/ContractEmailButton.tsx` (przycisk + dialog to/temat/treść) na `/sales/[id]` obok „Generuj .docx". Domyślny odbiorca = email klienta umowy. Gate 'sales' przez middleware. tsc czysty.

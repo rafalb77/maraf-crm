@@ -132,6 +132,17 @@ export async function buildContractContext(contract: ContractWithRelations): Pro
   }
 }
 
+/**
+ * Renderuje umowę jako HTML (do podglądu w UI). Generuje DOCX z szablonu
+ * (jedno źródło prawdy) i konwertuje go przez mammoth → wierne odwzorowanie treści.
+ */
+export async function generateContractHtml(contract: ContractWithRelations): Promise<string> {
+  const mammoth = (await import('mammoth')).default
+  const buffer = await generateContractDocx(contract)
+  const { value } = await mammoth.convertToHtml({ buffer })
+  return value
+}
+
 export async function generateContractDocx(contract: ContractWithRelations): Promise<Buffer> {
   const templatePath = path.join(process.cwd(), 'templates', 'umowa-rezerwacyjna.docx')
   if (!fs.existsSync(templatePath)) {
