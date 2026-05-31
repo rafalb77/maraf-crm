@@ -55,7 +55,8 @@ export function FakturyTable({ rows, totals, currentSort, sortOptions }: Props) 
       newKey = `${colKey}-${curDir === 'asc' ? 'desc' : 'asc'}`
     } else {
       // inny col → domyślnie asc (poza datami/kwotami gdzie desc jest naturalne)
-      const defaultDir = (colKey === 'issueDate' || colKey === 'amountGross') ? 'desc' : 'asc'
+      const descByDefault = new Set(['issueDate', 'amountGross', 'amountNet', 'amountVat', 'vatRate'])
+      const defaultDir = descByDefault.has(colKey) ? 'desc' : 'asc'
       newKey = `${colKey}-${defaultDir}`
     }
     // Walidacja
@@ -112,12 +113,12 @@ export function FakturyTable({ rows, totals, currentSort, sortOptions }: Props) 
                 <input type="checkbox" checked={allOnPageSelected} onChange={toggleAll} title="Zaznacz wszystkie na stronie" />
               </th>
               <SortableTh colKey="vendor" label="Kontrahent" currentSort={currentSort} onSort={onSort} />
-              <th className="px-3 py-3 font-medium text-gray-700">Nr FV</th>
+              <SortableTh colKey="number" label="Nr FV" currentSort={currentSort} onSort={onSort} />
               <SortableTh colKey="issueDate" label="Wyst." currentSort={currentSort} onSort={onSort} />
               <SortableTh colKey="dueDate" label="Termin" currentSort={currentSort} onSort={onSort} />
-              <th className="px-3 py-3 font-medium text-gray-700 text-right">Netto</th>
-              <th className="px-3 py-3 font-medium text-gray-700 text-right">VAT%</th>
-              <th className="px-3 py-3 font-medium text-gray-700 text-right">Kwota VAT</th>
+              <SortableTh colKey="amountNet" label="Netto" align="right" currentSort={currentSort} onSort={onSort} />
+              <SortableTh colKey="vatRate" label="VAT%" align="right" currentSort={currentSort} onSort={onSort} />
+              <SortableTh colKey="amountVat" label="Kwota VAT" align="right" currentSort={currentSort} onSort={onSort} />
               <SortableTh colKey="amountGross" label="Brutto" align="right" currentSort={currentSort} onSort={onSort} />
               <SortableTh colKey="status" label="Status" currentSort={currentSort} onSort={onSort} />
               <th className="px-3 py-3 font-medium text-gray-700">Komentarz</th>
