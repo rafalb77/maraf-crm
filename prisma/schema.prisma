@@ -730,6 +730,9 @@ model PurchaseInvoice {
   // Cross-company: gdy ten koszt powstał z faktury przychodowej innej firmy grupy
   // (np. Maraf wystawił FV dla MD → tu koszt w MD). ID źródłowej SalesInvoice.
   sourceSalesInvoiceId String?
+  // KSeF — numer faktury w Krajowym Systemie e-Faktur. Unique zapobiega
+  // duplikatom przy synchronizacji (faktura pobrana z KSeF nie zostanie wczytana 2x).
+  ksefNumber String? @unique
   // Audit
   importedFromColor String? // np. "FFE6B8AF" — z którego koloru w xlsx
   importSheet       String? // np. "STAFFA" — z której zakładki
@@ -842,6 +845,8 @@ model SalesInvoice {
   // Cross-company: gdy z tej FV przychodowej utworzono koszt u odbiorcy (firma grupy).
   // ID utworzonej PurchaseInvoice — zapobiega duplikatom.
   linkedPurchaseInvoiceId String?
+  // KSeF — patrz analogiczne pole w PurchaseInvoice.
+  ksefNumber       String?   @unique
   createdById      String?
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
@@ -870,6 +875,30 @@ model SalesInvoicePayment {
 
   @@index([invoiceId])
   @@index([paidAt])
+}
+
+// KSeF — konfiguracja per firma (Maraf / Maraf Development). Pobieranie faktur
+// (read-only) z Krajowego Systemu e-Faktur. Patrz docs/finanse-ksef-rozpoczecie.md.
+//
+// token: token KSeF wygenerowany w ksef.podatki.gov.pl przez osobę z uprawnieniami.
+//   TODO: szyfrować (na razie plain — admin only access).
+// environment: PROD (ksef.podatki.gov.pl) | TEST (do testów integracji).
+// syncFromDate: od kiedy pobierać faktury. Decyzja 2026-05-21: 2026-06-01 dla obu firm.
+// lastSyncStatus: NEVER | OK | ERROR.
+model KsefConfig {
+  id              String    @id @default(cuid())
+  company         String    @unique  // MARAF | MARAF_DEVELOPMENT
+  nip             String
+  token           String?
+  environment     String    @default("PROD")
+  enabled         Boolean   @default(false)
+  syncFromDate    DateTime?
+  lastSyncAt      DateTime?
+  lastSyncStatus  String    @default("NEVER")
+  lastSyncError   String?
+  lastSyncCount   Int?      // ile faktur zaciągnięto w ostatniej synchronizacji
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 }
 
 // Pozycja oferty — lokal/parking/komórka itp. Snapshot cen z chwili dodania.

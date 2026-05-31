@@ -169,6 +169,7 @@ const WORKSPACES: Workspace[] = [
           { href: '/finanse/podatki', label: 'Podatki (CIT/VAT)', icon: ICONS.dashboard },
           { href: '/finanse/kaucje', label: 'Kaucje gwarancyjne', icon: ICONS.units },
           { href: '/finanse/kontrahenci', label: 'Kontrahenci', icon: ICONS.contractors },
+          { href: '/finanse/ksef', label: 'Konfiguracja KSeF', icon: ICONS.settings },
           { href: '/finanse/import', label: 'Import xlsx', icon: ICONS.mailing },
         ],
       },
