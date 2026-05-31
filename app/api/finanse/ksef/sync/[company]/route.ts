@@ -36,7 +36,7 @@ export async function POST(_req: NextRequest, { params }: { params: { company: s
   })
 
   if (!result.ok) {
-    return NextResponse.json({ ok: false, error: result.error }, { status: 501 })
+    return NextResponse.json({ ok: false, error: result.error, count: result.count }, { status: 500 })
   }
   return NextResponse.json({ ok: true, count: result.count })
 }

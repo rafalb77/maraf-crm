@@ -47,11 +47,11 @@ export default async function KsefPage() {
         </p>
       </div>
 
-      <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6 text-sm text-amber-900">
-        <p className="font-semibold mb-1">⚠️ Status: szkielet</p>
+      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6 text-sm text-blue-900">
+        <p className="font-semibold mb-1">ℹ️ Status: implementacja gotowa, oczekuje na test produkcyjny</p>
         <p>
-          Konfiguracja, NIP-y i tokeny zapisują się poprawnie. <strong>Klient KSeF API jest jeszcze stub-em</strong> — przycisk „Synchronizuj teraz" zwróci błąd „not implemented".
-          Implementacja klienta (auth + pobieranie + deszyfrowanie AES/RSA + parser FA(3)) to następny krok, gdy obie firmy będą miały tokeny.
+          Klient KSeF API 2.0 (auth + queryMetadata + getInvoiceByKsefNumber + parser FA(3)) zaimplementowany.
+          Pierwsze synchronizacje mogą wyrzucić błędy API (różnice w body/response względem dokumentacji) — wklej błąd, naprawimy.
         </p>
       </div>
 
