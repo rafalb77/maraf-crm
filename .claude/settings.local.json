@@ -89,7 +89,9 @@
       "Bash(git checkout *)",
       "Bash(git merge *)",
       "Bash(rm -f \"lib/finanse-company.ts\" \"components/finanse/CompanySwitcher.tsx\" \"app/\\(app\\)/finanse/layout.tsx\")",
-      "Bash(rm -rf \"app/api/finanse/company\")"
+      "Bash(rm -rf \"app/api/finanse/company\")",
+      "Bash(rm -f \"lib/ksef-defaults.ts\" \"lib/ksef-client.ts\" \"components/finanse/KsefConfigCard.tsx\")",
+      "Bash(rm -rf \"app/\\(app\\)/finanse/ksef\" \"app/api/finanse/ksef\")"
     ]
   }
 }
