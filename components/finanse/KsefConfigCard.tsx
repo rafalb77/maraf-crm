@@ -53,9 +53,7 @@ export function KsefConfigCard(p: Props) {
       const r = await fetch(`/api/finanse/ksef/sync/${p.company}`, { method: 'POST' })
       const data = await r.json()
       if (!r.ok) {
-        // 501 not implemented — pokaż info bez czerwonego błędu
-        if (r.status === 501) setMsg(`ℹ️ ${data.error}`)
-        else setError(data.error || 'Blad')
+        setError(data.error || 'Blad')
         router.refresh()
         return
       }

@@ -53,6 +53,7 @@
     "docxtemplater": "^3.68.5",
     "dotenv": "^17.4.2",
     "dxf-parser": "^1.1.2",
+    "fast-xml-parser": "^4.5.0",
     "googleapis": "^171.4.0",
     "lucide-react": "^1.9.0",
     "mammoth": "^1.12.0",

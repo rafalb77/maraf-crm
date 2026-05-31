@@ -91,7 +91,13 @@
       "Bash(rm -f \"lib/finanse-company.ts\" \"components/finanse/CompanySwitcher.tsx\" \"app/\\(app\\)/finanse/layout.tsx\")",
       "Bash(rm -rf \"app/api/finanse/company\")",
       "Bash(rm -f \"lib/ksef-defaults.ts\" \"lib/ksef-client.ts\" \"components/finanse/KsefConfigCard.tsx\")",
-      "Bash(rm -rf \"app/\\(app\\)/finanse/ksef\" \"app/api/finanse/ksef\")"
+      "Bash(rm -rf \"app/\\(app\\)/finanse/ksef\" \"app/api/finanse/ksef\")",
+      "WebFetch(domain:ksbot.pl)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:www.npmjs.com)",
+      "Bash(cp \"C:\\\\AplikacjeAI\\\\CodeCRM\\\\package.json\" \"C:\\\\AplikacjeAI\\\\CodeCRM\\\\.claude\\\\worktrees\\\\crazy-kalam-a9de75\\\\package.json\")",
+      "Bash(cp \"C:\\\\AplikacjeAI\\\\CodeCRM\\\\package-lock.json\" \"C:\\\\AplikacjeAI\\\\CodeCRM\\\\.claude\\\\worktrees\\\\crazy-kalam-a9de75\\\\package-lock.json\")"
     ]
   }
 }
