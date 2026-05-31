@@ -4,6 +4,7 @@ import {
   PURCHASE_INVOICE_STATUS_LABELS,
 } from '@/lib/types'
 import { getActiveCompany } from '@/lib/finanse-company'
+import { FOLDERS, FOLDER_LABELS, vendorIdsForFolder, vendorIdsWithoutFolder, type Folder } from '@/lib/finanse-folders'
 import { FakturyTable, type FakturaRow } from '@/components/finanse/FakturyTable'
 
 type SearchParams = {
@@ -15,6 +16,7 @@ type SearchParams = {
   to?: string
   page?: string
   sort?: string  // klucz z SORT_OPTIONS, np. 'dueDate-asc'
+  folder?: string  // STAFFA | PROMATBUD | BAUTER | STALE | INNE | 'POZOSTALI'
 }
 
 const PAGE_SIZE = 100
@@ -29,6 +31,7 @@ const SORT_OPTIONS: Record<string, { label: string; orderBy: any }> = {
   'amountGross-desc':{ label: 'Kwota brutto (od największych)', orderBy: { amountGross: 'desc' } },
   'amountGross-asc': { label: 'Kwota brutto (od najmniejszych)', orderBy: { amountGross: 'asc' } },
   'status-asc':      { label: 'Status (A-Z)', orderBy: [{ status: 'asc' }, { dueDate: 'asc' }] },
+  'status-desc':     { label: 'Status (Z-A)', orderBy: [{ status: 'desc' }, { dueDate: 'asc' }] },
 }
 const DEFAULT_SORT_KEY = 'dueDate-asc'
 
@@ -43,6 +46,15 @@ export default async function FakturyListPage({
 
   const filters: any[] = [{ company }]
   if (searchParams.vendor) filters.push({ vendorId: searchParams.vendor })
+  if (searchParams.folder) {
+    if (searchParams.folder === 'POZOSTALI') {
+      const ids = await vendorIdsWithoutFolder()
+      filters.push({ vendorId: { in: ids.length ? ids : ['__none__'] } })
+    } else if ((FOLDERS as readonly string[]).includes(searchParams.folder)) {
+      const ids = await vendorIdsForFolder(searchParams.folder as Folder)
+      filters.push({ vendorId: { in: ids.length ? ids : ['__none__'] } })
+    }
+  }
   if (searchParams.status) filters.push({ status: searchParams.status })
   if (searchParams.q) {
     filters.push({
@@ -110,7 +122,7 @@ export default async function FakturyListPage({
     return s ? `?${s}` : ''
   }
 
-  const hasFilters = !!(searchParams.vendor || searchParams.status || searchParams.q || searchParams.overdue || searchParams.from || searchParams.to)
+  const hasFilters = !!(searchParams.vendor || searchParams.status || searchParams.q || searchParams.overdue || searchParams.from || searchParams.to || searchParams.folder)
 
   const rows: FakturaRow[] = invoices.map((inv) => {
     const sumPaid = inv.payments.reduce((s, p) => s + p.amount, 0)
@@ -158,7 +170,23 @@ export default async function FakturyListPage({
         </div>
       </div>
 
+      {/* Foldery główne — taby filtrujące po vendorze */}
+      <div className="flex flex-wrap gap-1 mb-4">
+        <FolderTab label="Wszystkie" href={`/finanse/faktury${qs({ folder: undefined, page: undefined })}`} active={!searchParams.folder} />
+        {FOLDERS.map((f) => (
+          <FolderTab
+            key={f}
+            label={FOLDER_LABELS[f]}
+            href={`/finanse/faktury${qs({ folder: f, page: undefined })}`}
+            active={searchParams.folder === f}
+          />
+        ))}
+        <FolderTab label="Pozostali" href={`/finanse/faktury${qs({ folder: 'POZOSTALI', page: undefined })}`} active={searchParams.folder === 'POZOSTALI'} />
+      </div>
+
       <form method="get" className="bg-white rounded-xl border border-gray-200 p-4 mb-4 grid grid-cols-1 md:grid-cols-6 gap-3">
+        {/* Zachowaj wybrany folder gdy user zmienia inne filtry przez form */}
+        {searchParams.folder && <input type="hidden" name="folder" value={searchParams.folder} />}
         <input
           name="q"
           defaultValue={searchParams.q || ''}
@@ -196,6 +224,8 @@ export default async function FakturyListPage({
 
       <FakturyTable
         rows={rows}
+        currentSort={sortKey}
+        sortOptions={Object.fromEntries(Object.entries(SORT_OPTIONS).map(([k, v]) => [k, v.label]))}
         totals={{
           net: sums._sum.amountNet || 0,
           vat: sums._sum.amountVat || 0,
@@ -205,6 +235,7 @@ export default async function FakturyListPage({
         }}
       />
 
+      {/* Komponent zakładki folderu — server */}
       {totalPages > 1 && (
         <div className="mt-4 flex items-center justify-between text-sm">
           <p className="text-gray-500">Strona {page} z {totalPages} • {total} faktur</p>
@@ -219,5 +250,20 @@ export default async function FakturyListPage({
         </div>
       )}
     </div>
+  )
+}
+
+function FolderTab({ label, href, active }: { label: string; href: string; active: boolean }) {
+  return (
+    <Link
+      href={href}
+      className={`px-4 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
+        active
+          ? 'bg-gray-900 text-white border-gray-900'
+          : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+      }`}
+    >
+      {label}
+    </Link>
   )
 }

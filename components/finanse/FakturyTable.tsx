@@ -1,6 +1,6 @@
 'use client'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import { useState } from 'react'
 import {
   PURCHASE_INVOICE_STATUS_LABELS,
@@ -32,8 +32,39 @@ type Totals = { net: number; vat: number; gross: number; count: number; onPage: 
 
 const PAID_STATUSES = new Set(['OPLACONA', 'ANULOWANA'])
 
-export function FakturyTable({ rows, totals }: { rows: FakturaRow[]; totals: Totals }) {
+type Props = {
+  rows: FakturaRow[]
+  totals: Totals
+  currentSort?: string  // np. 'dueDate-asc'
+  sortOptions?: Record<string, string>  // klucz → etykieta (do walidacji)
+}
+
+export function FakturyTable({ rows, totals, currentSort, sortOptions }: Props) {
   const [selected, setSelected] = useState<Set<string>>(new Set())
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+
+  // Klikanie nagłówka kolumny — toggle asc/desc dla danej kolumny.
+  function onSort(colKey: string) {
+    const cur = currentSort || ''
+    let newKey: string
+    if (cur.startsWith(colKey + '-')) {
+      // ten sam col → toggle direction
+      const curDir = cur.slice(colKey.length + 1)
+      newKey = `${colKey}-${curDir === 'asc' ? 'desc' : 'asc'}`
+    } else {
+      // inny col → domyślnie asc (poza datami/kwotami gdzie desc jest naturalne)
+      const defaultDir = (colKey === 'issueDate' || colKey === 'amountGross') ? 'desc' : 'asc'
+      newKey = `${colKey}-${defaultDir}`
+    }
+    // Walidacja
+    if (sortOptions && !sortOptions[newKey]) return
+    const params = new URLSearchParams(searchParams.toString())
+    params.set('sort', newKey)
+    params.delete('page')
+    router.push(`${pathname}?${params.toString()}`)
+  }
 
   const allOnPageSelected = rows.length > 0 && rows.every((r) => selected.has(r.id))
 
@@ -80,15 +111,15 @@ export function FakturyTable({ rows, totals }: { rows: FakturaRow[]; totals: Tot
               <th className="px-3 py-3 w-8">
                 <input type="checkbox" checked={allOnPageSelected} onChange={toggleAll} title="Zaznacz wszystkie na stronie" />
               </th>
-              <th className="px-3 py-3 font-medium text-gray-700">Kontrahent</th>
+              <SortableTh colKey="vendor" label="Kontrahent" currentSort={currentSort} onSort={onSort} />
               <th className="px-3 py-3 font-medium text-gray-700">Nr FV</th>
-              <th className="px-3 py-3 font-medium text-gray-700">Wyst.</th>
-              <th className="px-3 py-3 font-medium text-gray-700">Termin</th>
+              <SortableTh colKey="issueDate" label="Wyst." currentSort={currentSort} onSort={onSort} />
+              <SortableTh colKey="dueDate" label="Termin" currentSort={currentSort} onSort={onSort} />
               <th className="px-3 py-3 font-medium text-gray-700 text-right">Netto</th>
               <th className="px-3 py-3 font-medium text-gray-700 text-right">VAT%</th>
               <th className="px-3 py-3 font-medium text-gray-700 text-right">Kwota VAT</th>
-              <th className="px-3 py-3 font-medium text-gray-700 text-right">Brutto</th>
-              <th className="px-3 py-3 font-medium text-gray-700">Status</th>
+              <SortableTh colKey="amountGross" label="Brutto" align="right" currentSort={currentSort} onSort={onSort} />
+              <SortableTh colKey="status" label="Status" currentSort={currentSort} onSort={onSort} />
               <th className="px-3 py-3 font-medium text-gray-700">Komentarz</th>
             </tr>
           </thead>
@@ -221,5 +252,32 @@ function CommentCell({ invoiceId, initial }: { invoiceId: string; initial: strin
     >
       {initial || <span className="text-gray-300 italic">+ dodaj</span>}
     </button>
+  )
+}
+
+// Klikalny nagłówek kolumny — toggle asc/desc, aktywny zaznaczony strzałką.
+function SortableTh({
+  colKey, label, align = 'left', currentSort, onSort,
+}: {
+  colKey: string
+  label: string
+  align?: 'left' | 'right'
+  currentSort?: string
+  onSort: (k: string) => void
+}) {
+  const isActive = !!(currentSort && currentSort.startsWith(colKey + '-'))
+  const dir = isActive ? currentSort!.slice(colKey.length + 1) : null
+  const arrow = isActive ? (dir === 'asc' ? ' ↑' : ' ↓') : ' ↕'
+  return (
+    <th className={`px-3 py-3 font-medium ${align === 'right' ? 'text-right' : 'text-left'}`}>
+      <button
+        type="button"
+        onClick={() => onSort(colKey)}
+        className={`inline-flex items-center gap-0.5 hover:text-blue-600 ${isActive ? 'text-blue-700' : 'text-gray-700'}`}
+        title={`Sortuj po: ${label}`}
+      >
+        {label}<span className={`text-xs ${isActive ? '' : 'text-gray-300'}`}>{arrow}</span>
+      </button>
+    </th>
   )
 }
