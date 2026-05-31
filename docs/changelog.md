@@ -4,6 +4,25 @@ Krótkie wpisy „co i **dlaczego**". Bez listy wszystkich commitów — od tego
 
 ---
 
+## 2026-05-31
+
+### Moduł Finanse — wdrożony (zastępuje `PŁATNOŚCI 2026.xlsx`)
+**Powód**: Marta wpisywała faktury w Excelu, Bohdan akceptował kolorem wiersza. Brak audit trail, brak alertów, brak widoku per firma, ręczne dublowanie wpisów do Saldeo (KSeF). Pełen kontekst i historia decyzji w `docs/finanse-rozpoczecie.md`.
+**Implementacja** (commity `4cdbaf5` → `b4ad516`, 2026-05-21 do 2026-05-31): patrz `docs/finanse-decyzje.md`. Kluczowe decyzje:
+- **Multi-firma jako pełna separacja** — Maraf i Maraf Development jako osobne podmioty, globalny przełącznik w pasku layoutu (`/finanse/layout.tsx`), wszystkie widoki filtrowane po aktywnej firmie z cookie `finanse_company`. Cross-company `recipientCompany` na fakturach przychodowych + ręczny przycisk „Utwórz koszt u odbiorcy" + auto-rozpoznanie z KSeF.
+- **Workflow uproszczony** — Marta sama zatwierdza, faktury wpadają od razu jako `ZATWIERDZONA`. Strona „Do zatwierdzenia" usunięta, sub-permission `finanse.approve` zostawiona ale nie wymagana w endpointach (na wypadek powrotu do workflow wielopoziomowego).
+- **Importer xlsx** — 5 zakładek (PROMATBUD, BAUTER, STAFFA, STAŁE, INNE). USUNIĘTE: MURARZ (dublował STAFFA), SANTANDER, EFL (stare leasingi). STAŁE w trybie `sectionMode` (nagłówek sekcji = osobny vendor, np. EURON/PLAY/Develogic). **Bug fix**: importer NIE czyta kolumn N/P/Q jako kaucji (były tylko w MURARZ; w STAFFA to śmieci dające absurdalne kwoty rzędu 2.9e25 zł — fix `scripts/fix-finanse-deposits.js`). Pierwszy import: 205 faktur, 13 vendorów.
+- **Klient KSeF API 2.0 (read-only)** — własna implementacja w `lib/ksef-client.ts` (auth flow z RSA-OAEP-SHA256 encrypt tokenu + KSeF public key z `/api/v2/security/public-key-certificates`, `query/metadata` z Subject1/Subject2 + dateRange, `getInvoiceXml` plain, parser FA(3) przez `fast-xml-parser`). NIE używamy `@ksef/client` (skupia się na wysyłaniu, plus brak `dist/` po install z GitHub). Sync per firma upsertuje SalesInvoice/PurchaseInvoice po `ksefNumber` (unique), vendor matching po NIP. **Status implementacji "best effort"** — pierwsze realne syncy mogą wymagać 2-5 iteracji (różnice body/response względem dokumentacji MF). Auto-sync `AutoSyncOnMount` w layoucie z throttle 1h i cichym failem.
+- **Sortowanie listy faktur** — 9 klikalnych nagłówków kolumn (vendor/number/issueDate/dueDate/amountNet/vatRate/amountVat/amountGross/status), klik raz = wstępny kierunek (asc dla tekstów, desc dla liczb/dat), drugi klik = toggle. Strzałka ↕ szara/↑↓ niebieska. Alternatywnie dropdown z 18 opcjami w filtrach.
+- **Foldery główne** (Staffa/Promatbud/Bauter/Stałe/Inne/Pozostali) jako taby u góry listy — hardcoded mapping nazwy vendora → folder w `lib/finanse-folders.ts` (bez schema change). „Pozostali" = vendory nieprzypisani (np. auto-utworzeni z KSeF).
+- **Kaucje gwarancyjne** — kaucja jako % LUB kwota, KB, prąd jako potrącenia. Płatności liczone wg `payableAmount = brutto − kaucja − KB − prąd`, status OPLACONA gdy `sumPaid >= payable`. Widok `/finanse/kaucje` + kafelek dashboard. Mail przypominający → cron, niewdrożony.
+- **Faktury przychodowe + CIT/VAT** — osobny rejestr `SalesInvoice` z `isAdvance` (wykluczone z CIT/VAT do konwersji). `/finanse/podatki` per firma/rok z adnotacją „orientacyjne, oficjalne robi biuro/Saldeo".
+- **Saldeo zostaje dla księgowości** — CRM tylko READ z KSeF, nie wystawia faktur. KSeF nie jest naszą domeną fakturowania, jest źródłem wglądu dla cashflow.
+
+**Saldeo integracja API** — Faza 2 (bloker: klucz API od biura księgowego). **Pełna dokumentacja stanu modułu**: `docs/finanse-decyzje.md`.
+
+---
+
 ## 2026-05-15
 
 ### Sprzedaż: wycięte 5 martwych pól z `Contract` (cleanup)
