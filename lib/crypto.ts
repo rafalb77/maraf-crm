@@ -31,6 +31,12 @@ export const CLIENT_ENCRYPTED_FIELDS = [
   'address',
 ] as const
 
+// Pola modelu KsefConfig szyfrowane at-rest. Token KSeF daje pełen dostęp do faktur
+// firmy w Krajowym Systemie e-Faktur — wyciek = atakujący może pobrać całą historię
+// podatkową (kontrahenci, kwoty) z własnego klienta API, poza naszym CRM. Plain
+// w bazie = każdy z dostępem do dumpu DB / DATABASE_URL widzi token wprost.
+export const KSEF_CONFIG_ENCRYPTED_FIELDS = ['token'] as const
+
 let cachedKey: Buffer | null = null
 let warnedNoKey = false
 
@@ -104,6 +110,17 @@ export function decryptField(stored: string | null | undefined): string | null |
 export function encryptClientData<T extends Record<string, unknown>>(data: T): T {
   const out: Record<string, unknown> = { ...data }
   for (const f of CLIENT_ENCRYPTED_FIELDS) {
+    if (f in out && typeof out[f] === 'string') {
+      out[f] = encryptField(out[f] as string)
+    }
+  }
+  return out as T
+}
+
+/** Szyfruje pola KsefConfig (obecnie tylko `token`) — analogicznie do Client. */
+export function encryptKsefConfigData<T extends Record<string, unknown>>(data: T): T {
+  const out: Record<string, unknown> = { ...data }
+  for (const f of KSEF_CONFIG_ENCRYPTED_FIELDS) {
     if (f in out && typeof out[f] === 'string') {
       out[f] = encryptField(out[f] as string)
     }
