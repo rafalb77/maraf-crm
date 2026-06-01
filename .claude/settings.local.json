@@ -97,7 +97,11 @@
       "WebFetch(domain:github.com)",
       "WebFetch(domain:www.npmjs.com)",
       "Bash(cp \"C:\\\\AplikacjeAI\\\\CodeCRM\\\\package.json\" \"C:\\\\AplikacjeAI\\\\CodeCRM\\\\.claude\\\\worktrees\\\\crazy-kalam-a9de75\\\\package.json\")",
-      "Bash(cp \"C:\\\\AplikacjeAI\\\\CodeCRM\\\\package-lock.json\" \"C:\\\\AplikacjeAI\\\\CodeCRM\\\\.claude\\\\worktrees\\\\crazy-kalam-a9de75\\\\package-lock.json\")"
+      "Bash(cp \"C:\\\\AplikacjeAI\\\\CodeCRM\\\\package-lock.json\" \"C:\\\\AplikacjeAI\\\\CodeCRM\\\\.claude\\\\worktrees\\\\crazy-kalam-a9de75\\\\package-lock.json\")",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(prisma\" && grep -nE \"encrypt)",
+      "Bash(client\" \"C:\\\\AplikacjeAI\\\\CodeCRM\\\\.claude\\\\worktrees\\\\crazy-kalam-a9de75\\\\lib\\\\prisma.ts\" 2>&1 | head -20)"
     ]
   }
 }
