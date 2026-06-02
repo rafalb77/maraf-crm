@@ -113,6 +113,7 @@ model Unit {
   offerItems       OfferItem[]
   images           UnitImage[]
   creativeSettings UnitCreativeSettings?
+  escrowDeposits   EscrowDeposit[]
 }
 
 // Zapamietane ustawienia generatora kreacji Meta Ads per lokal — zeby user
@@ -983,4 +984,149 @@ model OfferItem {
 
   @@index([offerId])
   @@index([unitId])
+}
+
+// =============================================================
+// MODUŁ: FINANSOWANIE INWESTYCJI (kredyty + rachunki powiernicze + zwroty VAT)
+// Widoczny tylko dla MARAF_DEVELOPMENT (deweloper). Maraf (generalny wykonawca)
+// nie ma kredytów ani escrow.
+// Patrz docs/finanse-decyzje.md sekcja "Finansowanie inwestycji".
+// =============================================================
+
+// Kredyt bankowy. type INWESTYCYJNY = pod inwestycję, transze wpływają na konto MD,
+// spłacane z bieżącego konta. type VAT = bank płaci VAT z faktur kosztowych bezpośrednio
+// do dostawcy, spłacany ze zwrotów VAT z US. OBROTOWY/INNE = pozostałe.
+// status: AKTYWNY | ZAMKNIETY
+model Loan {
+  id             String   @id @default(cuid())
+  company        String   @default("MARAF_DEVELOPMENT")
+  name           String   // np. "Kredyt inwestycyjny ING 2026"
+  bank           String
+  contractNumber String?
+  type           String   @default("INWESTYCYJNY") // INWESTYCYJNY | VAT | OBROTOWY | INNE
+  limit          Float    // limit kredytu
+  interestRate   Float?   // % oprocentowanie (info, nie do liczeń)
+  signedAt       DateTime
+  expiresAt      DateTime?
+  status         String   @default("AKTYWNY")
+  notes          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  tranches   LoanTranche[]
+  repayments LoanRepayment[]
+  vatRefundsApplied VatRefund[] @relation("VatRefundsToLoan")
+
+  @@index([company])
+  @@index([type])
+}
+
+// Wypłata transzy kredytu. Dla type INWESTYCYJNY: wpływa na konto MD.
+// Dla type VAT: bank przelewa bezpośrednio do dostawcy (nie przez MD), ale
+// rejestrujemy zbiorczo per miesiąc/kwartał.
+model LoanTranche {
+  id        String   @id @default(cuid())
+  loanId    String
+  loan      Loan     @relation(fields: [loanId], references: [id], onDelete: Cascade)
+  date      DateTime
+  amount    Float
+  note      String?
+  createdAt DateTime @default(now())
+
+  @@index([loanId])
+  @@index([date])
+}
+
+// Spłata kredytu. principal=kapitał, interest=odsetki, fees=prowizje/ubezp.
+// Suma trzech = jeden przelew do banku. Odsetki NIE są wpisywane jako FV kosztowa
+// (decyzja 2026-06-02 — bank pobiera kapitał+odsetki jednym przelewem bez FV).
+model LoanRepayment {
+  id        String   @id @default(cuid())
+  loanId    String
+  loan      Loan     @relation(fields: [loanId], references: [id], onDelete: Cascade)
+  date      DateTime
+  principal Float    @default(0)
+  interest  Float    @default(0)
+  fees      Float    @default(0)
+  note      String?
+  createdAt DateTime @default(now())
+
+  @@index([loanId])
+  @@index([date])
+}
+
+// Zwrot VAT z Urzędu Skarbowego. Może być przeznaczony na spłatę kredytu VAT
+// (appliedToLoanId) lub trafiać na konto operacyjne.
+model VatRefund {
+  id              String   @id @default(cuid())
+  company         String   @default("MARAF_DEVELOPMENT")
+  date            DateTime
+  amount          Float
+  periodLabel     String?  // np. "Q2 2026", "maj 2026"
+  appliedToLoanId String?
+  appliedToLoan   Loan?    @relation("VatRefundsToLoan", fields: [appliedToLoanId], references: [id], onDelete: SetNull)
+  note            String?
+  createdAt       DateTime @default(now())
+
+  @@index([company])
+  @@index([date])
+}
+
+// Rachunek powierniczy (escrow). type OMRP = otwarty mieszkaniowy (uwolnienia
+// po milestone'ach), ZMRP = zamknięty (uwolnienie raz, po przeniesieniu własności).
+// Powiązany z konkretną inwestycją (investmentName tekstowo; w przyszłości link do Investment).
+model EscrowAccount {
+  id             String   @id @default(cuid())
+  company        String   @default("MARAF_DEVELOPMENT")
+  name           String   // np. "OMRP Nova Staffa etap 1"
+  bank           String
+  accountNumber  String?
+  type           String   @default("OMRP") // OMRP | ZMRP
+  investmentName String?
+  status         String   @default("AKTYWNY") // AKTYWNY | ZAMKNIETY
+  notes          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  deposits EscrowDeposit[]
+  releases EscrowRelease[]
+
+  @@index([company])
+}
+
+// Wpłata nabywcy na rachunek powierniczy. Te pieniądze są w banku, ale jeszcze NIE
+// należą do MD — uwalniają się po milestone'ach (EscrowRelease).
+// W etapie 1 wpisywane ręcznie. W etapie 2 (rozbudowa modułu Sprzedaż) — auto z ContractPayment.
+model EscrowDeposit {
+  id             String   @id @default(cuid())
+  accountId      String
+  account        EscrowAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  date           DateTime
+  amount         Float
+  buyerName      String?
+  contractNumber String?  // tekstowe w etapie 1; w etapie 2 link → Contract
+  unitId         String?
+  unit           Unit?    @relation(fields: [unitId], references: [id], onDelete: SetNull)
+  note           String?
+  createdAt      DateTime @default(now())
+
+  @@index([accountId])
+  @@index([date])
+  @@index([unitId])
+}
+
+// Uwolnienie transzy z rachunku powierniczego na konto operacyjne MD.
+// Realny wpływ gotówki — bank wypłaca po potwierdzeniu milestone'a.
+model EscrowRelease {
+  id        String   @id @default(cuid())
+  accountId String
+  account   EscrowAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  date      DateTime
+  amount    Float
+  milestone String?  // np. "zakończenie stanu surowego zamkniętego"
+  note      String?
+  createdAt DateTime @default(now())
+
+  @@index([accountId])
+  @@index([date])
 }
