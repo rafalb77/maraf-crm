@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { fmtMoney } from '@/lib/finanse-format'
 import { VENDOR_CATEGORY_LABELS, type VendorCategory } from '@/lib/types'
 import { getActiveCompany } from '@/lib/finanse-company'
+import { VendorDefaultsCell } from '@/components/finanse/VendorDefaultsCell'
 
 export default async function KontrahenciPage() {
   const company = getActiveCompany()
@@ -34,14 +35,16 @@ export default async function KontrahenciPage() {
               <th className="px-4 py-3 font-medium text-gray-700">Nazwa</th>
               <th className="px-4 py-3 font-medium text-gray-700">Kategoria</th>
               <th className="px-4 py-3 font-medium text-gray-700">NIP</th>
-              <th className="px-4 py-3 font-medium text-gray-700 text-right">Faktur razem</th>
+              <th className="px-4 py-3 font-medium text-gray-700 text-center" title="Domyślna kaucja gwarancyjna (% brutto) — prefilluje pole faktury">Kaucja %</th>
+              <th className="px-4 py-3 font-medium text-gray-700 text-center" title="Domyślne koszty budowy (% brutto) — prefilluje pole faktury">KB %</th>
+              <th className="px-4 py-3 font-medium text-gray-700 text-right">Faktur</th>
               <th className="px-4 py-3 font-medium text-gray-700 text-right">Do zapłaty</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
             {vendors.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-4 py-12 text-center text-gray-400">
+                <td colSpan={7} className="px-4 py-12 text-center text-gray-400">
                   Brak kontrahentów. Dodaj pierwszego importując xlsx z{' '}
                   <Link href="/finanse/import" className="text-blue-600 hover:underline">tej strony</Link>.
                 </td>
@@ -67,6 +70,12 @@ export default async function KontrahenciPage() {
                     {VENDOR_CATEGORY_LABELS[v.category as VendorCategory] || v.category}
                   </td>
                   <td className="px-4 py-2.5 text-gray-500 text-xs font-mono">{v.nip || '—'}</td>
+                  <td className="px-4 py-2.5 text-center">
+                    <VendorDefaultsCell vendorId={v.id} field="defaultDepositPct" initial={v.defaultDepositPct} />
+                  </td>
+                  <td className="px-4 py-2.5 text-center">
+                    <VendorDefaultsCell vendorId={v.id} field="defaultBuildingCostsPct" initial={v.defaultBuildingCostsPct} />
+                  </td>
                   <td className="px-4 py-2.5 text-right tabular-nums text-gray-700">{v._count.invoices}</td>
                   <td className="px-4 py-2.5 text-right tabular-nums font-medium text-gray-900">
                     {unpaid > 0.01 ? fmtMoney(unpaid) : '—'}

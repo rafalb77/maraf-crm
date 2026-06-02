@@ -43,7 +43,16 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     data.deposit = Math.round(inv.amountGross * (pct / 100) * 100) / 100
   }
 
-  if (body.buildingCosts !== undefined) data.buildingCosts = num(body.buildingCosts)
+  // Koszty budowy: analogicznie do kaucji — % LUB kwota
+  const kbPct = num(body.buildingCostsPct)
+  const kbAmount = num(body.buildingCosts)
+  if (body.buildingCostsPct !== undefined) data.buildingCostsPct = kbPct
+  if (body.buildingCosts !== undefined) {
+    data.buildingCosts = kbAmount
+  } else if (kbPct !== null) {
+    data.buildingCosts = Math.round(inv.amountGross * (kbPct / 100) * 100) / 100
+  }
+
   if (body.electricity !== undefined) data.electricity = num(body.electricity)
 
   if (body.depositReturnDate !== undefined) {

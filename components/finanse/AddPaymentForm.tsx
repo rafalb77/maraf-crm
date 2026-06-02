@@ -2,14 +2,11 @@
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 
-const BANKS = ['ING', 'Santander', 'mBank', 'PKO BP', 'Pekao', 'Millennium', 'Alior', 'BNP Paribas', 'Inny']
-
 export function AddPaymentForm({ invoiceId, remaining }: { invoiceId: string; remaining: number }) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [amount, setAmount] = useState(remaining.toFixed(2))
   const [paidAt, setPaidAt] = useState(new Date().toISOString().slice(0, 10))
-  const [bank, setBank] = useState('')
   const [reference, setReference] = useState('')
   const [notes, setNotes] = useState('')
   const [loading, setLoading] = useState(false)
@@ -36,7 +33,6 @@ export function AddPaymentForm({ invoiceId, remaining }: { invoiceId: string; re
         body: JSON.stringify({
           amount: parseFloat(amount.replace(',', '.')),
           paidAt,
-          bankAccount: bank || null,
           reference: reference || null,
           notes: notes || null,
         }),
@@ -78,17 +74,6 @@ export function AddPaymentForm({ invoiceId, remaining }: { invoiceId: string; re
             onChange={(e) => setPaidAt(e.target.value)}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
           />
-        </div>
-        <div>
-          <label className="text-xs text-gray-500 uppercase font-semibold mb-1 block">Bank (opcjonalnie)</label>
-          <select
-            value={bank}
-            onChange={(e) => setBank(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-          >
-            <option value="">— wybierz —</option>
-            {BANKS.map((b) => <option key={b} value={b}>{b}</option>)}
-          </select>
         </div>
         <div>
           <label className="text-xs text-gray-500 uppercase font-semibold mb-1 block">Tytuł przelewu (opcjonalnie)</label>

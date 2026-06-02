@@ -9,6 +9,7 @@ type Props = {
   deposit: number | null
   depositPct: number | null
   buildingCosts: number | null
+  buildingCostsPct: number | null
   electricity: number | null
   depositReturnDate: string | null
   depositReturnedAt: string | null
@@ -19,6 +20,7 @@ export function DepositForm(p: Props) {
   const [open, setOpen] = useState(false)
   const [pct, setPct] = useState(p.depositPct != null ? String(p.depositPct) : '')
   const [deposit, setDeposit] = useState(p.deposit != null ? String(p.deposit) : '')
+  const [kbPct, setKbPct] = useState(p.buildingCostsPct != null ? String(p.buildingCostsPct) : '')
   const [kb, setKb] = useState(p.buildingCosts != null ? String(p.buildingCosts) : '')
   const [prad, setPrad] = useState(p.electricity != null ? String(p.electricity) : '')
   const [returnDate, setReturnDate] = useState(p.depositReturnDate ? p.depositReturnDate.slice(0, 10) : '')
@@ -28,7 +30,9 @@ export function DepositForm(p: Props) {
   const num = (s: string) => { const n = parseFloat(s.replace(',', '.')); return isFinite(n) ? n : 0 }
   const depFromPct = pct ? Math.round(p.amountGross * (num(pct) / 100) * 100) / 100 : null
   const effectiveDeposit = deposit ? num(deposit) : (depFromPct || 0)
-  const payable = Math.round((p.amountGross - effectiveDeposit - num(kb) - num(prad)) * 100) / 100
+  const kbFromPct = kbPct ? Math.round(p.amountGross * (num(kbPct) / 100) * 100) / 100 : null
+  const effectiveKb = kb ? num(kb) : (kbFromPct || 0)
+  const payable = Math.round((p.amountGross - effectiveDeposit - effectiveKb - num(prad)) * 100) / 100
 
   async function save(extra: Record<string, any> = {}) {
     setSaving(true)
@@ -40,7 +44,8 @@ export function DepositForm(p: Props) {
         body: JSON.stringify({
           depositPct: pct ? num(pct) : null,
           deposit: deposit ? num(deposit) : (depFromPct ?? null),
-          buildingCosts: kb ? num(kb) : null,
+          buildingCostsPct: kbPct ? num(kbPct) : null,
+          buildingCosts: kb ? num(kb) : (kbFromPct ?? null),
           electricity: prad ? num(prad) : null,
           depositReturnDate: returnDate || null,
           ...extra,
@@ -81,7 +86,12 @@ export function DepositForm(p: Props) {
               <strong>{fmtMoney(p.deposit)}</strong>
             </div>
           ) : null}
-          {p.buildingCosts ? <div><span className="text-gray-500">Koszty budowy:</span> <strong>{fmtMoney(p.buildingCosts)}</strong></div> : null}
+          {p.buildingCosts ? (
+            <div>
+              <span className="text-gray-500">Koszty budowy{p.buildingCostsPct ? ` (${p.buildingCostsPct}%)` : ''}:</span>{' '}
+              <strong>{fmtMoney(p.buildingCosts)}</strong>
+            </div>
+          ) : null}
           {p.electricity ? <div><span className="text-gray-500">Prąd:</span> <strong>{fmtMoney(p.electricity)}</strong></div> : null}
           <div><span className="text-gray-500">Do zapłaty:</span> <strong className="text-gray-900">{fmtMoney(payable)}</strong></div>
         </div>
@@ -134,8 +144,13 @@ export function DepositForm(p: Props) {
           <input type="date" value={returnDate} onChange={(e) => setReturnDate(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" />
         </div>
         <div>
-          <label className="text-xs text-gray-500 uppercase font-semibold mb-1 block">Koszty budowy (KB)</label>
-          <input value={kb} onChange={(e) => setKb(e.target.value)} placeholder="zł" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm tabular-nums" />
+          <label className="text-xs text-gray-500 uppercase font-semibold mb-1 block">KB %</label>
+          <input value={kbPct} onChange={(e) => { setKbPct(e.target.value); setKb('') }} placeholder="np. 1" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm tabular-nums" />
+          {kbFromPct != null && !kb && <p className="text-xs text-gray-400 mt-1">= {fmtMoney(kbFromPct)}</p>}
+        </div>
+        <div>
+          <label className="text-xs text-gray-500 uppercase font-semibold mb-1 block">lub kwota KB</label>
+          <input value={kb} onChange={(e) => { setKb(e.target.value); setKbPct('') }} placeholder="zł" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm tabular-nums" />
         </div>
         <div>
           <label className="text-xs text-gray-500 uppercase font-semibold mb-1 block">Prąd</label>

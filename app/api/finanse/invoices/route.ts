@@ -57,6 +57,16 @@ export async function POST(req: NextRequest) {
 
   const company = body.company === 'MARAF_DEVELOPMENT' ? 'MARAF_DEVELOPMENT' : 'MARAF'
 
+  // Kaucja i KB: % auto-licza kwote z brutto, kwota nadpisuje %.
+  const depPct = isFinite(Number(body.depositPct)) ? Number(body.depositPct) : null
+  const deposit = isFinite(Number(body.deposit)) ? Number(body.deposit)
+    : depPct !== null ? Math.round(amountGross * (depPct / 100) * 100) / 100
+    : null
+  const kbPct = isFinite(Number(body.buildingCostsPct)) ? Number(body.buildingCostsPct) : null
+  const buildingCosts = isFinite(Number(body.buildingCosts)) ? Number(body.buildingCosts)
+    : kbPct !== null ? Math.round(amountGross * (kbPct / 100) * 100) / 100
+    : null
+
   const created = await prisma.purchaseInvoice.create({
     data: {
       company,
@@ -70,8 +80,10 @@ export async function POST(req: NextRequest) {
       amountNet,
       amountVat,
       description: body.description ? String(body.description).trim() : null,
-      deposit: isFinite(Number(body.deposit)) ? Number(body.deposit) : null,
-      buildingCosts: isFinite(Number(body.buildingCosts)) ? Number(body.buildingCosts) : null,
+      deposit,
+      depositPct: depPct,
+      buildingCosts,
+      buildingCostsPct: kbPct,
       electricity: isFinite(Number(body.electricity)) ? Number(body.electricity) : null,
       status: 'ZATWIERDZONA',
       createdById: session.user.id || null,

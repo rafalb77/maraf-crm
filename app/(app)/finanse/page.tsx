@@ -194,13 +194,11 @@ export default async function FinanseHomePage() {
       <div className="bg-white rounded-xl border border-gray-200 p-6">
         <h2 className="font-semibold text-gray-900 mb-2">Workflow</h2>
         <p className="text-sm text-gray-600 leading-relaxed">
-          Każda faktura przechodzi przez: <strong>Wprowadzona</strong> (Marta wpisuje) →
-          {' '}<strong>Do zatwierdzenia</strong> (inbox Bohdana) →
-          {' '}<strong>Zatwierdzona</strong> (czeka na przelew) →
-          {' '}<strong>Opłacona / Częściowo opłacona</strong>.
-        </p>
-        <p className="text-xs text-gray-400 mt-3">
-          Pełen plan: <code className="text-gray-500">docs/finanse-rozpoczecie.md</code>.
+          Faktura kosztowa pojawia się w aplikacji na 2 sposoby:
+          {' '}<strong>Marta wpisuje ręcznie</strong> lub
+          {' '}<strong>pobierana automatycznie z KSeF</strong>.
+          {' '}Wpada od razu jako <strong>Zatwierdzona</strong> (czeka na przelew) →
+          {' '}<strong>Opłacona / Częściowo opłacona</strong> po dodaniu wpłat.
         </p>
       </div>
     </div>
