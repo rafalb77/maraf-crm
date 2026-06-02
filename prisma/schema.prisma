@@ -674,6 +674,10 @@ model Vendor {
   category  String   @default("DOSTAWCA")
   notes     String?
   isActive  Boolean  @default(true)
+  // Domyślne % kaucji gwarancyjnej i kosztów budowy dla tego kontrahenta.
+  // Prefilują pola faktury przy tworzeniu (user może nadpisać per FV).
+  defaultDepositPct       Float?
+  defaultBuildingCostsPct Float?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -723,6 +727,7 @@ model PurchaseInvoice {
   depositReturnDate DateTime? // termin zwrotu kaucji (wpisywany ręcznie)
   depositReturnedAt DateTime? // kiedy faktycznie zwrócona (null = jeszcze zatrzymana)
   buildingCosts     Float?
+  buildingCostsPct  Float? // % kosztów budowy (analogicznie do depositPct)
   electricity       Float?
   // Pola powiązań przyszłościowych (Faza 2)
   investmentId      String? // przyszłość: powiązanie z inwestycją

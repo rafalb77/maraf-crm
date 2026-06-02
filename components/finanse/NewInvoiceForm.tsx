@@ -2,7 +2,13 @@
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 
-type Vendor = { id: string; name: string; category: string }
+type Vendor = {
+  id: string
+  name: string
+  category: string
+  defaultDepositPct: number | null
+  defaultBuildingCostsPct: number | null
+}
 
 export function NewInvoiceForm({ vendors, company }: { vendors: Vendor[]; company: string }) {
   const router = useRouter()
@@ -15,10 +21,22 @@ export function NewInvoiceForm({ vendors, company }: { vendors: Vendor[]; compan
   const [amountGross, setAmountGross] = useState('')
   const [amountNet, setAmountNet] = useState('')
   const [amountVat, setAmountVat] = useState('')
+  const [depositPct, setDepositPct] = useState('')
+  const [buildingCostsPct, setBuildingCostsPct] = useState('')
   const [description, setDescription] = useState('')
   const [autoCalc, setAutoCalc] = useState(true)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const selectedVendor = vendors.find((v) => v.id === vendorId) || null
+
+  // Prefill % kaucji + % KB z domyślnych ustawień kontrahenta gdy zmienia się vendor
+  useEffect(() => {
+    if (selectedVendor) {
+      setDepositPct(selectedVendor.defaultDepositPct != null ? String(selectedVendor.defaultDepositPct) : '')
+      setBuildingCostsPct(selectedVendor.defaultBuildingCostsPct != null ? String(selectedVendor.defaultBuildingCostsPct) : '')
+    }
+  }, [vendorId, selectedVendor])
 
   // Auto-przelicz net/vat z brutto przy zmianie brutto lub stawki
   useEffect(() => {
@@ -50,6 +68,8 @@ export function NewInvoiceForm({ vendors, company }: { vendors: Vendor[]; compan
           amountGross: parseFloat(amountGross.replace(',', '.')),
           amountNet: parseFloat(amountNet.replace(',', '.')),
           amountVat: parseFloat(amountVat.replace(',', '.')),
+          depositPct: depositPct ? parseFloat(depositPct.replace(',', '.')) : null,
+          buildingCostsPct: buildingCostsPct ? parseFloat(buildingCostsPct.replace(',', '.')) : null,
           description: description.trim() || null,
         }),
       })
@@ -166,6 +186,20 @@ export function NewInvoiceForm({ vendors, company }: { vendors: Vendor[]; compan
         />
         Automatycznie licz netto/VAT z brutto i stawki
       </label>
+
+      <div className="grid grid-cols-2 gap-3">
+        <Row label="Kaucja % (opc.)">
+          <input value={depositPct} onChange={(e) => setDepositPct(e.target.value)} placeholder="np. 5" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm tabular-nums" />
+        </Row>
+        <Row label="KB % (opc.)">
+          <input value={buildingCostsPct} onChange={(e) => setBuildingCostsPct(e.target.value)} placeholder="np. 1" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm tabular-nums" />
+        </Row>
+      </div>
+      {selectedVendor && (selectedVendor.defaultDepositPct != null || selectedVendor.defaultBuildingCostsPct != null) && (
+        <p className="text-xs text-gray-400">
+          Domyślne wartości pobrane z kontrahenta <strong>{selectedVendor.name}</strong> (można edytować w <a href="/finanse/kontrahenci" className="text-blue-600 hover:underline">/finanse/kontrahenci</a>).
+        </p>
+      )}
 
       <Row label="Opis (opcjonalnie)">
         <input

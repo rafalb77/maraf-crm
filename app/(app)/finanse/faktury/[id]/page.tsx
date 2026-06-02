@@ -107,6 +107,7 @@ export default async function InvoiceDetailsPage({ params }: { params: { id: str
           deposit={inv.deposit}
           depositPct={inv.depositPct}
           buildingCosts={inv.buildingCosts}
+          buildingCostsPct={inv.buildingCostsPct}
           electricity={inv.electricity}
           depositReturnDate={inv.depositReturnDate ? inv.depositReturnDate.toISOString() : null}
           depositReturnedAt={inv.depositReturnedAt ? inv.depositReturnedAt.toISOString() : null}
