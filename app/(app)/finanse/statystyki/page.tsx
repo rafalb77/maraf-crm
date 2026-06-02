@@ -7,6 +7,11 @@ import {
   getTopVendors,
   getRiskConcentration,
   getActivityHeatmap,
+  getLoansSummary,
+  getEscrowSummary,
+  getVatRefundsSummary,
+  getCashflowGotowkowy12m,
+  getDscr,
 } from '@/lib/finanse-stats'
 import { PulseCards } from '@/components/finanse/stats/PulseCards'
 import { CashflowChart } from '@/components/finanse/stats/CashflowChart'
@@ -14,16 +19,24 @@ import { AgingBuckets } from '@/components/finanse/stats/AgingBuckets'
 import { TopVendorsChart } from '@/components/finanse/stats/TopVendorsChart'
 import { RiskConcentration } from '@/components/finanse/stats/RiskConcentration'
 import { ActivityHeatmap } from '@/components/finanse/stats/ActivityHeatmap'
+import { FinansowanieKpi } from '@/components/finanse/stats/FinansowanieKpi'
 
 export default async function StatystykiPage() {
   const company = getActiveCompany()
-  const [pulse, cashflow, aging, topVendors, risk, heatmap] = await Promise.all([
+  const isMD = company === 'MARAF_DEVELOPMENT'
+
+  const [pulse, cashflow, aging, topVendors, risk, heatmap, loansSummary, escrowSummary, vatSummary, cashflowGot, dscr] = await Promise.all([
     getPulseData(company),
     getCashflow12m(company),
     getAgingBuckets(company),
     getTopVendors(company, 10),
     getRiskConcentration(company),
     getActivityHeatmap(company),
+    getLoansSummary(company),
+    getEscrowSummary(company),
+    getVatRefundsSummary(company),
+    getCashflowGotowkowy12m(company),
+    getDscr(company),
   ])
 
   return (
@@ -38,9 +51,16 @@ export default async function StatystykiPage() {
       {/* 1. Pulse cards (KPI z sparkline) */}
       <PulseCards data={pulse} />
 
-      {/* 2. Cashflow 12 miesięcy */}
+      {/* 1b. KPI Finansowania — TYLKO dla MD */}
+      {isMD && (
+        <div className="mt-6">
+          <FinansowanieKpi loans={loansSummary} escrow={escrowSummary} vat={vatSummary} dscr={dscr} />
+        </div>
+      )}
+
+      {/* 2. Cashflow 12 miesięcy — z przełącznikiem trybu Operacyjny/Gotówkowy */}
       <div className="mt-6">
-        <CashflowChart data={cashflow} />
+        <CashflowChart data={cashflow} cashflowGot={isMD ? cashflowGot : null} />
       </div>
 
       {/* 3+4. Aging + Top kontrahenci side-by-side na desktop */}
@@ -59,6 +79,12 @@ export default async function StatystykiPage() {
         Dane liczone z faktur i płatności aktywnej firmy.
         Przychody/koszty miesięczne wg dat wpłaty (cashflow rzeczywisty), nie wystawienia.
         Aging wg <code>dueDate</code>.
+        {isMD && (
+          <>
+            {' '}Dla MD: cashflow „Gotówkowy" obejmuje uwolnienia escrow, zwroty VAT i spłaty kredytów —
+            <strong>nie</strong> wpływy z transz kredytu (to zobowiązanie, nie przychód).
+          </>
+        )}
       </p>
     </div>
   )

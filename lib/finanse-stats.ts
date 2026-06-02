@@ -323,3 +323,243 @@ export async function getActivityHeatmap(company: Company): Promise<HeatmapDay[]
   }
   return out
 }
+
+// =========================================================================
+// 7. FINANSOWANIE INWESTYCJI — kredyty / escrow / zwroty VAT
+// Tylko dla MARAF_DEVELOPMENT. Dla MARAF zwraca puste/null.
+// =========================================================================
+
+export type LoansSummary = {
+  byType: Record<'INWESTYCYJNY' | 'VAT' | 'OBROTOWY' | 'INNE', {
+    count: number
+    limit: number
+    drawn: number
+    outstanding: number
+    available: number
+  }>
+  totalOutstanding: number
+  totalLimit: number
+}
+
+export async function getLoansSummary(company: Company): Promise<LoansSummary> {
+  const empty: LoansSummary = {
+    byType: {
+      INWESTYCYJNY: { count: 0, limit: 0, drawn: 0, outstanding: 0, available: 0 },
+      VAT: { count: 0, limit: 0, drawn: 0, outstanding: 0, available: 0 },
+      OBROTOWY: { count: 0, limit: 0, drawn: 0, outstanding: 0, available: 0 },
+      INNE: { count: 0, limit: 0, drawn: 0, outstanding: 0, available: 0 },
+    },
+    totalOutstanding: 0,
+    totalLimit: 0,
+  }
+  if (company !== 'MARAF_DEVELOPMENT') return empty
+
+  const loans = await prisma.loan.findMany({
+    where: { company, status: 'AKTYWNY' },
+    include: {
+      tranches: { select: { amount: true } },
+      repayments: { select: { principal: true } },
+    },
+  })
+
+  for (const l of loans) {
+    const type = (['INWESTYCYJNY', 'VAT', 'OBROTOWY', 'INNE'].includes(l.type) ? l.type : 'INNE') as keyof LoansSummary['byType']
+    const drawn = l.tranches.reduce((s, t) => s + t.amount, 0)
+    const principalRepaid = l.repayments.reduce((s, r) => s + r.principal, 0)
+    const outstanding = drawn - principalRepaid
+    const available = l.limit - outstanding
+    empty.byType[type].count += 1
+    empty.byType[type].limit += l.limit
+    empty.byType[type].drawn += drawn
+    empty.byType[type].outstanding += outstanding
+    empty.byType[type].available += available
+    empty.totalOutstanding += outstanding
+    empty.totalLimit += l.limit
+  }
+  return empty
+}
+
+export type EscrowSummary = {
+  accountsCount: number
+  inEscrow: number       // siedzi na rachunkach (depositsTotal - releasesTotal)
+  releasedYTD: number    // uwolnione od początku roku
+  releasedAll: number    // uwolnione łącznie
+}
+
+export async function getEscrowSummary(company: Company): Promise<EscrowSummary> {
+  if (company !== 'MARAF_DEVELOPMENT') {
+    return { accountsCount: 0, inEscrow: 0, releasedYTD: 0, releasedAll: 0 }
+  }
+  const yearStart = new Date(new Date().getFullYear(), 0, 1)
+  const accounts = await prisma.escrowAccount.findMany({
+    where: { company },
+    include: {
+      deposits: { select: { amount: true } },
+      releases: { select: { amount: true, date: true } },
+    },
+  })
+  let inEscrow = 0
+  let releasedAll = 0
+  let releasedYTD = 0
+  for (const a of accounts) {
+    const dep = a.deposits.reduce((s, d) => s + d.amount, 0)
+    const rel = a.releases.reduce((s, r) => s + r.amount, 0)
+    inEscrow += dep - rel
+    releasedAll += rel
+    releasedYTD += a.releases.filter((r) => r.date >= yearStart).reduce((s, r) => s + r.amount, 0)
+  }
+  return { accountsCount: accounts.length, inEscrow, releasedYTD, releasedAll }
+}
+
+export type VatRefundsSummary = {
+  count: number
+  totalYTD: number
+  totalAll: number
+  appliedToLoanYTD: number   // zwroty przeznaczone na spłatę kredytu VAT
+}
+
+export async function getVatRefundsSummary(company: Company): Promise<VatRefundsSummary> {
+  if (company !== 'MARAF_DEVELOPMENT') return { count: 0, totalYTD: 0, totalAll: 0, appliedToLoanYTD: 0 }
+  const yearStart = new Date(new Date().getFullYear(), 0, 1)
+  const refunds = await prisma.vatRefund.findMany({
+    where: { company },
+    select: { amount: true, date: true, appliedToLoanId: true },
+  })
+  let totalYTD = 0
+  let appliedToLoanYTD = 0
+  let totalAll = 0
+  for (const r of refunds) {
+    totalAll += r.amount
+    if (r.date >= yearStart) {
+      totalYTD += r.amount
+      if (r.appliedToLoanId) appliedToLoanYTD += r.amount
+    }
+  }
+  return { count: refunds.length, totalYTD, totalAll, appliedToLoanYTD }
+}
+
+// =========================================================================
+// 8. CASHFLOW GOTOWKOWY 12 mc — operacyjny + kredyty + escrow + zwroty VAT
+// =========================================================================
+
+export type CashRow = {
+  m: string
+  // wpływy
+  salesPaid: number          // wpływy z faktur sprzedażowych
+  escrowReleased: number     // uwolnienia z rachunków powierniczych
+  vatRefunded: number        // zwroty VAT z US
+  loanDrawn: number          // transze kredytów (info)
+  // wypływy
+  costsPaid: number          // zapłacone FV kosztowe
+  loanPrincipal: number      // spłaty kapitału kredytów
+  loanInterest: number       // spłaty odsetek (NIE są w FV kosztowych)
+  loanFees: number           // prowizje
+  // wskaźniki
+  cashNet: number            // saldo netto = wpływy - wypływy (loanDrawn osobno bo to nie przychód)
+}
+
+export async function getCashflowGotowkowy12m(company: Company): Promise<CashRow[]> {
+  const today = new Date()
+  const start = new Date(today.getFullYear(), today.getMonth() - 11, 1)
+
+  const isMD = company === 'MARAF_DEVELOPMENT'
+
+  const [sales, purchases, releases, refunds, tranches, repayments] = await Promise.all([
+    prisma.salesInvoicePayment.findMany({
+      where: { paidAt: { gte: start }, invoice: { company } },
+      select: { paidAt: true, amount: true },
+    }),
+    prisma.purchaseInvoicePayment.findMany({
+      where: { paidAt: { gte: start }, invoice: { company } },
+      select: { paidAt: true, amount: true },
+    }),
+    isMD ? prisma.escrowRelease.findMany({
+      where: { date: { gte: start }, account: { company } },
+      select: { date: true, amount: true },
+    }) : Promise.resolve([] as { date: Date; amount: number }[]),
+    isMD ? prisma.vatRefund.findMany({
+      where: { date: { gte: start }, company },
+      select: { date: true, amount: true },
+    }) : Promise.resolve([] as { date: Date; amount: number }[]),
+    isMD ? prisma.loanTranche.findMany({
+      where: { date: { gte: start }, loan: { company } },
+      select: { date: true, amount: true },
+    }) : Promise.resolve([] as { date: Date; amount: number }[]),
+    isMD ? prisma.loanRepayment.findMany({
+      where: { date: { gte: start }, loan: { company } },
+      select: { date: true, principal: true, interest: true, fees: true },
+    }) : Promise.resolve([] as { date: Date; principal: number; interest: number; fees: number }[]),
+  ])
+
+  // Zainicjalizuj 12 miesięcy
+  const map = new Map<string, CashRow>()
+  for (let i = 0; i < 12; i++) {
+    const d = new Date(today.getFullYear(), today.getMonth() - 11 + i, 1)
+    const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+    map.set(k, {
+      m: k,
+      salesPaid: 0, escrowReleased: 0, vatRefunded: 0, loanDrawn: 0,
+      costsPaid: 0, loanPrincipal: 0, loanInterest: 0, loanFees: 0,
+      cashNet: 0,
+    })
+  }
+
+  const keyOf = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+
+  for (const p of sales) { const r = map.get(keyOf(p.paidAt)); if (r) r.salesPaid += p.amount }
+  for (const p of purchases) { const r = map.get(keyOf(p.paidAt)); if (r) r.costsPaid += p.amount }
+  for (const p of releases) { const r = map.get(keyOf(p.date)); if (r) r.escrowReleased += p.amount }
+  for (const p of refunds) { const r = map.get(keyOf(p.date)); if (r) r.vatRefunded += p.amount }
+  for (const p of tranches) { const r = map.get(keyOf(p.date)); if (r) r.loanDrawn += p.amount }
+  for (const p of repayments) {
+    const r = map.get(keyOf(p.date))
+    if (r) { r.loanPrincipal += p.principal; r.loanInterest += p.interest; r.loanFees += p.fees }
+  }
+
+  // cashNet — saldo NETTO (bez transz, bo to zobowiązanie a nie zysk)
+  for (const r of map.values()) {
+    r.cashNet = (r.salesPaid + r.escrowReleased + r.vatRefunded)
+              - (r.costsPaid + r.loanPrincipal + r.loanInterest + r.loanFees)
+  }
+
+  return Array.from(map.values())
+}
+
+// =========================================================================
+// 9. DSCR (Debt Service Coverage Ratio) — zysk operacyjny + escrow + zwroty VAT
+//    podzielone przez raty kapitał+odsetki za ostatnie 12 mc.
+// =========================================================================
+
+export type DscrData = {
+  ratio: number | null     // null gdy brak rat (dzielenie przez 0)
+  label: 'safe' | 'warn' | 'risk' | 'na'
+  numerator: number        // zysk operacyjny + escrow released + vat refunds
+  denominator: number      // raty kapitałowe + odsetki + prowizje
+}
+
+export async function getDscr(company: Company): Promise<DscrData> {
+  if (company !== 'MARAF_DEVELOPMENT') {
+    return { ratio: null, label: 'na', numerator: 0, denominator: 0 }
+  }
+  const today = new Date()
+  const start = new Date(today.getFullYear(), today.getMonth() - 11, 1)
+
+  const [salesAgg, costsAgg, releasesAgg, refundsAgg, repaymentsAgg] = await Promise.all([
+    prisma.salesInvoicePayment.aggregate({ where: { paidAt: { gte: start }, invoice: { company } }, _sum: { amount: true } }),
+    prisma.purchaseInvoicePayment.aggregate({ where: { paidAt: { gte: start }, invoice: { company } }, _sum: { amount: true } }),
+    prisma.escrowRelease.aggregate({ where: { date: { gte: start }, account: { company } }, _sum: { amount: true } }),
+    prisma.vatRefund.aggregate({ where: { date: { gte: start }, company }, _sum: { amount: true } }),
+    prisma.loanRepayment.aggregate({ where: { date: { gte: start }, loan: { company } }, _sum: { principal: true, interest: true, fees: true } }),
+  ])
+
+  const operacyjnyNet = (salesAgg._sum.amount || 0) - (costsAgg._sum.amount || 0)
+  const numerator = operacyjnyNet + (releasesAgg._sum.amount || 0) + (refundsAgg._sum.amount || 0)
+  const denominator = (repaymentsAgg._sum.principal || 0) + (repaymentsAgg._sum.interest || 0) + (repaymentsAgg._sum.fees || 0)
+
+  if (denominator < 0.01) return { ratio: null, label: 'na', numerator, denominator }
+  const ratio = numerator / denominator
+  let label: DscrData['label'] = 'safe'
+  if (ratio < 1) label = 'risk'
+  else if (ratio < 1.25) label = 'warn'
+  return { ratio, label, numerator, denominator }
+}
