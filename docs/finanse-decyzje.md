@@ -254,6 +254,111 @@ Gdy faktura przychodowa ma odbiorcę = firma grupy (Maraf wystawia dla MD lub od
 - Foldery główne (Staffa/Promatbud/Bauter/Stałe/Inne/Pozostali) jako taby
 - 9 klikalnych nagłówków kolumn (sortowanie z th)
 
+**2026-06-02/03 (statystyki + finansowanie inwestycji):**
+- Strona `/finanse/statystyki` — 6 widgetów (pulse KPI, cashflow 12mc, aging buckets, TOP10 kontrahentów, koncentracja ryzyka, heatmapa 90dni). Commit `0645fd5`.
+- **Moduł Finansowanie inwestycji** (`/finanse/finansowanie`) — kredyty + escrow OMRP + zwroty VAT. Commit `334a0f6`. Patrz sekcja niżej.
+
+---
+
+## Moduł Finansowanie inwestycji (kredyty + escrow + zwroty VAT)
+
+**Wdrożony 2026-06-03, commit `334a0f6`. Etap 1 MVP.** Widoczny TYLKO dla Maraf Development (deweloper). Maraf (generalny wykonawca) widzi placeholder — nie ma kredytów inwestycyjnych ani rachunków powierniczych.
+
+### Po co to powstało
+
+Marta zapytała jak kredyt obrotowy/inwestycyjny pod inwestycję ma się do wykresu cashflow. Okazało się że dotychczasowy cashflow pokazywał tylko **wynik operacyjny** (faktury vs faktury = P&L), a nie **rzeczywisty przepływ gotówki**. Dla dewelopera z kredytem na karku to dwie różne rzeczy. MD ma 4 strumienie gotówki, nie 2:
+
+```
+                   KONTO OPERACYJNE MD
+                    ▲    ▲    ▲    ▲
+       kredyt inwest.  escrow  zwroty VAT  FV sprzedaży
+       (transze→MD,   (uwol-   (z US)      (po przeniesieniu
+        spłata z MD)   nienia)              własności)
+                    
+       kredyt VAT (bank płaci VAT z FV kosztowych
+                   BEZPOŚREDNIO do dostawcy, NIE przez MD;
+                   spłacany ze zwrotów VAT)
+```
+
+### Decyzje (ustalenia z Rafałem 2026-06-02/03)
+
+| Pytanie | Decyzja |
+|---|---|
+| Rachunek deweloperski | **OMRP** (otwarty mieszkaniowy) — bank uwalnia transze etapowo po milestone'ach |
+| Odsetki kredytu | **Część raty bez FV** — bank pobiera kapitał+odsetki jednym przelewem. `LoanRepayment` ma `principal`+`interest`+`fees`. Odsetki NIE są wpisywane jako FV kosztowa → na cashflow operacyjnym ich nie ma, na gotówkowym doliczamy (bez podwajania) |
+| Śledzenie wpłat lokatorów | **Tak, pełne** (deposit + release) — widać ile pieniędzy jest „uwięzionych" w escrow vs uwolnione |
+| Kredyt inwest. vs VAT | **Dwie osobne umowy** (nie sublimity) — każdy to osobny `Loan` z innym `type` |
+| Śledzenie która FV opłacona z kredytu VAT | **Nie** — wystarczą sumaryczne transze kredytu VAT (mniej klikania) |
+| Wpłaty na escrow | **Etap 2: automat z modułu Sprzedaż.** Etap 1: ręcznie przez Martę (formularzem) |
+| Ścieżka wdrożenia | **MVP w 2 etapach** — najpierw Finansowanie z ręcznym wpisywaniem, potem rozbudowa Sprzedaży + auto-trigger |
+
+### Schema (6 nowych modeli, `prisma/schema.prisma`)
+
+```
+Loan                — kredyt bankowy
+  company           — MARAF_DEVELOPMENT (default)
+  type              — INWESTYCYJNY | VAT | OBROTOWY | INNE
+  bank, contractNumber, limit, interestRate, signedAt, expiresAt
+  status            — AKTYWNY | ZAMKNIETY
+  ├ LoanTranche     — wypłata transzy (date, amount, note)
+  └ LoanRepayment   — spłata (date, principal, interest, fees) — jeden przelew
+VatRefund           — zwrot VAT z US (date, amount, periodLabel, appliedToLoanId?)
+EscrowAccount       — rachunek powierniczy (type OMRP|ZMRP, investmentName, bank, accountNumber)
+  ├ EscrowDeposit   — wpłata nabywcy (date, amount, buyerName?, contractNumber?, unitId? → Unit)
+  └ EscrowRelease   — uwolnienie transzy (date, amount, milestone?)
+```
+
+Relacja `Unit.escrowDeposits` dodana (opcjonalny link wpłaty do lokalu).
+
+### Agregaty (`lib/finanse-stats.ts`)
+
+- `getLoansSummary(company)` — per type: limit, wykorzystane (drawn), do spłaty (outstanding = drawn − principalRepaid), dostępne
+- `getEscrowSummary(company)` — w escrow (deposits − releases), uwolnione YTD, uwolnione łącznie
+- `getVatRefundsSummary(company)` — totalYTD, totalAll, na spłatę kredytu VAT
+- `getCashflowGotowkowy12m(company)` — per miesiąc: wpływy (salesPaid + escrowReleased + vatRefunded) − wypływy (costsPaid + loanPrincipal + loanInterest + loanFees) = cashNet. Transze osobno (info, bo zobowiązanie a nie zysk)
+- `getDscr(company)` — **DSCR (Debt Service Coverage Ratio)** = (zysk operacyjny + escrow uwolnione + zwroty VAT) / (raty K+O+P) za 12mc. Progi: ≥1.25 safe, 1.0-1.25 warn, <1.0 risk. Wszystkie zwracają puste/null gdy company ≠ MD.
+
+### UI
+
+- **`/finanse/finansowanie`** — server component (`page.tsx`) serializuje dane, `FinansowanieView.tsx` (client) ma 3 zakładki:
+  - **Kredyty** — pogrupowane po type, karta rozwijana z sekcjami Transze + Spłaty, pasek wykorzystania linii (kolor wg %)
+  - **Rachunki powiernicze** — karta rozwijana z sekcjami Wpłaty + Uwolnienia, saldo „w escrow vs uwolnione"
+  - **Zwroty VAT** — tabela + formularz z dropdownem „przeznaczenie" (na konto / spłata kredytu VAT)
+- **`/finanse/statystyki`** rozbudowane (tylko MD):
+  - `FinansowanieKpi.tsx` — 5 kafelków (kredyt inwest / kredyt VAT / escrow / zwroty VAT / DSCR)
+  - `CashflowChart.tsx` — przełącznik **Operacyjny / Gotówkowy** (przełącznik widoczny tylko gdy są dane gotówkowe = MD)
+
+### Endpointy (`app/api/finanse/`)
+
+```
+loans/                     GET (lista+agregaty) POST
+loans/[id]/                GET (szczegóły+transze+spłaty) PATCH DELETE
+loans/[id]/tranches/       POST
+loans/[id]/repayments/     POST
+loan-tranches/[id]/        DELETE
+loan-repayments/[id]/      DELETE
+escrow-accounts/           GET POST
+escrow-accounts/[id]/      GET PATCH DELETE
+escrow-accounts/[id]/deposits/   POST
+escrow-accounts/[id]/releases/   POST
+escrow-deposits/[id]/      DELETE
+escrow-releases/[id]/      DELETE
+vat-refunds/               GET POST
+vat-refunds/[id]/          PATCH DELETE
+```
+
+Wszystkie z `getServerSession` + 401. GET/POST list-level filtrują przez `getActiveCompany()`.
+
+### ETAP 2 (niezrobione) — auto-EscrowDeposit z modułu Sprzedaż
+
+**Bloker:** moduł Sprzedaż (`Contract`) NIE MA modelu wpłat. Jest tylko `reservationFee` (jednorazowa opłata rezerwacyjna). Żeby auto-tworzyć EscrowDeposit przy wpłacie nabywcy, trzeba najpierw:
+1. Dodać model `ContractPayment` (harmonogram + faktyczne wpłaty: zaliczka/raty/ostateczna)
+2. UI w `/sales/[id]` — sekcja „Wpłaty" gdzie Marta dodaje przelew nabywcy
+3. Trigger: zapis `ContractPayment` na umowie MD → auto `EscrowDeposit` (link `contractPaymentId`), usunięcie → kasuje powiązany deposit
+4. Retroaktywne matchowanie istniejących ręcznych depositów po `contractNumber`
+
+Patrz `docs/finanse-finansowanie-etap2-rozpoczecie.md`.
+
 ---
 
 ## Pułapki i uwagi
@@ -296,6 +401,10 @@ Gdy faktura przychodowa ma odbiorcę = firma grupy (Maraf wystawia dla MD lub od
 
 8. **Eksport miesięczny do biura księgowego** — CSV/XLSX w formacie który Saldeo importuje. Format do uzgodnienia z biurem.
 
+9. **🟡 ETAP 2 Finansowanie: auto-EscrowDeposit z modułu Sprzedaż** — wymaga rozbudowy Sprzedaży o `ContractPayment` (harmonogram wpłat nabywców) + trigger. Patrz `docs/finanse-finansowanie-etap2-rozpoczecie.md`.
+
+10. **Powiązanie escrow ↔ inwestycja jako encja** — `investmentName` jest teraz tekstem. W przyszłości model `Investment` (etap deweloperski) z przypisaniem kredytów/kosztów/sprzedaży → IRR, NPV, „etap 1: zysk X, kredyt spłacony za N mc". Wspomniane przez Rafała („2/3 inwestycji/etapów równolegle, ale nie teraz").
+
 ---
 
 ## Kluczowe pliki (mapa)
@@ -325,7 +434,12 @@ app/(app)/finanse/kontrahenci/page.tsx
 app/(app)/finanse/nowa/page.tsx
 app/(app)/finanse/import/page.tsx
 app/(app)/finanse/ksef/page.tsx                               — admin only
-app/api/finanse/*                                             — wszystkie endpointy
+app/(app)/finanse/statystyki/page.tsx                         — 6 widgetów + (MD) FinansowanieKpi + cashflow gotówkowy
+app/(app)/finanse/finansowanie/page.tsx                       — kredyty/escrow/VAT (server) → FinansowanieView (client)
+app/api/finanse/*                                             — wszystkie endpointy (w tym loans/escrow-accounts/vat-refunds + sub-zasoby)
+lib/finanse-stats.ts                                          — agregaty stat (pulse/cashflow/aging/top/risk/heatmap + loans/escrow/vat/dscr/cashflow-gotówkowy)
+components/finanse/finansowanie/FinansowanieView.tsx          — 3 zakładki (kredyty/escrow/VAT) z formularzami
+components/finanse/stats/*.tsx                                — PulseCards, CashflowChart (+ tryb gotówkowy), AgingBuckets, TopVendorsChart, RiskConcentration, ActivityHeatmap, FinansowanieKpi
 components/finanse/FakturyTable.tsx                           — tabela z multi-select, sortable th, inline comment
 components/finanse/CompanySwitcher.tsx
 components/finanse/AutoSyncOnMount.tsx
