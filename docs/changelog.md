@@ -4,6 +4,20 @@ Krótkie wpisy „co i **dlaczego**". Bez listy wszystkich commitów — od tego
 
 ---
 
+## 2026-06-03
+
+### Finanse — statystyki + moduł Finansowanie inwestycji (kredyty/escrow/VAT)
+**Powód**: Marta zapytała jak kredyt pod inwestycję ma się do cashflow. Odkryliśmy że wykres cashflow pokazywał tylko **wynik operacyjny** (faktury vs faktury = P&L), a nie **rzeczywisty przepływ gotówki**. Dla dewelopera (Maraf Development) z kredytem, rachunkiem powierniczym i zwrotami VAT to 4 strumienie gotówki, nie 2. Pełny kontekst: `docs/finanse-decyzje.md` sekcja „Moduł Finansowanie inwestycji".
+**Implementacja**:
+- **Statystyki** (commit `0645fd5`) — `/finanse/statystyki`, 6 widgetów recharts (pulse KPI z sparkline, cashflow 12mc, aging buckets należności/zobowiązania, TOP10 kontrahentów, koncentracja ryzyka TOP3 donut, heatmapa 90dni GitHub-style). `lib/finanse-stats.ts` agreguje wszystko per active company.
+- **Moduł Finansowanie** (commit `334a0f6`) — **tylko MD** (Maraf = generalny wykonawca widzi placeholder). 6 nowych modeli: `Loan` (type INWESTYCYJNY|VAT|OBROTOWY|INNE) + `LoanTranche` + `LoanRepayment`, `VatRefund`, `EscrowAccount` (OMRP|ZMRP) + `EscrowDeposit` + `EscrowRelease`. Strona `/finanse/finansowanie` z 3 zakładkami.
+- **Decyzje** (z Rafałem 2026-06-02/03): kredyt inwest. i VAT to **dwie osobne umowy** (nie sublimity). Odsetki = **część raty bez FV** (`LoanRepayment.interest`, NIE wpisywane jako faktura kosztowa → cashflow operacyjny ich nie ma, gotówkowy dolicza bez podwajania). Rachunek **OMRP** (uwolnienia etapowe). Wpłaty na escrow: **etap 1 ręcznie**, etap 2 = auto z modułu Sprzedaż (bloker: `Contract` nie ma modelu wpłat — patrz `docs/finanse-finansowanie-etap2-rozpoczecie.md`).
+- **Cashflow gotówkowy** — przełącznik Operacyjny/Gotówkowy na wykresie. Gotówkowy = (FV sprzedaży + uwolnienia escrow + zwroty VAT) − (FV kosztowe + raty K+O+P); transze kredytu jako osobna info-linia (zobowiązanie, nie zysk).
+- **DSCR** (Debt Service Coverage Ratio) = (zysk operacyjny + escrow + VAT) / raty K+O+P za 12mc. Progi ≥1.25 safe / 1.0-1.25 warn / <1.0 risk.
+- **WYMAGA `prisma db push`** na produkcji (6 nowych tabel).
+
+---
+
 ## 2026-05-31
 
 ### Moduł Finanse — wdrożony (zastępuje `PŁATNOŚCI 2026.xlsx`)
