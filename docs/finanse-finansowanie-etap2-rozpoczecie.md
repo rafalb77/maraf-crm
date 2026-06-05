@@ -1,6 +1,30 @@
 # Finansowanie inwestycji — ETAP 2: auto-EscrowDeposit z modułu Sprzedaż
 
-🟡 **OTWARTE** — do zrobienia w nowej sesji. Etap 1 (kredyty + escrow + zwroty VAT, ręczne wpisywanie) wdrożony 2026-06-03 (commit `334a0f6`). Patrz `docs/finanse-decyzje.md` sekcja „Moduł Finansowanie inwestycji".
+🟢 **ZAMKNIĘTE 2026-06-05** — wdrożone. Plik zostaje dla historii decyzji. Etap 1 (kredyty + escrow + zwroty VAT) wdrożony 2026-06-03 (commit `334a0f6`). Patrz `docs/finanse-decyzje.md` sekcja „Moduł Finansowanie inwestycji".
+
+## Co finalnie wdrożono (2026-06-05)
+
+Decyzje z sesji (różne od pierwotnego planu poniżej):
+- **Harmonogram + odhaczanie** (nie tylko rejestr) — rata ma status `PLANOWANA` → `OPLACONA`. Auto-EscrowDeposit powstaje **dopiero przy odhaczeniu** „zapłacone".
+- **Escrow tylko z umowy deweloperskiej** — `ContractPayment.toEscrow` domyślnie `true` dla `DEWELOPERSKA`, `false` dla pozostałych typów. Marta może nadpisać checkboxem.
+- **Wybór rachunku: auto gdy 1, dropdown gdy >1** — `resolveEscrowAccount()` w `lib/contract-escrow.ts`. Gdy 0 kont MD → wpłata się odhacza, ale deposit pomijany z ostrzeżeniem.
+- **Contract NIE ma pola `company`** — sprzedaż lokali to z natury MD (deweloper), więc escrow zawsze szuka kont MARAF_DEVELOPMENT.
+
+Zaimplementowane pliki:
+- Schema: `ContractPayment` (harmonogram) + `Contract.payments` + `EscrowDeposit.contractPaymentId @unique` (onDelete Cascade) + `EscrowDeposit.source` (MANUAL|SALES)
+- `lib/contract-escrow.ts` — `resolveEscrowAccount()` + `createDepositForPayment()`
+- `app/api/contracts/[id]/payments/route.ts` — GET + POST (nowa rata)
+- `app/api/contracts/payments/[id]/route.ts` — PATCH (action pay/unpay/edit) + DELETE
+- `components/sales/ContractPaymentsPanel.tsx` — panel harmonogramu (lista + dodawanie + odhaczanie + podsumowanie planowane/zapłacone/pozostało/zaległe)
+- `app/(app)/sales/[id]/page.tsx` — wpięcie panelu
+
+Mechanika auto-escrow: odhaczenie raty (`PATCH action=pay`) z `toEscrow=true` → `createDepositForPayment` tworzy `EscrowDeposit` (buyerName z głównego klienta umowy, unitId z jedynego lokalu, contractNumber z umowy, source=SALES). Cofnięcie (`action=unpay`) lub usunięcie raty → deposit kasowany (unpay ręcznie, delete przez Cascade).
+
+**WYMAGA na produkcji `prisma db push`** (nowa tabela `ContractPayment` + 2 kolumny na `EscrowDeposit`).
+
+---
+
+## (Plan pierwotny — archiwum)
 
 ## Cel
 

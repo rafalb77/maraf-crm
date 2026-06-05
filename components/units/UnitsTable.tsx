@@ -137,10 +137,38 @@ export function UnitsTable({ units }: { units: UnitRow[] }) {
 
   const visibleCols = COLUMNS.filter((c) => visible[c.key])
 
+  async function exportXlsx() {
+    const XLSX = await import('xlsx')
+    const header = visibleCols.map((c) => c.label)
+    const rows = sorted.map((u) => visibleCols.map((c) => exportValue(u, c.key)))
+    const sumRow = visibleCols.map((c, idx) => {
+      if (idx === 0) return `Suma (${sorted.length})`
+      if (c.summable) return sums[c.key as 'area' | 'priceNet' | 'priceGross']
+      return ''
+    })
+    const aoa: (string | number)[][] = [header, ...rows]
+    if (sorted.length > 0) aoa.push(sumRow)
+    const ws = XLSX.utils.aoa_to_sheet(aoa)
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, 'Lokale')
+    const date = new Date().toISOString().slice(0, 10)
+    XLSX.writeFile(wb, `lokale-export-${date}.xlsx`)
+  }
+
   return (
     <div>
-      {/* Column toggle button */}
-      <div className="flex items-center justify-end mb-3 relative">
+      {/* Toolbar */}
+      <div className="flex items-center justify-end gap-2 mb-3 relative">
+        <button
+          type="button"
+          onClick={exportXlsx}
+          className="px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors flex items-center gap-2 bg-white"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3" />
+          </svg>
+          Eksport do Excela
+        </button>
         <button
           type="button"
           onClick={() => setColMenuOpen((v) => !v)}
@@ -259,6 +287,22 @@ function getSortValue(u: UnitRow, key: ColumnKey): string | number | null {
     case 'client': return u.clientUnits[0]
       ? `${u.clientUnits[0].client.lastName} ${u.clientUnits[0].client.firstName}`
       : ''
+  }
+}
+
+function exportValue(u: UnitRow, key: ColumnKey): string | number {
+  switch (key) {
+    case 'number': return u.number
+    case 'type': return UNIT_TYPE_LABELS[u.type as UnitType] || u.type
+    case 'floor': return floorLabel(u.floor)
+    case 'area': return u.area
+    case 'pricePerSqmNet': return u.pricePerSqmNet
+    case 'pricePerSqmGross': return u.pricePerSqmGross
+    case 'priceNet': return u.priceNet
+    case 'priceGross': return u.priceGross
+    case 'vatRate': return u.vatRate
+    case 'status': return UNIT_STATUS_LABELS[u.status as UnitStatus] || u.status
+    case 'client': return u.clientUnits.map((cu) => `${cu.client.firstName} ${cu.client.lastName}`).join(', ')
   }
 }
 

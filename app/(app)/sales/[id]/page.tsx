@@ -11,6 +11,7 @@ import { ContractStatusChanger } from '@/components/sales/ContractStatusChanger'
 import { DeleteContractButton } from '@/components/sales/DeleteContractButton'
 import { ContractAttachments } from '@/components/sales/ContractAttachments'
 import { ContractEmailButton } from '@/components/sales/ContractEmailButton'
+import { ContractPaymentsPanel } from '@/components/sales/ContractPaymentsPanel'
 
 export default async function ContractDetailPage({ params }: { params: { id: string } }) {
   const contract = await prisma.contract.findUnique({
@@ -21,9 +22,34 @@ export default async function ContractDetailPage({ params }: { params: { id: str
       contractUnits: { include: { unit: true } },
       attachments: true,
       history: { orderBy: { createdAt: 'desc' } },
+      payments: {
+        orderBy: [{ position: 'asc' }, { plannedDate: 'asc' }],
+        include: { escrowDeposit: { select: { id: true } } },
+      },
     },
   })
   if (!contract) notFound()
+
+  // Aktywne rachunki powiernicze MD — do dropdownu przy odhaczaniu wpłaty.
+  const escrowAccounts = await prisma.escrowAccount.findMany({
+    where: { company: 'MARAF_DEVELOPMENT', status: 'AKTYWNY' },
+    select: { id: true, name: true },
+    orderBy: { createdAt: 'asc' },
+  })
+
+  const paymentsForPanel = contract.payments.map((p) => ({
+    id: p.id,
+    title: p.title,
+    type: p.type,
+    plannedDate: p.plannedDate ? p.plannedDate.toISOString() : null,
+    plannedAmount: p.plannedAmount,
+    status: p.status,
+    paidDate: p.paidDate ? p.paidDate.toISOString() : null,
+    paidAmount: p.paidAmount,
+    toEscrow: p.toEscrow,
+    note: p.note,
+    escrowDepositId: p.escrowDeposit?.id || null,
+  }))
 
   return (
     <div className="p-8 max-w-6xl">
@@ -126,6 +152,13 @@ export default async function ContractDetailPage({ params }: { params: { id: str
               </div>
             )}
           </Panel>
+
+          <ContractPaymentsPanel
+            contractId={contract.id}
+            contractType={contract.type}
+            initialPayments={paymentsForPanel}
+            escrowAccounts={escrowAccounts}
+          />
 
           {contract.notes && (
             <Panel title="Notatki">

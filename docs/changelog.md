@@ -4,6 +4,18 @@ Krótkie wpisy „co i **dlaczego**". Bez listy wszystkich commitów — od tego
 
 ---
 
+## 2026-06-05
+
+### Finansowanie etap 2 — harmonogram wpłat nabywcy + auto-EscrowDeposit
+**Powód**: domknięcie pętli z etapu 1 — żeby wpłaty nabywców lokali (Maraf Development) nie były wpisywane dwa razy (raz w Sprzedaży, raz ręcznie na rachunku powierniczym). Pełny kontekst: `docs/finanse-decyzje.md` sekcja „ETAP 2".
+**Implementacja**:
+- **`ContractPayment`** — harmonogram wpłat na umowie (`Contract.payments`). Rata ma status `PLANOWANA`→`OPLACONA`, plannedDate/plannedAmount vs paidDate/paidAmount. Panel „Harmonogram wpłat" na `/sales/[id]` z podsumowaniem (planowane/zapłacone/pozostało/**zaległe** = planowane po terminie).
+- **Auto-EscrowDeposit przy odhaczeniu** — przy oznaczeniu raty jako opłaconej (z `toEscrow=true`) tworzy się `EscrowDeposit` na rachunku powierniczym MD (`source=SALES`, link `contractPaymentId @unique` z onDelete Cascade). Cofnięcie odhaczenia / usunięcie raty → deposit kasowany.
+- **Decyzje** (z Rafałem): escrow **tylko z umowy deweloperskiej** (`toEscrow` default true dla DEWELOPERSKA, false dla reszty — w OMRP rezerwacyjna idzie na zwykłe konto). Wybór rachunku: **auto gdy 1 aktywne konto MD, dropdown gdy >1** (`resolveEscrowAccount`). Gdy 0 kont → wpłata odhaczona, deposit pominięty z ostrzeżeniem. `Contract` nie ma pola company — sprzedaż lokali to z natury MD.
+- **WYMAGA `prisma db push`** (tabela `ContractPayment` + kolumny `contractPaymentId`/`source` na `EscrowDeposit`).
+
+---
+
 ## 2026-06-03
 
 ### Finanse — statystyki + moduł Finansowanie inwestycji (kredyty/escrow/VAT)
