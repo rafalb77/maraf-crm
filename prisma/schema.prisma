@@ -290,6 +290,36 @@ model Contract {
   contractUnits   ContractUnit[]
   attachments     ContractAttachment[]
   history         ContractHistory[]
+  payments        ContractPayment[]
+}
+
+// Harmonogram wpłat nabywcy (etap 2 Finansowania). Umowa deweloperska ma raty
+// planowane (plannedDate/plannedAmount), które Marta odhacza jako opłacone
+// (status PLANOWANA → OPLACONA). Przy odhaczeniu raty z toEscrow=true tworzy się
+// automatycznie EscrowDeposit na rachunku powierniczym MD.
+// type: ZALICZKA | RATA | KONCOWA | REZERWACYJNA
+// status: PLANOWANA | OPLACONA
+model ContractPayment {
+  id            String    @id @default(cuid())
+  contractId    String
+  contract      Contract  @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  title         String?   // np. "I rata", "Transza po stanie surowym"
+  type          String    @default("RATA")
+  plannedDate   DateTime?
+  plannedAmount Float     @default(0)
+  status        String    @default("PLANOWANA")
+  paidDate      DateTime?
+  paidAmount    Float?
+  toEscrow      Boolean   @default(false) // czy wpłata trafia na rachunek powierniczy
+  note          String?
+  position      Int       @default(0)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  escrowDeposit EscrowDeposit? // back-relation (1:1, link tworzony przy odhaczeniu)
+
+  @@index([contractId])
+  @@index([status])
 }
 
 model ContractClient {
@@ -1104,9 +1134,14 @@ model EscrowDeposit {
   date           DateTime
   amount         Float
   buyerName      String?
-  contractNumber String?  // tekstowe w etapie 1; w etapie 2 link → Contract
+  contractNumber String?  // tekstowe w etapie 1; w etapie 2 wypełniane z Contract.number
   unitId         String?
   unit           Unit?    @relation(fields: [unitId], references: [id], onDelete: SetNull)
+  // Etap 2: twardy link do raty harmonogramu. onDelete Cascade → usunięcie raty
+  // (lub cofnięcie odhaczenia) kasuje powiązany deposit. source = z modułu Sprzedaż.
+  contractPaymentId String?          @unique
+  contractPayment   ContractPayment? @relation(fields: [contractPaymentId], references: [id], onDelete: Cascade)
+  source         String   @default("MANUAL") // MANUAL | SALES (auto z harmonogramu)
   note           String?
   createdAt      DateTime @default(now())
 

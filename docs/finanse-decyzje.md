@@ -349,15 +349,35 @@ vat-refunds/[id]/          PATCH DELETE
 
 Wszystkie z `getServerSession` + 401. GET/POST list-level filtrują przez `getActiveCompany()`.
 
-### ETAP 2 (niezrobione) — auto-EscrowDeposit z modułu Sprzedaż
+### ETAP 2 — auto-EscrowDeposit z modułu Sprzedaż ✅ (2026-06-05, commit po `334a0f6`)
 
-**Bloker:** moduł Sprzedaż (`Contract`) NIE MA modelu wpłat. Jest tylko `reservationFee` (jednorazowa opłata rezerwacyjna). Żeby auto-tworzyć EscrowDeposit przy wpłacie nabywcy, trzeba najpierw:
-1. Dodać model `ContractPayment` (harmonogram + faktyczne wpłaty: zaliczka/raty/ostateczna)
-2. UI w `/sales/[id]` — sekcja „Wpłaty" gdzie Marta dodaje przelew nabywcy
-3. Trigger: zapis `ContractPayment` na umowie MD → auto `EscrowDeposit` (link `contractPaymentId`), usunięcie → kasuje powiązany deposit
-4. Retroaktywne matchowanie istniejących ręcznych depositów po `contractNumber`
+**Wdrożone.** Harmonogram wpłat nabywcy w module Sprzedaż + automatyczne tworzenie EscrowDeposit przy odhaczeniu wpłaty.
 
-Patrz `docs/finanse-finansowanie-etap2-rozpoczecie.md`.
+**Schema:**
+```
+ContractPayment      — rata harmonogramu (Contract.payments)
+  title, type        — ZALICZKA | RATA | KONCOWA | REZERWACYJNA
+  plannedDate, plannedAmount
+  status             — PLANOWANA | OPLACONA
+  paidDate, paidAmount
+  toEscrow           — czy trafia na rachunek powierniczy (default true dla DEWELOPERSKA)
+  escrowDeposit      — back-relation 1:1
+EscrowDeposit (rozszerzony):
+  contractPaymentId  — @unique, onDelete Cascade
+  source             — MANUAL | SALES
+```
+
+**Decyzje (sesja 2026-06-05):**
+- **Harmonogram + odhaczanie** (nie tylko rejestr) — auto-deposit powstaje dopiero przy `status PLANOWANA→OPLACONA`
+- **Escrow tylko z umowy deweloperskiej** — `toEscrow` default `true` dla DEWELOPERSKA, `false` dla reszty (nadpisywalne checkboxem). W OMRP opłata rezerwacyjna idzie na zwykłe konto, nie powierniczy
+- **Wybór rachunku: auto gdy 1 aktywne konto MD, dropdown gdy >1** (`resolveEscrowAccount`). Gdy 0 kont → wpłata odhaczona, deposit pominięty z ostrzeżeniem
+- `Contract` nie ma pola `company` — sprzedaż lokali to z natury MD
+
+**Mechanika:** `PATCH action=pay` z `toEscrow` → `createDepositForPayment` (buyerName z głównego klienta, unitId gdy 1 lokal, contractNumber z umowy, source=SALES). `action=unpay` → kasuje deposit. DELETE raty → Cascade kasuje deposit.
+
+**Pliki:** `lib/contract-escrow.ts`, `app/api/contracts/[id]/payments/`, `app/api/contracts/payments/[id]/`, `components/sales/ContractPaymentsPanel.tsx`, panel w `app/(app)/sales/[id]/page.tsx`.
+
+Pełna historia: `docs/finanse-finansowanie-etap2-rozpoczecie.md`.
 
 ---
 
