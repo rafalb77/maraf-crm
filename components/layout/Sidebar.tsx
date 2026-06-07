@@ -162,7 +162,6 @@ const WORKSPACES: Workspace[] = [
       {
         items: [
           { href: '/finanse', label: 'Pulpit finansów', icon: ICONS.dashboard },
-          { href: '/finanse/statystyki', label: 'Statystyki', icon: ICONS.dashboard },
           { href: '/finanse/kolejka-platnosci', label: 'Kolejka płatności', icon: ICONS.sales },
           { href: '/finanse/faktury', label: 'Faktury kosztowe', icon: ICONS.offers },
           { href: '/finanse/przychody', label: 'Faktury przychodowe', icon: ICONS.offers },
@@ -172,6 +171,7 @@ const WORKSPACES: Workspace[] = [
           { href: '/finanse/kontrahenci', label: 'Kontrahenci', icon: ICONS.contractors },
           { href: '/finanse/ksef', label: 'Konfiguracja KSeF', icon: ICONS.settings },
           { href: '/finanse/import', label: 'Import xlsx', icon: ICONS.mailing },
+          { href: '/finanse/statystyki', label: 'Statystyki', icon: ICONS.stats },
         ],
       },
     ],
