@@ -79,6 +79,11 @@ const ICONS = {
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
     </svg>
   ),
+  diag: (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+    </svg>
+  ),
   logout: (
     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -189,6 +194,8 @@ const WORKSPACES: Workspace[] = [
 
 // Link Ustawienia (admin-only) — przypięty na dole, poza switcherem workspace'ów.
 const SETTINGS_ITEM: NavItem = { href: '/settings', label: 'Ustawienia', icon: ICONS.settings }
+// Diagnostyka wydajności — przypięta na dole, dostępna dla każdego zalogowanego.
+const DIAG_ITEM: NavItem = { href: '/diagnostyka', label: 'Diagnostyka', icon: ICONS.diag }
 
 const LS_KEY = 'sidebar.workspace'
 
@@ -332,8 +339,11 @@ export function Sidebar() {
         ))}
       </nav>
 
-      {/* Konfiguracja + Logout — przypięte na dole. Ustawienia tylko dla admina. */}
+      {/* Diagnostyka + Konfiguracja + Logout — przypięte na dole. Ustawienia tylko dla admina. */}
       <div className="px-3 py-4 border-t space-y-0.5" style={{ borderColor: 'var(--border)' }}>
+        <ul className="space-y-0.5">
+          <NavLink item={DIAG_ITEM} active={isActive(DIAG_ITEM.href)} itemBase={itemBase} />
+        </ul>
         {(userIsAdmin || sessionNotReady) && (
           <ul className="space-y-0.5">
             <NavLink item={SETTINGS_ITEM} active={isActive(SETTINGS_ITEM.href)} itemBase={itemBase} />

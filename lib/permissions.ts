@@ -81,6 +81,10 @@ export function getRequiredPermission(pathname: string): Permission | 'admin' | 
   if (pathname === '/profil' || pathname.startsWith('/profil/')) return null
   if (pathname === '/api/users/me' || pathname.startsWith('/api/users/me/')) return null
 
+  // Diagnostyka wydajności — dostępna dla każdego zalogowanego (brak danych wrażliwych).
+  if (pathname === '/diagnostyka' || pathname.startsWith('/diagnostyka/')) return null
+  if (pathname === '/api/diag' || pathname.startsWith('/api/diag/')) return null
+
   // Strony
   if (pathname.startsWith('/dashboard')) return 'dashboard'
   if (pathname.startsWith('/clients')) return 'clients'
