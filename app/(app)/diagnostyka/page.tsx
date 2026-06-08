@@ -2,12 +2,14 @@
 import { useState } from 'react'
 
 type Sample = { roundTripMs: number; serverMs: number }
+type Proc = { uptimeSec: number; rssMB: number; node: string }
 type Result = {
   ping: Sample[]
   db: Sample[]
   invoiceCount: number | null
   user: { email: string | null; admin: boolean } | null
   breakdown: { countMs: number; sampleInvoiceMs: number } | null
+  proc: Proc | null
   error: string | null
 }
 
@@ -22,6 +24,12 @@ function median(arr: number[]) {
   const s = [...arr].sort((a, b) => a - b)
   const m = Math.floor(s.length / 2)
   return s.length % 2 ? s[m] : Math.round((s[m - 1] + s[m]) / 2)
+}
+function fmtUptime(sec: number) {
+  if (sec < 90) return `${sec} s`
+  if (sec < 5400) return `${Math.round(sec / 60)} min`
+  if (sec < 172800) return `${Math.round(sec / 3600)} godz.`
+  return `${Math.round(sec / 86400)} dni`
 }
 
 export default function DiagnostykaPage() {
@@ -49,6 +57,7 @@ export default function DiagnostykaPage() {
     let invoiceCount: number | null = null
     let user: Result['user'] = null
     let breakdown: Result['breakdown'] = null
+    let proc: Proc | null = null
     let error: string | null = null
 
     try {
@@ -68,6 +77,7 @@ export default function DiagnostykaPage() {
           invoiceCount = d.extra.invoiceCount ?? invoiceCount
           user = d.extra.user ?? user
           breakdown = d.extra.breakdown ?? breakdown
+          proc = d.extra.proc ?? proc
         }
         done++; setProgress(Math.round((done / total) * 100))
       }
@@ -75,7 +85,7 @@ export default function DiagnostykaPage() {
       error = e?.message || 'Błąd testu'
     }
 
-    setResult({ ping, db, invoiceCount, user, breakdown, error })
+    setResult({ ping, db, invoiceCount, user, breakdown, proc, error })
     setRunning(false)
   }
 
@@ -93,6 +103,7 @@ export default function DiagnostykaPage() {
       `Diagnostyka CRM — ${new Date().toLocaleString('pl-PL')}`,
       `Konto: ${result.user?.email ?? '?'}${result.user?.admin ? ' (admin)' : ''}`,
       `Liczba faktur w bazie: ${result.invoiceCount ?? '?'}`,
+      result.proc ? `Serwer działa od: ${fmtUptime(result.proc.uptimeSec)} · pamięć: ${result.proc.rssMB} MB · Node ${result.proc.node}` : '',
       ``,
       `Łącze (ping, mediana): ${networkMs} ms — ${networkVerdict.label}`,
       `Serwer/baza (mediana): ${serverDbMs} ms — ${serverVerdict.label}`,
@@ -170,12 +181,26 @@ export default function DiagnostykaPage() {
             />
           </div>
 
+          {result.proc && result.proc.uptimeSec < 180 && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mt-4 text-sm text-amber-800">
+              ⚠️ Serwer uruchomił się <strong>{fmtUptime(result.proc.uptimeSec)} temu</strong>. Pierwsze wejścia tuż po
+              restarcie/aktualizacji systemu są wolniejsze (kilka–kilkanaście sekund) — to normalne i mija po chwili.
+              Jeśli wolne wejścia powtarzają się <em>mimo długiego czasu pracy serwera</em>, to znak realnego problemu (zasoby/baza).
+            </div>
+          )}
+
           <div className="bg-white rounded-xl border border-gray-200 p-5 mt-4">
             <h2 className="font-semibold text-gray-900 mb-2">Wniosek</h2>
             <p className="text-sm text-gray-700 leading-relaxed">{conclusion(networkMs, serverDbMs, fullInvoiceMs)}</p>
             <div className="mt-3 text-xs text-gray-500 space-y-0.5">
               <p>Konto: <strong>{result.user?.email}</strong>{result.user?.admin ? ' (administrator)' : ''}</p>
               <p>Faktur w bazie: <strong>{result.invoiceCount}</strong></p>
+              {result.proc && (
+                <p>
+                  Serwer działa od: <strong>{fmtUptime(result.proc.uptimeSec)}</strong> · pamięć procesu:{' '}
+                  <strong>{result.proc.rssMB} MB</strong> · Node {result.proc.node}
+                </p>
+              )}
               {result.breakdown && (
                 <p>Rozkład serwera: liczenie faktur {result.breakdown.countMs} ms · pobranie 1 faktury {result.breakdown.sampleInvoiceMs} ms</p>
               )}

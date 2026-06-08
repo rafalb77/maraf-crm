@@ -28,10 +28,20 @@ export async function GET(req: NextRequest) {
   const mode = req.nextUrl.searchParams.get('mode') || 'db'
   const t0 = Date.now()
 
+  // Stan procesu — kluczowe do odróżnienia "zimnego startu" od realnego problemu.
+  // uptime niski (sekundy/minuty) → kontener świeżo wstał (deploy/restart/OOM),
+  // pierwsze wejścia są wtedy wolne i to mija. rss wysoki → presja pamięci na VPS.
+  const proc = {
+    uptimeSec: Math.round(process.uptime()),
+    rssMB: Math.round(process.memoryUsage().rss / 1024 / 1024),
+    node: process.version,
+  }
+
   if (mode === 'ping') {
     return NextResponse.json({
       mode: 'ping',
       serverMs: Date.now() - t0,
+      proc,
       serverTime: new Date().toISOString(),
     })
   }
@@ -71,6 +81,7 @@ export async function GET(req: NextRequest) {
     breakdown: { countMs, sampleInvoiceMs: sampleMs },
     invoiceCount,
     hasSample,
+    proc,
     user: { email: session.user.email, admin: isAdmin(session.user.email) },
     serverTime: new Date().toISOString(),
   })
