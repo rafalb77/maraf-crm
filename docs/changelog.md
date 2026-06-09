@@ -4,6 +4,27 @@ Krótkie wpisy „co i **dlaczego**". Bez listy wszystkich commitów — od tego
 
 ---
 
+## 2026-05-21
+
+### Moduł Rezerwacje (`/rezerwacje`) — 3 sekcje + email-alerty cron
+**Powód**: brak skonsolidowanego widoku stanu rezerwacyjnego — handlowiec musiał ręcznie chodzić po lokalach żeby zobaczyć co kończy się i kiedy. Plus realne ryzyko, że rezerwacja miękka (auto-expire 7 dni) cicho wygasa, bo nikt nie zauważył.
+**Implementacja**: nowa strona `/rezerwacje` (server component) z 3 sekcjami:
+- **Miękkie (MIEKKA)** — tabela z kolorystyką kończącego się czasu (czerwone <24h, żółte <72h, niebieskie >72h). Banner u góry gdy `criticalCount > 0`. Akcje per wiersz: **Przedłuż** (dialog z polem „liczba dni" 1-90, default 7; nowa data liczona od TERAZ) + **Zwolnij** (z potwierdzeniem; → WOLNY + usuwa ClientUnit).
+- **Twarde (REZERWACJA)** — lokale podpięte do umów ze statusem PODPISANA. Link do umowy. Zwalnianie tylko przez zmianę statusu umowy.
+- **Wyłączone ze sprzedaży (NIEDOSTEPNY)** — akcja „Przywróć do sprzedaży" (PUT /api/units/[id] z status=WOLNY).
+
+`lib/reservations.ts` rozbudowany: `extendSoftReservation`, `releaseSoftReservation`, `getExpiringSoftReservations`, helper `attachReservedByClient` (Unit nie ma Prisma-relacji na `reservedById` — osobne query zamiast modyfikacji schema). Auto-expire wywołany przy każdym wejściu na stronę.
+
+**Endpointy**: `POST /api/reservations/[unitId]/extend` (body `{days}`), `DELETE /api/reservations/[unitId]/release`. Permission `sales` (rezerwacje to workflow sprzedażowy — handlowcy mają sales, podwykonawcy nie).
+
+**Email-cron**: `POST /api/public/reservations/expiring-email` chroniony `RESERVATIONS_CRON_SECRET` (analogicznie do dane-gov snapshot). Pobiera rezerwacje wygasające w 48h, wysyła HTML mail z tabelą. Odbiorca: `Settings.reservationsAlertEmail` (nowe pole w `/settings` przy stopce mailowej), fallback `NEXT_PUBLIC_ADMIN_EMAIL`. Subject: `[CRM] N rezerwacji wygasa w ciągu 48h (M krytycznych)`. Idempotentny.
+
+**Sidebar**: link „Rezerwacje" między Lokale i Oferty, ikona zegara.
+
+**Co po deployu**: (1) `RESERVATIONS_CRON_SECRET` w Coolify env. (2) Admin wpisuje adres odbiorcy w `/settings`. (3) Coolify scheduled task: codzienne `curl -X POST "https://crm.maraf.pl/api/public/reservations/expiring-email?secret=$RESERVATIONS_CRON_SECRET"` (np. `0 8 * * *`).
+
+---
+
 ## 2026-06-05
 
 ### Finansowanie etap 2 — harmonogram wpłat nabywcy + auto-EscrowDeposit

@@ -91,6 +91,7 @@ export function getRequiredPermission(pathname: string): Permission | 'admin' | 
   if (pathname.startsWith('/units')) return 'units'
   if (pathname.startsWith('/oferty')) return 'oferty'
   if (pathname.startsWith('/sales')) return 'sales'
+  if (pathname.startsWith('/rezerwacje')) return 'sales' // moduł rezerwacji — workflow sprzedażowy
   if (pathname.startsWith('/service')) return 'service'
   if (pathname.startsWith('/mailing')) return 'mailing'
   if (pathname.startsWith('/calendar')) return 'calendar'
@@ -107,6 +108,7 @@ export function getRequiredPermission(pathname: string): Permission | 'admin' | 
   if (pathname.startsWith('/api/oferty')) return 'oferty'
   if (pathname.startsWith('/api/sales')) return 'sales'
   if (pathname.startsWith('/api/contracts')) return 'sales' // umowy (zawierają dane klienta) — endpoint to /api/contracts, NIE /api/sales
+  if (pathname.startsWith('/api/reservations')) return 'sales' // przedłużenie/zwolnienie rezerwacji miękkich
   if (pathname.startsWith('/api/service')) return 'service'
   if (pathname.startsWith('/api/mailing')) return 'mailing'
   if (pathname.startsWith('/api/calendar')) return 'calendar'

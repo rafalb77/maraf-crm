@@ -9,6 +9,7 @@ export function SettingsForm() {
     investmentName: '',
     emailSignature: '',
     bankAccount: '',
+    reservationsAlertEmail: '',
     smtpHost: '',
     smtpPort: '587',
     smtpSecure: 'false',
@@ -39,6 +40,7 @@ export function SettingsForm() {
           investmentName: s.investmentName || '',
           emailSignature: s.emailSignature || '',
           bankAccount: s.bankAccount || '',
+          reservationsAlertEmail: s.reservationsAlertEmail || '',
           smtpHost: s.smtpHost || '',
           smtpPort: s.smtpPort || '587',
           smtpSecure: s.smtpSecure || 'false',
@@ -136,6 +138,19 @@ export function SettingsForm() {
               rows={4}
               className={inputCls + ' resize-none'}
               placeholder="Pozdrawiam,&#10;Jan Kowalski&#10;Dział sprzedaży" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Adres do alertów o rezerwacjach
+              <span className="font-normal text-xs text-gray-500 ml-1">(codzienny mail z listą rezerwacji wygasających &lt;48h)</span>
+            </label>
+            <input
+              type="email"
+              value={settings.reservationsAlertEmail}
+              onChange={(e) => setSettings({ ...settings, reservationsAlertEmail: e.target.value })}
+              className={inputCls}
+              placeholder="handlowiec@maraf.pl (puste = NEXT_PUBLIC_ADMIN_EMAIL)"
+            />
           </div>
         </div>
       </div>
