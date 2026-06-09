@@ -113,7 +113,46 @@ model Unit {
   offerItems       OfferItem[]
   images           UnitImage[]
   creativeSettings UnitCreativeSettings?
+<<<<<<< Updated upstream
   escrowDeposits   EscrowDeposit[]
+=======
+  priceHistory     PriceHistory[]
+}
+
+// Historia zmian ceny/statusu lokalu. Źródło „Daty od której obowiązuje oferta"
+// w raporcie dane.gov.pl. Wspólny model z integracją 3D Estate (patrz
+// docs/raportowanie-dane-gov-decyzje.md + docs/integracja-3destate-decyzje.md).
+// Wpis powstaje przy tworzeniu lokalu i przy edycji jeśli cena/status się zmieniły
+// (`lib/price-history.ts`).
+model PriceHistory {
+  id               String   @id @default(cuid())
+  unitId           String
+  pricePerSqmNet   Float
+  pricePerSqmGross Float
+  priceNet         Float
+  priceGross       Float
+  status           String
+  changedAt        DateTime @default(now())
+
+  unit Unit @relation(fields: [unitId], references: [id], onDelete: Cascade)
+
+  @@index([unitId, changedAt])
+}
+
+// Dzienny snapshot CSV raportu cen dla dane.gov.pl. Harvester ministerstwa
+// pobiera też zasoby historyczne — dlatego treść CSV musi być NIEZMIENNA per dzień,
+// dlatego trzymamy ją w bazie (CSV+MD5) zamiast generować w locie. Endpoint
+// `/api/public/dane-gov/file/[date].csv` serwuje zamrożoną treść. Cron upsertuje
+// idempotentnie po `date`. Patrz docs/raportowanie-dane-gov-decyzje.md.
+model DaneGovSnapshot {
+  id        String   @id @default(cuid())
+  date      String   @unique // YYYY-MM-DD wg Europe/Warsaw
+  csv       String // pełna treść CSV (UTF-8 z BOM, CRLF, ~55 kolumn)
+  md5       String // MD5 hash CSV — eksponowany jako .csv.md5 dla weryfikacji integralności
+  rowCount  Int // liczba lokali w raporcie (do podglądu w panelu admina)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+>>>>>>> Stashed changes
 }
 
 // Zapamietane ustawienia generatora kreacji Meta Ads per lokal — zeby user

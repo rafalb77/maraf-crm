@@ -37,12 +37,20 @@ export default async function SettingsPage({
           <h1 className="text-2xl font-bold text-gray-900">Ustawienia</h1>
           <p className="text-gray-500 text-sm mt-1">Konfiguracja integracji i parametrów systemu</p>
         </div>
-        <a
-          href="/settings/audit-log"
-          className="text-sm text-blue-600 hover:text-blue-700 underline whitespace-nowrap"
-        >
-          📋 Rejestr działań →
-        </a>
+        <div className="flex items-center gap-4 flex-shrink-0">
+          <a
+            href="/settings/dane-gov"
+            className="text-sm text-blue-600 hover:text-blue-700 underline whitespace-nowrap"
+          >
+            📊 Raportowanie cen (dane.gov.pl) →
+          </a>
+          <a
+            href="/settings/audit-log"
+            className="text-sm text-blue-600 hover:text-blue-700 underline whitespace-nowrap"
+          >
+            📋 Rejestr działań →
+          </a>
+        </div>
       </div>
 
       {searchParams.success === 'calendar_connected' && (

@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { expireSoftReservations } from '@/lib/reservations'
+import { recordPriceHistory } from '@/lib/price-history'
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions)
@@ -82,6 +83,15 @@ export async function POST(req: NextRequest) {
       promoPriceNet,
       promoPriceGross,
     },
+  })
+
+  // Log początkowy do PriceHistory — źródło „Daty od której obowiązuje oferta" w raporcie dane.gov.pl.
+  await recordPriceHistory(unit.id, {
+    pricePerSqmNet: unit.pricePerSqmNet,
+    pricePerSqmGross: unit.pricePerSqmGross,
+    priceNet: unit.priceNet,
+    priceGross: unit.priceGross,
+    status: unit.status,
   })
 
   return NextResponse.json(unit, { status: 201 })

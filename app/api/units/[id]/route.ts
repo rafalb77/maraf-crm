@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { recordPriceHistoryIfChanged } from '@/lib/price-history'
 
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions)
@@ -47,6 +48,14 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
   const promoPriceGross = usePerSqm
     ? (isNaN(promoPpmGross) ? null : Math.round(area * promoPpmGross * 100) / 100)
     : (isNaN(promoPriceGrossRaw) ? null : Math.round(promoPriceGrossRaw * 100) / 100)
+
+  // Stan PRZED update — do porównania w recordPriceHistoryIfChanged (źródło
+  // „Daty od której obowiązuje oferta" w raporcie dane.gov.pl).
+  const before = await prisma.unit.findUnique({
+    where: { id: params.id },
+    select: { pricePerSqmNet: true, pricePerSqmGross: true, priceNet: true, priceGross: true, status: true },
+  })
+
   const unit = await prisma.unit.update({
     where: { id: params.id },
     data: {
@@ -73,6 +82,16 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
       promoPriceGross,
     },
   })
+
+  if (before) {
+    await recordPriceHistoryIfChanged(unit.id, before, {
+      pricePerSqmNet: unit.pricePerSqmNet,
+      pricePerSqmGross: unit.pricePerSqmGross,
+      priceNet: unit.priceNet,
+      priceGross: unit.priceGross,
+      status: unit.status,
+    })
+  }
 
   return NextResponse.json(unit)
 }
