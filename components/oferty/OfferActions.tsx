@@ -39,6 +39,23 @@ export function OfferActions({ id, number, status, clientEmail, hasClient, hasUn
     setBusy(false)
   }
 
+  async function doReserve() {
+    setBusy(true)
+    setError(null)
+    try {
+      const res = await fetch(`/api/oferty/${id}/reserve`, { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Błąd rezerwacji')
+      const parts = [`Zarezerwowano: ${data.reservedCount}`]
+      if (data.skipped?.length) parts.push(`pominięto: ${data.skipped.map((s: any) => `${s.number} (${s.reason})`).join(', ')}`)
+      alert(parts.join('. ') + '. Rezerwacja miękka wygasa za 7 dni.')
+      router.refresh()
+    } catch (e: any) {
+      setError(e.message)
+    }
+    setBusy(false)
+  }
+
   async function doDelete() {
     setBusy(true)
     setError(null)
@@ -80,6 +97,14 @@ export function OfferActions({ id, number, status, clientEmail, hasClient, hasUn
           <button onClick={() => setStatus('SZKIC')} disabled={busy}
             className="px-3 py-1.5 border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-lg text-sm">
             Cofnij do szkicu
+          </button>
+        )}
+
+        {/* Miękka rezerwacja lokali z oferty (7 dni) — wcześniejszy etap niż umowa */}
+        {hasClient && hasUnitsForReservation && status !== 'ANULOWANA' && (
+          <button onClick={doReserve} disabled={busy}
+            className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-sm font-medium">
+            ⏱ Zarezerwuj lokale (7 dni)
           </button>
         )}
 

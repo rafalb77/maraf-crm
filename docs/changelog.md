@@ -6,6 +6,7 @@ Krótkie wpisy „co i **dlaczego**". Bez listy wszystkich commitów — od tego
 
 ## 2026-06-09
 
+<<<<<<< Updated upstream
 ### Moduł Sprawy — repozytorium spraw + korespondencja (reklamacje, sprawy urzędowe)
 **Powód**: Rafał chciał repozytorium do prowadzenia historii spraw (reklamacje z tytułu rękojmi, sprawy urzędowe) z widoczną osią korespondencji (pisma wysłane/odebrane jako skany), pilnowaniem terminów ustawowych i **przeszukiwalnym** archiwum skanów. Pełny kontekst: `docs/sprawy-decyzje.md`.
 **Implementacja** (3 fazy, jeden zrzut):
@@ -18,6 +19,37 @@ Krótkie wpisy „co i **dlaczego**". Bez listy wszystkich commitów — od tego
 - **Wyszukiwanie** — `/api/cases?q=` ILIKE po sygnaturze/tytule/opisie/stronie + treści wpisów + `ocrText` skanów (Postgres `contains` insensitive). Upgrade do `tsvector` PL — poza MVP.
 - **Poza MVP**: generowanie pism z szablonów, eksport „teczki" PDF, AI-streszczenia, inbox z maila, e-Doręczenia, dashboard SLA, usterka→podwykonawca→kaucja.
 - **WYMAGA na produkcji**: `prisma db push` (3 tabele Case/CaseEntry/CaseDocument), **rebuild** obrazu (Dockerfile — tesseract), env `CASES_CRON_SECRET` (+ opcjonalnie `CASES_REMINDER_TO`), Coolify scheduled tasks na reminders i ocr-sweep, nadanie permission `cases` userom.
+=======
+### Tworzenie rezerwacji miękkiej z 3 miejsc (lokal, oferta, klient)
+**Powód**: rezerwację miękką można było utworzyć tylko z karty klienta (`AssignUnitModal` → `POST /api/clients/[id]/units`). User chciał też z poziomu lokalu i oferty (różne punkty wejścia w workflow sprzedażowym).
+**Implementacja**:
+- **Z lokalu** (`/units/[id]`): przycisk „Zarezerwuj dla klienta" gdy lokal WOLNY → modal `ReserveForClientModal` z wyszukiwarką klientów (po nazwisku/telefonie) → reuse `POST /api/clients/[clientId]/units {unitId}` (istniejący endpoint, MIEKKA +7 dni). Strona dociąga listę klientów tylko gdy status WOLNY.
+- **Z oferty** (`/oferty/[id]`): przycisk „⏱ Zarezerwuj lokale (7 dni)" w `OfferActions` gdy oferta ma klienta + lokale i nie jest ANULOWANA. Nowy endpoint `POST /api/oferty/[id]/reserve` — rezerwuje WSZYSTKIE lokale oferty dla jej klienta w transakcji (MIEKKA +7), pomija sprzedane/twardo-zarezerwowane, ustawia klienta na status REZERWACJA, loguje aktywność. Zwraca `reservedCount` + `skipped[]`. To **wcześniejszy etap** niż „→ Umowa rezerwacyjna" (konwersja na twardą rezerwację) — oba przyciski współistnieją.
+- **Z klienta**: bez zmian — już działało.
+Wszystkie 3 ścieżki tworzą ten sam typ rekordu (MIEKKA, `ClientUnit` + flagi `Unit`), więc lokal od razu pojawia się w module `/rezerwacje` i podlega auto-expire / przedłużaniu / zamianie.
+
+### Zamiana składnika rezerwacji miękkiej (parking↔garaż itd.)
+**Powód**: klient zarezerwował mieszkanie + parking, ale chce zamienić parking na inny lub na garaż — przed podpisaniem umowy. Wcześniej trzeba było ręcznie odpiąć stary lokal i przypiąć nowy (2 kroki, ryzyko utraty daty wygaśnięcia/klienta).
+**Model**: rezerwacja nie jest osobną encją — to zbiór lokali z tym samym `reservedById` (miękka, przez `ClientUnit`) lub w `ContractUnit` (twarda). Zamiana miękkiej = atomowa transakcja: stary lokal → WOLNY (+ usuń ClientUnit), nowy → ZAREZERWOWANY/MIEKKA z **zachowaniem klienta i daty wygaśnięcia**. Cross-type dozwolony (parking→garaż).
+**Implementacja**: `lib/reservations.ts → swapSoftReservation(oldUnitId, newUnitId)` (walidacje: stary MIEKKA, nowy WOLNY, różne). Endpoint `POST /api/reservations/[unitId]/swap` body `{newUnitId}` (gate 'sales'). Komponent `SwapButton` (w `ReservationActions.tsx`) — dialog z listą wolnych lokali, domyślnie filtrowaną do tego samego typu + checkbox „pokaż inne typy" (dla parking→garaż), radio-wybór, potwierdzenie. Przycisk w **2 miejscach**: sekcja „Miękkie" na `/rezerwacje` (obok Przedłuż/Zwolnij) oraz na karcie klienta `/clients/[id]` przy lokalach z rezerwacją MIEKKA. **Zakres MVP: tylko miękkie** — twarde (w umowie) wymagałyby aneksu (walidacja limitów + przeliczenie wartości + regeneracja DOCX) → osobny temat.
+
+### Moduł Rezerwacje (`/rezerwacje`) — 3 sekcje + email-alerty cron
+**Powód**: brak skonsolidowanego widoku stanu rezerwacyjnego — handlowiec musiał ręcznie chodzić po lokalach żeby zobaczyć co kończy się i kiedy. Plus realne ryzyko, że rezerwacja miękka (auto-expire 7 dni) cicho wygasa, bo nikt nie zauważył.
+**Implementacja**: nowa strona `/rezerwacje` (server component) z 3 sekcjami:
+- **Miękkie (MIEKKA)** — tabela z kolorystyką kończącego się czasu (czerwone <24h, żółte <72h, niebieskie >72h). Banner u góry gdy `criticalCount > 0`. Akcje per wiersz: **Przedłuż** (dialog z polem „liczba dni" 1-90, default 7; nowa data liczona od TERAZ) + **Zwolnij** (z potwierdzeniem; → WOLNY + usuwa ClientUnit).
+- **Twarde (REZERWACJA)** — lokale podpięte do umów ze statusem PODPISANA. Link do umowy. Zwalnianie tylko przez zmianę statusu umowy.
+- **Wyłączone ze sprzedaży (NIEDOSTEPNY)** — akcja „Przywróć do sprzedaży" (PUT /api/units/[id] z status=WOLNY).
+
+`lib/reservations.ts` rozbudowany: `extendSoftReservation`, `releaseSoftReservation`, `getExpiringSoftReservations`, helper `attachReservedByClient` (Unit nie ma Prisma-relacji na `reservedById` — osobne query zamiast modyfikacji schema). Auto-expire wywołany przy każdym wejściu na stronę.
+
+**Endpointy**: `POST /api/reservations/[unitId]/extend` (body `{days}`), `DELETE /api/reservations/[unitId]/release`. Permission `sales` (rezerwacje to workflow sprzedażowy — handlowcy mają sales, podwykonawcy nie).
+
+**Email-cron**: `POST /api/public/reservations/expiring-email` chroniony `RESERVATIONS_CRON_SECRET` (analogicznie do dane-gov snapshot). Pobiera rezerwacje wygasające w 48h, wysyła HTML mail z tabelą. Odbiorca: `Settings.reservationsAlertEmail` (nowe pole w `/settings` przy stopce mailowej), fallback `NEXT_PUBLIC_ADMIN_EMAIL`. Subject: `[CRM] N rezerwacji wygasa w ciągu 48h (M krytycznych)`. Idempotentny.
+
+**Sidebar**: link „Rezerwacje" między Lokale i Oferty, ikona zegara.
+
+**Co po deployu**: (1) `RESERVATIONS_CRON_SECRET` w Coolify env. (2) Admin wpisuje adres odbiorcy w `/settings`. (3) Coolify scheduled task: codzienne `curl -X POST "https://crm.maraf.pl/api/public/reservations/expiring-email?secret=$RESERVATIONS_CRON_SECRET"` (np. `0 8 * * *`).
+>>>>>>> Stashed changes
 
 ---
 

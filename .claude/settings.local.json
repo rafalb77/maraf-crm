@@ -103,7 +103,13 @@
       "Bash(prisma\" && grep -nE \"encrypt)",
       "Bash(client\" \"C:\\\\AplikacjeAI\\\\CodeCRM\\\\.claude\\\\worktrees\\\\crazy-kalam-a9de75\\\\lib\\\\prisma.ts\" 2>&1 | head -20)",
       "Bash(rm -f \"components/finanse/VendorDefaultsCell.tsx\")",
-      "Bash(rm -rf \"app/api/finanse/vendors/[id]\")"
+      "Bash(rm -rf \"app/api/finanse/vendors/[id]\")",
+      "Bash(NODE_OPTIONS=--max-old-space-size=4096 npm run build)",
+      "Bash(echo \"exit: $?\")",
+      "Read(//tmp/**)",
+      "Bash(grep -nE \"href=.\\\\/sales|href=.\\\\/units|href=.\\\\/clients\" components/layout/Sidebar.tsx)",
+      "Bash(git rev-list *)",
+      "Bash(git ls-remote *)"
     ]
   }
 }

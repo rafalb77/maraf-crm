@@ -12,6 +12,7 @@ import {
 import { FloorPlanUpload } from '@/components/units/FloorPlanUpload'
 import { UnitImageGallery } from '@/components/units/UnitImageGallery'
 import { DeleteUnitButton } from '@/components/units/DeleteUnitButton'
+import { ReserveForClientModal } from '@/components/units/ReserveForClientModal'
 
 export default async function UnitDetailPage({ params }: { params: { id: string } }) {
   const unit = await prisma.unit.findUnique({
@@ -24,6 +25,14 @@ export default async function UnitDetailPage({ params }: { params: { id: string 
   })
 
   if (!unit) notFound()
+
+  // Lista klientów do szybkiej rezerwacji z poziomu lokalu (gdy WOLNY).
+  const clientsForReserve = unit.status === 'WOLNY'
+    ? await prisma.client.findMany({
+        select: { id: true, firstName: true, lastName: true, phone: true },
+        orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
+      })
+    : []
 
   return (
     <div className="p-8 max-w-5xl">
@@ -43,6 +52,9 @@ export default async function UnitDetailPage({ params }: { params: { id: string 
           <p className="text-gray-500 text-sm mt-1">{UNIT_TYPE_LABELS[unit.type as UnitType]}</p>
         </div>
         <div className="flex gap-2">
+          {unit.status === 'WOLNY' && (
+            <ReserveForClientModal unitId={unit.id} unitNumber={unit.number} clients={clientsForReserve} />
+          )}
           {canGenerateCreative(unit) && (
             <Link
               href={`/units/${unit.id}/creative`}
