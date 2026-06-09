@@ -121,6 +121,66 @@ export async function releaseSoftReservation(unitId: string): Promise<void> {
 }
 
 /**
+ * Zamienia jeden zarezerwowany (miękko) lokal na inny WOLNY — atomowo, zachowując
+ * klienta i datę wygaśnięcia. Cross-type dozwolony (np. parking → garaż).
+ * Stary lokal → WOLNY (powiązanie ClientUnit usunięte), nowy → ZAREZERWOWANY/MIEKKA.
+ *
+ * Walidacje: stary musi być MIEKKA, nowy musi być WOLNY i różny od starego.
+ */
+export async function swapSoftReservation(oldUnitId: string, newUnitId: string): Promise<{
+  newReservationExpiresAt: Date | null
+}> {
+  if (oldUnitId === newUnitId) throw new Error('Nowy lokal musi być inny niż obecny')
+
+  const [oldUnit, newUnit] = await Promise.all([
+    prisma.unit.findUnique({
+      where: { id: oldUnitId },
+      select: { reservationType: true, reservationExpiresAt: true, reservedById: true },
+    }),
+    prisma.unit.findUnique({
+      where: { id: newUnitId },
+      select: { status: true, number: true },
+    }),
+  ])
+
+  if (!oldUnit) throw new Error('Obecny lokal nie istnieje')
+  if (oldUnit.reservationType !== 'MIEKKA') {
+    throw new Error('Zamiana dostępna tylko dla rezerwacji miękkich')
+  }
+  if (!newUnit) throw new Error('Nowy lokal nie istnieje')
+  if (newUnit.status !== 'WOLNY') {
+    throw new Error(`Lokal ${newUnit.number} nie jest wolny (status: ${newUnit.status})`)
+  }
+
+  const clientId = oldUnit.reservedById
+  const expiresAt = oldUnit.reservationExpiresAt
+
+  await prisma.$transaction(async (tx) => {
+    // Zwolnij stary
+    await tx.unit.update({
+      where: { id: oldUnitId },
+      data: { status: 'WOLNY', reservationType: null, reservationExpiresAt: null, reservedById: null },
+    })
+    await tx.clientUnit.deleteMany({ where: { unitId: oldUnitId } })
+
+    // Zarezerwuj nowy (ten sam klient + data wygaśnięcia)
+    await tx.unit.update({
+      where: { id: newUnitId },
+      data: { status: 'ZAREZERWOWANY', reservationType: 'MIEKKA', reservationExpiresAt: expiresAt, reservedById: clientId },
+    })
+    if (clientId) {
+      await tx.clientUnit.upsert({
+        where: { clientId_unitId: { clientId, unitId: newUnitId } },
+        create: { clientId, unitId: newUnitId },
+        update: {},
+      })
+    }
+  })
+
+  return { newReservationExpiresAt: expiresAt }
+}
+
+/**
  * Lista rezerwacji miękkich kończących się w ciągu `hoursAhead` godzin
  * (domyślnie 48h). Używana w cron-mailerze (codzienny digest dla handlowca)
  * i banner-alertach w UI modułu Rezerwacje.

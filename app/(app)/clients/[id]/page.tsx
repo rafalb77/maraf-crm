@@ -18,6 +18,7 @@ import { AssignUnitModal } from '@/components/clients/AssignUnitModal'
 import { DeleteClientButton } from '@/components/clients/DeleteClientButton'
 import { ClientStatusChanger } from '@/components/clients/ClientStatusChanger'
 import { UnassignUnitButton } from '@/components/clients/UnassignUnitButton'
+import { SwapButton } from '@/components/reservations/ReservationActions'
 
 export default async function ClientDetailPage({ params }: { params: { id: string } }) {
   await expireSoftReservations()
@@ -127,6 +128,9 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
                     <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${UNIT_STATUS_COLORS[cu.unit.status as UnitStatus]}`}>
                       {UNIT_STATUS_LABELS[cu.unit.status as UnitStatus]}
                     </span>
+                    {cu.unit.reservationType === 'MIEKKA' && (
+                      <SwapButton unitId={cu.unitId} unitNumber={cu.unit.number} unitType={cu.unit.type} />
+                    )}
                     {cu.unit.reservationType !== 'REZERWACJA' && (
                       <UnassignUnitButton clientId={client.id} unitId={cu.unitId} />
                     )}

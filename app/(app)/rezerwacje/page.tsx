@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { Clock, Lock, Ban, AlertTriangle } from 'lucide-react'
 import { expireSoftReservations, attachReservedByClient } from '@/lib/reservations'
 import { formatDate } from '@/lib/utils'
-import { ExtendButton, ReleaseButton, RestoreFromUnavailableButton } from '@/components/reservations/ReservationActions'
+import { ExtendButton, ReleaseButton, SwapButton, RestoreFromUnavailableButton } from '@/components/reservations/ReservationActions'
 
 function fmtDateTime(d: Date | null | undefined): string {
   if (!d) return '—'
@@ -144,6 +144,7 @@ export default async function ReservationsPage() {
                       <td className="px-2 py-2 text-right whitespace-nowrap">
                         <div className="inline-flex gap-1.5">
                           <ExtendButton unitId={u.id} defaultDays={7} />
+                          <SwapButton unitId={u.id} unitNumber={u.number} unitType={u.type} />
                           <ReleaseButton unitId={u.id} unitNumber={u.number} />
                         </div>
                       </td>

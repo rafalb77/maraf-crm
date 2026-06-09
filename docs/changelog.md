@@ -6,6 +6,11 @@ Krótkie wpisy „co i **dlaczego**". Bez listy wszystkich commitów — od tego
 
 ## 2026-05-21
 
+### Zamiana składnika rezerwacji miękkiej (parking↔garaż itd.)
+**Powód**: klient zarezerwował mieszkanie + parking, ale chce zamienić parking na inny lub na garaż — przed podpisaniem umowy. Wcześniej trzeba było ręcznie odpiąć stary lokal i przypiąć nowy (2 kroki, ryzyko utraty daty wygaśnięcia/klienta).
+**Model**: rezerwacja nie jest osobną encją — to zbiór lokali z tym samym `reservedById` (miękka, przez `ClientUnit`) lub w `ContractUnit` (twarda). Zamiana miękkiej = atomowa transakcja: stary lokal → WOLNY (+ usuń ClientUnit), nowy → ZAREZERWOWANY/MIEKKA z **zachowaniem klienta i daty wygaśnięcia**. Cross-type dozwolony (parking→garaż).
+**Implementacja**: `lib/reservations.ts → swapSoftReservation(oldUnitId, newUnitId)` (walidacje: stary MIEKKA, nowy WOLNY, różne). Endpoint `POST /api/reservations/[unitId]/swap` body `{newUnitId}` (gate 'sales'). Komponent `SwapButton` (w `ReservationActions.tsx`) — dialog z listą wolnych lokali, domyślnie filtrowaną do tego samego typu + checkbox „pokaż inne typy" (dla parking→garaż), radio-wybór, potwierdzenie. Przycisk w **2 miejscach**: sekcja „Miękkie" na `/rezerwacje` (obok Przedłuż/Zwolnij) oraz na karcie klienta `/clients/[id]` przy lokalach z rezerwacją MIEKKA. **Zakres MVP: tylko miękkie** — twarde (w umowie) wymagałyby aneksu (walidacja limitów + przeliczenie wartości + regeneracja DOCX) → osobny temat.
+
 ### Moduł Rezerwacje (`/rezerwacje`) — 3 sekcje + email-alerty cron
 **Powód**: brak skonsolidowanego widoku stanu rezerwacyjnego — handlowiec musiał ręcznie chodzić po lokalach żeby zobaczyć co kończy się i kiedy. Plus realne ryzyko, że rezerwacja miękka (auto-expire 7 dni) cicho wygasa, bo nikt nie zauważył.
 **Implementacja**: nowa strona `/rezerwacje` (server component) z 3 sekcjami:

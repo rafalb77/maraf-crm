@@ -1,7 +1,8 @@
 'use client'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Clock, X, Undo2, Loader2 } from 'lucide-react'
+import { Clock, X, Undo2, Loader2, ArrowLeftRight } from 'lucide-react'
+import { UNIT_TYPE_LABELS, type UnitType } from '@/lib/types'
 
 export function ExtendButton({ unitId, defaultDays = 7 }: { unitId: string; defaultDays?: number }) {
   const router = useRouter()
@@ -53,6 +54,104 @@ export function ExtendButton({ unitId, defaultDays = 7 }: { unitId: string; defa
               <button onClick={submit} disabled={busy} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white rounded-lg text-sm font-medium inline-flex items-center gap-2">
                 {busy && <Loader2 className="w-4 h-4 animate-spin" />}
                 {busy ? 'Zapisuję...' : `Przedłuż o ${days} dni`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  )
+}
+
+type FreeUnit = { id: string; number: string; type: string; area: number; priceGross: number }
+
+export function SwapButton({ unitId, unitNumber, unitType }: { unitId: string; unitNumber: string; unitType: string }) {
+  const router = useRouter()
+  const [open, setOpen] = useState(false)
+  const [units, setUnits] = useState<FreeUnit[]>([])
+  const [loading, setLoading] = useState(false)
+  const [sameTypeOnly, setSameTypeOnly] = useState(true)
+  const [selected, setSelected] = useState<string>('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function openDialog() {
+    setOpen(true); setLoading(true); setError(null); setSelected('')
+    try {
+      const res = await fetch('/api/units?status=WOLNY')
+      const data = await res.json()
+      if (!res.ok) throw new Error(data?.error || 'Błąd pobierania lokali')
+      setUnits((Array.isArray(data) ? data : []).map((u: any) => ({
+        id: u.id, number: u.number, type: u.type, area: u.area, priceGross: u.priceGross,
+      })))
+    } catch (e: any) { setError(e.message) } finally { setLoading(false) }
+  }
+
+  async function submit() {
+    if (!selected) return
+    setBusy(true); setError(null)
+    try {
+      const res = await fetch(`/api/reservations/${unitId}/swap`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ newUnitId: selected }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Błąd zamiany')
+      setOpen(false); router.refresh()
+    } catch (e: any) { setError(e.message) } finally { setBusy(false) }
+  }
+
+  const visible = sameTypeOnly ? units.filter((u) => u.type === unitType) : units
+
+  return (
+    <>
+      <button
+        onClick={openDialog}
+        className="px-2.5 py-1 text-xs font-medium text-amber-700 border border-amber-300 rounded hover:bg-amber-50 inline-flex items-center gap-1"
+      >
+        <ArrowLeftRight className="w-3.5 h-3.5" />
+        Zamień
+      </button>
+      {open && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => !busy && setOpen(false)}>
+          <div className="bg-white rounded-xl shadow-xl max-w-lg w-full p-6" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold text-gray-900 mb-1">Zamień lokal {unitNumber}</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Obecny lokal wróci do „Wolny", a wybrany przejmie rezerwację (ten sam klient i data wygaśnięcia).
+            </p>
+
+            <label className="flex items-center gap-2 mb-3 text-sm text-gray-700 cursor-pointer">
+              <input type="checkbox" checked={sameTypeOnly} onChange={(e) => setSameTypeOnly(e.target.checked)} className="rounded border-gray-300" />
+              Tylko ten sam typ ({UNIT_TYPE_LABELS[unitType as UnitType] || unitType})
+            </label>
+
+            {loading ? (
+              <div className="py-8 text-center text-sm text-gray-500"><Loader2 className="w-6 h-6 animate-spin mx-auto mb-2" />Ładuję wolne lokale…</div>
+            ) : visible.length === 0 ? (
+              <p className="py-6 text-sm text-gray-400 text-center">Brak wolnych lokali {sameTypeOnly ? 'tego typu' : ''}.</p>
+            ) : (
+              <div className="border border-gray-200 rounded-lg max-h-72 overflow-y-auto divide-y divide-gray-100">
+                {visible.map((u) => (
+                  <label key={u.id} className={`flex items-center gap-3 p-2.5 cursor-pointer hover:bg-gray-50 ${selected === u.id ? 'bg-blue-50' : ''}`}>
+                    <input type="radio" name="swap-unit" checked={selected === u.id} onChange={() => setSelected(u.id)} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900">{u.number}</p>
+                      <p className="text-xs text-gray-500">
+                        {UNIT_TYPE_LABELS[u.type as UnitType] || u.type} · {u.area} m² · {u.priceGross.toLocaleString('pl-PL')} zł
+                      </p>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            )}
+
+            {error && <p className="text-sm text-red-600 mt-3">{error}</p>}
+            <div className="flex justify-end gap-2 mt-5">
+              <button onClick={() => setOpen(false)} disabled={busy} className="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50">Anuluj</button>
+              <button onClick={submit} disabled={busy || !selected} className="px-4 py-2 bg-amber-600 hover:bg-amber-700 disabled:bg-gray-300 text-white rounded-lg text-sm font-medium inline-flex items-center gap-2">
+                {busy && <Loader2 className="w-4 h-4 animate-spin" />}
+                {busy ? 'Zamieniam...' : 'Zamień'}
               </button>
             </div>
           </div>
