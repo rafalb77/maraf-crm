@@ -113,9 +113,7 @@ model Unit {
   offerItems       OfferItem[]
   images           UnitImage[]
   creativeSettings UnitCreativeSettings?
-<<<<<<< Updated upstream
   escrowDeposits   EscrowDeposit[]
-=======
   priceHistory     PriceHistory[]
 }
 
@@ -152,7 +150,6 @@ model DaneGovSnapshot {
   rowCount  Int // liczba lokali w raporcie (do podglądu w panelu admina)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
->>>>>>> Stashed changes
 }
 
 // Zapamietane ustawienia generatora kreacji Meta Ads per lokal — zeby user
