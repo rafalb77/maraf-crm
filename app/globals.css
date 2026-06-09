@@ -36,6 +36,9 @@
   --surface-hover: #283449;
   --border: #324358;
   --border-soft: #283449;
+  /* Separator wierszy tabel — subtelny, ledwie odróżnialny od --surface (#1F2A3A),
+     żeby linie między rekordami nie świeciły na ciemnym tle. */
+  --row-divider: #232E3C;
   --text-primary: #F2E8D6;
   --text-secondary: #C9D1DD;
   --text-muted: #8090A4;
@@ -82,7 +85,13 @@ input::placeholder, textarea::placeholder { color: var(--text-muted); }
 .dark .border-gray-200 { border-color: var(--border) !important; }
 .dark .border-gray-100 { border-color: var(--border-soft) !important; }
 .dark .border-gray-300 { border-color: var(--border) !important; }
-.dark .divide-gray-100 > * + * { border-color: var(--border-soft) !important; }
+/* Separatory WIERSZY tabel (border-b/border-t/divide między rekordami) — subtelne,
+   bliskie tłu (--surface #1F2A3A). Bez tego: border-gray-50 (#f9fafb) renderował się
+   prawie biało, a divide-gray-100 (--border-soft) jako wyraźna jaśniejsza linia.
+   Obramowania nagłówków i kart zostają na --border-soft/--border (wyraźniejsze). */
+.dark .border-gray-50 { border-color: var(--row-divider) !important; }
+.dark .divide-gray-100 > * + * { border-color: var(--row-divider) !important; }
+.dark .divide-gray-50 > * + * { border-color: var(--row-divider) !important; }
 
 .dark .hover\:bg-gray-50:hover { background-color: var(--surface-hover) !important; }
 .dark .hover\:bg-gray-100:hover { background-color: var(--surface-hover) !important; }
