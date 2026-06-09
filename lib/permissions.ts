@@ -18,6 +18,7 @@ export const ALL_PERMISSIONS = [
   'oferty',
   'sales',
   'service',
+  'cases',
   'mailing',
   'calendar',
   'przeroby',
@@ -42,6 +43,7 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
   oferty: 'Oferty',
   sales: 'Sprzedaż',
   service: 'Serwis',
+  cases: 'Sprawy',
   mailing: 'Mailing',
   calendar: 'Kalendarz',
   przeroby: 'Przeroby',
@@ -63,6 +65,7 @@ const PREFERRED_LANDING_ORDER: Permission[] = [
   'clients',
   'units',
   'service',
+  'cases',
   'mailing',
   'calendar',
 ]
@@ -93,6 +96,7 @@ export function getRequiredPermission(pathname: string): Permission | 'admin' | 
   if (pathname.startsWith('/sales')) return 'sales'
   if (pathname.startsWith('/rezerwacje')) return 'sales' // moduł rezerwacji — workflow sprzedażowy
   if (pathname.startsWith('/service')) return 'service'
+  if (pathname.startsWith('/cases')) return 'cases'
   if (pathname.startsWith('/mailing')) return 'mailing'
   if (pathname.startsWith('/calendar')) return 'calendar'
   if (pathname.startsWith('/przeroby')) return 'przeroby'
@@ -110,6 +114,7 @@ export function getRequiredPermission(pathname: string): Permission | 'admin' | 
   if (pathname.startsWith('/api/contracts')) return 'sales' // umowy (zawierają dane klienta) — endpoint to /api/contracts, NIE /api/sales
   if (pathname.startsWith('/api/reservations')) return 'sales' // przedłużenie/zwolnienie rezerwacji miękkich
   if (pathname.startsWith('/api/service')) return 'service'
+  if (pathname.startsWith('/api/cases')) return 'cases'
   if (pathname.startsWith('/api/mailing')) return 'mailing'
   if (pathname.startsWith('/api/calendar')) return 'calendar'
   if (pathname.startsWith('/api/przeroby')) return 'przeroby'

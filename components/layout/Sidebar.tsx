@@ -53,6 +53,11 @@ const ICONS = {
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" />
     </svg>
   ),
+  cases: (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+    </svg>
+  ),
   calendar: (
     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -142,6 +147,7 @@ const WORKSPACES: Workspace[] = [
           { href: '/oferty', label: 'Oferty', icon: ICONS.offers },
           { href: '/sales', label: 'Sprzedaż', icon: ICONS.sales },
           { href: '/service', label: 'Serwis', icon: ICONS.service },
+          { href: '/cases', label: 'Sprawy', icon: ICONS.cases },
           { href: '/mailing', label: 'Mailing', icon: ICONS.mailing },
           { href: '/calendar', label: 'Kalendarz', icon: ICONS.calendar },
           { href: '/statystyki', label: 'Statystyki', icon: ICONS.stats },

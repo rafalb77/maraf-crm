@@ -4,29 +4,20 @@ Krótkie wpisy „co i **dlaczego**". Bez listy wszystkich commitów — od tego
 
 ---
 
-## 2026-05-21
+## 2026-06-09
 
-### Zamiana składnika rezerwacji miękkiej (parking↔garaż itd.)
-**Powód**: klient zarezerwował mieszkanie + parking, ale chce zamienić parking na inny lub na garaż — przed podpisaniem umowy. Wcześniej trzeba było ręcznie odpiąć stary lokal i przypiąć nowy (2 kroki, ryzyko utraty daty wygaśnięcia/klienta).
-**Model**: rezerwacja nie jest osobną encją — to zbiór lokali z tym samym `reservedById` (miękka, przez `ClientUnit`) lub w `ContractUnit` (twarda). Zamiana miękkiej = atomowa transakcja: stary lokal → WOLNY (+ usuń ClientUnit), nowy → ZAREZERWOWANY/MIEKKA z **zachowaniem klienta i daty wygaśnięcia**. Cross-type dozwolony (parking→garaż).
-**Implementacja**: `lib/reservations.ts → swapSoftReservation(oldUnitId, newUnitId)` (walidacje: stary MIEKKA, nowy WOLNY, różne). Endpoint `POST /api/reservations/[unitId]/swap` body `{newUnitId}` (gate 'sales'). Komponent `SwapButton` (w `ReservationActions.tsx`) — dialog z listą wolnych lokali, domyślnie filtrowaną do tego samego typu + checkbox „pokaż inne typy" (dla parking→garaż), radio-wybór, potwierdzenie. Przycisk w **2 miejscach**: sekcja „Miękkie" na `/rezerwacje` (obok Przedłuż/Zwolnij) oraz na karcie klienta `/clients/[id]` przy lokalach z rezerwacją MIEKKA. **Zakres MVP: tylko miękkie** — twarde (w umowie) wymagałyby aneksu (walidacja limitów + przeliczenie wartości + regeneracja DOCX) → osobny temat.
-
-### Moduł Rezerwacje (`/rezerwacje`) — 3 sekcje + email-alerty cron
-**Powód**: brak skonsolidowanego widoku stanu rezerwacyjnego — handlowiec musiał ręcznie chodzić po lokalach żeby zobaczyć co kończy się i kiedy. Plus realne ryzyko, że rezerwacja miękka (auto-expire 7 dni) cicho wygasa, bo nikt nie zauważył.
-**Implementacja**: nowa strona `/rezerwacje` (server component) z 3 sekcjami:
-- **Miękkie (MIEKKA)** — tabela z kolorystyką kończącego się czasu (czerwone <24h, żółte <72h, niebieskie >72h). Banner u góry gdy `criticalCount > 0`. Akcje per wiersz: **Przedłuż** (dialog z polem „liczba dni" 1-90, default 7; nowa data liczona od TERAZ) + **Zwolnij** (z potwierdzeniem; → WOLNY + usuwa ClientUnit).
-- **Twarde (REZERWACJA)** — lokale podpięte do umów ze statusem PODPISANA. Link do umowy. Zwalnianie tylko przez zmianę statusu umowy.
-- **Wyłączone ze sprzedaży (NIEDOSTEPNY)** — akcja „Przywróć do sprzedaży" (PUT /api/units/[id] z status=WOLNY).
-
-`lib/reservations.ts` rozbudowany: `extendSoftReservation`, `releaseSoftReservation`, `getExpiringSoftReservations`, helper `attachReservedByClient` (Unit nie ma Prisma-relacji na `reservedById` — osobne query zamiast modyfikacji schema). Auto-expire wywołany przy każdym wejściu na stronę.
-
-**Endpointy**: `POST /api/reservations/[unitId]/extend` (body `{days}`), `DELETE /api/reservations/[unitId]/release`. Permission `sales` (rezerwacje to workflow sprzedażowy — handlowcy mają sales, podwykonawcy nie).
-
-**Email-cron**: `POST /api/public/reservations/expiring-email` chroniony `RESERVATIONS_CRON_SECRET` (analogicznie do dane-gov snapshot). Pobiera rezerwacje wygasające w 48h, wysyła HTML mail z tabelą. Odbiorca: `Settings.reservationsAlertEmail` (nowe pole w `/settings` przy stopce mailowej), fallback `NEXT_PUBLIC_ADMIN_EMAIL`. Subject: `[CRM] N rezerwacji wygasa w ciągu 48h (M krytycznych)`. Idempotentny.
-
-**Sidebar**: link „Rezerwacje" między Lokale i Oferty, ikona zegara.
-
-**Co po deployu**: (1) `RESERVATIONS_CRON_SECRET` w Coolify env. (2) Admin wpisuje adres odbiorcy w `/settings`. (3) Coolify scheduled task: codzienne `curl -X POST "https://crm.maraf.pl/api/public/reservations/expiring-email?secret=$RESERVATIONS_CRON_SECRET"` (np. `0 8 * * *`).
+### Moduł Sprawy — repozytorium spraw + korespondencja (reklamacje, sprawy urzędowe)
+**Powód**: Rafał chciał repozytorium do prowadzenia historii spraw (reklamacje z tytułu rękojmi, sprawy urzędowe) z widoczną osią korespondencji (pisma wysłane/odebrane jako skany), pilnowaniem terminów ustawowych i **przeszukiwalnym** archiwum skanów. Pełny kontekst: `docs/sprawy-decyzje.md`.
+**Implementacja** (3 fazy, jeden zrzut):
+- **3 modele**: `Case` (sygnatura `REK/2026/0042`, type REKLAMACJA|URZEDOWA|INNE, status NOWA→W_TOKU→OCZEKUJE→ROZSTRZYGNIETA→ZAMKNIETA, receivedAt/deadline/reminderSentAt/closedAt, klient LUB `counterparty` dla strony zewn., `owner` = prowadzący) + `CaseEntry` (oś korespondencji: direction PRZYCHODZACA|WYCHODZACA|WEWNETRZNA, channel LIST|EMAIL|TELEFON|OSOBISCIE|EPUAP|INNE) + `CaseDocument` (skany, `ocrText`/`ocrStatus`). `createdById`/`uploadedById` jako skalary bez FK (wzorzec `AuditLog`).
+- **Osobny moduł obok Serwisu** (decyzja Rafała) — `ServiceRequest`/usterki bez zmian, brak migracji. Wchłonięcie usterek możliwe później.
+- **Sygnatura** liczona z najwyższego istniejącego numeru per (prefiks, rok) — odporna na usuwanie; `number @unique` + retry P2002 w POST.
+- **Terminy rękojmi** — reklamacja z datą wpływu auto-ustawia `deadline = receivedAt + 14 dni` (brak odpowiedzi = domniemanie uznania; KC). `lib/case-deadlines.ts` koloruje OK/SOON/TODAY/OVERDUE. Sprawy urzędowe — termin ręczny.
+- **Przypomnienia** — `/api/public/cases/reminders` (wzorzec dane-gov, sekret `CASES_CRON_SECRET`, Coolify scheduled task ~08:00). Grupuje per prowadzący (`owner.email`, fallback `CASES_REMINDER_TO`→`ADMIN_EMAIL`), zbiorczy mail przez `sendEmail()`, idempotencja dzienna przez `reminderSentAt`. **Kalendarz pominięty** (uniknięcie duplikatów eventów) — kierunek na później.
+- **OCR natywny Tesseract** (decyzja Rafała) — Dockerfile runner: `tesseract-ocr tesseract-ocr-pol poppler-utils`. `lib/ocr.ts`: obraz→`tesseract -l pol`, PDF→`pdf-parse` (warstwa tekstu) z fallbackiem `pdftoppm`→OCR per strona (skany). Trigger fire-and-forget przy uploadzie + `/api/public/cases/ocr-sweep` (retry zaległych) + ręczny re-OCR dla FAILED. **Działa tylko na produkcji** (binaria w obrazie; lokalnie Windows → FAILED).
+- **Wyszukiwanie** — `/api/cases?q=` ILIKE po sygnaturze/tytule/opisie/stronie + treści wpisów + `ocrText` skanów (Postgres `contains` insensitive). Upgrade do `tsvector` PL — poza MVP.
+- **Poza MVP**: generowanie pism z szablonów, eksport „teczki" PDF, AI-streszczenia, inbox z maila, e-Doręczenia, dashboard SLA, usterka→podwykonawca→kaucja.
+- **WYMAGA na produkcji**: `prisma db push` (3 tabele Case/CaseEntry/CaseDocument), **rebuild** obrazu (Dockerfile — tesseract), env `CASES_CRON_SECRET` (+ opcjonalnie `CASES_REMINDER_TO`), Coolify scheduled tasks na reminders i ocr-sweep, nadanie permission `cases` userom.
 
 ---
 
@@ -76,6 +67,28 @@ Krótkie wpisy „co i **dlaczego**". Bez listy wszystkich commitów — od tego
 ---
 
 ## 2026-05-21
+
+### Zamiana składnika rezerwacji miękkiej (parking↔garaż itd.)
+**Powód**: klient zarezerwował mieszkanie + parking, ale chce zamienić parking na inny lub na garaż — przed podpisaniem umowy. Wcześniej trzeba było ręcznie odpiąć stary lokal i przypiąć nowy (2 kroki, ryzyko utraty daty wygaśnięcia/klienta).
+**Model**: rezerwacja nie jest osobną encją — to zbiór lokali z tym samym `reservedById` (miękka, przez `ClientUnit`) lub w `ContractUnit` (twarda). Zamiana miękkiej = atomowa transakcja: stary lokal → WOLNY (+ usuń ClientUnit), nowy → ZAREZERWOWANY/MIEKKA z **zachowaniem klienta i daty wygaśnięcia**. Cross-type dozwolony (parking→garaż).
+**Implementacja**: `lib/reservations.ts → swapSoftReservation(oldUnitId, newUnitId)` (walidacje: stary MIEKKA, nowy WOLNY, różne). Endpoint `POST /api/reservations/[unitId]/swap` body `{newUnitId}` (gate 'sales'). Komponent `SwapButton` (w `ReservationActions.tsx`) — dialog z listą wolnych lokali, domyślnie filtrowaną do tego samego typu + checkbox „pokaż inne typy" (dla parking→garaż), radio-wybór, potwierdzenie. Przycisk w **2 miejscach**: sekcja „Miękkie" na `/rezerwacje` (obok Przedłuż/Zwolnij) oraz na karcie klienta `/clients/[id]` przy lokalach z rezerwacją MIEKKA. **Zakres MVP: tylko miękkie** — twarde (w umowie) wymagałyby aneksu (walidacja limitów + przeliczenie wartości + regeneracja DOCX) → osobny temat.
+
+### Moduł Rezerwacje (`/rezerwacje`) — 3 sekcje + email-alerty cron
+**Powód**: brak skonsolidowanego widoku stanu rezerwacyjnego — handlowiec musiał ręcznie chodzić po lokalach żeby zobaczyć co kończy się i kiedy. Plus realne ryzyko, że rezerwacja miękka (auto-expire 7 dni) cicho wygasa, bo nikt nie zauważył.
+**Implementacja**: nowa strona `/rezerwacje` (server component) z 3 sekcjami:
+- **Miękkie (MIEKKA)** — tabela z kolorystyką kończącego się czasu (czerwone <24h, żółte <72h, niebieskie >72h). Banner u góry gdy `criticalCount > 0`. Akcje per wiersz: **Przedłuż** (dialog z polem „liczba dni" 1-90, default 7; nowa data liczona od TERAZ) + **Zwolnij** (z potwierdzeniem; → WOLNY + usuwa ClientUnit).
+- **Twarde (REZERWACJA)** — lokale podpięte do umów ze statusem PODPISANA. Link do umowy. Zwalnianie tylko przez zmianę statusu umowy.
+- **Wyłączone ze sprzedaży (NIEDOSTEPNY)** — akcja „Przywróć do sprzedaży" (PUT /api/units/[id] z status=WOLNY).
+
+`lib/reservations.ts` rozbudowany: `extendSoftReservation`, `releaseSoftReservation`, `getExpiringSoftReservations`, helper `attachReservedByClient` (Unit nie ma Prisma-relacji na `reservedById` — osobne query zamiast modyfikacji schema). Auto-expire wywołany przy każdym wejściu na stronę.
+
+**Endpointy**: `POST /api/reservations/[unitId]/extend` (body `{days}`), `DELETE /api/reservations/[unitId]/release`. Permission `sales` (rezerwacje to workflow sprzedażowy — handlowcy mają sales, podwykonawcy nie).
+
+**Email-cron**: `POST /api/public/reservations/expiring-email` chroniony `RESERVATIONS_CRON_SECRET` (analogicznie do dane-gov snapshot). Pobiera rezerwacje wygasające w 48h, wysyła HTML mail z tabelą. Odbiorca: `Settings.reservationsAlertEmail` (nowe pole w `/settings` przy stopce mailowej), fallback `NEXT_PUBLIC_ADMIN_EMAIL`. Subject: `[CRM] N rezerwacji wygasa w ciągu 48h (M krytycznych)`. Idempotentny.
+
+**Sidebar**: link „Rezerwacje" między Lokale i Oferty, ikona zegara.
+
+**Co po deployu**: (1) `RESERVATIONS_CRON_SECRET` w Coolify env. (2) Admin wpisuje adres odbiorcy w `/settings`. (3) Coolify scheduled task: codzienne `curl -X POST "https://crm.maraf.pl/api/public/reservations/expiring-email?secret=$RESERVATIONS_CRON_SECRET"` (np. `0 8 * * *`).
 
 ### Raportowanie cen na dane.gov.pl — dokończenie wdrożenia
 **Powód**: funkcja była zaczęta jako WIP (panel admina, generator CSV, endpointy harvester, hook price-history) ale **nie była zacommitowana** — pliki istniały tylko w roboczym katalogu głównym, a brakujące w schemacie modele `PriceHistory` + `DaneGovSnapshot` blokowały lokalny `npm run build` (TS2339). Wykryte przy testowym buildzie podczas pracy nad podglądem umów. Obowiązek ustawowy (Dz.U.2025.758, kara do 10% obrotu) → priorytet przed startem systemu.

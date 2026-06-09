@@ -40,6 +40,9 @@ model User {
   uploadedInvoiceAttachments PurchaseInvoiceAttachment[]
   createdSalesInvoices       SalesInvoice[]              @relation("SalesInvoiceCreator")
   createdSalesPayments       SalesInvoicePayment[]       @relation("SalesPaymentCreator")
+
+  // Moduł Sprawy
+  ownedCases                 Case[]                      @relation("CaseOwner")
 }
 
 // status: ZAPYTANIE | OFERTA | REZERWACJA | UMOWA | ODBIOR
@@ -70,6 +73,7 @@ model Client {
   contracts       Contract[]
   contractClients ContractClient[]
   offers          Offer[]
+  cases           Case[]
 }
 
 // type: MIESZKALNY | USLUGOWY | PARKING | GARAZ | KOMORKA
@@ -115,6 +119,7 @@ model Unit {
   creativeSettings UnitCreativeSettings?
   escrowDeposits   EscrowDeposit[]
   priceHistory     PriceHistory[]
+  cases            Case[]
 }
 
 // Historia zmian ceny/statusu lokalu. Źródło „Daty od której obowiązuje oferta"
@@ -247,6 +252,87 @@ model ServiceRequest {
 
   client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
   unit   Unit?  @relation(fields: [unitId], references: [id], onDelete: SetNull)
+}
+
+// =============================================================
+// MODUŁ: SPRAWY (repozytorium spraw + korespondencja)
+// =============================================================
+// Reklamacje (rękojmia), sprawy urzędowe i inne — z osią korespondencji
+// (pisma wysłane/odebrane jako skany), terminami ustawowymi i OCR skanów.
+// Osobny moduł obok Serwisu (ServiceRequest). Patrz docs/sprawy-decyzje.md.
+//
+// type:     REKLAMACJA | URZEDOWA | INNE
+// status:   NOWA | W_TOKU | OCZEKUJE | ROZSTRZYGNIETA | ZAMKNIETA
+// priority: NISKA | SREDNIA | WYSOKA
+model Case {
+  id             String    @id @default(cuid())
+  number         String    @unique // sygnatura: REK/2026/0042, URZ/2026/0007
+  type           String    @default("REKLAMACJA")
+  title          String
+  description    String?
+  status         String    @default("NOWA")
+  priority       String    @default("SREDNIA")
+  clientId       String?
+  unitId         String?
+  ownerId        String? // prowadzący sprawę (User)
+  counterparty   String? // strona zewnętrzna (urząd/instytucja) gdy brak klienta
+  receivedAt     DateTime? // data wpływu — start liczenia terminu
+  deadline       DateTime? // termin odpowiedzi/załatwienia
+  reminderSentAt DateTime? // idempotencja crona przypomnień
+  closedAt       DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  client    Client?        @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  unit      Unit?          @relation(fields: [unitId], references: [id], onDelete: SetNull)
+  owner     User?          @relation("CaseOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  entries   CaseEntry[]
+  documents CaseDocument[]
+
+  @@index([status])
+  @@index([deadline])
+  @@index([clientId])
+}
+
+// Wpis w osi korespondencji sprawy.
+// direction: PRZYCHODZACA | WYCHODZACA | WEWNETRZNA
+// channel:   LIST | EMAIL | TELEFON | OSOBISCIE | EPUAP | INNE
+model CaseEntry {
+  id          String   @id @default(cuid())
+  caseId      String
+  direction   String   @default("PRZYCHODZACA")
+  channel     String   @default("LIST")
+  occurredAt  DateTime @default(now()) // data zdarzenia (≠ createdAt)
+  subject     String?
+  body        String?
+  createdById String? // skalar bez FK (wzorzec AuditLog)
+  createdAt   DateTime @default(now())
+
+  case      Case           @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  documents CaseDocument[]
+
+  @@index([caseId, occurredAt])
+}
+
+// Dokument / skan podpięty do sprawy i opcjonalnie do konkretnego wpisu.
+// ocrStatus: PENDING | DONE | FAILED | SKIPPED
+model CaseDocument {
+  id           String   @id @default(cuid())
+  caseId       String
+  entryId      String? // skan podpięty do konkretnego wpisu korespondencji
+  filename     String
+  url          String // /uploads/cases/<caseId>/<ts>-<safeName>
+  mimeType     String
+  size         Int?
+  ocrText      String? // wynik OCR (Tesseract) — wyszukiwanie pełnotekstowe
+  ocrStatus    String   @default("PENDING")
+  uploadedById String? // skalar bez FK
+  uploadedAt   DateTime @default(now())
+
+  case  Case       @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  entry CaseEntry? @relation(fields: [entryId], references: [id], onDelete: SetNull)
+
+  @@index([caseId])
 }
 
 model CalendarToken {

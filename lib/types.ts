@@ -75,6 +75,87 @@ export const SERVICE_PRIORITY_COLORS: Record<ServicePriority, string> = {
   WYSOKA: 'bg-red-100 text-red-700',
 }
 
+// =====================================================================
+// MODUŁ: SPRAWY (cases) — reklamacje, sprawy urzędowe, korespondencja
+// =====================================================================
+export type CaseType = 'REKLAMACJA' | 'URZEDOWA' | 'INNE'
+export type CaseStatus = 'NOWA' | 'W_TOKU' | 'OCZEKUJE' | 'ROZSTRZYGNIETA' | 'ZAMKNIETA'
+export type CasePriority = 'NISKA' | 'SREDNIA' | 'WYSOKA'
+export type CaseDirection = 'PRZYCHODZACA' | 'WYCHODZACA' | 'WEWNETRZNA'
+export type CaseChannel = 'LIST' | 'EMAIL' | 'TELEFON' | 'OSOBISCIE' | 'EPUAP' | 'INNE'
+
+export const CASE_TYPE_LABELS: Record<CaseType, string> = {
+  REKLAMACJA: 'Reklamacja',
+  URZEDOWA: 'Sprawa urzędowa',
+  INNE: 'Inne',
+}
+
+export const CASE_TYPE_COLORS: Record<CaseType, string> = {
+  REKLAMACJA: 'bg-orange-100 text-orange-700',
+  URZEDOWA: 'bg-indigo-100 text-indigo-700',
+  INNE: 'bg-gray-100 text-gray-700',
+}
+
+// Prefiks sygnatury per typ (REK/2026/0042, URZ/2026/0007)
+export const CASE_TYPE_PREFIX: Record<CaseType, string> = {
+  REKLAMACJA: 'REK',
+  URZEDOWA: 'URZ',
+  INNE: 'SPR',
+}
+
+export const CASE_STATUS_LABELS: Record<CaseStatus, string> = {
+  NOWA: 'Nowa',
+  W_TOKU: 'W toku',
+  OCZEKUJE: 'Oczekuje',
+  ROZSTRZYGNIETA: 'Rozstrzygnięta',
+  ZAMKNIETA: 'Zamknięta',
+}
+
+export const CASE_STATUS_COLORS: Record<CaseStatus, string> = {
+  NOWA: 'bg-blue-100 text-blue-700',
+  W_TOKU: 'bg-yellow-100 text-yellow-700',
+  OCZEKUJE: 'bg-amber-100 text-amber-700',
+  ROZSTRZYGNIETA: 'bg-green-100 text-green-700',
+  ZAMKNIETA: 'bg-gray-100 text-gray-600',
+}
+
+// Statusy traktowane jako „sprawa zamknięta" — używane przy liczeniu otwartych
+// spraw i pomijaniu w cronie przypomnień.
+export const CASE_CLOSED_STATUSES: CaseStatus[] = ['ROZSTRZYGNIETA', 'ZAMKNIETA']
+
+export const CASE_PRIORITY_LABELS: Record<CasePriority, string> = {
+  NISKA: 'Niska',
+  SREDNIA: 'Średnia',
+  WYSOKA: 'Wysoka',
+}
+
+export const CASE_PRIORITY_COLORS: Record<CasePriority, string> = {
+  NISKA: 'bg-gray-100 text-gray-600',
+  SREDNIA: 'bg-orange-100 text-orange-700',
+  WYSOKA: 'bg-red-100 text-red-700',
+}
+
+export const CASE_DIRECTION_LABELS: Record<CaseDirection, string> = {
+  PRZYCHODZACA: 'Przychodząca',
+  WYCHODZACA: 'Wychodząca',
+  WEWNETRZNA: 'Wewnętrzna',
+}
+
+export const CASE_DIRECTION_ICONS: Record<CaseDirection, string> = {
+  PRZYCHODZACA: '📥',
+  WYCHODZACA: '📤',
+  WEWNETRZNA: '📝',
+}
+
+export const CASE_CHANNEL_LABELS: Record<CaseChannel, string> = {
+  LIST: 'List',
+  EMAIL: 'E-mail',
+  TELEFON: 'Telefon',
+  OSOBISCIE: 'Osobiście',
+  EPUAP: 'ePUAP / e-Doręczenia',
+  INNE: 'Inne',
+}
+
 // Reservation types
 export type ReservationType = 'MIEKKA' | 'REZERWACJA'
 

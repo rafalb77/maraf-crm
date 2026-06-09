@@ -47,6 +47,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends \
     openssl ca-certificates tini wget gnupg \
     fonts-liberation fonts-dejavu \
+    tesseract-ocr tesseract-ocr-pol poppler-utils \
     libnss3 libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 \
     libxfixes3 libxrandr2 libgbm1 libasound2 libatk-bridge2.0-0 \
     libatk1.0-0 libcups2 libpango-1.0-0 libpangocairo-1.0-0 \

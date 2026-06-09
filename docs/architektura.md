@@ -130,6 +130,7 @@ Każdy request:
 | `oferty` | Kalkulator ofert + rabat brutto + PDF + wysyłka mailem | ✅ działa |
 | `sales` | Umowy rezerwacyjne (DOCX generator, konwersja z oferty, załączniki) | ✅ MVP |
 | `service` | Zgłoszenia serwisowe / usterki | ✅ działa |
+| `cases` | Sprawy (reklamacje, urzędowe): oś korespondencji, skany+OCR, terminy rękojmi, przypomnienia | ✅ MVP |
 | `mailing` | Wysyłka maili | ✅ działa |
 | `calendar` | Google Calendar (OAuth, widoki dzień/tydzień/miesiąc) | ✅ działa |
 | `profil` | Personalizacja per-user (preferredName, interests) | ✅ działa |
@@ -147,6 +148,7 @@ Szczegóły per moduł w `docs/<moduł>-decyzje.md`.
 - **Bezpieczeństwo**: `audit-log.ts`, `rate-limit.ts`
 - **Komunikacja**: `mailer.ts` (SMTP), `google-calendar.ts` (OAuth + events)
 - **Dokumenty**: `contract-generator.ts` + `contracts.ts` (umowy), `offer-pdf-html.ts` + `pdf-generator.ts` (oferty PDF), `numberToWordsPl.ts` (kwoty słownie)
+- **Sprawy**: `case-number.ts` (sygnatura REK/2026/0042), `case-deadlines.ts` (terminy rękojmi + kolorowanie), `case-uploads.ts` (skany), `ocr.ts` (Tesseract OCR skanów)
 - **Importy**: `units-import.ts`, `przedmiar-konrad-import.ts`, `finanse-import.ts`, `finanse-format.ts`
 - **Przeroby**: `przeroby-mapping.ts`, `protokol-maraf-match.ts` (dopasowanie protokół↔obmiar)
 - **Dashboard**: `greeting.ts`, `news-feed.ts` (RSS), `weather.ts` (Open-Meteo)
