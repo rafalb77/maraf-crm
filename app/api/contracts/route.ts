@@ -20,9 +20,9 @@ export async function GET(req: NextRequest) {
         search
           ? {
               OR: [
-                { number: { contains: search } },
-                { client: { firstName: { contains: search } } },
-                { client: { lastName: { contains: search } } },
+                { number: { contains: search, mode: 'insensitive' } },
+                { client: { firstName: { contains: search, mode: 'insensitive' } } },
+                { client: { lastName: { contains: search, mode: 'insensitive' } } },
               ],
             }
           : {},

@@ -12,7 +12,7 @@ async function getUnits(type?: string, status?: string, search?: string) {
   return prisma.unit.findMany({
     where: {
       AND: [
-        search ? { number: { contains: search } } : {},
+        search ? { number: { contains: search, mode: 'insensitive' } } : {},
         type ? { type } : {},
         status ? { status } : {},
       ],
