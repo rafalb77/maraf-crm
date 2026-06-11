@@ -42,6 +42,8 @@ export function UnitForm({ unit }: { unit?: Unit }) {
     building: unit?.building || '',
     description: unit?.description || '',
     status: unit?.status || 'WOLNY',
+    // Data sprzedaży (ręczna) — tylko dla statusu SPRZEDANY; zasila statystykę „co schodzi najszybciej".
+    soldAt: unit?.soldAt ? new Date(unit.soldAt).toISOString().slice(0, 10) : '',
     // Pola integracji 3D Estate — visibleOnMatrix + promocje
     visibleOnMatrix: unit?.visibleOnMatrix ?? true,
     promoActive: unit?.promoActive ?? false,
@@ -316,6 +318,18 @@ export function UnitForm({ unit }: { unit?: Unit }) {
               </span>
             </div>
           </div>
+        </div>
+      )}
+
+      {form.status === 'SPRZEDANY' && (
+        <div className="bg-green-50 border border-green-100 rounded-lg p-4">
+          <label className="block text-sm font-medium text-gray-700 mb-1">Data sprzedaży</label>
+          <input type="date" value={form.soldAt}
+            onChange={(e) => setForm({ ...form, soldAt: e.target.value })}
+            className={inputCls} />
+          <p className="text-xs text-gray-500 mt-1">
+            Zasila statystykę „co schodzi najszybciej" (czas od wystawienia do sprzedaży). Zostaw puste, jeśli nieznana.
+          </p>
         </div>
       )}
 

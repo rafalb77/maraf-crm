@@ -23,15 +23,20 @@ Wykresy: `recharts@2`. Stan: 10 widoków w 2 paczkach (2026-05-21).
 | **Momentum (leady)** | `Client.createdAt` | są klienci. |
 | **Momentum (umowy/przychód)** | `Contract.signedAt` + `valueGross` | są umowy PODPISANA. |
 | **Cykl sprzedaży** | `Contract.signedAt` − `Client.createdAt` (po `clientId`) | są umowy PODPISANA z klientem. |
-| **Czas do sprzedaży / typ** | `Contract.signedAt` − `Unit.createdAt` (po `contractUnits`) + `Unit.type`/`Unit.rooms` | umowy mają **podpięte lokale** (`ContractUnit`). Mieszkania (`MIESZKALNY`) rozbite po liczbie pokoi (1-pok., 2-pok., …; brak/0 → grupa „bez liczby pokoi"); pozostałe typy grupowane po typie. |
+| **Czas do sprzedaży / typ** | `Unit.soldAt` − `Unit.createdAt` dla lokali ze statusem SPRZEDANY + `Unit.type`/`Unit.rooms` | są **sprzedane lokale z ręcznie wpisaną `soldAt`** (data sprzedaży). Mieszkania (`MIESZKALNY`) rozbite po liczbie pokoi (1-pok., 2-pok., …; brak/0 → grupa „bez liczby pokoi"); pozostałe typy grupowane po typie. Lokale bez `soldAt` są pomijane (brak daty = brak czasu). `soldAt` ustawia się w edycji lokalu (pole widoczne gdy status=SPRZEDANY). |
 | **Leady do odgrzania** | `Client` (ZAPYTANIE/OFERTA/REZERWACJA) + ostatnia `Activity.date` | są otwarte leady bez kontaktu ≥ `STALE_LEAD_DAYS` (21). |
 | **Prognoza pipeline** | `Contract` W_PRZYGOTOWANIU `valueGross` + `Offer` WYSLANA `totalGross` | są umowy w przygotowaniu / wysłane oferty z wartościami. |
 | **Puls aktywności** | `Activity.date` + `type` | są zarejestrowane działania. |
 | **Heatmapa sprzedaży** | `Unit.status` (SPRZEDANY) + `Unit.building` (lub prefiks numeru) + `Unit.floor` | są lokale ze statusem i piętrem/budynkiem. |
 
-**Wniosek kluczowy:** import „sprzedanych lokali" przez `/units/import` zasila **tylko heatmapę**.
-Statystyki czasowe (tempo, cykl, czas do sprzedaży, momentum-przychód) jadą z **umów** (`Contract`),
-których import lokali NIE tworzy.
+**Wniosek kluczowy:** import „sprzedanych lokali" przez `/units/import` zasila **heatmapę** (po `status`)
+oraz — po ręcznym uzupełnieniu `Unit.soldAt` — **„co schodzi najszybciej"**. Pozostałe statystyki czasowe
+(tempo, cykl, momentum-przychód) jadą z **umów** (`Contract`), których import lokali NIE tworzy.
+
+**„Co schodzi najszybciej" (od 2026-06):** przepięte z umów na `Unit.status=SPRZEDANY` + `Unit.soldAt`
+(decyzja: pokazać wszystkie sprzedane lokale, a datę sprzedaży wpisywać ręcznie w edycji lokalu).
+`soldAt` to nowe pole `Unit` (nullable). **Wymaga `prisma db push` na prod** (brak migracji — patrz
+`docs/infrastruktura.md`). Zmiana statusu lokalu na inny niż SPRZEDANY czyści `soldAt` (API units).
 
 ## Import lokali a heatmapa — pułapki
 

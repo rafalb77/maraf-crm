@@ -325,13 +325,12 @@ const ACTIVITY_TYPES = ['NOTATKA', 'TELEFON', 'EMAIL', 'SPOTKANIE', 'DOKUMENT'] 
 export async function getCrmInsights(): Promise<CrmInsights> {
   const now = new Date()
 
-  const [signedContracts, prepContracts, sentOffers, leadClients, activities] = await Promise.all([
+  const [signedContracts, prepContracts, sentOffers, leadClients, activities, soldUnits] = await Promise.all([
     prisma.contract.findMany({
       where: { status: 'PODPISANA', signedAt: { not: null } },
       select: {
         signedAt: true,
         client: { select: { createdAt: true, source: true } },
-        contractUnits: { select: { unit: { select: { type: true, rooms: true, createdAt: true } } } },
       },
     }),
     prisma.contract.findMany({
@@ -351,6 +350,10 @@ export async function getCrmInsights(): Promise<CrmInsights> {
       },
     }),
     prisma.activity.findMany({ select: { date: true, type: true } }),
+    prisma.unit.findMany({
+      where: { status: 'SPRZEDANY', soldAt: { not: null } },
+      select: { type: true, rooms: true, createdAt: true, soldAt: true },
+    }),
   ])
 
   // ---- Cykl sprzedaży: dni od client.createdAt do contract.signedAt ----
@@ -374,23 +377,21 @@ export async function getCrmInsights(): Promise<CrmInsights> {
   }
 
   // ---- Co schodzi najszybciej: mediana dni do sprzedaży ----
-  // Mieszkania (MIESZKALNY) rozbijamy po liczbie pokoi (1-pok., 2-pok., …),
-  // pozostałe typy lokali grupujemy po typie.
+  // Źródło: lokale ze statusem SPRZEDANY i ręcznie wpisaną datą sprzedaży (Unit.soldAt).
+  // Czas = soldAt − createdAt (data wystawienia/utworzenia lokalu). Mieszkania rozbite
+  // po liczbie pokoi, pozostałe typy grupowane po typie lokalu. Lokale bez soldAt są
+  // pomijane (nie da się policzyć czasu) — pojawią się po uzupełnieniu daty.
   const daysByGroup = new Map<string, { label: string; days: number[] }>()
-  for (const ct of signedContracts) {
-    if (!ct.signedAt) continue
-    for (const cu of ct.contractUnits) {
-      const u = cu.unit
-      if (!u) continue
-      const d = daysBetween(ct.signedAt, u.createdAt)
-      if (d < 0) continue
-      const isFlat = u.type === 'MIESZKALNY'
-      const key = isFlat ? `MIESZKALNY:${u.rooms ?? 0}` : u.type
-      const label = isFlat ? roomsLabel(u.rooms) : (UNIT_TYPE_LABELS[u.type as UnitType] ?? u.type)
-      let entry = daysByGroup.get(key)
-      if (!entry) { entry = { label, days: [] }; daysByGroup.set(key, entry) }
-      entry.days.push(d)
-    }
+  for (const u of soldUnits) {
+    if (!u.soldAt) continue
+    const d = daysBetween(u.soldAt, u.createdAt)
+    if (d < 0) continue
+    const isFlat = u.type === 'MIESZKALNY'
+    const key = isFlat ? `MIESZKALNY:${u.rooms ?? 0}` : u.type
+    const label = isFlat ? roomsLabel(u.rooms) : (UNIT_TYPE_LABELS[u.type as UnitType] ?? u.type)
+    let entry = daysByGroup.get(key)
+    if (!entry) { entry = { label, days: [] }; daysByGroup.set(key, entry) }
+    entry.days.push(d)
   }
   const timeToSale: TimeToSaleRow[] = [...daysByGroup.entries()]
     .map(([key, v]) => ({ key, label: v.label, soldCount: v.days.length, medianDays: median(v.days) }))

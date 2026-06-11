@@ -49,6 +49,14 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     ? (isNaN(promoPpmGross) ? null : Math.round(area * promoPpmGross * 100) / 100)
     : (isNaN(promoPriceGrossRaw) ? null : Math.round(promoPriceGrossRaw * 100) / 100)
 
+  // Data sprzedaży — przechowywana tylko dla statusu SPRZEDANY; zmiana statusu
+  // na inny czyści pole. Niepoprawna data → null.
+  let soldAt: Date | null = null
+  if (body.status === 'SPRZEDANY' && body.soldAt) {
+    const d = new Date(body.soldAt)
+    if (!isNaN(d.getTime())) soldAt = d
+  }
+
   // Stan PRZED update — do porównania w recordPriceHistoryIfChanged (źródło
   // „Daty od której obowiązuje oferta" w raporcie dane.gov.pl).
   const before = await prisma.unit.findUnique({
@@ -72,6 +80,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
       building: body.building || null,
       description: body.description || null,
       status: body.status,
+      soldAt,
       floorPlanUrl: body.floorPlanUrl !== undefined ? body.floorPlanUrl : undefined,
       // Pola integracji 3D Estate
       visibleOnMatrix: body.visibleOnMatrix !== undefined ? !!body.visibleOnMatrix : undefined,

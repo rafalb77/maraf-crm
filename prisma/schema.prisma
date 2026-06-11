@@ -94,6 +94,9 @@ model Unit {
   building             String?
   description          String?
   status               String    @default("WOLNY")
+  // Data sprzedaży (ręczna) — zasila statystykę „co schodzi najszybciej" (soldAt − createdAt).
+  // Ustawiana gdy status=SPRZEDANY; zmiana statusu na inny czyści pole (API units).
+  soldAt               DateTime?
   floorPlanUrl         String?
   reservationType      String?
   reservationExpiresAt DateTime?

@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
   const units = await prisma.unit.findMany({
     where: {
       AND: [
-        search ? { number: { contains: search } } : {},
+        search ? { number: { contains: search, mode: 'insensitive' } } : {},
         type ? { type } : {},
         status ? { status } : {},
       ],
@@ -60,6 +60,12 @@ export async function POST(req: NextRequest) {
   const promoPriceGross = usePerSqm
     ? (isNaN(promoPpmGross) ? null : Math.round(area * promoPpmGross * 100) / 100)
     : (isNaN(promoPriceGrossRaw) ? null : Math.round(promoPriceGrossRaw * 100) / 100)
+  // Data sprzedaży — tylko gdy status SPRZEDANY i data poprawna.
+  let soldAt: Date | null = null
+  if (body.status === 'SPRZEDANY' && body.soldAt) {
+    const d = new Date(body.soldAt)
+    if (!isNaN(d.getTime())) soldAt = d
+  }
   const unit = await prisma.unit.create({
     data: {
       number: body.number,
@@ -75,6 +81,7 @@ export async function POST(req: NextRequest) {
       building: body.building || null,
       description: body.description || null,
       status: body.status || 'WOLNY',
+      soldAt,
       // Pola integracji 3D Estate (defaulty: visibleOnMatrix=true, promoActive=false)
       visibleOnMatrix: body.visibleOnMatrix !== undefined ? !!body.visibleOnMatrix : undefined,
       promoActive: body.promoActive !== undefined ? !!body.promoActive : undefined,
