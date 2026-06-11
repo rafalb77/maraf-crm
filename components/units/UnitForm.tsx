@@ -328,7 +328,8 @@ export function UnitForm({ unit }: { unit?: Unit }) {
             onChange={(e) => setForm({ ...form, soldAt: e.target.value })}
             className={inputCls} />
           <p className="text-xs text-gray-500 mt-1">
-            Zasila statystykę „co schodzi najszybciej" (czas od wystawienia do sprzedaży). Zostaw puste, jeśli nieznana.
+            Zasila statystykę „co schodzi najszybciej". Zostaw puste, a system użyje daty podpisania
+            powiązanej umowy deweloperskiej. Wpisz ręcznie tylko, żeby nadpisać tę datę.
           </p>
         </div>
       )}

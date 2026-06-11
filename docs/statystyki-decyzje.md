@@ -19,13 +19,13 @@ Wykresy: `recharts@2`. Stan: 10 widoków w 2 paczkach (2026-05-21).
 |---|---|---|
 | **Lejek konwersji** | `Client.status` (ZAPYTANIE→OFERTA→REZERWACJA→UMOWA→ODBIOR) | są klienci. Lejek = „osiągnął etap lub dalszy" (klient ma 1 status naraz). |
 | **Źródła leadów (ROI)** | `Client.source`, `Client.status` (UMOWA/ODBIOR = konwersja) | klienci mają wypełnione `source`. |
-| **Tempo sprzedaży 12 mc** | `Contract` (status PODPISANA) `signedAt` + `valueGross` | **są umowy** PODPISANA z `signedAt`. |
+| **Tempo sprzedaży 12 mc** | `Contract` (status PODPISANA, **type DEWELOPERSKA**) `signedAt` + `valueGross` | **są umowy deweloperskie** PODPISANA z `signedAt`. |
 | **Momentum (leady)** | `Client.createdAt` | są klienci. |
-| **Momentum (umowy/przychód)** | `Contract.signedAt` + `valueGross` | są umowy PODPISANA. |
-| **Cykl sprzedaży** | `Contract.signedAt` − `Client.createdAt` (po `clientId`) | są umowy PODPISANA z klientem. |
-| **Czas do sprzedaży / typ** | `Unit.soldAt` − `Unit.createdAt` dla lokali ze statusem SPRZEDANY + `Unit.type`/`Unit.rooms` | są **sprzedane lokale z ręcznie wpisaną `soldAt`** (data sprzedaży). Mieszkania (`MIESZKALNY`) rozbite po liczbie pokoi (1-pok., 2-pok., …; brak/0 → grupa „bez liczby pokoi"); pozostałe typy grupowane po typie. Lokale bez `soldAt` są pomijane (brak daty = brak czasu). `soldAt` ustawia się w edycji lokalu (pole widoczne gdy status=SPRZEDANY). |
+| **Momentum (umowy/przychód)** | `Contract.signedAt` + `valueGross` (**type DEWELOPERSKA**) | są umowy deweloperskie PODPISANA. |
+| **Cykl sprzedaży** | `Contract.signedAt` − `Client.createdAt` (po `clientId`, **type DEWELOPERSKA**) | są umowy deweloperskie PODPISANA z klientem. |
+| **Czas do sprzedaży / typ** | `data sprzedaży` − `Unit.createdAt` dla lokali ze statusem SPRZEDANY + `Unit.type`/`Unit.rooms` | są sprzedane lokale, dla których da się ustalić datę sprzedaży. **Data sprzedaży = `Unit.soldAt` (ręczny override), a gdy puste — automatycznie data podpisania powiązanej umowy DEWELOPERSKIEJ** (`Contract.signedAt` po `ContractUnit`; przy kilku → najwcześniejsza). Mieszkania (`MIESZKALNY`) rozbite po liczbie pokoi (1-pok., …; brak/0 → „bez liczby pokoi"); pozostałe wg typu. Lokale bez `soldAt` i bez podpisanej umowy deweloperskiej są pomijane. Pomijane też te z `createdAt` (data wystawienia) **po** dacie sprzedaży (`d<0`) — patrz niżej. |
 | **Leady do odgrzania** | `Client` (ZAPYTANIE/OFERTA/REZERWACJA) + ostatnia `Activity.date` | są otwarte leady bez kontaktu ≥ `STALE_LEAD_DAYS` (21). |
-| **Prognoza pipeline** | `Contract` W_PRZYGOTOWANIU `valueGross` + `Offer` WYSLANA `totalGross` | są umowy w przygotowaniu / wysłane oferty z wartościami. |
+| **Prognoza pipeline** | `Contract` W_PRZYGOTOWANIU (**type DEWELOPERSKA**) `valueGross` + `Offer` WYSLANA `totalGross` | są deweloperskie umowy w przygotowaniu / wysłane oferty z wartościami. |
 | **Puls aktywności** | `Activity.date` + `type` | są zarejestrowane działania. |
 | **Heatmapa sprzedaży** | `Unit.status` (SPRZEDANY) + `Unit.building` (lub prefiks numeru) + `Unit.floor` | są lokale ze statusem i piętrem/budynkiem. |
 
@@ -33,10 +33,16 @@ Wykresy: `recharts@2`. Stan: 10 widoków w 2 paczkach (2026-05-21).
 oraz — po ręcznym uzupełnieniu `Unit.soldAt` — **„co schodzi najszybciej"**. Pozostałe statystyki czasowe
 (tempo, cykl, momentum-przychód) jadą z **umów** (`Contract`), których import lokali NIE tworzy.
 
-**„Co schodzi najszybciej" (od 2026-06):** przepięte z umów na `Unit.status=SPRZEDANY` + `Unit.soldAt`
-(decyzja: pokazać wszystkie sprzedane lokale, a datę sprzedaży wpisywać ręcznie w edycji lokalu).
-`soldAt` to nowe pole `Unit` (nullable). **Wymaga `prisma db push` na prod** (brak migracji — patrz
-`docs/infrastruktura.md`). Zmiana statusu lokalu na inny niż SPRZEDANY czyści `soldAt` (API units).
+**„Co schodzi najszybciej" (od 2026-06):** źródłem są lokale `Unit.status=SPRZEDANY`. Data sprzedaży
+liczona **automatycznie z daty podpisania powiązanej umowy DEWELOPERSKIEJ** (`Contract.signedAt`),
+a ręczne pole `Unit.soldAt` (nullable, edycja lokalu gdy status=SPRZEDANY) służy jako **override**.
+`soldAt` **wymaga `prisma db push` na prod** (brak migracji — patrz `docs/infrastruktura.md`).
+Zmiana statusu lokalu na inny niż SPRZEDANY czyści `soldAt` (API units).
+
+**Pułapka `d<0` (data wystawienia):** czas = data sprzedaży − `Unit.createdAt`. Dla lokali
+zaimportowanych PO faktycznej sprzedaży `createdAt` = data importu > data sprzedaży → `d<0` →
+lokal pomijany. Żeby historia liczyła się poprawnie, backfilluj `createdAt` realną datą wystawienia
+(kolumna **P** w imporcie lokali, `lib/units-import.ts`).
 
 ## Import lokali a heatmapa — pułapki
 
@@ -74,6 +80,9 @@ Zachowanie:
 
 - `PREP_CONTRACT_WEIGHT = 0.6`, `SENT_OFFER_WEIGHT = 0.25` — wagi prognozy pipeline.
 - `STALE_LEAD_DAYS = 21` — próg „leadu do odgrzania".
+- `SALES_CONTRACT_TYPE = 'DEWELOPERSKA'` — „sprzedaż" z umów = tylko umowa deweloperska
+  (tempo, momentum-przychód, cykl, pipeline). Wyklucza rezerwacyjne/przeniesienia, żeby
+  ta sama transakcja nie liczyła się podwójnie. Zmień, jeśli definicja sprzedaży się zmieni.
 - Lejek: założenie „at-or-beyond" (klient w UMOWA przeszedł wcześniejsze etapy).
 
 ## Otwarte / do zrobienia

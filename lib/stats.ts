@@ -75,6 +75,11 @@ export type CrmStats = {
 const CONVERTED_STATUSES = new Set(['UMOWA', 'ODBIOR'])
 const MONTH_LABELS = ['sty', 'lut', 'mar', 'kwi', 'maj', 'cze', 'lip', 'sie', 'wrz', 'paź', 'lis', 'gru']
 
+// „Sprzedaż" = umowa DEWELOPERSKA (wiążące zobowiązanie). Statystyki z umów liczą
+// TYLKO ten typ — żeby umowa rezerwacyjna i deweloperska tej samej transakcji nie
+// liczyły się podwójnie (tempo, momentum-przychód, cykl, pipeline).
+const SALES_CONTRACT_TYPE = 'DEWELOPERSKA'
+
 function monthKey(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
 }
@@ -112,7 +117,7 @@ export async function getCrmStats(): Promise<CrmStats> {
   const [clients, contracts, units] = await Promise.all([
     prisma.client.findMany({ select: { status: true, source: true, createdAt: true } }),
     prisma.contract.findMany({
-      where: { status: 'PODPISANA' },
+      where: { status: 'PODPISANA', type: SALES_CONTRACT_TYPE },
       select: { signedAt: true, introducedAt: true, valueGross: true },
     }),
     prisma.unit.findMany({ select: { status: true, building: true, number: true, floor: true } }),
@@ -327,14 +332,14 @@ export async function getCrmInsights(): Promise<CrmInsights> {
 
   const [signedContracts, prepContracts, sentOffers, leadClients, activities, soldUnits] = await Promise.all([
     prisma.contract.findMany({
-      where: { status: 'PODPISANA', signedAt: { not: null } },
+      where: { status: 'PODPISANA', type: SALES_CONTRACT_TYPE, signedAt: { not: null } },
       select: {
         signedAt: true,
         client: { select: { createdAt: true, source: true } },
       },
     }),
     prisma.contract.findMany({
-      where: { status: 'W_PRZYGOTOWANIU' },
+      where: { status: 'W_PRZYGOTOWANIU', type: SALES_CONTRACT_TYPE },
       select: { valueGross: true },
     }),
     prisma.offer.findMany({ where: { status: 'WYSLANA' }, select: { totalGross: true } }),
@@ -351,8 +356,16 @@ export async function getCrmInsights(): Promise<CrmInsights> {
     }),
     prisma.activity.findMany({ select: { date: true, type: true } }),
     prisma.unit.findMany({
-      where: { status: 'SPRZEDANY', soldAt: { not: null } },
-      select: { type: true, rooms: true, createdAt: true, soldAt: true },
+      where: { status: 'SPRZEDANY' },
+      select: {
+        type: true, rooms: true, createdAt: true, soldAt: true,
+        // Powiązane umowy DEWELOPERSKIE (podpisane) — z nich bierzemy datę sprzedaży,
+        // gdy ręczny soldAt nie jest ustawiony.
+        contractUnits: {
+          where: { contract: { type: SALES_CONTRACT_TYPE, status: 'PODPISANA', signedAt: { not: null } } },
+          select: { contract: { select: { signedAt: true } } },
+        },
+      },
     }),
   ])
 
@@ -377,14 +390,22 @@ export async function getCrmInsights(): Promise<CrmInsights> {
   }
 
   // ---- Co schodzi najszybciej: mediana dni do sprzedaży ----
-  // Źródło: lokale ze statusem SPRZEDANY i ręcznie wpisaną datą sprzedaży (Unit.soldAt).
-  // Czas = soldAt − createdAt (data wystawienia/utworzenia lokalu). Mieszkania rozbite
-  // po liczbie pokoi, pozostałe typy grupowane po typie lokalu. Lokale bez soldAt są
-  // pomijane (nie da się policzyć czasu) — pojawią się po uzupełnieniu daty.
+  // Źródło: lokale ze statusem SPRZEDANY. Data sprzedaży = ręczny Unit.soldAt (override),
+  // a gdy puste — automatycznie data podpisania powiązanej umowy DEWELOPERSKIEJ
+  // (Contract.signedAt; przy kilku bierzemy najwcześniejszą). Czas = data sprzedaży −
+  // createdAt (data wystawienia/utworzenia lokalu). Lokale bez żadnej z tych dat są
+  // pomijane. Mieszkania rozbite po liczbie pokoi, pozostałe typy grupowane po typie.
   const daysByGroup = new Map<string, { label: string; days: number[] }>()
   for (const u of soldUnits) {
-    if (!u.soldAt) continue
-    const d = daysBetween(u.soldAt, u.createdAt)
+    let saleDate: Date | null = u.soldAt ?? null
+    if (!saleDate) {
+      const signed = u.contractUnits
+        .map((cu) => cu.contract?.signedAt)
+        .filter((d): d is Date => !!d)
+      if (signed.length) saleDate = signed.reduce((a, b) => (a < b ? a : b))
+    }
+    if (!saleDate) continue
+    const d = daysBetween(saleDate, u.createdAt)
     if (d < 0) continue
     const isFlat = u.type === 'MIESZKALNY'
     const key = isFlat ? `MIESZKALNY:${u.rooms ?? 0}` : u.type
