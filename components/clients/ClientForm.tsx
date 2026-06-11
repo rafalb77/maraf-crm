@@ -75,15 +75,15 @@ export function ClientForm({ client }: { client?: Client }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-gray-200 p-6 space-y-6">
+    <form onSubmit={handleSubmit} autoComplete="off" className="bg-white rounded-xl border border-gray-200 p-6 space-y-6">
       <section>
         <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">Dane podstawowe</h3>
         <div className="grid grid-cols-2 gap-4">
           <FormField label="Imię *" required>
-            <input value={form.firstName} onChange={(e) => set('firstName', e.target.value)} required className={inputCls} placeholder="Jan" />
+            <input value={form.firstName} onChange={(e) => set('firstName', e.target.value)} required autoComplete="off" className={inputCls} placeholder="Jan" />
           </FormField>
           <FormField label="Nazwisko *" required>
-            <input value={form.lastName} onChange={(e) => set('lastName', e.target.value)} required className={inputCls} placeholder="Kowalski" />
+            <input value={form.lastName} onChange={(e) => set('lastName', e.target.value)} required autoComplete="off" className={inputCls} placeholder="Kowalski" />
           </FormField>
           <FormField label="Status">
             <select value={form.status} onChange={(e) => set('status', e.target.value)} className={inputCls + ' bg-white'}>
@@ -91,7 +91,7 @@ export function ClientForm({ client }: { client?: Client }) {
             </select>
           </FormField>
           <FormField label="Źródło pozyskania">
-            <input value={form.source} onChange={(e) => set('source', e.target.value)} className={inputCls} placeholder="np. polecenie, portal" />
+            <input value={form.source} onChange={(e) => set('source', e.target.value)} autoComplete="off" className={inputCls} placeholder="np. polecenie, portal" />
           </FormField>
         </div>
       </section>
@@ -100,13 +100,13 @@ export function ClientForm({ client }: { client?: Client }) {
         <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">Kontakt</h3>
         <div className="grid grid-cols-2 gap-4">
           <FormField label="Telefon">
-            <input type="tel" value={form.phone} onChange={(e) => set('phone', e.target.value)} className={inputCls} placeholder="+48 600 000 000" />
+            <input type="tel" value={form.phone} onChange={(e) => set('phone', e.target.value)} autoComplete="off" className={inputCls} placeholder="+48 600 000 000" />
           </FormField>
           <FormField label="Telefon 2">
-            <input type="tel" value={form.phone2} onChange={(e) => set('phone2', e.target.value)} className={inputCls} />
+            <input type="tel" value={form.phone2} onChange={(e) => set('phone2', e.target.value)} autoComplete="off" className={inputCls} />
           </FormField>
           <FormField label="Email" cls="col-span-2">
-            <input type="email" value={form.email} onChange={(e) => set('email', e.target.value)} className={inputCls} placeholder="jan@kowalski.pl" />
+            <input type="email" value={form.email} onChange={(e) => set('email', e.target.value)} autoComplete="off" className={inputCls} placeholder="jan@kowalski.pl" />
           </FormField>
         </div>
       </section>
@@ -115,35 +115,35 @@ export function ClientForm({ client }: { client?: Client }) {
         <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">Dane do umowy</h3>
         <div className="grid grid-cols-2 gap-4">
           <FormField label="PESEL">
-            <input value={form.pesel} onChange={(e) => set('pesel', e.target.value)} className={inputCls} maxLength={11} />
+            <input value={form.pesel} onChange={(e) => set('pesel', e.target.value)} autoComplete="off" className={inputCls} maxLength={11} />
           </FormField>
           <FormField label="NIP (firmy)">
-            <input value={form.nip} onChange={(e) => set('nip', e.target.value)} className={inputCls} maxLength={10} />
+            <input value={form.nip} onChange={(e) => set('nip', e.target.value)} autoComplete="off" className={inputCls} maxLength={10} />
           </FormField>
           <FormField label="Nr dowodu / paszportu">
-            <input value={form.idNumber} onChange={(e) => set('idNumber', e.target.value)} className={inputCls} placeholder="ABC 123456" />
+            <input value={form.idNumber} onChange={(e) => set('idNumber', e.target.value)} autoComplete="off" className={inputCls} placeholder="ABC 123456" />
           </FormField>
           <FormField label="Imię ojca">
-            <input value={form.fatherName} onChange={(e) => set('fatherName', e.target.value)} className={inputCls} />
+            <input value={form.fatherName} onChange={(e) => set('fatherName', e.target.value)} autoComplete="off" className={inputCls} />
           </FormField>
           <FormField label="Imię matki">
-            <input value={form.motherName} onChange={(e) => set('motherName', e.target.value)} className={inputCls} />
+            <input value={form.motherName} onChange={(e) => set('motherName', e.target.value)} autoComplete="off" className={inputCls} />
           </FormField>
           <FormField label="Adres" cls="col-span-2">
-            <input value={form.address} onChange={(e) => set('address', e.target.value)} className={inputCls} placeholder="ul. Przykładowa 1/2" />
+            <input value={form.address} onChange={(e) => set('address', e.target.value)} autoComplete="off" className={inputCls} placeholder="ul. Przykładowa 1/2" />
           </FormField>
           <FormField label="Kod pocztowy">
-            <input value={form.zipCode} onChange={(e) => set('zipCode', e.target.value)} className={inputCls} placeholder="00-000" maxLength={6} />
+            <input value={form.zipCode} onChange={(e) => set('zipCode', e.target.value)} autoComplete="off" className={inputCls} placeholder="00-000" maxLength={6} />
           </FormField>
           <FormField label="Miasto">
-            <input value={form.city} onChange={(e) => set('city', e.target.value)} className={inputCls} placeholder="Warszawa" />
+            <input value={form.city} onChange={(e) => set('city', e.target.value)} autoComplete="off" className={inputCls} placeholder="Warszawa" />
           </FormField>
         </div>
       </section>
 
       <section>
         <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">Notatki</h3>
-        <textarea value={form.notes} onChange={(e) => set('notes', e.target.value)}
+        <textarea value={form.notes} onChange={(e) => set('notes', e.target.value)} autoComplete="off"
           rows={4} className={inputCls + ' resize-none'} placeholder="Dodatkowe informacje..." />
       </section>
 
