@@ -6,7 +6,6 @@ Krótkie wpisy „co i **dlaczego**". Bez listy wszystkich commitów — od tego
 
 ## 2026-06-09
 
-<<<<<<< Updated upstream
 ### Moduł Sprawy — repozytorium spraw + korespondencja (reklamacje, sprawy urzędowe)
 **Powód**: Rafał chciał repozytorium do prowadzenia historii spraw (reklamacje z tytułu rękojmi, sprawy urzędowe) z widoczną osią korespondencji (pisma wysłane/odebrane jako skany), pilnowaniem terminów ustawowych i **przeszukiwalnym** archiwum skanów. Pełny kontekst: `docs/sprawy-decyzje.md`.
 **Implementacja** (3 fazy, jeden zrzut):
@@ -19,7 +18,7 @@ Krótkie wpisy „co i **dlaczego**". Bez listy wszystkich commitów — od tego
 - **Wyszukiwanie** — `/api/cases?q=` ILIKE po sygnaturze/tytule/opisie/stronie + treści wpisów + `ocrText` skanów (Postgres `contains` insensitive). Upgrade do `tsvector` PL — poza MVP.
 - **Poza MVP**: generowanie pism z szablonów, eksport „teczki" PDF, AI-streszczenia, inbox z maila, e-Doręczenia, dashboard SLA, usterka→podwykonawca→kaucja.
 - **WYMAGA na produkcji**: `prisma db push` (3 tabele Case/CaseEntry/CaseDocument), **rebuild** obrazu (Dockerfile — tesseract), env `CASES_CRON_SECRET` (+ opcjonalnie `CASES_REMINDER_TO`), Coolify scheduled tasks na reminders i ocr-sweep, nadanie permission `cases` userom.
-=======
+
 ### Tworzenie rezerwacji miękkiej z 3 miejsc (lokal, oferta, klient)
 **Powód**: rezerwację miękką można było utworzyć tylko z karty klienta (`AssignUnitModal` → `POST /api/clients/[id]/units`). User chciał też z poziomu lokalu i oferty (różne punkty wejścia w workflow sprzedażowym).
 **Implementacja**:
@@ -49,7 +48,6 @@ Wszystkie 3 ścieżki tworzą ten sam typ rekordu (MIEKKA, `ClientUnit` + flagi 
 **Sidebar**: link „Rezerwacje" między Lokale i Oferty, ikona zegara.
 
 **Co po deployu**: (1) `RESERVATIONS_CRON_SECRET` w Coolify env. (2) Admin wpisuje adres odbiorcy w `/settings`. (3) Coolify scheduled task: codzienne `curl -X POST "https://crm.maraf.pl/api/public/reservations/expiring-email?secret=$RESERVATIONS_CRON_SECRET"` (np. `0 8 * * *`).
->>>>>>> Stashed changes
 
 ---
 
