@@ -48,26 +48,24 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     where: { id: params.id },
     select: { firstName: true, lastName: true, email: true, phone: true, pesel: true, status: true },
   })
+  // Update CZĘŚCIOWY: ustawiamy tylko pola faktycznie obecne w body.
+  // Pominięte (undefined) zostają nietknięte. KRYTYCZNE: bez tego PUT z samym
+  // { status } (ClientStatusChanger) wyzerowałby wszystkie dane klienta
+  // (email/phone/pesel/adres → null), bo `body.x || null` daje null dla undefined.
+  const data: Record<string, unknown> = {}
+  if (body.firstName !== undefined) data.firstName = body.firstName
+  if (body.lastName !== undefined) data.lastName = body.lastName
+  if (body.status !== undefined) data.status = body.status
+  for (const k of [
+    'email', 'phone', 'phone2', 'pesel', 'nip', 'idNumber',
+    'fatherName', 'motherName', 'address', 'city', 'zipCode', 'source', 'notes',
+  ]) {
+    if (body[k] !== undefined) data[k] = body[k] || null
+  }
+
   const client = await prisma.client.update({
     where: { id: params.id },
-    data: {
-      firstName: body.firstName,
-      lastName: body.lastName,
-      email: body.email || null,
-      phone: body.phone || null,
-      phone2: body.phone2 || null,
-      pesel: body.pesel || null,
-      nip: body.nip || null,
-      idNumber: body.idNumber || null,
-      fatherName: body.fatherName || null,
-      motherName: body.motherName || null,
-      address: body.address || null,
-      city: body.city || null,
-      zipCode: body.zipCode || null,
-      status: body.status,
-      source: body.source || null,
-      notes: body.notes || null,
-    },
+    data,
   })
 
   const meta = extractRequestMeta(req)
