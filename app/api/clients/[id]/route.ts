@@ -4,6 +4,16 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { audit, extractRequestMeta } from '@/lib/audit-log'
 
+// Pełny snapshot pól klienta do audytu — żeby KAŻDA zmiana/usunięcie była w
+// pełni odzyskiwalna z AuditLog.metadata.before. Wcześniej snapshot pomijał
+// m.in. adres/miasto/kod/NIP/dowód/imiona rodziców, więc po incydencie z
+// zerowaniem danych tych pól nie dało się przywrócić.
+const CLIENT_AUDIT_SELECT = {
+  firstName: true, lastName: true, email: true, phone: true, phone2: true,
+  pesel: true, nip: true, idNumber: true, fatherName: true, motherName: true,
+  address: true, city: true, zipCode: true, status: true, source: true, notes: true,
+} as const
+
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -43,10 +53,10 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await req.json()
-  // Pobierz stare dane do diff w audit
+  // Pełny snapshot starych wartości — do diffu w audicie i pełnego odzysku.
   const before = await prisma.client.findUnique({
     where: { id: params.id },
-    select: { firstName: true, lastName: true, email: true, phone: true, pesel: true, status: true },
+    select: CLIENT_AUDIT_SELECT,
   })
   // Update CZĘŚCIOWY: ustawiamy tylko pola faktycznie obecne w body.
   // Pominięte (undefined) zostają nietknięte. KRYTYCZNE: bez tego PUT z samym
@@ -88,10 +98,10 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  // Snapshot do audit przed usunięciem
+  // Pełny snapshot przed usunięciem — pełny odzysk z audytu w razie pomyłki.
   const before = await prisma.client.findUnique({
     where: { id: params.id },
-    select: { firstName: true, lastName: true, email: true, status: true },
+    select: CLIENT_AUDIT_SELECT,
   })
   await prisma.client.delete({ where: { id: params.id } })
 
