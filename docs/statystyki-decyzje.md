@@ -23,7 +23,7 @@ Wykresy: `recharts@2`. Stan: 10 widoków w 2 paczkach (2026-05-21).
 | **Momentum (leady)** | `Client.createdAt` | są klienci. |
 | **Momentum (umowy/przychód)** | `Contract.signedAt` + `valueGross` | są umowy PODPISANA. |
 | **Cykl sprzedaży** | `Contract.signedAt` − `Client.createdAt` (po `clientId`) | są umowy PODPISANA z klientem. |
-| **Czas do sprzedaży / typ** | `Contract.signedAt` − `Unit.createdAt` (po `contractUnits`) + `Unit.type` | umowy mają **podpięte lokale** (`ContractUnit`). |
+| **Czas do sprzedaży / typ** | `Contract.signedAt` − `Unit.createdAt` (po `contractUnits`) + `Unit.type`/`Unit.rooms` | umowy mają **podpięte lokale** (`ContractUnit`). Mieszkania (`MIESZKALNY`) rozbite po liczbie pokoi (1-pok., 2-pok., …; brak/0 → grupa „bez liczby pokoi"); pozostałe typy grupowane po typie. |
 | **Leady do odgrzania** | `Client` (ZAPYTANIE/OFERTA/REZERWACJA) + ostatnia `Activity.date` | są otwarte leady bez kontaktu ≥ `STALE_LEAD_DAYS` (21). |
 | **Prognoza pipeline** | `Contract` W_PRZYGOTOWANIU `valueGross` + `Offer` WYSLANA `totalGross` | są umowy w przygotowaniu / wysłane oferty z wartościami. |
 | **Puls aktywności** | `Activity.date` + `type` | są zarejestrowane działania. |
@@ -37,8 +37,9 @@ których import lokali NIE tworzy.
 
 Importer `lib/units-import.ts` (UI: `/units/import`) czyta kolumny xlsx (z nagłówkiem):
 
-- **A** Numer · **B** Typ lokalu · **C** Status · **D** Klient · **F** Budynek · **G** Klatka · **H** Kondygnacja · **K** Powierzchnia · **M** Cena brutto · **P** Data wystawienia (opcjonalna)
-- Pomijane: E (kolejka), I (pokoje), J (piętro display), L (cena/m²), N (cechy), O (umowa). Cena netto i cena/m² liczone automatycznie.
+- **A** Numer · **B** Typ lokalu · **C** Status · **D** Klient · **F** Budynek · **G** Klatka · **H** Kondygnacja · **I** Pokoje · **K** Powierzchnia · **M** Cena brutto · **P** Data wystawienia (opcjonalna)
+- Pomijane: E (kolejka), J (piętro display), L (cena/m²), N (cechy), O (umowa). Cena netto i cena/m² liczone automatycznie.
+- **I „Pokoje"** → `Unit.rooms` (Int, puste/0 → null). Zasila „co schodzi najszybciej" (mieszkania rozbite po liczbie pokoi). Backfill też przy update istniejących lokali.
 - **P „Data wystawienia"** (opcjonalna) → `Unit.createdAt`, żeby statystyka „czas do sprzedaży" działała dla historii.
 
 Żeby heatmapa pokazała sprzedane:

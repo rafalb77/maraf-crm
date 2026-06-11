@@ -4,10 +4,7 @@ import {
   type FunnelStep, type Heatmap, type LeadSourceRow, type Momentum, type Delta,
   type CycleStats, type TimeToSaleRow, type StaleLead, type Pipeline,
 } from '@/lib/stats'
-import {
-  CLIENT_STATUS_LABELS, UNIT_TYPE_LABELS,
-  type ClientStatus, type UnitType,
-} from '@/lib/types'
+import { CLIENT_STATUS_LABELS, type ClientStatus } from '@/lib/types'
 import { formatDate } from '@/lib/utils'
 import { SalesVelocityChart } from '@/components/stats/SalesVelocityChart'
 import { LeadSourceChart } from '@/components/stats/LeadSourceChart'
@@ -82,7 +79,7 @@ export default async function StatystykiPage() {
         {/* Co schodzi najszybciej */}
         <section className="bg-white rounded-xl border border-gray-200 p-6">
           <h2 className="font-semibold text-gray-900 mb-1">Co schodzi najszybciej</h2>
-          <p className="text-xs text-gray-400 mb-4">Mediana dni do sprzedaży wg typu lokalu</p>
+          <p className="text-xs text-gray-400 mb-4">Mediana dni do sprzedaży — mieszkania wg liczby pokoi, pozostałe wg typu lokalu</p>
           <TimeToSaleView rows={timeToSale} />
         </section>
       </div>
@@ -272,9 +269,9 @@ function TimeToSaleView({ rows }: { rows: TimeToSaleRow[] }) {
   return (
     <div className="space-y-2.5">
       {rows.map((r) => (
-        <div key={r.type}>
+        <div key={r.key}>
           <div className="flex items-center justify-between text-sm mb-0.5">
-            <span className="text-gray-600">{UNIT_TYPE_LABELS[r.type as UnitType] ?? r.type}</span>
+            <span className="text-gray-600">{r.label}</span>
             <span className="text-gray-400 text-xs">
               <span className="font-medium text-gray-700">{r.medianDays} dni</span> · {r.soldCount} szt.
             </span>

@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma'
+import { UNIT_TYPE_LABELS, type UnitType } from '@/lib/types'
 
 // =============================================================
 // Statystyki CRM — agregacje dla strony /statystyki.
@@ -87,6 +88,12 @@ function median(values: number[]): number {
 
 function daysBetween(later: Date, earlier: Date): number {
   return Math.round((later.getTime() - earlier.getTime()) / 86_400_000)
+}
+
+/** Etykieta mieszkania wg liczby pokoi. Brak/0 pokoi → grupa zbiorcza. */
+function roomsLabel(rooms: number | null): string {
+  if (!rooms || rooms < 1) return 'Mieszkanie (bez liczby pokoi)'
+  return `Mieszkanie ${rooms}-pokojowe`
 }
 
 function changePct(current: number, prev: number): number | null {
@@ -268,7 +275,9 @@ export type CycleStats = {
   bySource: { source: string; medianDays: number; count: number }[]
 }
 
-export type TimeToSaleRow = { type: string; soldCount: number; medianDays: number }
+// Mieszkania rozbijane po liczbie pokoi (1-pok., 2-pok., …); pozostałe typy
+// grupowane po typie lokalu. `key` = stabilny klucz mapy/React, `label` gotowy do wyświetlenia.
+export type TimeToSaleRow = { key: string; label: string; soldCount: number; medianDays: number }
 
 export type StaleLead = {
   id: string
@@ -322,7 +331,7 @@ export async function getCrmInsights(): Promise<CrmInsights> {
       select: {
         signedAt: true,
         client: { select: { createdAt: true, source: true } },
-        contractUnits: { select: { unit: { select: { type: true, createdAt: true } } } },
+        contractUnits: { select: { unit: { select: { type: true, rooms: true, createdAt: true } } } },
       },
     }),
     prisma.contract.findMany({
@@ -364,8 +373,10 @@ export async function getCrmInsights(): Promise<CrmInsights> {
       .sort((a, b) => b.count - a.count),
   }
 
-  // ---- Co schodzi najszybciej: mediana dni do sprzedaży per typ lokalu ----
-  const daysByType = new Map<string, number[]>()
+  // ---- Co schodzi najszybciej: mediana dni do sprzedaży ----
+  // Mieszkania (MIESZKALNY) rozbijamy po liczbie pokoi (1-pok., 2-pok., …),
+  // pozostałe typy lokali grupujemy po typie.
+  const daysByGroup = new Map<string, { label: string; days: number[] }>()
   for (const ct of signedContracts) {
     if (!ct.signedAt) continue
     for (const cu of ct.contractUnits) {
@@ -373,12 +384,16 @@ export async function getCrmInsights(): Promise<CrmInsights> {
       if (!u) continue
       const d = daysBetween(ct.signedAt, u.createdAt)
       if (d < 0) continue
-      if (!daysByType.has(u.type)) daysByType.set(u.type, [])
-      daysByType.get(u.type)!.push(d)
+      const isFlat = u.type === 'MIESZKALNY'
+      const key = isFlat ? `MIESZKALNY:${u.rooms ?? 0}` : u.type
+      const label = isFlat ? roomsLabel(u.rooms) : (UNIT_TYPE_LABELS[u.type as UnitType] ?? u.type)
+      let entry = daysByGroup.get(key)
+      if (!entry) { entry = { label, days: [] }; daysByGroup.set(key, entry) }
+      entry.days.push(d)
     }
   }
-  const timeToSale: TimeToSaleRow[] = [...daysByType.entries()]
-    .map(([type, arr]) => ({ type, soldCount: arr.length, medianDays: median(arr) }))
+  const timeToSale: TimeToSaleRow[] = [...daysByGroup.entries()]
+    .map(([key, v]) => ({ key, label: v.label, soldCount: v.days.length, medianDays: median(v.days) }))
     .sort((a, b) => a.medianDays - b.medianDays)
 
   // ---- Leady do odgrzania: brak kontaktu od STALE_LEAD_DAYS dni ----

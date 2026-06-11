@@ -19,6 +19,7 @@ const COL = {
   building: 5,
   klatka: 6,
   kondygnacja: 7,
+  rooms: 8,
   area: 10,
   priceGross: 12,
   listingDate: 15,
@@ -64,6 +65,7 @@ export type UnitData = {
   priceGross: number
   vatRate: number
   floor: number | null
+  rooms: number | null
   building: string | null
   // Data wystawienia (opcjonalna) — backfill Unit.createdAt. Niezależna od sync.
   listingDate: Date | null
@@ -154,6 +156,13 @@ function parseFloor(raw: unknown): number | null {
   return Number.isFinite(n) ? n : null
 }
 
+// Liczba pokoi (kolumna I). Pusta/0/niepoprawna → null (np. parking/garaż/komórka).
+function parseRooms(raw: unknown): number | null {
+  if (raw === null || raw === undefined || raw === '') return null
+  const n = typeof raw === 'number' ? raw : parseInt(String(raw), 10)
+  return Number.isFinite(n) && n > 0 ? Math.round(n) : null
+}
+
 function parseDate(raw: unknown): Date | null {
   if (raw === null || raw === undefined || raw === '') return null
   if (raw instanceof Date) return isNaN(raw.getTime()) ? null : raw
@@ -232,6 +241,7 @@ function parseSheet(buffer: Buffer, opts: ImportOptions): ParsedRow[] {
       priceGross,
       vatRate: VAT_RATE,
       floor: parseFloor(r[COL.kondygnacja]),
+      rooms: parseRooms(r[COL.rooms]),
       building: normalizeBuilding(r[COL.building], r[COL.klatka]),
       listingDate: parseDate(r[COL.listingDate]),
     }
@@ -262,6 +272,7 @@ const FIELD_LABELS: Record<keyof UnitData, string> = {
   priceGross: 'Cena brutto',
   vatRate: 'VAT',
   floor: 'Kondygnacja',
+  rooms: 'Pokoje',
   building: 'Budynek/Klatka',
   listingDate: 'Data wystawienia',
   status: 'Status',
@@ -276,6 +287,7 @@ const COMPARE_FIELDS: (keyof UnitData)[] = [
   'priceNet',
   'priceGross',
   'floor',
+  'rooms',
   'building',
 ]
 
@@ -337,6 +349,7 @@ export async function buildDiff(
       priceGross: true,
       vatRate: true,
       floor: true,
+      rooms: true,
       building: true,
       status: true,
       // Relacje "w użyciu" — zliczamy żeby ustalić "chronione"
@@ -491,6 +504,7 @@ export async function commitImport(
         priceGross: n.data.priceGross,
         vatRate: n.data.vatRate,
         floor: n.data.floor,
+        rooms: n.data.rooms,
         building: n.data.building,
         // Status dla NOWYCH:
         // - jeśli sync włączony i xlsx ma rozpoznany status → użyj go
@@ -514,6 +528,7 @@ export async function commitImport(
         priceGross: u.data.priceGross,
         vatRate: u.data.vatRate,
         floor: u.data.floor,
+        rooms: u.data.rooms,
         building: u.data.building,
       }
       if (opts.syncStatusAndClients && u.data.status) {
