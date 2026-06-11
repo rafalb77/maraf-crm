@@ -29,7 +29,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   const body = await req.json()
   const contract = await prisma.contract.findUnique({
     where: { id: params.id },
-    include: { contractUnits: true },
+    include: { contractUnits: true, contractClients: true },
   })
   if (!contract) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
@@ -89,6 +89,17 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
           },
         })
       }
+
+      // Podpisanie umowy podnosi status klienta (głównego + współrezerwujących)
+      // na UMOWA — spójnie z importem (contracts-import.ts). Nie cofamy klientów
+      // już dalej w lejku (UMOWA/ODBIOR).
+      const clientIds = Array.from(
+        new Set([contract.clientId, ...contract.contractClients.map((cc) => cc.clientId)]),
+      )
+      await prisma.client.updateMany({
+        where: { id: { in: clientIds }, status: { in: ['ZAPYTANIE', 'OFERTA', 'REZERWACJA'] } },
+        data: { status: 'UMOWA' },
+      })
     } else if (newStatus === 'ROZWIAZANA' || newStatus === 'ANULOWANA') {
       // Release units
       const unitIds = contract.contractUnits.map((cu) => cu.unitId)

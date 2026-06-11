@@ -8,6 +8,7 @@ import {
   type ContractType, type ContractStatus, type UnitType, type UnitStatus,
 } from '@/lib/types'
 import { ContractStatusChanger } from '@/components/sales/ContractStatusChanger'
+import { MarkSignedButton } from '@/components/sales/MarkSignedButton'
 import { DeleteContractButton } from '@/components/sales/DeleteContractButton'
 import { ContractAttachments } from '@/components/sales/ContractAttachments'
 import { ContractEmailButton } from '@/components/sales/ContractEmailButton'
@@ -100,6 +101,7 @@ export default async function ContractDetailPage({ params }: { params: { id: str
             clientEmail={contract.client.email}
             isReservation={contract.type === 'REZERWACYJNA'}
           />
+          {contract.status !== 'PODPISANA' && <MarkSignedButton contractId={contract.id} />}
           <ContractStatusChanger contractId={contract.id} currentStatus={contract.status as ContractStatus} />
           <DeleteContractButton id={contract.id} number={contract.number} />
         </div>

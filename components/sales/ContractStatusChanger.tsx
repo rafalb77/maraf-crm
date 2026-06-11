@@ -23,12 +23,17 @@ export function ContractStatusChanger({
       if (!confirm('To zwolni zarezerwowane lokale. Kontynuować?')) return
     }
     setLoading(true)
-    await fetch(`/api/contracts/${contractId}`, {
+    const res = await fetch(`/api/contracts/${contractId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status: newStatus }),
     })
     setLoading(false)
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}))
+      alert(d.error || 'Nie udało się zmienić statusu umowy. Spróbuj ponownie.')
+      return
+    }
     router.refresh()
   }
 
