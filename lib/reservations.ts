@@ -16,7 +16,22 @@ export async function expireSoftReservations() {
 
   if (expired.length === 0) return
 
-  const ids = expired.map((u) => u.id)
+  const allIds = expired.map((u) => u.id)
+
+  // NIE zwalniaj lokali, które są składnikiem AKTYWNEJ (niezrozwiązanej/nieanulowanej)
+  // umowy — to nie jest „porzucona" miękka rezerwacja, tylko lokal pod umową.
+  // (Dane z importu bywają miękko-zarezerwowane mimo podpisanej umowy — bez tego
+  // strażnika auto-wygasanie po cichu zwalniało je i kasowało ClientUnit.)
+  const contracted = await prisma.contractUnit.findMany({
+    where: {
+      unitId: { in: allIds },
+      contract: { status: { notIn: ['ROZWIAZANA', 'ANULOWANA'] } },
+    },
+    select: { unitId: true },
+  })
+  const contractedSet = new Set(contracted.map((c) => c.unitId))
+  const ids = allIds.filter((id) => !contractedSet.has(id))
+  if (ids.length === 0) return
 
   await prisma.$transaction([
     prisma.unit.updateMany({

@@ -20,6 +20,12 @@ async function getClients(status?: string, search?: string) {
     },
     include: {
       clientUnits: { include: { unit: true } },
+      // Lokale z aktywnych umów (ContractUnit) — żeby kolumna „Lokale" nie pustoszała
+      // gdy miękka rezerwacja (ClientUnit) wygaśnie, a lokal jest pod podpisaną umową.
+      contracts: {
+        where: { status: { notIn: ['ROZWIAZANA', 'ANULOWANA'] } },
+        select: { contractUnits: { select: { unit: { select: { number: true } } } } },
+      },
       _count: { select: { activities: true, serviceRequests: true } },
     },
     orderBy: { updatedAt: 'desc' },
@@ -73,7 +79,10 @@ export default async function ClientsPage({
           phone: c.phone,
           email: c.email,
           status: c.status,
-          unitNumbers: c.clientUnits.map((cu) => cu.unit.number),
+          unitNumbers: Array.from(new Set([
+            ...c.clientUnits.map((cu) => cu.unit.number),
+            ...c.contracts.flatMap((ct) => ct.contractUnits.map((cu) => cu.unit.number)),
+          ])),
           activitiesCount: c._count.activities,
           updatedAt: c.updatedAt.toISOString(),
         }))}
