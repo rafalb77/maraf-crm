@@ -357,6 +357,7 @@ export async function getCrmInsights(): Promise<CrmInsights> {
       where: SOLD_DEAL_WHERE,
       select: {
         signedAt: true,
+        introducedAt: true,
         stages: { where: { stage: SALES_CONTRACT_TYPE }, select: { signedAt: true } },
         client: { select: { createdAt: true, source: true } },
       },
@@ -405,8 +406,12 @@ export async function getCrmInsights(): Promise<CrmInsights> {
   for (const ct of signedContracts) {
     const soldAt = dealSoldAt(ct)
     if (!soldAt || !ct.client) continue
-    const d = daysBetween(soldAt, ct.client.createdAt)
-    if (d < 0) continue // dane niespójne (umowa przed dodaniem klienta) — pomijamy
+    // Start cyklu = najwcześniejsza znana data wejścia: createdAt klienta lub
+    // introducedAt umowy. Dla danych z importu createdAt = dzień importu (po
+    // podpisie), więc bierzemy wcześniejszą — realny początek cyklu sprzedaży.
+    const lead = ct.introducedAt < ct.client.createdAt ? ct.introducedAt : ct.client.createdAt
+    const d = daysBetween(soldAt, lead)
+    if (d < 0) continue // dane niespójne (podpis przed jakąkolwiek datą wejścia) — pomijamy
     cycleDays.push(d)
     const src = ct.client.source?.trim() || 'Bez źródła'
     if (!cycleBySource.has(src)) cycleBySource.set(src, [])
