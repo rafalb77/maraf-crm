@@ -54,8 +54,11 @@ export function PromoteReservationButton({
     <>
       <button
         onClick={() => setOpen(true)}
-        className="text-sm text-green-700 hover:text-green-800 font-medium"
+        className="w-full px-3 py-2 border border-dashed border-green-300 text-green-700 hover:bg-green-50 rounded-lg text-sm font-medium flex items-center justify-center gap-1.5 transition-colors"
       >
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+        </svg>
         Przekształć rezerwację w umowę
       </button>
       {open && (

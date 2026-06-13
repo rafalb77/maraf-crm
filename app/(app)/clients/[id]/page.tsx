@@ -143,15 +143,12 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
 
           {/* Contracts */}
           <div className="bg-white rounded-xl border border-gray-200 p-5">
-            <div className="flex items-center justify-between mb-4 gap-2">
+            <div className="flex items-center justify-between mb-4">
               <h2 className="font-semibold text-gray-900">Umowy</h2>
-              <div className="flex items-center gap-3">
-                <PromoteReservationButton clientId={client.id} unitCount={client.clientUnits.length} />
-                <Link href={`/sales/new?clientId=${client.id}`}
-                  className="text-sm text-blue-600 hover:text-blue-700 font-medium">
-                  + Nowa
-                </Link>
-              </div>
+              <Link href={`/sales/new?clientId=${client.id}`}
+                className="text-sm text-blue-600 hover:text-blue-700 font-medium">
+                + Nowa
+              </Link>
             </div>
             {client.contracts.length === 0 ? (
               <p className="text-gray-400 text-sm">Brak umów</p>
@@ -171,6 +168,9 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
                 ))}
               </div>
             )}
+            <div className="mt-3">
+              <PromoteReservationButton clientId={client.id} unitCount={client.clientUnits.length} />
+            </div>
           </div>
 
           {/* Service requests */}

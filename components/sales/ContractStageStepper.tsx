@@ -5,6 +5,7 @@ import {
   CONTRACT_TYPE_LABELS,
   CONTRACT_STAGE_ORDER,
   nextContractStage,
+  prevContractStage,
   type ContractType,
 } from '@/lib/types'
 import { formatDate } from '@/lib/utils'
@@ -39,17 +40,17 @@ export function ContractStageStepper({
 
   const currentIdx = CONTRACT_STAGE_ORDER.indexOf(currentStage)
   const next = nextContractStage(currentStage)
+  const prev = prevContractStage(currentStage)
 
-  async function advance() {
-    if (!next) return
-    if (!confirm(`Przejść do etapu: ${CONTRACT_TYPE_LABELS[next]}?\nBieżący etap zostanie zachowany w osi.`)) return
+  async function move(endpoint: 'advance' | 'revert', confirmMsg: string, errMsg: string) {
+    if (!confirm(confirmMsg)) return
     setBusy(true)
     setError(null)
     try {
-      const res = await fetch(`/api/contracts/${contractId}/advance`, { method: 'POST' })
+      const res = await fetch(`/api/contracts/${contractId}/${endpoint}`, { method: 'POST' })
       if (!res.ok) {
         const d = await res.json().catch(() => ({}))
-        throw new Error(d.error || 'Nie udało się przejść do kolejnego etapu')
+        throw new Error(d.error || errMsg)
       }
       router.refresh()
     } catch (e: any) {
@@ -58,6 +59,22 @@ export function ContractStageStepper({
       setBusy(false)
     }
   }
+
+  const advance = () =>
+    next &&
+    move(
+      'advance',
+      `Przejść do etapu: ${CONTRACT_TYPE_LABELS[next]}?\nBieżący etap zostanie zachowany w osi.`,
+      'Nie udało się przejść do kolejnego etapu',
+    )
+
+  const revert = () =>
+    prev &&
+    move(
+      'revert',
+      `Cofnąć etap do: ${CONTRACT_TYPE_LABELS[prev]}?\nNiepodpisany bieżący etap zostanie usunięty z osi.`,
+      'Nie udało się cofnąć etapu',
+    )
 
   return (
     <div>
@@ -108,15 +125,30 @@ export function ContractStageStepper({
 
       {error && <p className="text-sm text-red-600 mt-2">{error}</p>}
 
-      {next && (
-        <button
-          onClick={advance}
-          disabled={busy}
-          className="mt-3 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white rounded-lg text-sm font-medium flex items-center gap-2"
-        >
-          {busy ? 'Przechodzę...' : `Przejdź do etapu: ${CONTRACT_TYPE_LABELS[next]}`}
-          <span aria-hidden>→</span>
-        </button>
+      {(next || prev) && (
+        <div className="mt-3 flex items-center gap-2">
+          {next && (
+            <button
+              onClick={advance}
+              disabled={busy}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white rounded-lg text-sm font-medium flex items-center gap-2"
+            >
+              {busy ? 'Przechodzę...' : `Przejdź do etapu: ${CONTRACT_TYPE_LABELS[next]}`}
+              <span aria-hidden>→</span>
+            </button>
+          )}
+          {prev && (
+            <button
+              onClick={revert}
+              disabled={busy}
+              className="px-3 py-2 border border-gray-300 text-gray-600 hover:bg-gray-50 disabled:opacity-50 rounded-lg text-sm font-medium flex items-center gap-1.5"
+              title={`Cofnij do: ${CONTRACT_TYPE_LABELS[prev]}`}
+            >
+              <span aria-hidden>←</span>
+              Cofnij etap
+            </button>
+          )}
+        </div>
       )}
 
       {editStage && (

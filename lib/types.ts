@@ -199,6 +199,12 @@ export function nextContractStage(stage: ContractType): ContractType | null {
   return i >= 0 && i < CONTRACT_STAGE_ORDER.length - 1 ? CONTRACT_STAGE_ORDER[i + 1] : null
 }
 
+/** Poprzedni etap dealu, albo null gdy już na pierwszym (rezerwacyjna). */
+export function prevContractStage(stage: ContractType): ContractType | null {
+  const i = CONTRACT_STAGE_ORDER.indexOf(stage)
+  return i > 0 ? CONTRACT_STAGE_ORDER[i - 1] : null
+}
+
 export const CONTRACT_STATUS_LABELS: Record<ContractStatus, string> = {
   W_PRZYGOTOWANIU: 'W przygotowaniu',
   PODPISANA: 'Podpisana',
