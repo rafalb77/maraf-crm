@@ -13,6 +13,7 @@ import { DeleteContractButton } from '@/components/sales/DeleteContractButton'
 import { ContractAttachments } from '@/components/sales/ContractAttachments'
 import { ContractEmailButton } from '@/components/sales/ContractEmailButton'
 import { ContractPaymentsPanel } from '@/components/sales/ContractPaymentsPanel'
+import { ContractStageStepper } from '@/components/sales/ContractStageStepper'
 
 export default async function ContractDetailPage({ params }: { params: { id: string } }) {
   const contract = await prisma.contract.findUnique({
@@ -23,6 +24,7 @@ export default async function ContractDetailPage({ params }: { params: { id: str
       contractUnits: { include: { unit: true } },
       attachments: true,
       history: { orderBy: { createdAt: 'desc' } },
+      stages: { orderBy: { createdAt: 'asc' } },
       payments: {
         orderBy: [{ position: 'asc' }, { plannedDate: 'asc' }],
         include: { escrowDeposit: { select: { id: true } } },
@@ -30,6 +32,13 @@ export default async function ContractDetailPage({ params }: { params: { id: str
     },
   })
   if (!contract) notFound()
+
+  const stagesForStepper = contract.stages.map((s) => ({
+    stage: s.stage,
+    status: s.status,
+    signedAt: s.signedAt ? s.signedAt.toISOString() : null,
+    number: s.number,
+  }))
 
   // Aktywne rachunki powiernicze MD — do dropdownu przy odhaczaniu wpłaty.
   const escrowAccounts = await prisma.escrowAccount.findMany({
@@ -109,6 +118,14 @@ export default async function ContractDetailPage({ params }: { params: { id: str
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         <div className="lg:col-span-2 space-y-5">
+          <Panel title="Etap umowy">
+            <ContractStageStepper
+              contractId={contract.id}
+              currentStage={contract.type as ContractType}
+              stages={stagesForStepper}
+            />
+          </Panel>
+
           <Panel title="Dane umowy">
             <Row label="Numer umowy" value={contract.number} />
             <Row label="Typ" value={CONTRACT_TYPE_LABELS[contract.type as ContractType]} />

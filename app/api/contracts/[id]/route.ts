@@ -100,6 +100,13 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
         where: { id: { in: clientIds }, status: { in: ['ZAPYTANIE', 'OFERTA', 'REZERWACJA'] } },
         data: { status: 'UMOWA' },
       })
+
+      // Zapisz podpisanie BIEŻĄCEGO etapu w osi etapów (data + status).
+      await prisma.contractStage.upsert({
+        where: { contractId_stage: { contractId: contract.id, stage: contract.type } },
+        create: { contractId: contract.id, stage: contract.type, status: 'PODPISANA', signedAt: data.signedAt },
+        update: { status: 'PODPISANA', signedAt: data.signedAt },
+      })
     } else if (newStatus === 'ROZWIAZANA' || newStatus === 'ANULOWANA') {
       // Release units
       const unitIds = contract.contractUnits.map((cu) => cu.unitId)

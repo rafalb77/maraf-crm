@@ -416,6 +416,32 @@ model Contract {
   attachments     ContractAttachment[]
   history         ContractHistory[]
   payments        ContractPayment[]
+  stages          ContractStage[]
+}
+
+// Etapy dealu. Jeden Contract = jeden deal; `Contract.type` = BIEŻĄCY etap.
+// Deal przechodzi: REZERWACYJNA → DEWELOPERSKA → PRZENIESIENIA (może też
+// startować od dowolnego etapu, np. od razu deweloperskiej). Każdy etap to
+// osobny podpisany dokument — własna data podpisania i opcjonalny numer aktu
+// notarialnego (repertorium). Numer dealu (Contract.number) jest jeden.
+// stage:  REZERWACYJNA | DEWELOPERSKA | PRZENIESIENIA
+// status: W_PRZYGOTOWANIU | PODPISANA | ROZWIAZANA | ANULOWANA
+model ContractStage {
+  id              String    @id @default(cuid())
+  contractId      String
+  stage           String
+  status          String    @default("W_PRZYGOTOWANIU")
+  number          String? // numer aktu / repertorium notarialne dla tego etapu
+  plannedSignDate DateTime?
+  signedAt        DateTime?
+  notes           String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  contract Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+  @@unique([contractId, stage])
+  @@index([contractId])
 }
 
 // Harmonogram wpłat nabywcy (etap 2 Finansowania). Umowa deweloperska ma raty

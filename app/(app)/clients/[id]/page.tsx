@@ -18,6 +18,7 @@ import { AssignUnitModal } from '@/components/clients/AssignUnitModal'
 import { DeleteClientButton } from '@/components/clients/DeleteClientButton'
 import { ClientStatusChanger } from '@/components/clients/ClientStatusChanger'
 import { UnassignUnitButton } from '@/components/clients/UnassignUnitButton'
+import { PromoteReservationButton } from '@/components/clients/PromoteReservationButton'
 import { SwapButton } from '@/components/reservations/ReservationActions'
 
 export default async function ClientDetailPage({ params }: { params: { id: string } }) {
@@ -142,12 +143,15 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
 
           {/* Contracts */}
           <div className="bg-white rounded-xl border border-gray-200 p-5">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between mb-4 gap-2">
               <h2 className="font-semibold text-gray-900">Umowy</h2>
-              <Link href={`/sales/new?clientId=${client.id}`}
-                className="text-sm text-blue-600 hover:text-blue-700 font-medium">
-                + Nowa
-              </Link>
+              <div className="flex items-center gap-3">
+                <PromoteReservationButton clientId={client.id} unitCount={client.clientUnits.length} />
+                <Link href={`/sales/new?clientId=${client.id}`}
+                  className="text-sm text-blue-600 hover:text-blue-700 font-medium">
+                  + Nowa
+                </Link>
+              </div>
             </div>
             {client.contracts.length === 0 ? (
               <p className="text-gray-400 text-sm">Brak umów</p>

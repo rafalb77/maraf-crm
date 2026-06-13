@@ -185,6 +185,20 @@ export const CONTRACT_TYPE_LETTER: Record<ContractType, string> = {
   PRZENIESIENIA: 'P',
 }
 
+// Kolejność etapów dealu. Contract.type = bieżący etap; deal posuwa się w przód
+// po tej ścieżce. Może startować od dowolnego etapu (np. od deweloperskiej).
+export const CONTRACT_STAGE_ORDER: ContractType[] = [
+  'REZERWACYJNA',
+  'DEWELOPERSKA',
+  'PRZENIESIENIA',
+]
+
+/** Następny etap dealu, albo null gdy już na ostatnim (przeniesienie własności). */
+export function nextContractStage(stage: ContractType): ContractType | null {
+  const i = CONTRACT_STAGE_ORDER.indexOf(stage)
+  return i >= 0 && i < CONTRACT_STAGE_ORDER.length - 1 ? CONTRACT_STAGE_ORDER[i + 1] : null
+}
+
 export const CONTRACT_STATUS_LABELS: Record<ContractStatus, string> = {
   W_PRZYGOTOWANIU: 'W przygotowaniu',
   PODPISANA: 'Podpisana',

@@ -94,8 +94,11 @@ export async function POST(req: NextRequest) {
           .filter((id) => id && id !== clientId)
           .map((id, idx) => ({ clientId: id, position: idx + 2 })),
       },
+      stages: {
+        create: { stage: type, status: 'W_PRZYGOTOWANIU' },
+      },
       history: {
-        create: { event: 'UTWORZONO', details: `Umowa ${number} utworzona` },
+        create: { event: 'UTWORZONO', details: `Umowa ${number} utworzona (etap: ${type})` },
       },
     },
     include: { client: true, contractUnits: { include: { unit: true } } },
