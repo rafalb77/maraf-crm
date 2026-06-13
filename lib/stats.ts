@@ -80,6 +80,23 @@ const MONTH_LABELS = ['sty', 'lut', 'mar', 'kwi', 'maj', 'cze', 'lip', 'sie', 'w
 // liczyły się podwójnie (tempo, momentum-przychód, cykl, pipeline).
 const SALES_CONTRACT_TYPE = 'DEWELOPERSKA'
 
+// Predykat „deal sprzedany" = podpisany ETAP deweloperski. Liczymy przez
+// ContractStage, więc deal liczy się jako sprzedaż NAWET gdy poszedł dalej do
+// przeniesienia własności (wtedy Contract.type = PRZENIESIENIA). Gałąź legacy
+// łapie umowy sprzed wdrożenia etapów / przed backfillem ContractStage.
+const SOLD_DEAL_WHERE = {
+  OR: [
+    { stages: { some: { stage: SALES_CONTRACT_TYPE, signedAt: { not: null } } } },
+    { type: SALES_CONTRACT_TYPE, status: 'PODPISANA', signedAt: { not: null } },
+  ],
+}
+
+// Data sprzedaży dealu = signedAt etapu deweloperskiego; w razie braku wpisu
+// etapu (legacy) — Contract.signedAt.
+function dealSoldAt(c: { signedAt: Date | null; stages?: { signedAt: Date | null }[] }): Date | null {
+  return c.stages?.find((s) => s.signedAt)?.signedAt ?? c.signedAt ?? null
+}
+
 function monthKey(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
 }
@@ -117,8 +134,13 @@ export async function getCrmStats(): Promise<CrmStats> {
   const [clients, contracts, units] = await Promise.all([
     prisma.client.findMany({ select: { status: true, source: true, createdAt: true } }),
     prisma.contract.findMany({
-      where: { status: 'PODPISANA', type: SALES_CONTRACT_TYPE },
-      select: { signedAt: true, introducedAt: true, valueGross: true },
+      where: SOLD_DEAL_WHERE,
+      select: {
+        signedAt: true,
+        introducedAt: true,
+        valueGross: true,
+        stages: { where: { stage: SALES_CONTRACT_TYPE }, select: { signedAt: true } },
+      },
     }),
     prisma.unit.findMany({ select: { status: true, building: true, number: true, floor: true } }),
   ])
@@ -192,7 +214,7 @@ export async function getCrmStats(): Promise<CrmStats> {
   }
   const bucketByKey = new Map(buckets.map((b) => [b.month, b]))
   for (const ct of contracts) {
-    const when = ct.signedAt ?? ct.introducedAt
+    const when = dealSoldAt(ct) ?? ct.introducedAt
     if (!when) continue
     const key = `${when.getFullYear()}-${String(when.getMonth() + 1).padStart(2, '0')}`
     const b = bucketByKey.get(key)
@@ -332,9 +354,10 @@ export async function getCrmInsights(): Promise<CrmInsights> {
 
   const [signedContracts, prepContracts, sentOffers, leadClients, activities, soldUnits] = await Promise.all([
     prisma.contract.findMany({
-      where: { status: 'PODPISANA', type: SALES_CONTRACT_TYPE, signedAt: { not: null } },
+      where: SOLD_DEAL_WHERE,
       select: {
         signedAt: true,
+        stages: { where: { stage: SALES_CONTRACT_TYPE }, select: { signedAt: true } },
         client: { select: { createdAt: true, source: true } },
       },
     }),
@@ -362,8 +385,15 @@ export async function getCrmInsights(): Promise<CrmInsights> {
         // Powiązane umowy DEWELOPERSKIE (podpisane) — z nich bierzemy datę sprzedaży,
         // gdy ręczny soldAt nie jest ustawiony.
         contractUnits: {
-          where: { contract: { type: SALES_CONTRACT_TYPE, status: 'PODPISANA', signedAt: { not: null } } },
-          select: { contract: { select: { signedAt: true } } },
+          where: { contract: SOLD_DEAL_WHERE },
+          select: {
+            contract: {
+              select: {
+                signedAt: true,
+                stages: { where: { stage: SALES_CONTRACT_TYPE }, select: { signedAt: true } },
+              },
+            },
+          },
         },
       },
     }),
@@ -373,8 +403,9 @@ export async function getCrmInsights(): Promise<CrmInsights> {
   const cycleDays: number[] = []
   const cycleBySource = new Map<string, number[]>()
   for (const ct of signedContracts) {
-    if (!ct.signedAt || !ct.client) continue
-    const d = daysBetween(ct.signedAt, ct.client.createdAt)
+    const soldAt = dealSoldAt(ct)
+    if (!soldAt || !ct.client) continue
+    const d = daysBetween(soldAt, ct.client.createdAt)
     if (d < 0) continue // dane niespójne (umowa przed dodaniem klienta) — pomijamy
     cycleDays.push(d)
     const src = ct.client.source?.trim() || 'Bez źródła'
@@ -400,7 +431,7 @@ export async function getCrmInsights(): Promise<CrmInsights> {
     let saleDate: Date | null = u.soldAt ?? null
     if (!saleDate) {
       const signed = u.contractUnits
-        .map((cu) => cu.contract?.signedAt)
+        .map((cu) => (cu.contract ? dealSoldAt(cu.contract) : null))
         .filter((d): d is Date => !!d)
       if (signed.length) saleDate = signed.reduce((a, b) => (a < b ? a : b))
     }

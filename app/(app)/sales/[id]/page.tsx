@@ -37,6 +37,7 @@ export default async function ContractDetailPage({ params }: { params: { id: str
     stage: s.stage,
     status: s.status,
     signedAt: s.signedAt ? s.signedAt.toISOString() : null,
+    plannedSignDate: s.plannedSignDate ? s.plannedSignDate.toISOString() : null,
     number: s.number,
   }))
 
