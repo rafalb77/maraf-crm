@@ -1,7 +1,7 @@
 'use client'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { Client, Unit } from '@prisma/client'
 import {
   CONTRACT_TYPE_LABELS,
@@ -19,10 +19,14 @@ export function ContractForm({
   clients,
   units,
   defaultClientId,
+  reservedByClient,
 }: {
   clients: Client[]
   units: Unit[]
   defaultClientId?: string
+  /** Mapa klient → ID jego zarezerwowanych lokali. Po wybraniu klienta jego
+   *  lokale zaznaczają się automatycznie (mniej klikania). */
+  reservedByClient?: Record<string, string[]>
 }) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
@@ -39,6 +43,16 @@ export function ContractForm({
   })
 
   const [selectedUnitIds, setSelectedUnitIds] = useState<string[]>([])
+
+  // Po wyborze klienta — auto-zaznacz jego zarezerwowane lokale (te dostępne
+  // na liście). Działa też dla defaultClientId (wejście z karty klienta).
+  useEffect(() => {
+    if (!form.clientId || !reservedByClient) return
+    const reserved = reservedByClient[form.clientId]
+    if (!reserved || reserved.length === 0) return
+    const available = new Set(units.map((u) => u.id))
+    setSelectedUnitIds(reserved.filter((id) => available.has(id)))
+  }, [form.clientId, reservedByClient, units])
 
   const selectedUnits = useMemo(
     () => units.filter((u) => selectedUnitIds.includes(u.id)),

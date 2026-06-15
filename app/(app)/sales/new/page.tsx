@@ -10,13 +10,20 @@ export default async function NewContractPage({
 }) {
   await expireSoftReservations()
 
-  const [clients, units] = await Promise.all([
+  const [clients, units, clientUnits] = await Promise.all([
     prisma.client.findMany({ orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }] }),
     prisma.unit.findMany({
       where: { status: { not: 'SPRZEDANY' }, reservationType: { not: 'REZERWACJA' } },
       orderBy: { number: 'asc' },
     }),
+    prisma.clientUnit.findMany({ select: { clientId: true, unitId: true } }),
   ])
+
+  // Mapa klient → jego zarezerwowane lokale (do auto-zaznaczenia w formularzu).
+  const reservedByClient: Record<string, string[]> = {}
+  for (const cu of clientUnits) {
+    ;(reservedByClient[cu.clientId] ??= []).push(cu.unitId)
+  }
 
   return (
     <div className="p-8 max-w-4xl">
@@ -28,7 +35,7 @@ export default async function NewContractPage({
         <span>Nowa umowa</span>
       </div>
       <h1 className="text-2xl font-bold text-gray-900 mb-6">Nowa umowa</h1>
-      <ContractForm clients={clients} units={units} defaultClientId={searchParams.clientId} />
+      <ContractForm clients={clients} units={units} defaultClientId={searchParams.clientId} reservedByClient={reservedByClient} />
     </div>
   )
 }

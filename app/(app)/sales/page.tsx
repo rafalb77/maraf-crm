@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
 import { SalesTable } from '@/components/sales/SalesTable'
+import { NewContractFromReservationButton } from '@/components/sales/NewContractFromReservationButton'
 
 export default async function SalesPage({
   searchParams,
@@ -17,6 +18,24 @@ export default async function SalesPage({
     include: { client: true, contractUnits: { include: { unit: true } } },
     orderBy: { createdAt: 'desc' },
   })
+
+  // Klienci z zarezerwowanymi lokalami — do „Nowa z rezerwacji".
+  const reservingClients = await prisma.client.findMany({
+    where: { clientUnits: { some: {} } },
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      clientUnits: { select: { unit: { select: { number: true } } } },
+    },
+    orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
+  })
+  const clientsWithReservation = reservingClients.map((c) => ({
+    id: c.id,
+    firstName: c.firstName,
+    lastName: c.lastName,
+    unitNumbers: c.clientUnits.map((cu) => cu.unit.number),
+  }))
 
   return (
     <div className="p-8">
@@ -44,6 +63,7 @@ export default async function SalesPage({
             </svg>
             Powiąż lokale
           </Link>
+          <NewContractFromReservationButton clients={clientsWithReservation} />
           <Link
             href="/sales/new"
             className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"

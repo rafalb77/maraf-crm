@@ -106,37 +106,51 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
               <p className="text-gray-400 text-sm">Brak przypisanych lokali</p>
             ) : (
               <div className="space-y-2">
-                {client.clientUnits.map((cu) => (
-                  <div key={cu.unitId} className="flex items-center gap-3 p-2 rounded-lg border border-gray-100">
-                    <div className="flex-1 min-w-0">
-                      <Link href={`/units/${cu.unitId}`} className="text-sm font-medium text-gray-900 hover:text-blue-600">
-                        {cu.unit.number}
-                      </Link>
-                      <p className="text-xs text-gray-500">
-                        {UNIT_TYPE_LABELS[cu.unit.type as UnitType]} · {formatCurrency(cu.unit.priceGross)}
-                      </p>
-                      {cu.unit.reservationType && (
-                        <p className="text-xs mt-0.5">
-                          <span className={`px-1.5 py-0.5 rounded font-medium ${RESERVATION_TYPE_COLORS[cu.unit.reservationType as ReservationType]}`}>
-                            {RESERVATION_TYPE_LABELS[cu.unit.reservationType as ReservationType]}
-                          </span>
-                          {cu.unit.reservationType === 'MIEKKA' && cu.unit.reservationExpiresAt && (
-                            <span className="text-gray-500 ml-1">do {formatDate(cu.unit.reservationExpiresAt)}</span>
-                          )}
-                        </p>
+                {client.clientUnits.map((cu) => {
+                  const isSoft = cu.unit.reservationType === 'MIEKKA'
+                  const canUnassign = cu.unit.reservationType !== 'REZERWACJA'
+                  return (
+                    <div key={cu.unitId} className="p-2.5 rounded-lg border border-gray-100">
+                      {/* Górny wiersz: lokal + status */}
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <Link href={`/units/${cu.unitId}`} className="text-sm font-medium text-gray-900 hover:text-blue-600">
+                            {cu.unit.number}
+                          </Link>
+                          <p className="text-xs text-gray-500">
+                            {UNIT_TYPE_LABELS[cu.unit.type as UnitType]} · {formatCurrency(cu.unit.priceGross)}
+                          </p>
+                        </div>
+                        <span className={`flex-shrink-0 px-1.5 py-0.5 rounded text-xs font-medium ${UNIT_STATUS_COLORS[cu.unit.status as UnitStatus]}`}>
+                          {UNIT_STATUS_LABELS[cu.unit.status as UnitStatus]}
+                        </span>
+                      </div>
+                      {/* Dolny wiersz: typ rezerwacji + akcje */}
+                      {(cu.unit.reservationType || isSoft || canUnassign) && (
+                        <div className="flex items-center justify-between gap-2 mt-2">
+                          <div className="flex items-center gap-1.5 min-w-0 text-xs">
+                            {cu.unit.reservationType && (
+                              <span className={`px-1.5 py-0.5 rounded font-medium ${RESERVATION_TYPE_COLORS[cu.unit.reservationType as ReservationType]}`}>
+                                {RESERVATION_TYPE_LABELS[cu.unit.reservationType as ReservationType]}
+                              </span>
+                            )}
+                            {isSoft && cu.unit.reservationExpiresAt && (
+                              <span className="text-gray-500 whitespace-nowrap">do {formatDate(cu.unit.reservationExpiresAt)}</span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1 flex-shrink-0">
+                            {isSoft && (
+                              <SwapButton unitId={cu.unitId} unitNumber={cu.unit.number} unitType={cu.unit.type} />
+                            )}
+                            {canUnassign && (
+                              <UnassignUnitButton clientId={client.id} unitId={cu.unitId} />
+                            )}
+                          </div>
+                        </div>
                       )}
                     </div>
-                    <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${UNIT_STATUS_COLORS[cu.unit.status as UnitStatus]}`}>
-                      {UNIT_STATUS_LABELS[cu.unit.status as UnitStatus]}
-                    </span>
-                    {cu.unit.reservationType === 'MIEKKA' && (
-                      <SwapButton unitId={cu.unitId} unitNumber={cu.unit.number} unitType={cu.unit.type} />
-                    )}
-                    {cu.unit.reservationType !== 'REZERWACJA' && (
-                      <UnassignUnitButton clientId={client.id} unitId={cu.unitId} />
-                    )}
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             )}
           </div>
