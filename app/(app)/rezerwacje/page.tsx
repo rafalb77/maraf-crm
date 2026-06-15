@@ -4,6 +4,7 @@ import { Clock, Lock, Ban, AlertTriangle } from 'lucide-react'
 import { expireSoftReservations, attachReservedByClient } from '@/lib/reservations'
 import { formatDate } from '@/lib/utils'
 import { ExtendButton, ReleaseButton, SwapButton, RestoreFromUnavailableButton } from '@/components/reservations/ReservationActions'
+import { NewReservationModal } from '@/components/reservations/NewReservationModal'
 
 function fmtDateTime(d: Date | null | undefined): string {
   if (!d) return '—'
@@ -38,8 +39,8 @@ export default async function ReservationsPage() {
   // przeterminowane przed wyświetleniem.
   await expireSoftReservations()
 
-  // 3 sekcje równolegle.
-  const [softUnits, hardUnits, unavailableUnits] = await Promise.all([
+  // 3 sekcje + dane do modalu „Nowa rezerwacja" (klienci + wolne lokale) równolegle.
+  const [softUnits, hardUnits, unavailableUnits, allClients, freeUnits] = await Promise.all([
     prisma.unit.findMany({
       where: { status: 'ZAREZERWOWANY', reservationType: 'MIEKKA' },
       orderBy: { reservationExpiresAt: 'asc' },
@@ -58,6 +59,15 @@ export default async function ReservationsPage() {
       where: { status: 'NIEDOSTEPNY' },
       orderBy: { number: 'asc' },
     }),
+    prisma.client.findMany({
+      select: { id: true, firstName: true, lastName: true, phone: true },
+      orderBy: { lastName: 'asc' },
+    }),
+    prisma.unit.findMany({
+      where: { status: 'WOLNY' },
+      select: { id: true, number: true, type: true, priceGross: true },
+      orderBy: { number: 'asc' },
+    }),
   ])
 
   const soft = await attachReservedByClient(softUnits)
@@ -67,11 +77,14 @@ export default async function ReservationsPage() {
 
   return (
     <div className="p-8">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Rezerwacje</h1>
-        <p className="text-gray-500 text-sm mt-1">
-          Stan rezerwacji lokali — miękkie (z czasem), twarde (umowa rezerwacyjna) i wyłączenia ze sprzedaży.
-        </p>
+      <div className="mb-6 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Rezerwacje</h1>
+          <p className="text-gray-500 text-sm mt-1">
+            Stan rezerwacji lokali — miękkie (z czasem), twarde (umowa rezerwacyjna) i wyłączenia ze sprzedaży.
+          </p>
+        </div>
+        <NewReservationModal clients={allClients} units={freeUnits} />
       </div>
 
       {/* Banner krytyczne */}

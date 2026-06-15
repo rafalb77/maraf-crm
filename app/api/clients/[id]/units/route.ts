@@ -11,7 +11,10 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
   await expireSoftReservations()
 
-  const { unitId } = await req.json()
+  const { unitId, days } = await req.json()
+  // Czas rezerwacji miękkiej — domyślnie 7 dni, opcjonalnie 1–90.
+  const d = Number(days)
+  const reservationDays = Number.isFinite(d) && d >= 1 && d <= 90 ? Math.round(d) : 7
 
   const unit = await prisma.unit.findUnique({ where: { id: unitId } })
   if (!unit) return NextResponse.json({ error: 'Unit not found' }, { status: 404 })
@@ -28,7 +31,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   })
   if (existing) return NextResponse.json({ error: 'Już przypisano' }, { status: 409 })
 
-  const expiresAt = addDays(new Date(), 7)
+  const expiresAt = addDays(new Date(), reservationDays)
 
   const [cu] = await prisma.$transaction([
     prisma.clientUnit.create({
