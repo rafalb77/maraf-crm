@@ -5,6 +5,7 @@ import { expireSoftReservations, attachReservedByClient } from '@/lib/reservatio
 import { formatDate } from '@/lib/utils'
 import { ExtendButton, ReleaseButton, SwapButton, RestoreFromUnavailableButton } from '@/components/reservations/ReservationActions'
 import { NewReservationModal } from '@/components/reservations/NewReservationModal'
+import { PromoteReservationButton } from '@/components/clients/PromoteReservationButton'
 
 function fmtDateTime(d: Date | null | undefined): string {
   if (!d) return '—'
@@ -102,16 +103,17 @@ export default async function ReservationsPage() {
         </div>
       )}
 
-      {/* Statystyki na górze */}
+      {/* Statystyki na górze — klikalne, przewijają do sekcji */}
       <div className="grid grid-cols-3 gap-3 mb-6">
-        <StatCard icon={<Clock className="w-5 h-5 text-blue-600" />} label="Miękkie" value={soft.length} accent="blue" />
-        <StatCard icon={<Lock className="w-5 h-5 text-purple-600" />} label="Twarde (umowa)" value={hard.length} accent="purple" />
-        <StatCard icon={<Ban className="w-5 h-5 text-gray-600" />} label="Wyłączone ze sprzedaży" value={unavailableUnits.length} accent="gray" />
+        <StatCard href="#soft" icon={<Clock className="w-5 h-5 text-blue-600" />} label="Miękkie" value={soft.length} accent="blue" />
+        <StatCard href="#hard" icon={<Lock className="w-5 h-5 text-purple-600" />} label="Twarde (umowa)" value={hard.length} accent="purple" />
+        <StatCard href="#unavailable" icon={<Ban className="w-5 h-5 text-gray-600" />} label="Wyłączone ze sprzedaży" value={unavailableUnits.length} accent="gray" />
       </div>
 
       {/* SEKCJA: MIĘKKIE */}
       <Section
         icon={<Clock className="w-5 h-5 text-blue-600" />}
+        id="soft"
         title={`Rezerwacje miękkie (${soft.length})`}
         description={'Lokal jest blokowany na czas określony (zwykle 7 dni). Po wygaśnięciu wraca automatycznie do „Wolny".'}
       >
@@ -134,7 +136,7 @@ export default async function ReservationsPage() {
                 {soft.map((u) => {
                   const h = hoursLeft(u.reservationExpiresAt)
                   return (
-                    <tr key={u.id}>
+                    <tr key={u.id} className="hover:bg-gray-50">
                       <td className="px-2 py-2">
                         <Link href={`/units/${u.id}`} className="font-medium text-blue-600 hover:text-blue-700">{u.number}</Link>
                       </td>
@@ -154,8 +156,9 @@ export default async function ReservationsPage() {
                       <td className="px-2 py-2">
                         <span className={`inline-flex px-2 py-0.5 rounded text-xs font-semibold border ${expiryBadge(h)}`}>{expiryLabel(h)}</span>
                       </td>
-                      <td className="px-2 py-2 text-right whitespace-nowrap">
-                        <div className="inline-flex gap-1.5">
+                      <td className="px-2 py-2 text-right">
+                        <div className="flex flex-wrap gap-1.5 justify-end">
+                          {u.reservedBy && <PromoteReservationButton clientId={u.reservedBy.id} variant="compact" />}
                           <ExtendButton unitId={u.id} defaultDays={7} />
                           <SwapButton unitId={u.id} unitNumber={u.number} unitType={u.type} />
                           <ReleaseButton unitId={u.id} unitNumber={u.number} />
@@ -173,6 +176,7 @@ export default async function ReservationsPage() {
       {/* SEKCJA: TWARDE */}
       <Section
         icon={<Lock className="w-5 h-5 text-purple-600" />}
+        id="hard"
         title={`Rezerwacje twarde — umowa rezerwacyjna (${hard.length})`}
         description="Lokal zarezerwowany podpisaną umową. Zwalniany przez zmianę statusu umowy (Rozwiązana / Anulowana)."
       >
@@ -194,7 +198,7 @@ export default async function ReservationsPage() {
                   const cu = u.contractUnits[0]
                   const contract = cu?.contract ?? null
                   return (
-                    <tr key={u.id}>
+                    <tr key={u.id} className="hover:bg-gray-50">
                       <td className="px-2 py-2">
                         <Link href={`/units/${u.id}`} className="font-medium text-blue-600 hover:text-blue-700">{u.number}</Link>
                       </td>
@@ -223,6 +227,7 @@ export default async function ReservationsPage() {
       {/* SEKCJA: WYŁĄCZONE */}
       <Section
         icon={<Ban className="w-5 h-5 text-gray-600" />}
+        id="unavailable"
         title={`Wyłączone ze sprzedaży (${unavailableUnits.length})`}
         description="Lokale tymczasowo nieoferowane (np. przed wprowadzeniem do sprzedaży, zarezerwowane wewnętrznie)."
       >
@@ -242,7 +247,7 @@ export default async function ReservationsPage() {
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {unavailableUnits.map((u) => (
-                  <tr key={u.id}>
+                  <tr key={u.id} className="hover:bg-gray-50">
                     <td className="px-2 py-2">
                       <Link href={`/units/${u.id}`} className="font-medium text-blue-600 hover:text-blue-700">{u.number}</Link>
                     </td>
@@ -263,22 +268,22 @@ export default async function ReservationsPage() {
   )
 }
 
-function StatCard({ icon, label, value, accent }: { icon: React.ReactNode; label: string; value: number; accent: 'blue' | 'purple' | 'gray' }) {
-  const ring: Record<string, string> = { blue: 'bg-blue-50 border-blue-200', purple: 'bg-purple-50 border-purple-200', gray: 'bg-gray-50 border-gray-200' }
+function StatCard({ href, icon, label, value, accent }: { href: string; icon: React.ReactNode; label: string; value: number; accent: 'blue' | 'purple' | 'gray' }) {
+  const ring: Record<string, string> = { blue: 'bg-blue-50 border-blue-200 hover:border-blue-300', purple: 'bg-purple-50 border-purple-200 hover:border-purple-300', gray: 'bg-gray-50 border-gray-200 hover:border-gray-300' }
   return (
-    <div className={`rounded-xl border p-4 flex items-center gap-3 ${ring[accent]}`}>
+    <a href={href} className={`rounded-xl border p-4 flex items-center gap-3 transition-colors ${ring[accent]}`}>
       <div className="flex-shrink-0">{icon}</div>
       <div>
         <p className="text-xs text-gray-600">{label}</p>
         <p className="text-2xl font-bold text-gray-900">{value}</p>
       </div>
-    </div>
+    </a>
   )
 }
 
-function Section({ icon, title, description, children }: { icon: React.ReactNode; title: string; description?: string; children: React.ReactNode }) {
+function Section({ id, icon, title, description, children }: { id?: string; icon: React.ReactNode; title: string; description?: string; children: React.ReactNode }) {
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-5 mb-5">
+    <div id={id} className="bg-white rounded-xl border border-gray-200 p-5 mb-5 scroll-mt-6">
       <div className="mb-4">
         <div className="flex items-center gap-2 mb-1">{icon}<h2 className="font-semibold text-gray-900">{title}</h2></div>
         {description && <p className="text-xs text-gray-500">{description}</p>}

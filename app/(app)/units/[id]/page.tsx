@@ -13,6 +13,7 @@ import { FloorPlanUpload } from '@/components/units/FloorPlanUpload'
 import { UnitImageGallery } from '@/components/units/UnitImageGallery'
 import { DeleteUnitButton } from '@/components/units/DeleteUnitButton'
 import { ReserveForClientModal } from '@/components/units/ReserveForClientModal'
+import { PromoteReservationButton } from '@/components/clients/PromoteReservationButton'
 
 export default async function UnitDetailPage({ params }: { params: { id: string } }) {
   const unit = await prisma.unit.findUnique({
@@ -54,6 +55,9 @@ export default async function UnitDetailPage({ params }: { params: { id: string 
         <div className="flex gap-2">
           {unit.status === 'WOLNY' && (
             <ReserveForClientModal unitId={unit.id} unitNumber={unit.number} clients={clientsForReserve} />
+          )}
+          {unit.reservationType === 'MIEKKA' && unit.reservedById && (
+            <PromoteReservationButton clientId={unit.reservedById} variant="button" />
           )}
           {canGenerateCreative(unit) && (
             <Link
