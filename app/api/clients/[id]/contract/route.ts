@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { generateContractNumber, validateContractUnits } from '@/lib/contracts'
+import { resolveUnitPricesForClient, computeReservationFee, findClientUnitConflict } from '@/lib/contract-pricing'
 import type { ContractType, UnitType } from '@/lib/types'
 
 /**
@@ -32,7 +33,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   // Lokale przypisane do klienta (rezerwacja) → składniki umowy.
   const clientUnits = await prisma.clientUnit.findMany({
     where: { clientId: params.id },
-    include: { unit: { select: { id: true, type: true } } },
+    include: { unit: { select: { id: true, type: true, vatRate: true, priceNet: true, priceGross: true } } },
   })
   const unitIds = clientUnits.map((cu) => cu.unitId)
   if (unitIds.length === 0) {
@@ -48,6 +49,36 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   )
   if (validationError) return NextResponse.json({ error: validationError }, { status: 400 })
 
+  // Dedup: klient już ma aktywną umowę z którymś z tych lokali?
+  const conflict = await findClientUnitConflict(params.id, unitIds)
+  if (conflict) {
+    return NextResponse.json(
+      {
+        error: `Klient ma już aktywną umowę ${conflict.number} z lokalem ${conflict.units.join(', ')}. Otwórz istniejącą zamiast tworzyć nową.`,
+        conflictContractId: conflict.id,
+      },
+      { status: 409 },
+    )
+  }
+
+  // Ceny z oferty klienta (fallback bazowa) → snapshot na umowie + opłata 1%.
+  const resolved = await resolveUnitPricesForClient(params.id, unitIds)
+  const unitById = new Map(clientUnits.map((cu) => [cu.unit.id, cu.unit]))
+  let totalNet = 0
+  let totalGross = 0
+  const contractUnitsData = unitIds.map((unitId) => {
+    const u = unitById.get(unitId)!
+    const base = resolved.get(unitId) ?? { priceNet: u.priceNet, priceGross: u.priceGross }
+    totalNet += base.priceNet
+    totalGross += base.priceGross
+    return { unitId, priceNet: base.priceNet, priceGross: base.priceGross }
+  })
+  const reservationFee = computeReservationFee(totalGross)
+  const reservationFeeDays =
+    Number.isFinite(Number(body.reservationFeeDays)) && Number(body.reservationFeeDays) >= 1
+      ? Math.round(Number(body.reservationFeeDays))
+      : 7
+
   const number = await generateContractNumber(startStage)
 
   const contract = await prisma.contract.create({
@@ -58,12 +89,12 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       investmentName: body.investmentName || 'Inwestycja',
       clientId: params.id,
       plannedSignDate: body.plannedSignDate ? new Date(body.plannedSignDate) : null,
-      reservationFee:
-        body.reservationFee != null && body.reservationFee !== ''
-          ? parseFloat(body.reservationFee)
-          : null,
+      reservationFee,
+      reservationFeeDays,
+      valueNet: Math.round(totalNet * 100) / 100,
+      valueGross: Math.round(totalGross * 100) / 100,
       notes: body.notes || null,
-      contractUnits: { create: unitIds.map((unitId) => ({ unitId })) },
+      contractUnits: { create: contractUnitsData },
       stages: { create: { stage: startStage, status: 'W_PRZYGOTOWANIU' } },
       history: {
         create: {

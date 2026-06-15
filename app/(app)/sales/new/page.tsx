@@ -6,8 +6,9 @@ import { expireSoftReservations } from '@/lib/reservations'
 export default async function NewContractPage({
   searchParams,
 }: {
-  searchParams: { clientId?: string }
+  searchParams: { clientId?: string; role?: string }
 }) {
+  const isSecondary = searchParams.role === 'secondary'
   await expireSoftReservations()
 
   const [clients, units, clientUnits] = await Promise.all([
@@ -35,7 +36,13 @@ export default async function NewContractPage({
         <span>Nowa umowa</span>
       </div>
       <h1 className="text-2xl font-bold text-gray-900 mb-6">Nowa umowa</h1>
-      <ContractForm clients={clients} units={units} defaultClientId={searchParams.clientId} reservedByClient={reservedByClient} />
+      <ContractForm
+        clients={clients}
+        units={units}
+        defaultClientId={isSecondary ? undefined : searchParams.clientId}
+        defaultSecondaryClientId={isSecondary ? searchParams.clientId : undefined}
+        reservedByClient={reservedByClient}
+      />
     </div>
   )
 }

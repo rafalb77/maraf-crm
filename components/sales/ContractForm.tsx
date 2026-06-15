@@ -19,11 +19,14 @@ export function ContractForm({
   clients,
   units,
   defaultClientId,
+  defaultSecondaryClientId,
   reservedByClient,
 }: {
   clients: Client[]
   units: Unit[]
   defaultClientId?: string
+  /** Współrezerwujący preselectowany (po dodaniu nowego klienta jako drugiego). */
+  defaultSecondaryClientId?: string
   /** Mapa klient → ID jego zarezerwowanych lokali. Po wybraniu klienta jego
    *  lokale zaznaczają się automatycznie (mniej klikania). */
   reservedByClient?: Record<string, string[]>
@@ -35,14 +38,17 @@ export function ContractForm({
   const [form, setForm] = useState({
     type: 'REZERWACYJNA' as ContractType,
     clientId: defaultClientId || '',
-    secondaryClientId: '',
+    secondaryClientId: defaultSecondaryClientId || '',
     investmentName: 'Inwestycja',
     plannedSignDate: '',
-    reservationFee: '',
+    reservationFeeDays: '7',
     notes: '',
   })
 
   const [selectedUnitIds, setSelectedUnitIds] = useState<string[]>([])
+  // Ceny brutto per lokal (snapshot na umowie) — domyślnie z oferty/bazowe,
+  // edytowalne (rabat przy tworzeniu umowy).
+  const [unitPrices, setUnitPrices] = useState<Record<string, string>>({})
 
   // Po wyborze klienta — auto-zaznacz jego zarezerwowane lokale (te dostępne
   // na liście). Działa też dla defaultClientId (wejście z karty klienta).
@@ -58,6 +64,41 @@ export function ContractForm({
     () => units.filter((u) => selectedUnitIds.includes(u.id)),
     [units, selectedUnitIds],
   )
+
+  // Zmiana klienta → wyczyść ręczne ceny (załadują się oferty nowego klienta).
+  useEffect(() => {
+    setUnitPrices({})
+  }, [form.clientId])
+
+  // Domyślne ceny dla wybranych lokali (z oferty / bazowe). Zachowuje ręczne
+  // rabaty, dolicza tylko nowo zaznaczone, usuwa odznaczone.
+  useEffect(() => {
+    if (selectedUnitIds.length === 0) {
+      setUnitPrices({})
+      return
+    }
+    const qs = new URLSearchParams({ clientId: form.clientId, unitIds: selectedUnitIds.join(',') })
+    let cancelled = false
+    fetch(`/api/contracts/resolve-prices?${qs.toString()}`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (cancelled || !d?.prices) return
+        setUnitPrices((prev) => {
+          const next: Record<string, string> = {}
+          for (const id of selectedUnitIds) {
+            next[id] = prev[id] !== undefined ? prev[id] : (d.prices[id] != null ? String(d.prices[id]) : '')
+          }
+          return next
+        })
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [form.clientId, selectedUnitIds])
+
+  const totalGross = selectedUnitIds.reduce((s, id) => s + (parseFloat(unitPrices[id] || '0') || 0), 0)
+  const reservationFeePreview = Math.round(totalGross * 0.01 * 100) / 100
 
   const validationWarning = useMemo(() => {
     if (form.type !== 'REZERWACYJNA') return null
@@ -88,6 +129,11 @@ export function ContractForm({
     }
     setLoading(true)
     const { secondaryClientId, ...rest } = form
+    const unitPricesNum: Record<string, number> = {}
+    for (const id of selectedUnitIds) {
+      const v = parseFloat(unitPrices[id] || '')
+      if (Number.isFinite(v) && v > 0) unitPricesNum[id] = v
+    }
     const res = await fetch('/api/contracts', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -95,6 +141,7 @@ export function ContractForm({
         ...rest,
         unitIds: selectedUnitIds,
         secondaryClientIds: secondaryClientId ? [secondaryClientId] : [],
+        unitPrices: unitPricesNum,
       }),
     })
     setLoading(false)
@@ -146,7 +193,17 @@ export function ContractForm({
             ))}
           </select>
         </Field>
-        <Field label="Drugi klient (współrezerwujący)">
+        <Field
+          label="Drugi klient (współrezerwujący)"
+          extra={
+            <Link
+              href={`/clients/new?returnTo=${encodeURIComponent('/sales/new?role=secondary')}`}
+              className="text-xs text-blue-600 hover:text-blue-700 underline"
+            >
+              + Nowy klient
+            </Link>
+          }
+        >
           <select className={inputCls} value={form.secondaryClientId} onChange={set('secondaryClientId')}>
             <option value="">— brak —</option>
             {clients.filter((c) => c.id !== form.clientId).map((c) => (
@@ -162,8 +219,11 @@ export function ContractForm({
         >
           <input type="date" className={inputCls} value={form.plannedSignDate} onChange={set('plannedSignDate')} />
         </Field>
-        <Field label="Opłata rezerwacyjna">
-          <input type="number" step="0.01" className={inputCls} value={form.reservationFee} onChange={set('reservationFee')} />
+        <Field
+          label="Termin wpłaty opłaty rez. (dni)"
+          hint="Liczone od daty podpisania. Opłata = 1% wartości, liczona automatycznie."
+        >
+          <input type="number" min={1} max={90} className={inputCls} value={form.reservationFeeDays} onChange={set('reservationFeeDays')} />
         </Field>
       </div>
 
@@ -206,6 +266,39 @@ export function ContractForm({
         </div>
         {validationWarning && <p className="text-sm text-red-600 mt-2">{validationWarning}</p>}
       </div>
+
+      {selectedUnitIds.length > 0 && (
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Ceny lokali <span className="font-normal text-gray-500">(z oferty / cennika — zmień, aby udzielić rabatu)</span>
+          </label>
+          <div className="border border-gray-200 rounded-lg divide-y divide-gray-100">
+            {selectedUnits.map((u) => (
+              <div key={u.id} className="flex items-center justify-between gap-3 p-2">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-gray-900">{u.number}</p>
+                  <p className="text-xs text-gray-500">{UNIT_TYPE_LABELS[u.type as UnitType]} · cennik {formatCurrency(u.priceGross)}</p>
+                </div>
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  <input
+                    type="number"
+                    step="0.01"
+                    min={0}
+                    value={unitPrices[u.id] ?? ''}
+                    onChange={(e) => setUnitPrices((p) => ({ ...p, [u.id]: e.target.value }))}
+                    className="w-36 px-2 py-1 border border-gray-300 rounded text-sm text-right text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <span className="text-xs text-gray-500">zł brutto</span>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="flex justify-between items-center mt-2 text-sm">
+            <span className="text-gray-600">Wartość brutto: <strong className="text-gray-900">{formatCurrency(totalGross)}</strong></span>
+            <span className="text-gray-600">Opłata rezerwacyjna (1%): <strong className="text-gray-900">{formatCurrency(reservationFeePreview)}</strong></span>
+          </div>
+        </div>
+      )}
 
       {error && <p className="text-sm text-red-600">{error}</p>}
 

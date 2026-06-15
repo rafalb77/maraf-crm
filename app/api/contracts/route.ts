@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { generateContractNumber, validateContractUnits } from '@/lib/contracts'
+import { resolveUnitPricesForClient, computeReservationFee, findClientUnitConflict } from '@/lib/contract-pricing'
 import type { ContractType, UnitType } from '@/lib/types'
 
 export async function GET(req: NextRequest) {
@@ -52,7 +53,6 @@ export async function POST(req: NextRequest) {
     unitIds = [],
     investmentName,
     plannedSignDate,
-    reservationFee,
     notes,
   } = body
 
@@ -74,6 +74,44 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: validationError }, { status: 400 })
   }
 
+  // Dedup: ten sam klient + ten sam lokal w aktywnej umowie → blokada.
+  const conflict = await findClientUnitConflict(clientId, unitIds)
+  if (conflict) {
+    return NextResponse.json(
+      {
+        error: `Klient ma już aktywną umowę ${conflict.number} z lokalem ${conflict.units.join(', ')}. Nie tworzę drugiej — otwórz istniejącą.`,
+        conflictContractId: conflict.id,
+      },
+      { status: 409 },
+    )
+  }
+
+  // Ceny: z oferty klienta (fallback cena bazowa), z możliwością rabatu z
+  // formularza (body.unitPrices = brutto po rabacie). Netto pochodne wg VAT.
+  const resolved = await resolveUnitPricesForClient(clientId, unitIds)
+  const overrides: Record<string, number> =
+    body.unitPrices && typeof body.unitPrices === 'object' ? body.unitPrices : {}
+  const unitById = new Map(units.map((u) => [u.id, u]))
+  let totalNet = 0
+  let totalGross = 0
+  const contractUnitsData = (unitIds as string[]).map((unitId) => {
+    const u = unitById.get(unitId)!
+    const base = resolved.get(unitId) ?? { priceNet: u.priceNet, priceGross: u.priceGross }
+    const ovr = Number(overrides[unitId])
+    const priceGross = Number.isFinite(ovr) && ovr > 0 ? ovr : base.priceGross
+    const vat = (u.vatRate ?? 8) / 100
+    const priceNet = Math.round((priceGross / (1 + vat)) * 100) / 100
+    totalNet += priceNet
+    totalGross += priceGross
+    return { unitId, priceNet, priceGross }
+  })
+
+  const reservationFee = computeReservationFee(totalGross)
+  const reservationFeeDays =
+    Number.isFinite(Number(body.reservationFeeDays)) && Number(body.reservationFeeDays) >= 1
+      ? Math.round(Number(body.reservationFeeDays))
+      : 7
+
   const number = await generateContractNumber(type as ContractType)
 
   const contract = await prisma.contract.create({
@@ -84,10 +122,13 @@ export async function POST(req: NextRequest) {
       investmentName: investmentName || 'Inwestycja',
       clientId,
       plannedSignDate: plannedSignDate ? new Date(plannedSignDate) : null,
-      reservationFee: reservationFee != null && reservationFee !== '' ? parseFloat(reservationFee) : null,
+      reservationFee,
+      reservationFeeDays,
+      valueNet: Math.round(totalNet * 100) / 100,
+      valueGross: Math.round(totalGross * 100) / 100,
       notes: notes || null,
       contractUnits: {
-        create: unitIds.map((unitId: string) => ({ unitId })),
+        create: contractUnitsData,
       },
       contractClients: {
         create: (secondaryClientIds as string[])

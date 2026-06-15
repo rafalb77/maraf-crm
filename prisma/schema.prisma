@@ -403,6 +403,7 @@ model Contract {
   plannedSignDate DateTime?
   signedAt        DateTime?
   reservationFee  Float?
+  reservationFeeDays Int    @default(7) // termin wpłaty opłaty = data podpisania + N dni
   discount        Float?
   valueNet        Float?
   valueGross      Float?
@@ -489,6 +490,11 @@ model ContractUnit {
   id         String @id @default(cuid())
   contractId String
   unitId     String
+  // Snapshot ceny lokalu NA UMOWIE (z oferty lub po rabacie przy tworzeniu).
+  // Zamrożona — umowa nie zmienia kwot, gdy później ktoś zmieni cennik lokalu.
+  // null = brak snapshotu (legacy) → generator użyje ceny bazowej z Unit.
+  priceNet   Float?
+  priceGross Float?
 
   contract Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
   unit     Unit     @relation(fields: [unitId], references: [id], onDelete: Cascade)

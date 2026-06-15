@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { computeReservationFee, findClientUnitConflict } from '@/lib/contract-pricing'
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions)
@@ -39,7 +40,29 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const inv = await prisma.settings.findUnique({ where: { key: 'investmentName' } })
   const investmentName = inv?.value || 'Inwestycja'
 
-  // Utwórz umowę + powiązania + zarezerwuj lokale
+  // Dedup: klient już ma aktywną umowę z którymś z tych lokali?
+  const conflict = await findClientUnitConflict(offer.clientId, unitIds)
+  if (conflict) {
+    return NextResponse.json(
+      {
+        error: `Klient ma już aktywną umowę ${conflict.number} z lokalem ${conflict.units.join(', ')}. Nie tworzę drugiej z tej oferty.`,
+        conflictContractId: conflict.id,
+      },
+      { status: 409 },
+    )
+  }
+
+  // Snapshot cen z pozycji oferty (po rabacie) + opłata rezerwacyjna 1%.
+  const itemByUnit = new Map(offer.items.filter((it) => it.unitId).map((it) => [it.unitId as string, it]))
+  const contractUnitsData = unitIds.map((uid) => {
+    const it = itemByUnit.get(uid)
+    return { unitId: uid, priceNet: it?.finalNet ?? null, priceGross: it?.finalGross ?? null }
+  })
+  const reservationFee = computeReservationFee(offer.totalGross)
+
+  // Utwórz umowę + powiązania + zarezerwuj lokale.
+  // Bez wpisu contractClients dla głównego klienta — to on jest contract.client;
+  // współrezerwujący doda się osobno (oferta ma jednego klienta).
   const contract = await prisma.contract.create({
     data: {
       number,
@@ -50,9 +73,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       valueNet: offer.totalNet,
       valueGross: offer.totalGross,
       discount: offer.totalDiscountGross || null,
+      reservationFee,
+      reservationFeeDays: 7,
       notes: `Utworzono na podstawie oferty ${offer.number}.${offer.notes ? '\n\n' + offer.notes : ''}`,
-      contractClients: { create: [{ clientId: offer.clientId, position: 1 }] },
-      contractUnits: { create: unitIds.map((uid) => ({ unitId: uid })) },
+      contractUnits: { create: contractUnitsData },
+      stages: { create: { stage: 'REZERWACYJNA', status: 'W_PRZYGOTOWANIU' } },
       history: {
         create: [{ event: 'UTWORZONA', details: `Z oferty ${offer.number}` }],
       },

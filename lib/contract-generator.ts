@@ -71,16 +71,27 @@ export async function buildContractContext(contract: ContractWithRelations): Pro
   const garaze = contract.contractUnits.filter((cu) => cu.unit.type === 'GARAZ').map((cu) => cu.unit)
   const komorka = contract.contractUnits.find((cu) => cu.unit.type === 'KOMORKA')?.unit
 
-  const total = contract.contractUnits.reduce((sum, cu) => sum + cu.unit.priceGross, 0)
-  const priceSqm = mieszkanie
-    ? mieszkanie.pricePerSqmGross || (mieszkanie.area > 0 ? mieszkanie.priceGross / mieszkanie.area : null)
-    : null
+  // Ceny z UMOWY (snapshot na ContractUnit, po rabacie/z oferty) z fallbackiem
+  // na cenę bazową lokalu (umowy sprzed wdrożenia snapshotu).
+  const grossById = new Map(contract.contractUnits.map((cu) => [cu.unitId, cu.priceGross ?? cu.unit.priceGross]))
+  const grossOf = (u: Unit | null | undefined): number | null => (u ? (grossById.get(u.id) ?? u.priceGross) : null)
+
+  const total = contract.contractUnits.reduce((sum, cu) => sum + (cu.priceGross ?? cu.unit.priceGross), 0)
+  const priceSqm = mieszkanie && mieszkanie.area > 0 ? (grossOf(mieszkanie)! / mieszkanie.area) : null
 
   // Bank account from settings
   const bankSetting = await prisma.settings.findUnique({ where: { key: 'bankAccount' } })
 
+  // Termin wpłaty opłaty rezerwacyjnej = data podpisania (lub planowana) + N dni.
+  const signBase = contract.signedAt || contract.plannedSignDate
+  const feeDeadline = signBase
+    ? new Date(signBase.getTime() + (contract.reservationFeeDays ?? 7) * 86_400_000)
+    : null
+
   const client1 = contract.client
-  const client2 = contract.contractClients[0]?.client || null
+  // Współrezerwujący = pierwszy contractClient RÓŻNY od głównego klienta.
+  // (Import/konwersja wrzucały głównego na pozycję 1 — bez tego dublował się.)
+  const client2 = contract.contractClients.find((cc) => cc.clientId !== contract.clientId)?.client || null
 
   return {
     contractNumber: contract.number,
@@ -94,28 +105,28 @@ export async function buildContractContext(contract: ContractWithRelations): Pro
     unitNumber: mieszkanie?.number || '...',
     unitArea: mieszkanie ? fmt(mieszkanie.area) : '...',
     unitAreaWords: mieszkanie ? areaWords(mieszkanie.area) : '...',
-    unitPrice: mieszkanie ? fmt(mieszkanie.priceGross) : '...',
-    unitPriceWords: mieszkanie ? wordsOr(mieszkanie.priceGross) : '...',
+    unitPrice: mieszkanie ? fmt(grossOf(mieszkanie)) : '...',
+    unitPriceWords: mieszkanie ? wordsOr(grossOf(mieszkanie)) : '...',
     pricePerSqm: priceSqm ? fmt(priceSqm) : '...',
 
     // Parking / garaże / komórka
     parking1Number: parkings[0]?.number || '...',
     parking2Number: parkings[1]?.number || '...',
-    parking1Price: parkings[0] ? fmt(parkings[0].priceGross) : '...',
-    parking2Price: parkings[1] ? fmt(parkings[1].priceGross) : '...',
-    parking1PriceWords: parkings[0] ? wordsOr(parkings[0].priceGross) : '...',
-    parking2PriceWords: parkings[1] ? wordsOr(parkings[1].priceGross) : '...',
+    parking1Price: parkings[0] ? fmt(grossOf(parkings[0])) : '...',
+    parking2Price: parkings[1] ? fmt(grossOf(parkings[1])) : '...',
+    parking1PriceWords: parkings[0] ? wordsOr(grossOf(parkings[0])) : '...',
+    parking2PriceWords: parkings[1] ? wordsOr(grossOf(parkings[1])) : '...',
     garage1Number: garaze[0]?.number || '...',
     garage2Number: garaze[1]?.number || '...',
-    garage1Price: garaze[0] ? fmt(garaze[0].priceGross) : '...',
-    garage2Price: garaze[1] ? fmt(garaze[1].priceGross) : '...',
-    garage1PriceWords: garaze[0] ? wordsOr(garaze[0].priceGross) : '...',
-    garage2PriceWords: garaze[1] ? wordsOr(garaze[1].priceGross) : '...',
+    garage1Price: garaze[0] ? fmt(grossOf(garaze[0])) : '...',
+    garage2Price: garaze[1] ? fmt(grossOf(garaze[1])) : '...',
+    garage1PriceWords: garaze[0] ? wordsOr(grossOf(garaze[0])) : '...',
+    garage2PriceWords: garaze[1] ? wordsOr(grossOf(garaze[1])) : '...',
     komorkaNumber: komorka?.number || '...',
     komorkaArea: komorka ? fmt(komorka.area) : '...',
     komorkaAreaWords: komorka ? areaWords(komorka.area) : '...',
-    komorkaPrice: komorka ? fmt(komorka.priceGross) : '...',
-    komorkaPriceWords: komorka ? wordsOr(komorka.priceGross) : '...',
+    komorkaPrice: komorka ? fmt(grossOf(komorka)) : '...',
+    komorkaPriceWords: komorka ? wordsOr(grossOf(komorka)) : '...',
 
     // Totals
     totalPrice: fmt(total),
@@ -127,7 +138,7 @@ export async function buildContractContext(contract: ContractWithRelations): Pro
     reservationFeeWords: contract.reservationFee != null
       ? integerToWordsPl(Math.floor(contract.reservationFee))
       : '...',
-    reservationFeeDeadline: fmtDate(contract.plannedSignDate),
+    reservationFeeDeadline: fmtDate(feeDeadline),
     reservationEndDate: fmtDate(contract.plannedSignDate),
   }
 }
