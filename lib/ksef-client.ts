@@ -616,6 +616,27 @@ export async function syncCompanyFromKsef(
   let totalCount = 0
 
   try {
+    // 0. MIGRACJA STATUSU (jednorazowa, idempotentna): faktury zakupowe pobrane
+    // z KSeF starym kodem dostawaly status ZATWIERDZONA. Decyzja: faktury z KSeF
+    // maja byc WPROWADZONA (do przejrzenia), nie wygladac na zatwierdzone.
+    // Migrujemy tylko faktury POCHODZACE z KSeF (znacznik jak w reconcile),
+    // ktore NIE zostaly recznie zatwierdzone (brak wpisu APPROVE w historii)
+    // i NIE maja platnosci. Po migracji 0 wierszy pasuje (idempotentne).
+    await prisma.purchaseInvoice.updateMany({
+      where: {
+        company,
+        status: 'ZATWIERDZONA',
+        ksefNumber: { not: null },
+        createdById: null,
+        importSheet: null,
+        sourceSalesInvoiceId: null,
+        description: { startsWith: 'Z KSeF' },
+        payments: { none: {} },
+        approvals: { none: { action: { in: ['APPROVE', 'APPROVED'] } } },
+      },
+      data: { status: 'WPROWADZONA' },
+    })
+
     // 1. SALES (Subject1) — faktury wystawione przez nas
     const salesMeta = await client.queryInvoicesMetadata({
       subjectType: 'Subject1',
