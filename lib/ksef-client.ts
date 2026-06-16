@@ -65,10 +65,57 @@ export type InvoiceMetadata = {
   currency?: string
 }
 
-// ---------- HTTP helpers ----------
+// ---------- Rate limiting (KSeF: limit 16 zadan/min per podatnik) ----------
 
-async function postJson<T>(url: string, body: any, bearer?: string): Promise<T> {
-  const r = await fetch(url, {
+const KSEF_MAX_PER_MIN = 15 // margines pod limit 16/min
+const reqWindow = new Map<string, number[]>() // klucz = NIP → timestampy ostatnich zadan
+const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms))
+
+/** Throttling przesuwnym oknem 60s per NIP — czeka az zwolni sie slot. */
+async function rateLimit(key: string): Promise<void> {
+  for (;;) {
+    const now = Date.now()
+    const arr = (reqWindow.get(key) || []).filter((t) => now - t < 60_000)
+    if (arr.length < KSEF_MAX_PER_MIN) {
+      arr.push(now)
+      reqWindow.set(key, arr)
+      return
+    }
+    reqWindow.set(key, arr)
+    await sleep(Math.max(60_000 - (now - arr[0]) + 250, 250))
+  }
+}
+
+/** Czas oczekiwania po 429 — z naglowka Retry-After lub komunikatu KSeF („po N sekundach"). */
+function parseRetryAfterMs(header: string | null, body: string): number {
+  if (header) {
+    const s = parseInt(header, 10)
+    if (isFinite(s)) return Math.min(Math.max(s, 1) * 1000, 120_000)
+  }
+  const m = body.match(/po\s+(\d+)\s+sekund/i)
+  if (m) return Math.min((parseInt(m[1], 10) + 1) * 1000, 120_000)
+  return 45_000
+}
+
+/** fetch z throttlingiem (per NIP) i retry na 429 (backoff wg KSeF). */
+async function ksefFetch(key: string, url: string, init: RequestInit): Promise<Response> {
+  const MAX_429_RETRIES = 6
+  for (let attempt = 0; ; attempt++) {
+    await rateLimit(key)
+    const r = await fetch(url, init)
+    if (r.status === 429 && attempt < MAX_429_RETRIES) {
+      const body = await r.text().catch(() => '')
+      await sleep(parseRetryAfterMs(r.headers.get('retry-after'), body))
+      continue
+    }
+    return r
+  }
+}
+
+// ---------- HTTP helpers (key = NIP do throttlingu) ----------
+
+async function postJson<T>(key: string, url: string, body: any, bearer?: string): Promise<T> {
+  const r = await ksefFetch(key, url, {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
@@ -83,8 +130,8 @@ async function postJson<T>(url: string, body: any, bearer?: string): Promise<T> 
   return r.json() as Promise<T>
 }
 
-async function getJson<T>(url: string, bearer?: string): Promise<T> {
-  const r = await fetch(url, {
+async function getJson<T>(key: string, url: string, bearer?: string): Promise<T> {
+  const r = await ksefFetch(key, url, {
     method: 'GET',
     headers: bearer ? { authorization: `Bearer ${bearer}` } : {},
   })
@@ -95,8 +142,8 @@ async function getJson<T>(url: string, bearer?: string): Promise<T> {
   return r.json() as Promise<T>
 }
 
-async function getText(url: string, bearer?: string): Promise<string> {
-  const r = await fetch(url, {
+async function getText(key: string, url: string, bearer?: string): Promise<string> {
+  const r = await ksefFetch(key, url, {
     method: 'GET',
     headers: bearer ? { authorization: `Bearer ${bearer}` } : {},
   })
@@ -134,7 +181,7 @@ export class KsefClient {
       validTo: string
       usage: string[]
     }
-    const list = await getJson<CertResponse[]>(`${this.baseUrl}/api/v2/security/public-key-certificates`)
+    const list = await getJson<CertResponse[]>(this.nip, `${this.baseUrl}/api/v2/security/public-key-certificates`)
     const now = new Date()
     const valid = list.find((c) =>
       c.usage.includes('KsefTokenEncryption') &&
@@ -172,7 +219,7 @@ export class KsefClient {
 
     // 1. Challenge
     type Challenge = { challenge: string; timestamp: string }
-    const ch = await postJson<Challenge>(`${this.baseUrl}/api/v2/auth/challenge`, {})
+    const ch = await postJson<Challenge>(this.nip, `${this.baseUrl}/api/v2/auth/challenge`, {})
 
     // 2. Encrypt token z KSeF public key
     const certBase64 = await this.getKsefPublicKey()
@@ -181,7 +228,7 @@ export class KsefClient {
 
     // 3. POST ksef-token
     type AuthInit = { referenceNumber: string; authenticationToken: { token: string; validUntil: string } }
-    const init = await postJson<AuthInit>(`${this.baseUrl}/api/v2/auth/ksef-token`, {
+    const init = await postJson<AuthInit>(this.nip, `${this.baseUrl}/api/v2/auth/ksef-token`, {
       challenge: ch.challenge,
       contextIdentifier: { type: 'Nip', value: this.nip },
       encryptedToken,
@@ -192,7 +239,7 @@ export class KsefClient {
     const pollUrl = `${this.baseUrl}/api/v2/auth/${init.referenceNumber}`
     let attempts = 0
     while (attempts < 20) {
-      const st = await getJson<AuthStatus>(pollUrl, init.authenticationToken.token)
+      const st = await getJson<AuthStatus>(this.nip, pollUrl, init.authenticationToken.token)
       if (st.status.code === 200 || st.authenticationStatus === 'Authenticated') break
       if (st.status.code >= 400) throw new Error(`Auth status: ${st.status.code} ${st.status.description}`)
       await new Promise((r) => setTimeout(r, 1000))
@@ -202,6 +249,7 @@ export class KsefClient {
     // 5. Redeem → accessToken
     type RedeemResponse = { accessToken: { token: string; validUntil: string }; refreshToken: { token: string; validUntil: string } }
     const redeem = await postJson<RedeemResponse>(
+      this.nip,
       `${this.baseUrl}/api/v2/auth/token/redeem`,
       {},
       init.authenticationToken.token,
@@ -221,6 +269,7 @@ export class KsefClient {
     while (hasMore && pageOffset < 1000) { // safety cap
       type QueryResponse = { invoices?: InvoiceMetadata[]; hasMore?: boolean; pageOffset?: number }
       const res = await postJson<QueryResponse>(
+        this.nip,
         `${this.baseUrl}/api/v2/invoices/query/metadata?pageOffset=${pageOffset}&pageSize=${pageSize}`,
         filters,
         token,
@@ -238,7 +287,7 @@ export class KsefClient {
    */
   async getInvoiceXml(ksefNumber: string): Promise<string> {
     const token = await this.authenticate()
-    return getText(`${this.baseUrl}/api/v2/invoices/ksef/${encodeURIComponent(ksefNumber)}`, token)
+    return getText(this.nip, `${this.baseUrl}/api/v2/invoices/ksef/${encodeURIComponent(ksefNumber)}`, token)
   }
 }
 
@@ -594,11 +643,11 @@ async function reconcileExistingFromKsef(
 export async function syncCompanyFromKsef(
   company: Company,
   opts: { fullResync?: boolean } = {},
-): Promise<{ ok: boolean; count: number; error?: string }> {
+): Promise<{ ok: boolean; count: number; completed: boolean; error?: string }> {
   const cfg = await prisma.ksefConfig.findUnique({ where: { company } })
-  if (!cfg) return { ok: false, count: 0, error: 'Brak konfiguracji KSeF' }
-  if (!cfg.enabled) return { ok: false, count: 0, error: 'KSeF wylaczony' }
-  if (!cfg.token) return { ok: false, count: 0, error: 'Brak tokenu KSeF' }
+  if (!cfg) return { ok: false, count: 0, completed: false, error: 'Brak konfiguracji KSeF' }
+  if (!cfg.enabled) return { ok: false, count: 0, completed: false, error: 'KSeF wylaczony' }
+  if (!cfg.token) return { ok: false, count: 0, completed: false, error: 'Brak tokenu KSeF' }
 
   const client = new KsefClient(cfg.nip, cfg.token, cfg.environment as KsefEnvironment)
   // Incrementalnie od ostatniej synchronizacji; przy fullResync od daty startu
@@ -614,6 +663,17 @@ export async function syncCompanyFromKsef(
   const toIso = new Date(Date.now() + 86400000).toISOString().slice(0, 10)
 
   let totalCount = 0
+  // Limit pobran XML na jedno uruchomienie (rate limit KSeF = 16/min). Przy
+  // wiekszej liczbie faktur sync jest WZNAWIALNY: przetwarza paczke, a lastSyncAt
+  // przesuwa sie dopiero po pelnym ukonczeniu (patrz route) — kolejne uruchomienie
+  // kontynuuje (dedup po ksefNumber pomija juz pobrane).
+  const MAX_XML_PER_RUN = 40
+  let xmlFetches = 0
+  let completed = true
+  const fetchXml = (ksefNumber: string) => {
+    xmlFetches++
+    return client.getInvoiceXml(ksefNumber)
+  }
 
   try {
     // 0. MIGRACJA STATUSU (jednorazowa, idempotentna): faktury zakupowe pobrane
@@ -643,6 +703,7 @@ export async function syncCompanyFromKsef(
       dateRange: { dateType: 'Issue', from: fromIso, to: toIso },
     })
     for (const meta of salesMeta) {
+      if (xmlFetches >= MAX_XML_PER_RUN) { completed = false; break }
       const existing = await prisma.salesInvoice.findUnique({
         where: { ksefNumber: meta.ksefNumber },
         select: {
@@ -656,14 +717,14 @@ export async function syncCompanyFromKsef(
         // (reczne nie maja ksefNumber). Re-skan nierozliczonych przy fullResync.
         const terminal = existing.status === 'OPLACONA' || existing.status === 'ANULOWANA'
         if (existing.ksefData == null || (opts.fullResync && !terminal)) {
-          const xml = await client.getInvoiceXml(meta.ksefNumber)
+          const xml = await fetchXml(meta.ksefNumber)
           const parsed = parseKsefInvoiceXml(xml, meta.ksefNumber)
           const payable = Math.round((existing.amountGross - (existing.deposit || 0) - (existing.buildingCosts || 0)) * 100) / 100
           await reconcileExistingFromKsef('sales', existing, parsed, { ksefOwned: true, payable })
         }
         continue
       }
-      const xml = await client.getInvoiceXml(meta.ksefNumber)
+      const xml = await fetchXml(meta.ksefNumber)
       const parsed = parseKsefInvoiceXml(xml, meta.ksefNumber)
       const out = ksefPaymentOutcome(parsed, 'WYSTAWIONA')
       await prisma.$transaction(async (tx) => {
@@ -701,6 +762,7 @@ export async function syncCompanyFromKsef(
       dateRange: { dateType: 'Issue', from: fromIso, to: toIso },
     })
     for (const meta of purchaseMeta) {
+      if (xmlFetches >= MAX_XML_PER_RUN) { completed = false; break }
       const existing = await prisma.purchaseInvoice.findUnique({
         where: { ksefNumber: meta.ksefNumber },
         select: {
@@ -721,14 +783,14 @@ export async function syncCompanyFromKsef(
         const terminal = existing.status === 'OPLACONA' || existing.status === 'ANULOWANA'
         // Backfill ksefData zawsze; reconcile platnosci tylko dla KSeF-owned nierozliczonych.
         if (existing.ksefData == null || (opts.fullResync && ksefOwned && !terminal)) {
-          const xml = await client.getInvoiceXml(meta.ksefNumber)
+          const xml = await fetchXml(meta.ksefNumber)
           const parsed = parseKsefInvoiceXml(xml, meta.ksefNumber)
           const payable = Math.round((existing.amountGross - (existing.deposit || 0) - (existing.buildingCosts || 0) - (existing.electricity || 0)) * 100) / 100
           await reconcileExistingFromKsef('purchase', existing, parsed, { ksefOwned, payable })
         }
         continue
       }
-      const xml = await client.getInvoiceXml(meta.ksefNumber)
+      const xml = await fetchXml(meta.ksefNumber)
       const parsed = parseKsefInvoiceXml(xml, meta.ksefNumber)
       // Vendor matching po NIP lub utworz
       const vendorName = parsed.sellerName || parsed.sellerNip || 'Nieznany'
@@ -781,9 +843,9 @@ export async function syncCompanyFromKsef(
       totalCount++
     }
 
-    return { ok: true, count: totalCount }
+    return { ok: true, count: totalCount, completed }
   } catch (e: any) {
-    return { ok: false, count: totalCount, error: e.message || String(e) }
+    return { ok: false, count: totalCount, completed: false, error: e.message || String(e) }
   }
 }
 

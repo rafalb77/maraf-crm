@@ -7,9 +7,11 @@ import { syncCompanyFromKsef } from '@/lib/ksef-client'
 
 // POST /api/finanse/ksef/sync/[company]
 // Uruchamia synchronizacje faktur z KSeF dla danej firmy.
-// SZKIELET: klient KSeF nie jest jeszcze zaimplementowany (lib/ksef-client.ts),
-// wiec zwraca informacje o tym + nie modyfikuje danych.
-// Aktualizuje lastSyncAt + lastSyncStatus zeby user widzial ze przycisk dziala.
+// Rate limit KSeF (16/min) → sync moze byc dlugi i WZNAWIALNY: lastSyncAt
+// przesuwamy tylko po pelnym ukonczeniu (completed); przy paczce (PARTIAL)
+// kolejne uruchomienie kontynuuje.
+export const maxDuration = 300 // sekundy — pozwala na dluzszy sync (throttling)
+
 export async function POST(req: NextRequest, { params }: { params: { company: string } }) {
   const session = await getServerSession(authOptions)
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -30,8 +32,10 @@ export async function POST(req: NextRequest, { params }: { params: { company: st
   await prisma.ksefConfig.update({
     where: { company },
     data: {
-      lastSyncAt: new Date(),
-      lastSyncStatus: result.ok ? 'OK' : 'ERROR',
+      // lastSyncAt TYLKO po pelnym ukonczeniu — przy PARTIAL kolejne uruchomienie
+      // re-skanuje to samo okno (dedup po ksefNumber pomija juz pobrane).
+      ...(result.ok && result.completed ? { lastSyncAt: new Date() } : {}),
+      lastSyncStatus: !result.ok ? 'ERROR' : (result.completed ? 'OK' : 'PARTIAL'),
       lastSyncError: result.ok ? null : (result.error || 'Nieznany blad'),
       lastSyncCount: result.ok ? result.count : null,
     },
@@ -40,5 +44,5 @@ export async function POST(req: NextRequest, { params }: { params: { company: st
   if (!result.ok) {
     return NextResponse.json({ ok: false, error: result.error, count: result.count }, { status: 500 })
   }
-  return NextResponse.json({ ok: true, count: result.count })
+  return NextResponse.json({ ok: true, count: result.count, completed: result.completed })
 }

@@ -60,7 +60,11 @@ export function KsefConfigCard(p: Props) {
         router.refresh()
         return
       }
-      setMsg(`Zsynchronizowano ${data.count} ${full ? '(pełna synchronizacja)' : ''}`)
+      if (data.completed === false) {
+        setMsg(`Pobrano ${data.count} faktur — zostały kolejne (limit KSeF 16/min). Kliknij ponownie, aby dokończyć.`)
+      } else {
+        setMsg(`Zsynchronizowano ${data.count} faktur${full ? ' (pełna synchronizacja)' : ''}`)
+      }
       router.refresh()
     } catch (e: any) { setError(e.message || 'Blad sieci') } finally { setSyncing(false) }
   }
