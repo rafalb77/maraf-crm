@@ -46,18 +46,21 @@ export function KsefConfigCard(p: Props) {
     } catch (e: any) { setError(e.message || 'Blad sieci') } finally { setSaving(false) }
   }
 
-  async function sync() {
-    if (!confirm(`Uruchomić synchronizację KSeF dla ${p.companyLabel}?`)) return
+  async function sync(full = false) {
+    const prompt = full
+      ? `Pełna synchronizacja KSeF dla ${p.companyLabel}?\n\nPobierze ponownie cały zakres od daty startu i uzupełni pełne dane (pozycje, dane podmiotów) oraz status opłacenia dla już pobranych faktur. Może chwilę potrwać.`
+      : `Uruchomić synchronizację KSeF dla ${p.companyLabel}?`
+    if (!confirm(prompt)) return
     setSyncing(true); setError(null); setMsg(null)
     try {
-      const r = await fetch(`/api/finanse/ksef/sync/${p.company}`, { method: 'POST' })
+      const r = await fetch(`/api/finanse/ksef/sync/${p.company}${full ? '?full=1' : ''}`, { method: 'POST' })
       const data = await r.json()
       if (!r.ok) {
         setError(data.error || 'Blad')
         router.refresh()
         return
       }
-      setMsg(`Zsynchronizowano ${data.count} faktur`)
+      setMsg(`Zsynchronizowano ${data.count} ${full ? '(pełna synchronizacja)' : ''}`)
       router.refresh()
     } catch (e: any) { setError(e.message || 'Blad sieci') } finally { setSyncing(false) }
   }
@@ -141,8 +144,11 @@ export function KsefConfigCard(p: Props) {
         <button onClick={save} disabled={saving} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50">
           {saving ? 'Zapisuję...' : 'Zapisz konfigurację'}
         </button>
-        <button onClick={sync} disabled={syncing || !enabled || !p.hasToken} className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50">
+        <button onClick={() => sync(false)} disabled={syncing || !enabled || !p.hasToken} className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50">
           {syncing ? 'Synchronizuję...' : 'Synchronizuj teraz'}
+        </button>
+        <button onClick={() => sync(true)} disabled={syncing || !enabled || !p.hasToken} title="Pobiera ponownie cały zakres od daty startu — uzupełnia dane i status opłacenia już pobranych faktur" className="bg-white border border-purple-300 text-purple-700 hover:bg-purple-50 px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50">
+          Pełna synchronizacja
         </button>
       </div>
     </div>

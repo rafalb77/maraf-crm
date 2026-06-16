@@ -972,6 +972,10 @@ model PurchaseInvoice {
   // KSeF — numer faktury w Krajowym Systemie e-Faktur. Unique zapobiega
   // duplikatom przy synchronizacji (faktura pobrana z KSeF nie zostanie wczytana 2x).
   ksefNumber String? @unique
+  // KSeF — pełny snapshot z FA(3): dane sprzedawcy/nabywcy (adres, kontakt),
+  // pozycje faktury (FaWiersz) i info o płatności. READ-only do wyświetlenia
+  // w szczegółach. Kształt: lib/types.ts → KsefInvoiceData.
+  ksefData   Json?
   // Audit
   importedFromColor String? // np. "FFE6B8AF" — z którego koloru w xlsx
   importSheet       String? // np. "STAFFA" — z której zakładki
@@ -1084,8 +1088,9 @@ model SalesInvoice {
   // Cross-company: gdy z tej FV przychodowej utworzono koszt u odbiorcy (firma grupy).
   // ID utworzonej PurchaseInvoice — zapobiega duplikatom.
   linkedPurchaseInvoiceId String?
-  // KSeF — patrz analogiczne pole w PurchaseInvoice.
+  // KSeF — patrz analogiczne pola w PurchaseInvoice.
   ksefNumber       String?   @unique
+  ksefData         Json?
   createdById      String?
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt

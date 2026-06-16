@@ -8,7 +8,9 @@ import {
   type SalesInvoiceStatus,
   type Company,
 } from '@/lib/types'
+import type { KsefInvoiceData } from '@/lib/types'
 import { fmtDate, fmtMoney, isOverdue } from '@/lib/finanse-format'
+import { KsefInvoiceDetails } from '@/components/finanse/KsefInvoiceDetails'
 import { AddSalesPaymentForm } from '@/components/finanse/AddSalesPaymentForm'
 import { DeleteSalesPaymentButton } from '@/components/finanse/DeleteSalesPaymentButton'
 import { SalesInvoiceActions } from '@/components/finanse/SalesInvoiceActions'
@@ -25,6 +27,7 @@ export default async function SalesInvoiceDetailsPage({ params }: { params: { id
   const payable = Math.round((inv.amountGross - (inv.deposit || 0) - (inv.buildingCosts || 0)) * 100) / 100
   const remaining = payable - sumPaid
   const overdue = isOverdue(inv.dueDate, inv.status === 'OPLACONA' ? 'OPLACONA' : 'WYSTAWIONA')
+  const ksef = (inv.ksefData as unknown as KsefInvoiceData | null) || null
 
   return (
     <div className="p-8 max-w-5xl">
@@ -37,7 +40,17 @@ export default async function SalesInvoiceDetailsPage({ params }: { params: { id
               {inv.recipientCompany && <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded font-normal">{COMPANY_LABELS[inv.recipientCompany as Company] || inv.recipientCompany}</span>}
               {inv.isAdvance && <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded font-normal">zaliczkowa</span>}
             </h1>
-            <p className="text-sm text-gray-500 font-mono mt-1">FV {inv.number} • wystawia {COMPANY_LABELS[inv.company as Company] || inv.company}</p>
+            <p className="text-sm text-gray-500 font-mono mt-1 flex items-center gap-2">
+              <span>FV {inv.number} • wystawia {COMPANY_LABELS[inv.company as Company] || inv.company}</span>
+              {inv.ksefNumber && (
+                <span
+                  className="text-[11px] bg-sky-100 text-sky-700 px-1.5 py-0.5 rounded font-sans font-medium"
+                  title={`Numer KSeF: ${inv.ksefNumber}`}
+                >
+                  KSeF
+                </span>
+              )}
+            </p>
           </div>
           <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium whitespace-nowrap ${SALES_INVOICE_STATUS_COLORS[inv.status as SalesInvoiceStatus] || 'bg-gray-100 text-gray-700'}`}>
             {SALES_INVOICE_STATUS_LABELS[inv.status as SalesInvoiceStatus] || inv.status}
@@ -76,6 +89,8 @@ export default async function SalesInvoiceDetailsPage({ params }: { params: { id
           <p className="text-sm text-gray-800">{inv.description}</p>
         </div>
       )}
+
+      {ksef && <KsefInvoiceDetails data={ksef} />}
 
       <div className="mt-8">
         <div className="flex items-baseline justify-between mb-3">

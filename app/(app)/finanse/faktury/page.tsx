@@ -149,6 +149,7 @@ export default async function FakturyListPage({
       sumPaid,
       status: inv.status,
       notes: inv.notes,
+      isKsef: !!inv.ksefNumber,
     }
   })
 

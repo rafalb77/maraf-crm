@@ -4,6 +4,20 @@ Krótkie wpisy „co i **dlaczego**". Bez listy wszystkich commitów — od tego
 
 ---
 
+## 2026-06-16
+
+### KSeF — szczegóły faktury (dane podmiotów + pozycje), status płatności z FA, status faktur z KSeF
+**Powód**: Po pobraniu z KSeF szczegóły faktury pokazywały tylko nagłówek + sumy + NIP/nazwę — brakowało pełnych danych nabywcy/sprzedawcy i **pozycji** faktury. Dodatkowo faktury opłacone w KSeF (np. Orlen) widniały jako „Zapłacono 0,00" ze statusem ZATWIERDZONA, bo sync **nie czytał** bloku `Płatność` z FA. Pełny kontekst: `docs/finanse-decyzje.md`.
+**Implementacja**:
+- **Parser FA(3) rozszerzony** (`lib/ksef-client.ts`): adres + kontakt obu podmiotów (`Adres` AdresL1/AdresL2 lub pola strukturalne, `DaneKontaktowe`), **pozycje** `FaWiersz` (P_7/P_8A/P_8B/P_9A/P_11/P_11A/P_12) i **blok `Płatność`** (`Zapłacono`, `DataZapłaty`, `TerminPłatności`, `FormaPłatności`, `ZapłataCzęściowa`). Snapshot → nowe pole `ksefData` (Json) na `PurchaseInvoice`/`SalesInvoice`. Kształt: `lib/types.ts → KsefInvoiceData`.
+- **Status płatności z KSeF** (`ksefPaymentOutcome`): `Zapłacono=1` → `OPLACONA` + auto-utworzenie płatności na brutto (data = `DataZapłaty`); częściowe → `CZESCIOWO_OPLACONA`; brak znacznika → status bazowy. To naprawia „opłacone 0,00". **Uwaga**: KSeF zna „opłacona" tylko gdy sprzedawca tak oznaczył fakturę — dla odroczonych przelewów płatność rejestruje się ręcznie (lub z wyciągu — przyszłość).
+- **Status faktur z KSeF**: zakupowe `ZATWIERDZONA` → **`WPROWADZONA`** (decyzja: nie wprowadzano nowego statusu „POBRANA" — WPROWADZONA jest w uproszczonym workflow nieużywany dla nowych faktur, więc staje się „skrzynką KSeF do przejrzenia"; zero zmian w filtrach/kolejce/kolorach). Pochodzenie z KSeF widoczne jako **plakietka „KSeF"** (lista + szczegóły). Opłacone wg FA → od razu `OPLACONA`.
+- **UI**: `components/finanse/KsefInvoiceDetails.tsx` (server) — karty sprzedawca/nabywca + sekcja płatności wg KSeF + tabela pozycji; wpięte w `/finanse/faktury/[id]` i `/finanse/przychody/[id]`. Plakietka „KSeF" w `FakturyTable`.
+- **Pełna synchronizacja** (`?full=1`, drugi przycisk w `/finanse/ksef`): re-skan od daty startu (ignoruje `lastSyncAt`) — backfill `ksefData` + statusu opłacenia dla **już pobranych** faktur (zwykły sync bierze tylko nowe). `fromDate` default = `KSEF_DEFAULTS[company].syncFromDate`; `toIso` = dziś+1 (bufor stref, dedup po `ksefNumber`).
+- **Idempotentne uzgadnianie** (`reconcileExistingFromKsef`): dotwarza WYŁĄCZNIE brakującą deltę (`min(zapłacone wg KSeF, należna) − już zapłacone z KSeF`, tytuł `KSEF_PAYMENT_REF`), nigdy nie dubluje płatności przy powtórnym re-syncu; atomowo (`$transaction`). Auto-rozliczane są **tylko faktury z KSeF** (`createdById/importSheet/sourceSalesInvoiceId` puste + opis „Z KSeF") i bez płatności ręcznych — ręczne/importowane/zlinkowane przez dup oraz płatności Marty nietykane. Kwota ograniczona do **należnej** (brutto − kaucja/KB/prąd), nie brutto.
+- **Hardening** (review wieloagentowy 2026-06-16): brutto = `P_15` lub `netto+VAT` gdy `P_15` brak (nie zostawia brutto<netto); data płatności częściowej z `ZapłataCzęściowa` (nie data wystawienia); `brutto<=0` → brak auto-płatności; status terminalny (OPLACONA/ANULOWANA) pomijany przy re-syncu.
+- **WYMAGA na produkcji**: `prisma db push` (2 kolumny `ksefData` Json na PurchaseInvoice + SalesInvoice). Backfill danych dla już pobranych faktur → przycisk „Pełna synchronizacja" w `/finanse/ksef`.
+
 ## 2026-06-09
 
 ### Moduł Sprawy — repozytorium spraw + korespondencja (reklamacje, sprawy urzędowe)

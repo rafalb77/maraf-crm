@@ -13,8 +13,10 @@ import {
   type PurchaseInvoiceStatus,
   type Company,
 } from '@/lib/types'
+import type { KsefInvoiceData } from '@/lib/types'
 import { fmtDate, fmtMoney, isOverdue, payableAmount } from '@/lib/finanse-format'
 import { InvoiceActions } from '@/components/finanse/InvoiceActions'
+import { KsefInvoiceDetails } from '@/components/finanse/KsefInvoiceDetails'
 import { AddPaymentForm } from '@/components/finanse/AddPaymentForm'
 import { DeletePaymentButton } from '@/components/finanse/DeletePaymentButton'
 import { DepositForm } from '@/components/finanse/DepositForm'
@@ -42,6 +44,7 @@ export default async function InvoiceDetailsPage({ params }: { params: { id: str
   const payable = payableAmount(inv) // brutto - kaucja - KB - prad
   const remaining = payable - sumPaid // do zaplaty (po potraceniach)
   const overdue = isOverdue(inv.dueDate, inv.status)
+  const ksef = (inv.ksefData as unknown as KsefInvoiceData | null) || null
 
   return (
     <div className="p-8 max-w-5xl">
@@ -60,7 +63,17 @@ export default async function InvoiceDetailsPage({ params }: { params: { id: str
                 {COMPANY_LABELS[inv.company as Company] || inv.company}
               </span>
             </h1>
-            <p className="text-sm text-gray-500 font-mono mt-1">FV {inv.number}</p>
+            <p className="text-sm text-gray-500 font-mono mt-1 flex items-center gap-2">
+              FV {inv.number}
+              {inv.ksefNumber && (
+                <span
+                  className="text-[11px] bg-sky-100 text-sky-700 px-1.5 py-0.5 rounded font-sans font-medium"
+                  title={`Numer KSeF: ${inv.ksefNumber}`}
+                >
+                  KSeF
+                </span>
+              )}
+            </p>
           </div>
           <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium whitespace-nowrap ${
             PURCHASE_INVOICE_STATUS_COLORS[inv.status as PurchaseInvoiceStatus] || 'bg-gray-100 text-gray-700'
@@ -127,6 +140,9 @@ export default async function InvoiceDetailsPage({ params }: { params: { id: str
           <p className="text-sm text-gray-800 whitespace-pre-wrap">{inv.notes}</p>
         </div>
       )}
+
+      {/* Pelne dane + pozycje z KSeF */}
+      {ksef && <KsefInvoiceDetails data={ksef} />}
 
       {/* Platnosci */}
       <div className="mt-8">

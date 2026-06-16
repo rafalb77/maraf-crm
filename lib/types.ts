@@ -349,3 +349,60 @@ export const SALES_INVOICE_STATUS_COLORS: Record<SalesInvoiceStatus, string> = {
 
 // Orientacyjna stawka CIT (mały podatnik). Zmienialna w przyszłości per firma.
 export const CIT_RATE = 0.09
+
+// =====================================================================
+// KSeF — snapshot pełnych danych faktury z FA(3) (pole PurchaseInvoice.ksefData
+// / SalesInvoice.ksefData, typ Json). READ-only do wyświetlenia w szczegółach.
+// Wypełniane przez parser w lib/ksef-client.ts. Wszystkie pola opcjonalne —
+// FA(3)/FA(2) bywają niekompletne, a stare faktury (sprzed dodania pola) mają null.
+// =====================================================================
+
+export type KsefParty = {
+  nip?: string | null
+  name?: string | null
+  // Adres złożony z linii FA(3) (AdresL1 = ulica/nr, AdresL2 = kod + miasto)
+  // lub z pól strukturalnych — parser składa do gotowych linii.
+  addressLines?: string[]
+  countryCode?: string | null
+  email?: string | null
+  phone?: string | null
+}
+
+export type KsefLine = {
+  no?: number | null          // NrWierszaFa
+  name?: string | null        // P_7 — nazwa towaru/usługi
+  unit?: string | null        // P_8A — jednostka miary
+  quantity?: number | null    // P_8B — ilość
+  unitPriceNet?: number | null // P_9A — cena jednostkowa netto
+  net?: number | null         // P_11 — wartość netto pozycji
+  gross?: number | null       // P_11A — wartość brutto pozycji (gdy podana)
+  vatRate?: string | null     // P_12 — stawka VAT ("23", "8", "zw", "np", "0")
+}
+
+export type KsefPayment = {
+  paid?: boolean              // Zapłacono = 1 (cała faktura opłacona)
+  paidDate?: string | null    // DataZapłaty (ISO)
+  dueDate?: string | null     // TerminPłatności/Termin (ISO)
+  methodCode?: string | null  // FormaPłatności (kod 1..7)
+  // Płatności częściowe (ZapłataCzęściowa) — kwota + data.
+  partial?: { amount: number; date?: string | null }[]
+}
+
+export type KsefInvoiceData = {
+  schema?: string             // "FA(3)" | "FA(2)" | "?"
+  seller?: KsefParty
+  buyer?: KsefParty
+  lines?: KsefLine[]
+  payment?: KsefPayment
+}
+
+// FormaPłatności (FA(3) — kod → opis)
+export const KSEF_PAYMENT_METHOD_LABELS: Record<string, string> = {
+  '1': 'Gotówka',
+  '2': 'Karta',
+  '3': 'Bon',
+  '4': 'Czek',
+  '5': 'Kredyt',
+  '6': 'Przelew',
+  '7': 'Płatność mobilna',
+}

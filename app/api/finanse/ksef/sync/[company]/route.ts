@@ -10,20 +10,22 @@ import { syncCompanyFromKsef } from '@/lib/ksef-client'
 // SZKIELET: klient KSeF nie jest jeszcze zaimplementowany (lib/ksef-client.ts),
 // wiec zwraca informacje o tym + nie modyfikuje danych.
 // Aktualizuje lastSyncAt + lastSyncStatus zeby user widzial ze przycisk dziala.
-export async function POST(_req: NextRequest, { params }: { params: { company: string } }) {
+export async function POST(req: NextRequest, { params }: { params: { company: string } }) {
   const session = await getServerSession(authOptions)
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   if (!isAdmin(session.user.email)) return NextResponse.json({ error: 'Tylko admin' }, { status: 403 })
 
   const company = params.company === 'MARAF_DEVELOPMENT' ? 'MARAF_DEVELOPMENT' : 'MARAF'
+  // ?full=1 — pelny re-sync od daty startu (ignoruje lastSyncAt). Sluzy do
+  // uzupelnienia danych/statusu platnosci dla juz pobranych faktur.
+  const fullResync = new URL(req.url).searchParams.get('full') === '1'
 
   const cfg = await prisma.ksefConfig.findUnique({ where: { company } })
   if (!cfg) return NextResponse.json({ error: 'Brak konfiguracji KSeF dla tej firmy' }, { status: 404 })
   if (!cfg.enabled) return NextResponse.json({ error: 'KSeF wyłączony dla tej firmy (włącz "Aktywny" w konfiguracji)' }, { status: 400 })
   if (!cfg.token) return NextResponse.json({ error: 'Brak tokenu KSeF dla tej firmy — wpisz go w konfiguracji' }, { status: 400 })
 
-  // Wywolanie klienta (na razie stub — zwraca ok:false + komunikat)
-  const result = await syncCompanyFromKsef(company)
+  const result = await syncCompanyFromKsef(company, { fullResync })
 
   await prisma.ksefConfig.update({
     where: { company },

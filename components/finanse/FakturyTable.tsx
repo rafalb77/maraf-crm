@@ -26,6 +26,7 @@ export type FakturaRow = {
   sumPaid: number
   status: string
   notes: string | null
+  isKsef?: boolean
 }
 
 type Totals = { net: number; vat: number; gross: number; count: number; onPage: number }
@@ -161,6 +162,9 @@ export function FakturyTable({ rows, totals, currentSort, sortOptions }: Props) 
                   </td>
                   <td className="px-3 py-2">
                     <Link href={`/finanse/faktury/${r.id}`} className="text-blue-600 hover:underline font-mono text-xs">{r.number}</Link>
+                    {r.isKsef && (
+                      <span className="ml-1.5 text-[10px] bg-sky-100 text-sky-700 px-1 rounded font-medium align-middle" title="Pobrana z KSeF">KSeF</span>
+                    )}
                   </td>
                   <td className="px-3 py-2 text-gray-600 tabular-nums whitespace-nowrap">{fmtDate(r.issueDate)}</td>
                   <td className={`px-3 py-2 tabular-nums whitespace-nowrap ${overdue ? 'text-red-600 font-semibold' : 'text-gray-600'}`}>

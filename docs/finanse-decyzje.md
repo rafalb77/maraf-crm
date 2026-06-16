@@ -39,6 +39,8 @@ PurchaseInvoice           — faktura zakupowa
   buildingCosts, electricity — potracenia bezzwrotne (KB, prąd)
   description, notes
   ksefNumber              — unique, numer KSeF (dedup przy synchronizacji)
+  ksefData (Json)         — snapshot z FA(3): pełne dane sprzedawcy/nabywcy (adres, kontakt),
+                            pozycje (FaWiersz) i info o płatności. READ-only, w szczegółach. Typ: lib/types.ts KsefInvoiceData
   sourceSalesInvoiceId    — gdy koszt utworzony z FV przychodowej innej firmy grupy (cross-company)
   importedFromColor/Sheet/Row — audit pochodzenia z xlsx
 PurchaseInvoicePayment    — N płatności per faktura (wspiera częściowe)
@@ -57,6 +59,7 @@ SalesInvoice
   isAdvance               — faktura zaliczkowa (NIE wliczana do CIT/VAT do konwersji)
   status                  — WYSTAWIONA | CZESCIOWO_OPLACONA | OPLACONA | ANULOWANA
   ksefNumber              — unique
+  ksefData (Json)         — snapshot z FA(3) (jak w PurchaseInvoice)
   linkedPurchaseInvoiceId — utworzony koszt u odbiorcy (cross-company)
 SalesInvoicePayment       — wpłaty klienta
 ```
@@ -138,7 +141,13 @@ POST /ksef/auto-sync                — auto-sync przy wejściu (throttled 1h)
 - Auth flow: `GET /security/public-key-certificates` → RSA-OAEP-SHA256 encrypt `token|timestamp` → `POST /auth/challenge` → `POST /auth/ksef-token` → polling → `POST /auth/token/redeem` → Bearer accessToken
 - Pobieranie: `POST /invoices/query/metadata` (filtr `subjectType: Subject1` = wystawione / `Subject2` = otrzymane, `dateRange.dateType: Issue`) + `GET /invoices/ksef/{ksefNumber}` (plain XML)
 - Parser FA(3): `fast-xml-parser`, mapuje P_1 (data), P_2 (numer), P_13_1..7 (netto wg stawek), P_14_1..7 (VAT), P_15 (brutto), Podmiot1/Podmiot2 (sprzedawca/nabywca + NIP)
-- `syncCompanyFromKsef(company)` — pobiera Subject1 i Subject2 od `lastSyncAt`/`syncFromDate`, upsert SalesInvoice/PurchaseInvoice po `ksefNumber` (unique), vendor matching po NIP, auto cross-company gdy buyerNip = NIP firmy grupy
+- **Pełny snapshot (2026-06-16):** parser wyciąga też **adres + kontakt** obu podmiotów, **pozycje** (`FaWiersz`: P_7 nazwa, P_8A/B jm/ilość, P_9A cena netto, P_11/P_11A netto/brutto, P_12 stawka) i **blok `Płatność`** (`Zapłacono`, `DataZapłaty`, `TerminPłatności`, `FormaPłatności`, `ZapłataCzęściowa`). Zapisywane do `ksefData` (Json) i pokazywane w szczegółach faktury (`components/finanse/KsefInvoiceDetails.tsx`).
+- **Status płatności z FA (2026-06-16):** `ksefPaymentOutcome()` — `Zapłacono=1` → `OPLACONA` + utworzenie płatności na brutto (data = `DataZapłaty`); częściowe → `CZESCIOWO_OPLACONA`; brak → status bazowy. **Naprawia „opłacone 0,00"** (faktury opłacone w KSeF, np. Orlen, miały status ZATWIERDZONA i 0 płatności).
+  - ⚠️ KSeF zna „opłacona" tylko gdy sprzedawca tak oznaczył e-fakturę. Faktury z odroczonym terminem (przelew później) **nie** mają tego znacznika — płatność rejestruje się ręcznie/z wyciągu (przyszłość).
+- **Status faktur z KSeF (2026-06-16):** zakupowe wpadają jako **`WPROWADZONA`** (nie `ZATWIERDZONA`) — odróżnia auto-import z KSeF (do przejrzenia) od ręcznie zatwierdzonych przez Martę; pochodzenie pokazane plakietką „KSeF" na liście i w szczegółach. Przychodowe: `WYSTAWIONA`. Opłacone wg FA → `OPLACONA` niezależnie od kierunku.
+- `syncCompanyFromKsef(company, {fullResync})` — pobiera Subject1 i Subject2 od `lastSyncAt`/`syncFromDate`, upsert SalesInvoice/PurchaseInvoice po `ksefNumber` (unique), vendor matching po NIP, auto cross-company gdy buyerNip = NIP firmy grupy.
+- **Pełna synchronizacja** (`POST /ksef/sync/[company]?full=1`, przycisk obok „Synchronizuj teraz"): re-skan od daty startu (ignoruje `lastSyncAt`) → backfill `ksefData` + statusu opłacenia dla już pobranych faktur. Zwykły sync = tylko nowe (od `lastSyncAt`).
+- **Idempotentne uzgadnianie** (`reconcileExistingFromKsef`): przy re-syncu dotwarza tylko brakującą deltę płatności z KSeF (`min(zapłacone wg KSeF, należna) − już zapłacone z KSeF`), nigdy nie dubluje. Auto-rozliczane **tylko faktury z KSeF** (znacznik: `createdById`/`importSheet`/`sourceSalesInvoiceId` puste + opis „Z KSeF") i bez płatności ręcznych — ręczne/importowane/zlinkowane przez dup oraz płatności Marty nietykane (tylko snapshot `ksefData`). Kwota ograniczona do **należnej** (brutto − kaucja/KB/prąd).
 - Auto-sync przy wejściu (`AutoSyncOnMount` w layoucie) — throttle 1h, cichy fail
 - **Status:** „best effort" — może wymagać 2-5 iteracji po pierwszych realnych syncach (różnice body/response względem dokumentacji)
 
