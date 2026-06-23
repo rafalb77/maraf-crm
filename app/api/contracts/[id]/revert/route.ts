@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { prevContractStage, CONTRACT_TYPE_LABELS } from '@/lib/types'
+import { unitStateForStage } from '@/lib/contracts'
 import type { ContractType } from '@/lib/types'
 
 /**
@@ -25,6 +26,8 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
     select: {
       id: true,
       type: true,
+      clientId: true,
+      contractUnits: { select: { unitId: true } },
       stages: { select: { id: true, stage: true, status: true, signedAt: true } },
     },
   })
@@ -62,6 +65,18 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
       },
     }),
   ])
+
+  // Cofnięcie do rezerwacyjnej cofa „sprzedaż" lokali → twarda rezerwacja.
+  // (Cofnięcie do deweloperskiej zostawia SPRZEDANY — deweloperska też sprzedaje.)
+  if (prev === 'REZERWACYJNA') {
+    const unitIds = contract.contractUnits.map((cu) => cu.unitId)
+    if (unitIds.length) {
+      await prisma.unit.updateMany({
+        where: { id: { in: unitIds } },
+        data: unitStateForStage('REZERWACYJNA', contract.clientId),
+      })
+    }
+  }
 
   return NextResponse.json({ success: true, stage: prev })
 }

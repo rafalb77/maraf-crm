@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { nextContractStage, CONTRACT_TYPE_LABELS } from '@/lib/types'
+import { unitStateForStage } from '@/lib/contracts'
 import type { ContractType } from '@/lib/types'
 
 /**
@@ -58,6 +59,15 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
       stages: { orderBy: { createdAt: 'asc' } },
     },
   })
+
+  // Wejście na etap deweloperski/przeniesienia = wiążąca sprzedaż → lokale SPRZEDANY.
+  const unitIds = updated.contractUnits.map((cu) => cu.unitId)
+  if (unitIds.length) {
+    await prisma.unit.updateMany({
+      where: { id: { in: unitIds } },
+      data: unitStateForStage(next, updated.clientId),
+    })
+  }
 
   return NextResponse.json(updated)
 }

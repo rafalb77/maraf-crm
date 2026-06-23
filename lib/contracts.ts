@@ -34,6 +34,25 @@ export async function generateContractNumber(
   return `${prefix}-${nextOrdinal}`
 }
 
+export type UnitStageState = {
+  status: string
+  reservationType: string | null
+  reservationExpiresAt: Date | null
+  reservedById: string | null
+}
+
+/**
+ * Docelowy stan lokalu wg etapu umowy:
+ *  - DEWELOPERSKA / PRZENIESIENIA = wiążąca sprzedaż → SPRZEDANY (bez rezerwacji),
+ *  - REZERWACYJNA = twarda rezerwacja → ZAREZERWOWANY (REZERWACJA, reservedById = klient).
+ */
+export function unitStateForStage(stage: ContractType, clientId: string): UnitStageState {
+  if (stage === 'DEWELOPERSKA' || stage === 'PRZENIESIENIA') {
+    return { status: 'SPRZEDANY', reservationType: null, reservationExpiresAt: null, reservedById: null }
+  }
+  return { status: 'ZAREZERWOWANY', reservationType: 'REZERWACJA', reservationExpiresAt: null, reservedById: clientId }
+}
+
 /**
  * Validate that the unit composition matches the constraints for a given contract type.
  * Reservation contract (REZERWACYJNA): max 1 MIESZKALNY + 2 PARKING + 2 GARAZ + 1 KOMORKA.

@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import type { ContractStatus } from '@/lib/types'
+import { unitStateForStage } from '@/lib/contracts'
+import type { ContractStatus, ContractType } from '@/lib/types'
 
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions)
@@ -66,29 +67,13 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     if (newStatus === 'PODPISANA') {
       data.signedAt = body.signedAt ? new Date(body.signedAt) : new Date()
 
-      // Hard-lock reserved units
+      // Podpisanie umowy ustawia lokale wg etapu: rezerwacyjna → ZAREZERWOWANY,
+      // deweloperska/przeniesienia (wiążąca sprzedaż) → SPRZEDANY.
       const unitIds = contract.contractUnits.map((cu) => cu.unitId)
-      if (contract.type === 'REZERWACYJNA' || contract.type === 'DEWELOPERSKA') {
-        await prisma.unit.updateMany({
-          where: { id: { in: unitIds } },
-          data: {
-            status: 'ZAREZERWOWANY',
-            reservationType: 'REZERWACJA',
-            reservationExpiresAt: null,
-            reservedById: contract.clientId,
-          },
-        })
-      } else if (contract.type === 'PRZENIESIENIA') {
-        await prisma.unit.updateMany({
-          where: { id: { in: unitIds } },
-          data: {
-            status: 'SPRZEDANY',
-            reservationType: null,
-            reservationExpiresAt: null,
-            reservedById: null,
-          },
-        })
-      }
+      await prisma.unit.updateMany({
+        where: { id: { in: unitIds } },
+        data: unitStateForStage(contract.type as ContractType, contract.clientId),
+      })
 
       // Podpisanie umowy podnosi status klienta (głównego + współrezerwujących)
       // na UMOWA — spójnie z importem (contracts-import.ts). Nie cofamy klientów

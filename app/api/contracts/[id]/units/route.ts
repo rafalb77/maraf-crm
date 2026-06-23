@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { validateContractUnits } from '@/lib/contracts'
+import { validateContractUnits, unitStateForStage } from '@/lib/contracts'
 import { computeReservationFee, findClientUnitConflict } from '@/lib/contract-pricing'
 import type { ContractType, UnitType } from '@/lib/types'
 
@@ -147,8 +147,10 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
       where: { id: { in: removedUnitIds } },
       select: { id: true, reservationType: true, reservedById: true },
     })
+    // Zwalniamy lokale należące do tego dealu (rezerwacja klienta lub sprzedany
+    // przez tę umowę — reservedById null), o ile nie są w innej aktywnej umowie.
     releasableIds = removedUnits
-      .filter((u) => !stillUsedSet.has(u.id) && u.reservationType === 'REZERWACJA' && u.reservedById === contract.clientId)
+      .filter((u) => !stillUsedSet.has(u.id) && (u.reservedById === contract.clientId || u.reservedById == null))
       .map((u) => u.id)
   }
 
@@ -161,11 +163,11 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
       })
     }
 
-    // Twarda rezerwacja dołożonych lokali.
+    // Stan dołożonych lokali wg etapu umowy (deweloperska/przeniesienia → SPRZEDANY).
     if (addedUnitIds.length) {
       await tx.unit.updateMany({
         where: { id: { in: addedUnitIds } },
-        data: { status: 'ZAREZERWOWANY', reservationType: 'REZERWACJA', reservationExpiresAt: null, reservedById: contract.clientId },
+        data: unitStateForStage(contract.type as ContractType, contract.clientId),
       })
     }
     // Zwolnienie usuniętych (bezpieczne).
