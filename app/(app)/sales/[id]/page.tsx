@@ -14,6 +14,7 @@ import { ContractAttachments } from '@/components/sales/ContractAttachments'
 import { ContractEmailButton } from '@/components/sales/ContractEmailButton'
 import { ContractPaymentsPanel } from '@/components/sales/ContractPaymentsPanel'
 import { ContractStageStepper } from '@/components/sales/ContractStageStepper'
+import { ContractUnitsEditor } from '@/components/sales/ContractUnitsEditor'
 
 export default async function ContractDetailPage({ params }: { params: { id: string } }) {
   const contract = await prisma.contract.findUnique({
@@ -46,6 +47,37 @@ export default async function ContractDetailPage({ params }: { params: { id: str
     where: { company: 'MARAF_DEVELOPMENT', status: 'AKTYWNY' },
     select: { id: true, name: true },
     orderBy: { createdAt: 'asc' },
+  })
+
+  // Składniki umowy do edytora: cena bazowa (cennik) + snapshot na umowie.
+  const unitsForEditor = contract.contractUnits.map((cu) => ({
+    unitId: cu.unitId,
+    number: cu.unit.number,
+    type: cu.unit.type,
+    basePriceGross: cu.unit.priceGross,
+    priceGross: cu.priceGross ?? cu.unit.priceGross,
+  }))
+  const currentUnitIds = contract.contractUnits.map((cu) => cu.unitId)
+  // Lokale z INNYCH aktywnych umów tego klienta — też wykluczamy z dropdownu
+  // (inaczej dodanie ich kończy się błędem dedup 409 dopiero przy zapisie).
+  const otherActiveContractUnits = await prisma.contractUnit.findMany({
+    where: {
+      contractId: { not: contract.id },
+      contract: { clientId: contract.clientId, status: { notIn: ['ROZWIAZANA', 'ANULOWANA'] } },
+    },
+    select: { unitId: true },
+  })
+  const excludeUnitIds = Array.from(new Set([...currentUnitIds, ...otherActiveContractUnits.map((cu) => cu.unitId)]))
+  // Lokale możliwe do dołożenia: nie sprzedane, nie wyłączone, nie twardo
+  // zarezerwowane przez INNEGO klienta, nie na tej ani innej aktywnej umowie.
+  const availableUnits = await prisma.unit.findMany({
+    where: {
+      status: { notIn: ['SPRZEDANY', 'NIEDOSTEPNY'] },
+      NOT: { AND: [{ reservationType: 'REZERWACJA' }, { reservedById: { not: contract.clientId } }] },
+      id: { notIn: excludeUnitIds },
+    },
+    select: { id: true, number: true, type: true, priceGross: true },
+    orderBy: { number: 'asc' },
   })
 
   const paymentsForPanel = contract.payments.map((p) => ({
@@ -149,29 +181,12 @@ export default async function ContractDetailPage({ params }: { params: { id: str
             <Row label="Opłata rezerwacyjna" value={contract.reservationFee != null ? formatCurrency(contract.reservationFee) : '—'} />
           </Panel>
 
-          <Panel title="Składniki umowy">
-            {contract.contractUnits.length === 0 ? (
-              <p className="text-gray-400 text-sm">Brak lokali</p>
-            ) : (
-              <div className="space-y-2">
-                {contract.contractUnits.map((cu) => (
-                  <div key={cu.id} className="flex items-center gap-3 p-2 rounded-lg border border-gray-100">
-                    <div className="flex-1 min-w-0">
-                      <Link href={`/units/${cu.unitId}`} className="text-sm font-medium text-gray-900 hover:text-blue-600">
-                        {cu.unit.number}
-                      </Link>
-                      <p className="text-xs text-gray-500">
-                        {UNIT_TYPE_LABELS[cu.unit.type as UnitType]} · {formatCurrency(cu.unit.priceGross)}
-                      </p>
-                    </div>
-                    <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${UNIT_STATUS_COLORS[cu.unit.status as UnitStatus]}`}>
-                      {UNIT_STATUS_LABELS[cu.unit.status as UnitStatus]}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </Panel>
+          <ContractUnitsEditor
+            contractId={contract.id}
+            status={contract.status}
+            units={unitsForEditor}
+            availableUnits={availableUnits}
+          />
 
           <ContractPaymentsPanel
             contractId={contract.id}
