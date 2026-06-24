@@ -10,8 +10,10 @@ import {
 import { TopWidget } from '@/components/dashboard/TopWidget'
 
 async function getDashboardData() {
-  const [unitsByStatus, clientsByStatus, openService, recentActivities, recentClients, revenueData] = await Promise.all([
+  const [unitsByStatus, residentialByStatus, clientsByStatus, openService, recentActivities, recentClients, revenueData] = await Promise.all([
     prisma.unit.groupBy({ by: ['status'], _count: true }),
+    // Tylko lokale mieszkalne (bez usługowych, miejsc postojowych, garaży, komórek) — kafelek „Wolne mieszkania"
+    prisma.unit.groupBy({ by: ['status'], where: { type: 'MIESZKALNY' }, _count: true }),
     prisma.client.groupBy({ by: ['status'], _count: true }),
     prisma.serviceRequest.findMany({
       where: { status: { not: 'ZAKONCZONE' } },
@@ -35,14 +37,16 @@ async function getDashboardData() {
     }),
   ])
 
-  return { unitsByStatus, clientsByStatus, openService, recentActivities, recentClients, revenueData }
+  return { unitsByStatus, residentialByStatus, clientsByStatus, openService, recentActivities, recentClients, revenueData }
 }
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions)
-  const { unitsByStatus, clientsByStatus, openService, recentActivities, recentClients, revenueData } = await getDashboardData()
+  const { unitsByStatus, residentialByStatus, clientsByStatus, openService, recentActivities, recentClients, revenueData } = await getDashboardData()
 
   const unitStats = Object.fromEntries(unitsByStatus.map((u) => [u.status, u._count]))
+  const residentialStats = Object.fromEntries(residentialByStatus.map((u) => [u.status, u._count]))
+  const totalResidential = residentialByStatus.reduce((s, u) => s + u._count, 0)
   const clientStats = Object.fromEntries(clientsByStatus.map((c) => [c.status, c._count]))
   const totalUnits = unitsByStatus.reduce((s, u) => s + u._count, 0)
   const totalClients = clientsByStatus.reduce((s, c) => s + c._count, 0)
@@ -56,9 +60,9 @@ export default async function DashboardPage() {
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
         <KpiCard
-          title="Wolne lokale"
-          value={String(unitStats['WOLNY'] || 0)}
-          sub={`z ${totalUnits} wszystkich`}
+          title="Wolne mieszkania"
+          value={String(residentialStats['WOLNY'] || 0)}
+          sub={`z ${totalResidential} wszystkich`}
           color="green"
           icon="🏠"
         />
