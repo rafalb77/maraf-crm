@@ -8,13 +8,37 @@ import {
 import { UnitFilters } from '@/components/units/UnitFilters'
 import { UnitsTable } from '@/components/units/UnitsTable'
 
-async function getUnits(type?: string, status?: string, search?: string) {
+type UnitFilterParams = {
+  type?: string
+  status?: string
+  search?: string
+  areaMin?: number
+  areaMax?: number
+  priceMin?: number
+  priceMax?: number
+  rooms?: number
+  floor?: number
+}
+
+function parseNum(v?: string): number | undefined {
+  if (v === undefined || v === '') return undefined
+  const n = Number(v)
+  return Number.isFinite(n) ? n : undefined
+}
+
+async function getUnits(f: UnitFilterParams) {
   return prisma.unit.findMany({
     where: {
       AND: [
-        search ? { number: { contains: search, mode: 'insensitive' } } : {},
-        type ? { type } : {},
-        status ? { status } : {},
+        f.search ? { number: { contains: f.search, mode: 'insensitive' } } : {},
+        f.type ? { type: f.type } : {},
+        f.status ? { status: f.status } : {},
+        f.areaMin !== undefined ? { area: { gte: f.areaMin } } : {},
+        f.areaMax !== undefined ? { area: { lte: f.areaMax } } : {},
+        f.priceMin !== undefined ? { priceGross: { gte: f.priceMin } } : {},
+        f.priceMax !== undefined ? { priceGross: { lte: f.priceMax } } : {},
+        f.rooms !== undefined ? { rooms: f.rooms } : {},
+        f.floor !== undefined ? { floor: f.floor } : {},
       ],
     },
     include: { clientUnits: { include: { client: true } } },
@@ -22,12 +46,55 @@ async function getUnits(type?: string, status?: string, search?: string) {
   })
 }
 
+// Wartości do list rozwijanych (piętro / liczba pokoi) — pełna pula, niezależnie od aktywnych filtrów.
+async function getFilterOptions() {
+  const [floors, rooms] = await Promise.all([
+    prisma.unit.findMany({
+      where: { floor: { not: null } },
+      select: { floor: true },
+      distinct: ['floor'],
+      orderBy: { floor: 'asc' },
+    }),
+    prisma.unit.findMany({
+      where: { rooms: { not: null } },
+      select: { rooms: true },
+      distinct: ['rooms'],
+      orderBy: { rooms: 'asc' },
+    }),
+  ])
+  return {
+    floors: floors.map((f) => f.floor as number),
+    rooms: rooms.map((r) => r.rooms as number),
+  }
+}
+
 export default async function UnitsPage({
   searchParams,
 }: {
-  searchParams: { type?: string; status?: string; search?: string }
+  searchParams: {
+    type?: string
+    status?: string
+    search?: string
+    areaMin?: string
+    areaMax?: string
+    priceMin?: string
+    priceMax?: string
+    rooms?: string
+    floor?: string
+  }
 }) {
-  const units = await getUnits(searchParams.type, searchParams.status, searchParams.search)
+  const filters: UnitFilterParams = {
+    type: searchParams.type,
+    status: searchParams.status,
+    search: searchParams.search,
+    areaMin: parseNum(searchParams.areaMin),
+    areaMax: parseNum(searchParams.areaMax),
+    priceMin: parseNum(searchParams.priceMin),
+    priceMax: parseNum(searchParams.priceMax),
+    rooms: parseNum(searchParams.rooms),
+    floor: parseNum(searchParams.floor),
+  }
+  const [units, filterOptions] = await Promise.all([getUnits(filters), getFilterOptions()])
 
   const statsByStatus = units.reduce((acc, u) => {
     acc[u.status] = (acc[u.status] || 0) + 1
@@ -74,7 +141,7 @@ export default async function UnitsPage({
         ))}
       </div>
 
-      <UnitFilters />
+      <UnitFilters floors={filterOptions.floors} rooms={filterOptions.rooms} />
 
       <UnitsTable units={units.map((u) => ({
         id: u.id,
