@@ -949,6 +949,10 @@ model PurchaseInvoice {
   amountVat         Float
   currency          String    @default("PLN")
   status            String    @default("WPROWADZONA")
+  // category — ręczna kategoria kosztowa per faktura (osobna od folderów
+  // vendorowych w lib/finanse-folders.ts): STAFFA | STALE | TYNKI | INNE.
+  // Przypisywana w szczegółach faktury. null = nieprzypisana.
+  category          String?
   description       String? // np. "murowanie ścian I piętro" (z MURARZ.M)
   notes             String?
   // Potracenia z faktury podwykonawcy (głównie podwykonawcy budowlani):
@@ -996,6 +1000,7 @@ model PurchaseInvoice {
   @@index([dueDate])
   @@index([company, status])
   @@index([depositReturnDate])
+  @@index([category])
 }
 
 // Bookkeeping płatności — 1 faktura = N płatności (wspiera częściowe).

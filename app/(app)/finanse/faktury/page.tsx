@@ -2,6 +2,8 @@ import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
 import {
   PURCHASE_INVOICE_STATUS_LABELS,
+  PURCHASE_INVOICE_CATEGORIES,
+  PURCHASE_INVOICE_CATEGORY_LABELS,
 } from '@/lib/types'
 import { getActiveCompany } from '@/lib/finanse-company'
 import { FOLDERS, FOLDER_LABELS, vendorIdsForFolder, vendorIdsWithoutFolder, type Folder } from '@/lib/finanse-folders'
@@ -17,6 +19,7 @@ type SearchParams = {
   page?: string
   sort?: string  // klucz z SORT_OPTIONS, np. 'dueDate-asc'
   folder?: string  // STAFFA | PROMATBUD | BAUTER | STALE | INNE | 'POZOSTALI'
+  category?: string  // ręczna kategoria per faktura: STAFFA | STALE | TYNKI | INNE
 }
 
 const PAGE_SIZE = 100
@@ -41,7 +44,8 @@ const SORT_OPTIONS: Record<string, { label: string; orderBy: any }> = {
   'status-asc':      { label: 'Status (A-Z)', orderBy: [{ status: 'asc' }, { dueDate: 'asc' }] },
   'status-desc':     { label: 'Status (Z-A)', orderBy: [{ status: 'desc' }, { dueDate: 'asc' }] },
 }
-const DEFAULT_SORT_KEY = 'dueDate-asc'
+// Domyślnie najnowsze faktury u góry (po dacie wystawienia malejąco).
+const DEFAULT_SORT_KEY = 'issueDate-desc'
 
 export default async function FakturyListPage({
   searchParams,
@@ -64,6 +68,9 @@ export default async function FakturyListPage({
     }
   }
   if (searchParams.status) filters.push({ status: searchParams.status })
+  if (searchParams.category && (PURCHASE_INVOICE_CATEGORIES as readonly string[]).includes(searchParams.category)) {
+    filters.push({ category: searchParams.category })
+  }
   if (searchParams.q) {
     filters.push({
       OR: [
@@ -130,7 +137,7 @@ export default async function FakturyListPage({
     return s ? `?${s}` : ''
   }
 
-  const hasFilters = !!(searchParams.vendor || searchParams.status || searchParams.q || searchParams.overdue || searchParams.from || searchParams.to || searchParams.folder)
+  const hasFilters = !!(searchParams.vendor || searchParams.status || searchParams.category || searchParams.q || searchParams.overdue || searchParams.from || searchParams.to || searchParams.folder)
 
   const rows: FakturaRow[] = invoices.map((inv) => {
     const sumPaid = inv.payments.reduce((s, p) => s + p.amount, 0)
@@ -148,6 +155,7 @@ export default async function FakturyListPage({
       amountGross: inv.amountGross,
       sumPaid,
       status: inv.status,
+      category: inv.category,
       notes: inv.notes,
       isKsef: !!inv.ksefNumber,
     }
@@ -210,6 +218,12 @@ export default async function FakturyListPage({
           <option value="">Wszystkie statusy</option>
           {Object.entries(PURCHASE_INVOICE_STATUS_LABELS).map(([k, label]) => (
             <option key={k} value={k}>{label} ({statusCounts[k] || 0})</option>
+          ))}
+        </select>
+        <select name="category" defaultValue={searchParams.category || ''} className="px-3 py-2 border border-gray-300 rounded-lg text-sm" title="Kategoria kosztowa (ręczna)">
+          <option value="">Wszystkie kategorie</option>
+          {PURCHASE_INVOICE_CATEGORIES.map((c) => (
+            <option key={c} value={c}>{PURCHASE_INVOICE_CATEGORY_LABELS[c]}</option>
           ))}
         </select>
         <select name="sort" defaultValue={sortKey} className="md:col-span-2 px-3 py-2 border border-gray-300 rounded-lg text-sm" title="Sortowanie">

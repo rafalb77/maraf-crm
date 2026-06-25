@@ -5,8 +5,11 @@ import { useState } from 'react'
 import {
   PURCHASE_INVOICE_STATUS_LABELS,
   PURCHASE_INVOICE_STATUS_COLORS,
+  PURCHASE_INVOICE_CATEGORY_LABELS,
+  PURCHASE_INVOICE_CATEGORY_COLORS,
   COMPANY_SHORT,
   type PurchaseInvoiceStatus,
+  type PurchaseInvoiceCategory,
   type Company,
 } from '@/lib/types'
 import { fmtDate, fmtMoney, isOverdue } from '@/lib/finanse-format'
@@ -25,6 +28,7 @@ export type FakturaRow = {
   amountGross: number
   sumPaid: number
   status: string
+  category: string | null
   notes: string | null
   isKsef?: boolean
 }
@@ -122,12 +126,13 @@ export function FakturyTable({ rows, totals, currentSort, sortOptions }: Props) 
               <SortableTh colKey="amountVat" label="Kwota VAT" align="right" currentSort={currentSort} onSort={onSort} />
               <SortableTh colKey="amountGross" label="Brutto" align="right" currentSort={currentSort} onSort={onSort} />
               <SortableTh colKey="status" label="Status" currentSort={currentSort} onSort={onSort} />
+              <th className="px-3 py-3 font-medium text-gray-700">Kategoria</th>
               <th className="px-3 py-3 font-medium text-gray-700">Komentarz</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
             {rows.length === 0 && (
-              <tr><td colSpan={11} className="px-4 py-8 text-center text-gray-400">Brak faktur dla wybranych filtrów.</td></tr>
+              <tr><td colSpan={12} className="px-4 py-8 text-center text-gray-400">Brak faktur dla wybranych filtrów.</td></tr>
             )}
             {rows.map((r) => {
               const overdue = isOverdue(r.dueDate, r.status)
@@ -184,6 +189,17 @@ export function FakturyTable({ rows, totals, currentSort, sortOptions }: Props) 
                     </span>
                   </td>
                   <td className="px-3 py-2">
+                    {r.category ? (
+                      <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
+                        PURCHASE_INVOICE_CATEGORY_COLORS[r.category as PurchaseInvoiceCategory] || 'bg-gray-100 text-gray-600'
+                      }`}>
+                        {PURCHASE_INVOICE_CATEGORY_LABELS[r.category as PurchaseInvoiceCategory] || r.category}
+                      </span>
+                    ) : (
+                      <span className="text-gray-300 text-xs">—</span>
+                    )}
+                  </td>
+                  <td className="px-3 py-2">
                     <CommentCell invoiceId={r.id} initial={r.notes} />
                   </td>
                 </tr>
@@ -200,7 +216,7 @@ export function FakturyTable({ rows, totals, currentSort, sortOptions }: Props) 
                 <td></td>
                 <td className="px-3 py-3 text-right tabular-nums">{fmtMoney(totals.vat)}</td>
                 <td className="px-3 py-3 text-right tabular-nums">{fmtMoney(totals.gross)}</td>
-                <td colSpan={2}></td>
+                <td colSpan={3}></td>
               </tr>
             </tfoot>
           )}

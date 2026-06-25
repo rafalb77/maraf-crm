@@ -321,6 +321,27 @@ export const PURCHASE_INVOICE_STATUS_COLORS: Record<PurchaseInvoiceStatus, strin
   ANULOWANA: 'bg-gray-200 text-gray-500',
 }
 
+// Ręczna kategoria kosztowa faktury (pole PurchaseInvoice.category) —
+// przypisywana per faktura w szczegółach, niezależna od folderów vendorowych
+// (lib/finanse-folders.ts). Wartości ustalone z użytkownikiem (2026-06).
+export type PurchaseInvoiceCategory = 'STAFFA' | 'STALE' | 'TYNKI' | 'INNE'
+
+export const PURCHASE_INVOICE_CATEGORIES: PurchaseInvoiceCategory[] = ['STAFFA', 'STALE', 'TYNKI', 'INNE']
+
+export const PURCHASE_INVOICE_CATEGORY_LABELS: Record<PurchaseInvoiceCategory, string> = {
+  STAFFA: 'Staffa',
+  STALE: 'Stałe',
+  TYNKI: 'Tynki',
+  INNE: 'Inne',
+}
+
+export const PURCHASE_INVOICE_CATEGORY_COLORS: Record<PurchaseInvoiceCategory, string> = {
+  STAFFA: 'bg-purple-100 text-purple-700',
+  STALE: 'bg-blue-100 text-blue-700',
+  TYNKI: 'bg-orange-100 text-orange-700',
+  INNE: 'bg-gray-100 text-gray-600',
+}
+
 // Etykiety dla akcji w PurchaseInvoiceApproval.action (audit log)
 export const INVOICE_APPROVAL_ACTION_LABELS: Record<string, string> = {
   SUBMITTED: 'Wysłana do zatwierdzenia',

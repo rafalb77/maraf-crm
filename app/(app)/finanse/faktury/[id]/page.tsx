@@ -8,9 +8,12 @@ import { hasPermission } from '@/lib/permissions'
 import {
   PURCHASE_INVOICE_STATUS_LABELS,
   PURCHASE_INVOICE_STATUS_COLORS,
+  PURCHASE_INVOICE_CATEGORY_LABELS,
+  PURCHASE_INVOICE_CATEGORY_COLORS,
   INVOICE_APPROVAL_ACTION_LABELS,
   COMPANY_LABELS,
   type PurchaseInvoiceStatus,
+  type PurchaseInvoiceCategory,
   type Company,
 } from '@/lib/types'
 import type { KsefInvoiceData } from '@/lib/types'
@@ -20,6 +23,8 @@ import { KsefInvoiceDetails } from '@/components/finanse/KsefInvoiceDetails'
 import { AddPaymentForm } from '@/components/finanse/AddPaymentForm'
 import { DeletePaymentButton } from '@/components/finanse/DeletePaymentButton'
 import { DepositForm } from '@/components/finanse/DepositForm'
+import { CategoryPicker } from '@/components/finanse/CategoryPicker'
+import { EditInvoiceForm } from '@/components/finanse/EditInvoiceForm'
 
 export default async function InvoiceDetailsPage({ params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions)
@@ -35,6 +40,17 @@ export default async function InvoiceDetailsPage({ params }: { params: { id: str
     },
   })
   if (!inv) notFound()
+
+  // Lista kontrahentów do formularza edycji (zmiana vendora przy błędach importu).
+  // Dokładamy bieżącego vendora gdyby był nieaktywny — by select pokazał aktualny wybór.
+  const activeVendors = await prisma.vendor.findMany({
+    where: { isActive: true },
+    select: { id: true, name: true },
+    orderBy: { name: 'asc' },
+  })
+  const vendors = activeVendors.some((v) => v.id === inv.vendorId)
+    ? activeVendors
+    : [{ id: inv.vendor.id, name: inv.vendor.name }, ...activeVendors]
 
   const userIsAdmin = isAdmin(session?.user?.email)
   const userPerms = ((session?.user as any)?.permissions as string[]) || []
@@ -62,6 +78,13 @@ export default async function InvoiceDetailsPage({ params }: { params: { id: str
               <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded font-normal">
                 {COMPANY_LABELS[inv.company as Company] || inv.company}
               </span>
+              {inv.category && (
+                <span className={`text-xs px-2 py-0.5 rounded font-medium ${
+                  PURCHASE_INVOICE_CATEGORY_COLORS[inv.category as PurchaseInvoiceCategory] || 'bg-gray-100 text-gray-600'
+                }`}>
+                  {PURCHASE_INVOICE_CATEGORY_LABELS[inv.category as PurchaseInvoiceCategory] || inv.category}
+                </span>
+              )}
             </h1>
             <p className="text-sm text-gray-500 font-mono mt-1 flex items-center gap-2">
               FV {inv.number}
@@ -90,6 +113,26 @@ export default async function InvoiceDetailsPage({ params }: { params: { id: str
         canApprove={canApprove}
         isAdmin={userIsAdmin}
       />
+
+      {/* Kategoria kosztowa + edycja faktury */}
+      <div className="mt-6 space-y-4">
+        <CategoryPicker invoiceId={inv.id} category={inv.category} />
+        <EditInvoiceForm
+          invoiceId={inv.id}
+          vendorId={inv.vendorId}
+          subVendor={inv.subVendor}
+          number={inv.number}
+          issueDate={inv.issueDate.toISOString()}
+          dueDate={inv.dueDate ? inv.dueDate.toISOString() : null}
+          vatRate={inv.vatRate}
+          amountGross={inv.amountGross}
+          amountNet={inv.amountNet}
+          amountVat={inv.amountVat}
+          description={inv.description}
+          notes={inv.notes}
+          vendors={vendors}
+        />
+      </div>
 
       {/* Glowne dane faktury */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">

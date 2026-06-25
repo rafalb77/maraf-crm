@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { isAdmin } from '@/lib/auth-utils'
+import { PURCHASE_INVOICE_CATEGORIES, type PurchaseInvoiceCategory } from '@/lib/types'
 
 // PATCH /api/finanse/invoices/[id]
 // Edycja faktury. Edycja faktury w statusie ZATWIERDZONA/OPLACONA wymaga
@@ -28,6 +29,16 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
   const data: any = {}
   if (body.number !== undefined) data.number = String(body.number).trim()
+  if (body.vendorId !== undefined && body.vendorId) data.vendorId = String(body.vendorId)
+  if (body.category !== undefined) {
+    if (body.category === null || body.category === '') {
+      data.category = null
+    } else if (PURCHASE_INVOICE_CATEGORIES.includes(body.category as PurchaseInvoiceCategory)) {
+      data.category = body.category
+    } else {
+      return NextResponse.json({ error: `Nieprawidłowa kategoria: ${body.category}` }, { status: 400 })
+    }
+  }
   if (body.subVendor !== undefined) data.subVendor = body.subVendor ? String(body.subVendor).trim() : null
   if (body.issueDate !== undefined) data.issueDate = new Date(body.issueDate)
   if (body.dueDate !== undefined) data.dueDate = body.dueDate ? new Date(body.dueDate) : null
@@ -47,11 +58,23 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
   // Audit log: zmiana wartosci na fakturze zatwierdzonej tworzy approval typu EDITED
   // — informacja dla approvera ze faktura zostala zmieniona po jego decyzji.
-  const updated = await prisma.purchaseInvoice.update({
-    where: { id: params.id },
-    data,
-    select: { id: true },
-  })
+  let updated
+  try {
+    updated = await prisma.purchaseInvoice.update({
+      where: { id: params.id },
+      data,
+      select: { id: true },
+    })
+  } catch (e: any) {
+    // P2002 — kolizja unikalnego klucza (vendorId + number): u tego kontrahenta
+    // istnieje juz faktura o tym numerze. Czesty przy poprawianiu importu z xlsx.
+    if (e?.code === 'P2002') {
+      return NextResponse.json({
+        error: 'Ten numer faktury już istnieje u wybranego kontrahenta. Zmień numer lub kontrahenta.',
+      }, { status: 409 })
+    }
+    throw e
+  }
 
   if (inv.status === 'ZATWIERDZONA') {
     await prisma.purchaseInvoiceApproval.create({
