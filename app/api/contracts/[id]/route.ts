@@ -54,6 +54,9 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   if (body.plannedSignDate !== undefined) {
     data.plannedSignDate = body.plannedSignDate ? new Date(body.plannedSignDate) : null
   }
+  if (body.reservationEndDate !== undefined) {
+    data.reservationEndDate = body.reservationEndDate ? new Date(body.reservationEndDate) : null
+  }
 
   // Status change handling with side effects
   if (body.status && body.status !== contract.status) {

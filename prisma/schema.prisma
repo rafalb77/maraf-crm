@@ -404,6 +404,7 @@ model Contract {
   signedAt        DateTime?
   reservationFee  Float?
   reservationFeeDays Int    @default(7) // termin wpłaty opłaty = data podpisania + N dni
+  reservationEndDate DateTime? // termin zakończenia rezerwacji — trafia do DOCX ({{reservationEndDate}})
   discount        Float?
   valueNet        Float?
   valueGross      Float?

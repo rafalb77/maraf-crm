@@ -26,8 +26,7 @@ export function PromoteReservationButton({
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [stage, setStage] = useState<'REZERWACYJNA' | 'DEWELOPERSKA'>('REZERWACYJNA')
-  const [reservationFee, setReservationFee] = useState('')
-  const [plannedSignDate, setPlannedSignDate] = useState('')
+  const [reservationEndDate, setReservationEndDate] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -40,8 +39,7 @@ export function PromoteReservationButton({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           type: stage,
-          reservationFee: stage === 'REZERWACYJNA' && reservationFee ? reservationFee : undefined,
-          plannedSignDate: plannedSignDate || undefined,
+          reservationEndDate: stage === 'REZERWACYJNA' && reservationEndDate ? reservationEndDate : undefined,
         }),
       })
       const d = await res.json().catch(() => ({}))
@@ -117,25 +115,18 @@ export function PromoteReservationButton({
               </div>
               {stage === 'REZERWACYJNA' && (
                 <div>
-                  <label className="block text-xs text-gray-600 mb-1">Opłata rezerwacyjna (opcjonalnie)</label>
+                  <label className="block text-xs text-gray-600 mb-1">Termin zakończenia rezerwacji (opcjonalnie)</label>
                   <input
-                    type="number"
-                    step="0.01"
-                    value={reservationFee}
-                    onChange={(e) => setReservationFee(e.target.value)}
+                    type="date"
+                    value={reservationEndDate}
+                    onChange={(e) => setReservationEndDate(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
+                  <p className="text-[11px] text-gray-400 mt-1">
+                    Trafia do wygenerowanej umowy rezerwacyjnej. Opłata rezerwacyjna liczy się automatycznie (1% wartości).
+                  </p>
                 </div>
               )}
-              <div>
-                <label className="block text-xs text-gray-600 mb-1">Planowana data podpisania (opcjonalnie)</label>
-                <input
-                  type="date"
-                  value={plannedSignDate}
-                  onChange={(e) => setPlannedSignDate(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
             </div>
             {error && <p className="text-sm text-red-600 mt-3">{error}</p>}
             <div className="flex justify-end gap-2 mt-4 pt-4 border-t border-gray-100">

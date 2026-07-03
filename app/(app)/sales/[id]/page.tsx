@@ -168,17 +168,29 @@ export default async function ContractDetailPage({ params }: { params: { id: str
                 {contract.client.firstName} {contract.client.lastName}
               </Link>
             </Row>
-            {contract.contractClients.map((cc) => (
-              <Row key={cc.id} label={`Współrezerwujący ${cc.position}`}>
-                <Link href={`/clients/${cc.clientId}`} className="text-blue-600 hover:text-blue-700">
-                  {cc.client.firstName} {cc.client.lastName}
-                </Link>
-              </Row>
-            ))}
+            {contract.contractClients
+              // Import/konwersja wpisywały głównego klienta także jako contractClient
+              // — nie pokazujemy go drugi raz jako „współrezerwującego".
+              .filter((cc) => cc.clientId !== contract.clientId)
+              .map((cc, idx) => (
+                <Row key={cc.id} label={`Współrezerwujący ${idx + 1}`}>
+                  <Link href={`/clients/${cc.clientId}`} className="text-blue-600 hover:text-blue-700">
+                    {cc.client.firstName} {cc.client.lastName}
+                  </Link>
+                </Row>
+              ))}
             <Row label="Data wprowadzenia" value={formatDate(contract.introducedAt)} />
-            <Row label="Planowana data podpisania" value={contract.plannedSignDate ? formatDate(contract.plannedSignDate) : '—'} />
             <Row label="Data podpisania" value={contract.signedAt ? formatDate(contract.signedAt) : '—'} />
-            <Row label="Opłata rezerwacyjna" value={contract.reservationFee != null ? formatCurrency(contract.reservationFee) : '—'} />
+            <Row
+              label="Termin zakończenia rezerwacji"
+              value={
+                contract.reservationEndDate
+                  ? formatDate(contract.reservationEndDate)
+                  : contract.plannedSignDate
+                    ? formatDate(contract.plannedSignDate) // legacy: stare umowy trzymały to w plannedSignDate
+                    : '—'
+              }
+            />
           </Panel>
 
           <ContractUnitsEditor
@@ -186,6 +198,7 @@ export default async function ContractDetailPage({ params }: { params: { id: str
             status={contract.status}
             units={unitsForEditor}
             availableUnits={availableUnits}
+            reservationFee={contract.reservationFee}
           />
 
           <ContractPaymentsPanel

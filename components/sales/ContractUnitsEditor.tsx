@@ -44,11 +44,14 @@ export function ContractUnitsEditor({
   status,
   units,
   availableUnits,
+  reservationFee: storedFee,
 }: {
   contractId: string
   status: string
   units: UnitRow[]
   availableUnits: AvailableUnit[]
+  /** Opłata rezerwacyjna zapisana na umowie (1% wartości); null dla starych umów. */
+  reservationFee?: number | null
 }) {
   const router = useRouter()
   const canEdit = status === 'W_PRZYGOTOWANIU'
@@ -207,6 +210,10 @@ export function ContractUnitsEditor({
             <div className="flex justify-between items-center pt-2 text-sm border-t border-gray-100">
               <span className="text-gray-600">Razem brutto</span>
               <span className="font-semibold text-gray-900">{formatCurrency(units.reduce((s, u) => s + u.priceGross, 0))}</span>
+            </div>
+            <div className="flex justify-between items-center text-xs text-gray-500">
+              <span>Opłata rezerwacyjna (1%)</span>
+              <span>{formatCurrency(storedFee ?? round2(units.reduce((s, u) => s + u.priceGross, 0) * 0.01))}</span>
             </div>
           </div>
         )

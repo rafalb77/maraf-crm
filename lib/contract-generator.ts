@@ -139,7 +139,9 @@ export async function buildContractContext(contract: ContractWithRelations): Pro
       ? integerToWordsPl(Math.floor(contract.reservationFee))
       : '...',
     reservationFeeDeadline: fmtDate(feeDeadline),
-    reservationEndDate: fmtDate(contract.plannedSignDate),
+    // Termin zakończenia rezerwacji: jawne pole; fallback plannedSignDate dla
+    // umów sprzed wdrożenia (stare umowy używały planowanej daty podpisania).
+    reservationEndDate: fmtDate(contract.reservationEndDate ?? contract.plannedSignDate),
   }
 }
 

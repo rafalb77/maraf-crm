@@ -14,7 +14,12 @@ export default async function NewContractPage({
   const [clients, units, clientUnits] = await Promise.all([
     prisma.client.findMany({ orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }] }),
     prisma.unit.findMany({
-      where: { status: { not: 'SPRZEDANY' }, reservationType: { not: 'REZERWACJA' } },
+      // Uwaga Prisma: `not: 'REZERWACJA'` NIE łapie NULL-i — wolne lokale mają
+      // reservationType=null, więc trzeba jawnie dopuścić null przez OR.
+      where: {
+        status: { notIn: ['SPRZEDANY', 'NIEDOSTEPNY'] },
+        OR: [{ reservationType: null }, { reservationType: { not: 'REZERWACJA' } }],
+      },
       orderBy: { number: 'asc' },
     }),
     prisma.clientUnit.findMany({ select: { clientId: true, unitId: true } }),

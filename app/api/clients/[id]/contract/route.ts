@@ -15,7 +15,7 @@ import type { ContractType, UnitType } from '@/lib/types'
  * Sam Contract.number to nasz numer umowy; numery aktów notarialnych dokłada
  * się później per-etap.
  *
- * Body: { type?, plannedSignDate?, reservationFee?, investmentName?, notes? }
+ * Body: { type?, reservationEndDate?, reservationFeeDays?, investmentName?, notes? }
  */
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions)
@@ -89,6 +89,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       investmentName: body.investmentName || 'Inwestycja',
       clientId: params.id,
       plannedSignDate: body.plannedSignDate ? new Date(body.plannedSignDate) : null,
+      reservationEndDate: body.reservationEndDate ? new Date(body.reservationEndDate) : null,
       reservationFee,
       reservationFeeDays,
       valueNet: Math.round(totalNet * 100) / 100,

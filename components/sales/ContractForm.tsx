@@ -40,7 +40,7 @@ export function ContractForm({
     clientId: defaultClientId || '',
     secondaryClientId: defaultSecondaryClientId || '',
     investmentName: 'Inwestycja',
-    plannedSignDate: '',
+    reservationEndDate: '',
     reservationFeeDays: '7',
     notes: '',
   })
@@ -213,18 +213,22 @@ export function ContractForm({
             ))}
           </select>
         </Field>
-        <Field
-          label="Planowana data podpisania"
-          hint="Pole wpływa na wygenerowaną umowę: termin opłaty rezerwacyjnej + data zakończenia rezerwacji"
-        >
-          <input type="date" className={inputCls} value={form.plannedSignDate} onChange={set('plannedSignDate')} />
-        </Field>
-        <Field
-          label="Termin wpłaty opłaty rez. (dni)"
-          hint="Liczone od daty podpisania. Opłata = 1% wartości, liczona automatycznie."
-        >
-          <input type="number" min={1} max={90} className={inputCls} value={form.reservationFeeDays} onChange={set('reservationFeeDays')} />
-        </Field>
+        {form.type === 'REZERWACYJNA' && (
+          <>
+            <Field
+              label="Termin zakończenia rezerwacji"
+              hint="Data, do której lokal pozostaje zarezerwowany — trafia do wygenerowanej umowy rezerwacyjnej."
+            >
+              <input type="date" className={inputCls} value={form.reservationEndDate} onChange={set('reservationEndDate')} />
+            </Field>
+            <Field
+              label="Termin wpłaty opłaty rez. (dni)"
+              hint="Liczone od daty podpisania. Opłata = 1% wartości, liczona automatycznie."
+            >
+              <input type="number" min={1} max={90} className={inputCls} value={form.reservationFeeDays} onChange={set('reservationFeeDays')} />
+            </Field>
+          </>
+        )}
       </div>
 
       <Field label="Notatki">

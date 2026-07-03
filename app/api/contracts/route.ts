@@ -53,6 +53,7 @@ export async function POST(req: NextRequest) {
     unitIds = [],
     investmentName,
     plannedSignDate,
+    reservationEndDate,
     notes,
   } = body
 
@@ -122,6 +123,7 @@ export async function POST(req: NextRequest) {
       investmentName: investmentName || 'Inwestycja',
       clientId,
       plannedSignDate: plannedSignDate ? new Date(plannedSignDate) : null,
+      reservationEndDate: reservationEndDate ? new Date(reservationEndDate) : null,
       reservationFee,
       reservationFeeDays,
       valueNet: Math.round(totalNet * 100) / 100,
