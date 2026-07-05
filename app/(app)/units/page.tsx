@@ -134,9 +134,9 @@ export default async function UnitsPage({
           { status: 'SPRZEDANY', color: 'blue' },
           { status: 'NIEDOSTEPNY', color: 'gray' },
         ].map(({ status, color }) => (
-          <div key={status} className={`rounded-lg p-3 border ${colorBg(color)}`}>
+          <div key={status} className={`rounded-[10px] px-3.5 py-3 border ${colorBg(color)}`}>
             <p className="text-xs text-gray-500">{UNIT_STATUS_LABELS[status as UnitStatus]}</p>
-            <p className="text-2xl font-bold text-gray-900 mt-0.5">{statsByStatus[status] || 0}</p>
+            <p className="text-2xl font-bold text-gray-900 mt-0.5 tabular-nums">{statsByStatus[status] || 0}</p>
           </div>
         ))}
       </div>
