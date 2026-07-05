@@ -299,12 +299,28 @@ input::placeholder, textarea::placeholder { color: var(--text-muted); }
 }
 
 /* ===== Oprawa v2: karty =====
-   Karty w aplikacji to utility-combo `rounded-xl border p-5/p-6` (brak wspólnego
+   Karty w aplikacji to utility-combo `rounded-xl border ...` (brak wspólnego
    komponentu Card) — promień 20px i hover nakładamy globalnie, tym samym wzorcem
-   co dark-mode'owe nadpisania utility powyżej. */
+   co dark-mode'owe nadpisania utility powyżej.
+   Promień dostają WSZYSTKIE obramowane kontenery rounded-xl (karty treści,
+   panele filtrów, kontenery tabel z overflow-hidden, alerty). */
+.rounded-xl.border { border-radius: 20px; }
+.rounded-2xl.border { border-radius: 24px; }
+
+/* Białe karty: przejścia + złocenie obramowania na hover (bez podnoszenia —
+   dotyczy też kontenerów tabel, gdzie lift przeszkadzałby przy hoverze wierszy) */
+.bg-white.rounded-xl.border {
+  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease,
+              background-color .2s ease;
+}
+.bg-white.rounded-xl.border:hover {
+  border-color: color-mix(in srgb, var(--accent) 30%, var(--border));
+}
+
+/* Karty treści (padding p-5/p-6, dowolne tło — także kolorowe kafle KPI):
+   pełny hover lift jak w standalone */
 .rounded-xl.border.p-5,
 .rounded-xl.border.p-6 {
-  border-radius: 20px;
   transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease,
               background-color .2s ease;
 }
@@ -313,6 +329,13 @@ input::placeholder, textarea::placeholder { color: var(--text-muted); }
   transform: translateY(-3px);
   box-shadow: var(--shadow-md);
   border-color: color-mix(in srgb, var(--accent) 30%, var(--border));
+}
+
+/* Wejście kart na wszystkich stronach (tylko w <main>, żeby nie animować
+   dropdownów topbara). Karty z jawnym .v2-card-in (pulpit, statystyki)
+   zachowują swoje opóźnienia kaskady. */
+main .bg-white.rounded-xl.border:not(.v2-card-in) {
+  animation: cardIn .5s cubic-bezier(.22,1,.36,1) backwards;
 }
 
 /* Złoty eyebrow nagłówków stron (pulpit, statystyki) */
@@ -339,6 +362,7 @@ input::placeholder, textarea::placeholder { color: var(--text-muted); }
 
 @media (prefers-reduced-motion: reduce) {
   .v2-card-in { animation: none; }
+  main .bg-white.rounded-xl.border:not(.v2-card-in) { animation: none; }
   .rounded-xl.border.p-5:hover,
   .rounded-xl.border.p-6:hover { transform: none; }
 }
