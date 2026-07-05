@@ -35,10 +35,12 @@ export function TopBar({
 
   return (
     <header
-      className="sticky top-0 z-20 h-14 flex items-center justify-end gap-3 px-6 border-b backdrop-blur"
+      className="sticky top-0 z-20 h-16 flex items-center justify-end gap-3 px-6 border-b"
       style={{
-        backgroundColor: 'color-mix(in srgb, var(--background) 85%, transparent)',
-        borderColor: 'var(--border)',
+        backgroundColor: 'color-mix(in srgb, var(--background) 70%, transparent)',
+        backdropFilter: 'blur(16px)',
+        WebkitBackdropFilter: 'blur(16px)',
+        borderColor: 'color-mix(in srgb, var(--border) 55%, transparent)',
       }}
     >
       <ThemeToggle />
@@ -51,7 +53,13 @@ export function TopBar({
           aria-haspopup="menu"
           aria-expanded={open}
         >
-          <Avatar email={userEmail} name={userName} size={28} />
+          {/* Złota obwódka avatara (oprawa v2) */}
+          <span
+            className="flex rounded-full flex-shrink-0"
+            style={{ boxShadow: '0 0 0 2px var(--surface), 0 0 0 4px var(--accent-soft)' }}
+          >
+            <Avatar email={userEmail} name={userName} size={28} />
+          </span>
           <span
             className="hidden sm:block text-sm max-w-[160px] truncate"
             style={{ color: 'var(--text-secondary)' }}
