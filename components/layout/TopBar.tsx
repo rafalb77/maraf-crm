@@ -5,6 +5,7 @@ import { signOut } from 'next-auth/react'
 import { User, LogOut, ChevronDown } from 'lucide-react'
 import { ThemeToggle } from './ThemeToggle'
 import { Avatar } from '@/components/profil/Avatar'
+import { useRipple } from '@/lib/ripple'
 
 export function TopBar({
   userName,
@@ -15,6 +16,7 @@ export function TopBar({
 }) {
   const [open, setOpen] = useState(false)
   const wrapRef = useRef<HTMLDivElement | null>(null)
+  const ripple = useRipple()
 
   // Close on click outside
   useEffect(() => {
@@ -49,6 +51,7 @@ export function TopBar({
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
+          onPointerDown={ripple}
           className="flex items-center gap-2 px-2 py-1 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
           aria-haspopup="menu"
           aria-expanded={open}
@@ -92,6 +95,7 @@ export function TopBar({
               href="/profil"
               prefetch={false}
               onClick={() => setOpen(false)}
+              onPointerDown={ripple}
               role="menuitem"
               className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
               style={{ color: 'var(--text-primary)' }}
@@ -106,6 +110,7 @@ export function TopBar({
                 setOpen(false)
                 signOut({ callbackUrl: '/auth/signin' })
               }}
+              onPointerDown={ripple}
               className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
               style={{ color: 'var(--text-primary)' }}
             >

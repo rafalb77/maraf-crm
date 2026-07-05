@@ -331,6 +331,12 @@ input::placeholder, textarea::placeholder { color: var(--text-muted); }
 }
 .v2-card-in { animation: cardIn .5s cubic-bezier(.22,1,.36,1) backwards; }
 
+/* Ripple (lib/ripple.ts) — fala rysowana w warstwie fixed nad elementem */
+@keyframes mrRipple {
+  from { transform: scale(0); opacity: .22; }
+  to   { transform: scale(2.8); opacity: 0; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .v2-card-in { animation: none; }
   .rounded-xl.border.p-5:hover,

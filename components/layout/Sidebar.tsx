@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from 'react'
 import { LogoFullOnDark } from './Logo'
 import { isAdmin } from '@/lib/auth-utils'
 import { getRequiredPermission } from '@/lib/permissions'
+import { useRipple } from '@/lib/ripple'
 
 type NavItem = { href: string; label: string; icon: React.ReactNode }
 type NavSection = { label?: string; items: NavItem[] }
@@ -307,6 +308,7 @@ export function Sidebar() {
     dashboardRequired === null ||
     (dashboardRequired !== 'admin' && (userPermissions || []).includes(dashboardRequired))
 
+  const ripple = useRipple()
   const itemBase =
     'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-150'
 
@@ -385,6 +387,7 @@ export function Sidebar() {
         )}
         <button
           onClick={() => signOut({ callbackUrl: '/auth/signin' })}
+          onPointerDown={ripple}
           className={itemBase + ' w-full'}
           style={{ color: SB.text }}
           onMouseEnter={(e) => {
@@ -415,11 +418,13 @@ function NavLink({
   active: boolean
   itemBase: string
 }) {
+  const ripple = useRipple()
   return (
     <li>
       <Link
         href={item.href}
         prefetch={false}
+        onPointerDown={ripple}
         className={itemBase}
         style={
           active
@@ -459,6 +464,7 @@ function WorkspaceSwitcher({
 }) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
+  const ripple = useRipple()
 
   useEffect(() => {
     if (!open) return
@@ -481,6 +487,7 @@ function WorkspaceSwitcher({
       <button
         type="button"
         onClick={() => setOpen(!open)}
+        onPointerDown={ripple}
         className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-sm font-medium border transition-colors"
         style={{
           backgroundColor: open ? SB.switcherOpenBg : SB.switcherBg,
@@ -532,6 +539,7 @@ function WorkspaceSwitcher({
                   setOpen(false)
                   if (!isActive) onSelect(ws.id)
                 }}
+                onPointerDown={ripple}
                 className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left transition-colors"
                 style={{
                   backgroundColor: isActive ? SB.hoverBg : 'transparent',
