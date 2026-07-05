@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
+import { formatCurrency } from '@/lib/utils'
 import { SalesTable } from '@/components/sales/SalesTable'
 import { NewContractFromReservationButton } from '@/components/sales/NewContractFromReservationButton'
 
@@ -37,12 +38,32 @@ export default async function SalesPage({
     unitNumbers: c.clientUnits.map((cu) => cu.unit.number),
   }))
 
+  // Wartość brutto umowy: pole valueGross, a gdy puste — suma cen brutto powiązanych lokali.
+  const grossOf = (c: (typeof contracts)[number]) =>
+    c.valueGross ?? c.contractUnits.reduce((s, cu) => s + (cu.unit.priceGross || 0), 0)
+
+  // KPI liczone z aktualnie wczytanej (przefiltrowanej) listy — zero nowych zapytań.
+  const now = new Date()
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+  const signedValue = contracts
+    .filter((c) => c.status === 'PODPISANA')
+    .reduce((s, c) => s + grossOf(c), 0)
+  const signedThisMonth = contracts.filter(
+    (c) => c.signedAt && new Date(c.signedAt) >= monthStart,
+  ).length
+  const ppsm = contracts
+    .flatMap((c) => c.contractUnits.map((cu) => cu.unit.pricePerSqmGross))
+    .filter((v) => v > 0)
+  const avgPpsm = ppsm.length ? ppsm.reduce((a, b) => a + b, 0) / ppsm.length : 0
+
   return (
     <div className="p-8">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-start justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Sprzedaż</h1>
-          <p className="text-gray-500 text-sm mt-1">{contracts.length} umów</p>
+          <h1 className="text-[30px] font-bold text-gray-900" style={{ letterSpacing: '-0.02em' }}>Sprzedaż</h1>
+          <p className="text-sm mt-1.5" style={{ color: 'var(--text-muted)' }}>
+            Umowy i transakcje · {contracts.length} {contracts.length === 1 ? 'umowa' : 'umów'}
+          </p>
         </div>
         <div className="flex gap-2">
           <Link
@@ -74,6 +95,13 @@ export default async function SalesPage({
             Nowa umowa
           </Link>
         </div>
+      </div>
+
+      {/* KPI sprzedaży (bento v2) */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5">
+        <SalesKpi label="Wartość podpisanych umów" value={formatCurrency(signedValue)} delay={0} />
+        <SalesKpi label="Umowy w tym miesiącu" value={String(signedThisMonth)} delay={0.06} />
+        <SalesKpi label="Średnia cena m²" value={avgPpsm > 0 ? formatCurrency(avgPpsm) : '—'} delay={0.1} />
       </div>
 
       <div className="flex gap-3 mb-4 flex-wrap">
@@ -114,11 +142,22 @@ export default async function SalesPage({
           investmentName: c.investmentName,
           type: c.type,
           clientName: `${c.client.firstName} ${c.client.lastName}`,
+          unitLabel: c.contractUnits.map((cu) => cu.unit.number).join(' + ') || '—',
+          amountGross: grossOf(c) || null,
           introducedAt: c.introducedAt.toISOString(),
           signedAt: c.signedAt ? c.signedAt.toISOString() : null,
           status: c.status,
         }))}
       />
+    </div>
+  )
+}
+
+function SalesKpi({ label, value, delay }: { label: string; value: string; delay: number }) {
+  return (
+    <div className="bg-white rounded-xl border border-gray-200 p-[18px] v2-card-in" style={{ animationDelay: `${delay}s` }}>
+      <div className="text-xs" style={{ color: 'var(--text-secondary)' }}>{label}</div>
+      <div className="mt-1.5 text-2xl font-bold text-gray-900 tabular-nums">{value}</div>
     </div>
   )
 }
