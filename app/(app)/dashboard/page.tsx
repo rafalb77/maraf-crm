@@ -60,13 +60,14 @@ export default async function DashboardPage() {
       <TopWidget />
 
       {/* Bento: hero „Sprzedaż łącznie" (navy + złota poświata) + KPI 2×2 */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 mb-8">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-4">
         <div
           className="lg:col-span-7 v2-card-in relative overflow-hidden rounded-[24px] p-[30px] min-h-[200px]"
           style={{
             background:
               'radial-gradient(620px 320px at 108% 130%, rgba(201,163,122,.30), transparent 62%), linear-gradient(150deg, #2C3E54 0%, #1F2D3F 55%, #161E2B 100%)',
             boxShadow: '0 12px 32px rgba(28,39,56,.18)',
+            animationDelay: '.12s',
           }}
         >
           <div className="v2-eyebrow" style={{ color: 'var(--color-brand-gold)' }}>
@@ -98,8 +99,8 @@ export default async function DashboardPage() {
         </div>
 
         <div
-          className="lg:col-span-5 grid grid-cols-1 sm:grid-cols-2 gap-5 v2-card-in"
-          style={{ animationDelay: '.06s' }}
+          className="lg:col-span-5 grid grid-cols-1 sm:grid-cols-2 gap-4 v2-card-in"
+          style={{ animationDelay: '.18s' }}
         >
           <KpiCard
             title="Wolne mieszkania"
@@ -132,11 +133,11 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      {/* Units funnel */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-8">
-        <div className="lg:col-span-2 bg-white rounded-xl border border-gray-200 p-6 v2-card-in" style={{ animationDelay: '.12s' }}>
+      {/* Dolny rząd bento: Status lokali (4) + Lejek (3) + Ostatnie działania (5), usterki pod spodem */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+        <div className="lg:col-span-4 bg-white rounded-xl border border-gray-200 p-6 v2-card-in" style={{ animationDelay: '.24s' }}>
           <h2 className="font-semibold text-gray-900 mb-4">Status lokali</h2>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3">
             {[
               { status: 'WOLNY', label: 'Wolne', color: 'bg-green-500' },
               { status: 'ZAREZERWOWANY', label: 'Zarezerwowane', color: 'bg-yellow-500' },
@@ -163,7 +164,7 @@ export default async function DashboardPage() {
           </div>
         </div>
 
-        <div className="bg-white rounded-xl border border-gray-200 p-6 v2-card-in" style={{ animationDelay: '.18s' }}>
+        <div className="lg:col-span-3 bg-white rounded-xl border border-gray-200 p-6 v2-card-in" style={{ animationDelay: '.3s' }}>
           <h2 className="font-semibold text-gray-900 mb-4">Lejek sprzedaży</h2>
           <div className="space-y-2">
             {(['ZAPYTANIE', 'OFERTA', 'REZERWACJA', 'UMOWA', 'ODBIOR'] as const).map((status) => {
@@ -179,11 +180,9 @@ export default async function DashboardPage() {
             })}
           </div>
         </div>
-      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         {/* Recent Activities */}
-        <div className="bg-white rounded-xl border border-gray-200 p-6 v2-card-in" style={{ animationDelay: '.24s' }}>
+        <div className="lg:col-span-5 bg-white rounded-xl border border-gray-200 p-6 v2-card-in" style={{ animationDelay: '.36s' }}>
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-semibold text-gray-900">Ostatnie działania</h2>
           </div>
@@ -210,7 +209,7 @@ export default async function DashboardPage() {
         </div>
 
         {/* Open service requests */}
-        <div className="bg-white rounded-xl border border-gray-200 p-6 v2-card-in" style={{ animationDelay: '.3s' }}>
+        <div className="lg:col-span-12 bg-white rounded-xl border border-gray-200 p-6 v2-card-in" style={{ animationDelay: '.42s' }}>
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-semibold text-gray-900">Otwarte usterki</h2>
             <Link href="/service" className="text-sm text-blue-600 hover:text-blue-700">Zobacz wszystkie</Link>
