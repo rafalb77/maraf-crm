@@ -162,44 +162,50 @@ export default async function FinanseHomePage() {
         </Link>
       )}
 
-      {topVendors.length > 0 && (
-        <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
-          <h2 className="font-semibold text-gray-900 mb-4">Niezapłacone wg kontrahenta (TOP 10)</h2>
-          <div className="space-y-2">
-            {topVendors.map((tv) => (
-              <div key={tv.vendor!.id}>
-                <div className="flex items-baseline justify-between mb-1">
-                  <Link
-                    href={`/finanse/faktury?vendor=${tv.vendor!.id}`}
-                    className="text-sm font-medium text-gray-900 hover:text-amber-600"
-                  >
-                    {tv.vendor!.name}
-                  </Link>
-                  <span className="text-sm font-medium text-gray-900 tabular-nums">
-                    {fmtMoney(tv.sum)}
-                  </span>
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 items-start">
+        {topVendors.length > 0 && (
+          <div className="lg:col-span-3 bg-white rounded-xl border border-gray-200 p-6">
+            <h2 className="font-semibold text-gray-900 mb-4">Niezapłacone wg kontrahenta (TOP 10)</h2>
+            <div className="space-y-3.5">
+              {topVendors.map((tv) => (
+                <div key={tv.vendor!.id}>
+                  <div className="flex items-baseline justify-between mb-1">
+                    <Link
+                      href={`/finanse/faktury?vendor=${tv.vendor!.id}`}
+                      className="text-sm font-medium text-gray-900 hover:text-amber-600"
+                    >
+                      {tv.vendor!.name}
+                    </Link>
+                    <span className="text-sm font-semibold text-gray-900 tabular-nums">
+                      {fmtMoney(tv.sum)}
+                    </span>
+                  </div>
+                  <div className="bg-gray-100 rounded-full overflow-hidden h-1.5">
+                    <div
+                      className="h-full rounded-full"
+                      style={{
+                        width: `${(tv.sum / maxVendorSum) * 100}%`,
+                        background: 'var(--accent)',
+                        transition: 'width .6s ease',
+                      }}
+                    />
+                  </div>
                 </div>
-                <div className="bg-gray-100 rounded-full overflow-hidden h-1.5">
-                  <div
-                    className="h-full rounded-full bg-amber-500"
-                    style={{ width: `${(tv.sum / maxVendorSum) * 100}%` }}
-                  />
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
-        <h2 className="font-semibold text-gray-900 mb-2">Workflow</h2>
-        <p className="text-sm text-gray-600 leading-relaxed">
-          Faktura kosztowa pojawia się w aplikacji na 2 sposoby:
-          {' '}<strong>Marta wpisuje ręcznie</strong> lub
-          {' '}<strong>pobierana automatycznie z KSeF</strong>.
-          {' '}Wpada od razu jako <strong>Zatwierdzona</strong> (czeka na przelew) →
-          {' '}<strong>Opłacona / Częściowo opłacona</strong> po dodaniu wpłat.
-        </p>
+        <div className={`${topVendors.length > 0 ? 'lg:col-span-2' : 'lg:col-span-5'} bg-white rounded-xl border border-gray-200 p-6`}>
+          <h2 className="font-semibold text-gray-900 mb-2">Workflow</h2>
+          <p className="text-sm text-gray-600 leading-relaxed">
+            Faktura kosztowa pojawia się w aplikacji na 2 sposoby:
+            {' '}<strong>Marta wpisuje ręcznie</strong> lub
+            {' '}<strong>pobierana automatycznie z KSeF</strong>.
+            {' '}Wpada od razu jako <strong>Zatwierdzona</strong> (czeka na przelew) →
+            {' '}<strong>Opłacona / Częściowo opłacona</strong> po dodaniu wpłat.
+          </p>
+        </div>
       </div>
     </div>
   )
