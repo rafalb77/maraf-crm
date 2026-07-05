@@ -149,7 +149,7 @@ function MomentumTile({ title, sub, d, color, money, delay }: {
         <div className="min-w-0">
           <p className="text-sm text-gray-500">{title}</p>
           {/* Wartość na osobnej linii — nowrap, żeby kwoty typu „2,5 mln zł" się nie łamały */}
-          <p className="text-3xl font-bold text-gray-900 mt-1 whitespace-nowrap">
+          <p className="text-[28px] font-bold text-gray-900 mt-1 whitespace-nowrap tabular-nums">
             {money ? fmtPln(d.current) : d.current}
           </p>
           <p className="text-xs mt-1">

@@ -280,11 +280,12 @@ function FolderTab({ label, href, active }: { label: string; href: string; activ
   return (
     <Link
       href={href}
-      className={`px-4 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
+      className="px-3.5 py-1.5 rounded-lg text-[13px] font-medium border transition-colors"
+      style={
         active
-          ? 'bg-gray-900 text-white border-gray-900'
-          : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-      }`}
+          ? { background: 'var(--color-brand-navy)', color: '#F2E8D6', borderColor: 'var(--color-brand-navy)' }
+          : { background: 'var(--surface)', color: 'var(--text-secondary)', borderColor: 'var(--border)' }
+      }
     >
       {label}
     </Link>
