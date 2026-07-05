@@ -12,6 +12,7 @@ export type UnitRow = {
   id: string
   number: string
   type: string
+  rooms: number | null
   floor: number | null
   area: number
   pricePerSqmNet: number
@@ -24,7 +25,7 @@ export type UnitRow = {
 }
 
 type ColumnKey =
-  | 'number' | 'type' | 'floor' | 'area'
+  | 'number' | 'type' | 'rooms' | 'floor' | 'area'
   | 'pricePerSqmNet' | 'pricePerSqmGross'
   | 'priceNet' | 'priceGross' | 'vatRate'
   | 'status' | 'client'
@@ -41,6 +42,7 @@ type Column = {
 const COLUMNS: Column[] = [
   { key: 'number',           label: 'Nr lokalu',         align: 'left',  sortable: true, summable: false, defaultVisible: true },
   { key: 'type',             label: 'Typ',               align: 'left',  sortable: true, summable: false, defaultVisible: true },
+  { key: 'rooms',            label: 'Pokoje',            align: 'left',  sortable: true, summable: false, defaultVisible: true },
   { key: 'floor',            label: 'Piętro',            align: 'left',  sortable: true, summable: false, defaultVisible: true },
   { key: 'area',             label: 'Powierzchnia',      align: 'right', sortable: true, summable: true,  defaultVisible: true },
   { key: 'pricePerSqmNet',   label: 'Cena za m² netto',  align: 'right', sortable: true, summable: false, defaultVisible: false },
@@ -276,6 +278,7 @@ function getSortValue(u: UnitRow, key: ColumnKey): string | number | null {
   switch (key) {
     case 'number': return u.number
     case 'type': return UNIT_TYPE_LABELS[u.type as UnitType] || u.type
+    case 'rooms': return u.rooms
     case 'floor': return u.floor
     case 'area': return u.area
     case 'pricePerSqmNet': return u.pricePerSqmNet
@@ -294,6 +297,7 @@ function exportValue(u: UnitRow, key: ColumnKey): string | number {
   switch (key) {
     case 'number': return u.number
     case 'type': return UNIT_TYPE_LABELS[u.type as UnitType] || u.type
+    case 'rooms': return u.rooms ?? ''
     case 'floor': return floorLabel(u.floor)
     case 'area': return u.area
     case 'pricePerSqmNet': return u.pricePerSqmNet
@@ -310,6 +314,7 @@ function renderCell(u: UnitRow, key: ColumnKey) {
   switch (key) {
     case 'number': return u.number
     case 'type': return UNIT_TYPE_LABELS[u.type as UnitType]
+    case 'rooms': return u.rooms ?? '—'
     case 'floor': return floorLabel(u.floor)
     case 'area': return u.area > 0 ? formatArea(u.area) : '—'
     case 'pricePerSqmNet': return u.pricePerSqmNet > 0 ? formatCurrency(u.pricePerSqmNet) : '—'

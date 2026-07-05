@@ -94,12 +94,15 @@ export default async function UnitsPage({
     rooms: parseNum(searchParams.rooms),
     floor: parseNum(searchParams.floor),
   }
-  const [units, filterOptions] = await Promise.all([getUnits(filters), getFilterOptions()])
+  const [units, filterOptions, allByStatus] = await Promise.all([
+    getUnits(filters),
+    getFilterOptions(),
+    // Liczniki kafli: pełna pula per status (niezależnie od aktywnych filtrów),
+    // inaczej po kliknięciu kafla pozostałe spadałyby do zera.
+    prisma.unit.groupBy({ by: ['status'], _count: true }),
+  ])
 
-  const statsByStatus = units.reduce((acc, u) => {
-    acc[u.status] = (acc[u.status] || 0) + 1
-    return acc
-  }, {} as Record<string, number>)
+  const statsByStatus = Object.fromEntries(allByStatus.map((s) => [s.status, s._count])) as Record<string, number>
 
   return (
     <div className="p-8">
@@ -126,19 +129,27 @@ export default async function UnitsPage({
         </div>
       </div>
 
-      {/* Status summary */}
+      {/* Status summary — kafle klikalne: filtrują listę po statusie (toggle) */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
         {[
           { status: 'WOLNY', color: 'green' },
           { status: 'ZAREZERWOWANY', color: 'yellow' },
           { status: 'SPRZEDANY', color: 'blue' },
           { status: 'NIEDOSTEPNY', color: 'gray' },
-        ].map(({ status, color }) => (
-          <div key={status} className={`rounded-[10px] px-3.5 py-3 border ${colorBg(color)}`}>
-            <p className="text-xs text-gray-500">{UNIT_STATUS_LABELS[status as UnitStatus]}</p>
-            <p className="text-2xl font-bold text-gray-900 mt-0.5 tabular-nums">{statsByStatus[status] || 0}</p>
-          </div>
-        ))}
+        ].map(({ status, color }) => {
+          const isActive = searchParams.status === status
+          return (
+            <Link
+              key={status}
+              href={isActive ? '/units' : `/units?status=${status}`}
+              className={`block rounded-[10px] px-3.5 py-3 border transition-all hover:shadow-sm hover:-translate-y-px ${colorBg(color)}`}
+              style={isActive ? { boxShadow: '0 0 0 2px var(--accent)' } : undefined}
+            >
+              <p className="text-xs text-gray-500">{UNIT_STATUS_LABELS[status as UnitStatus]}</p>
+              <p className="text-2xl font-bold text-gray-900 mt-0.5 tabular-nums">{statsByStatus[status] || 0}</p>
+            </Link>
+          )
+        })}
       </div>
 
       <UnitFilters floors={filterOptions.floors} rooms={filterOptions.rooms} />
@@ -147,6 +158,7 @@ export default async function UnitsPage({
         id: u.id,
         number: u.number,
         type: u.type,
+        rooms: u.rooms,
         floor: u.floor,
         area: u.area,
         pricePerSqmNet: u.pricePerSqmNet,
