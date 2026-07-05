@@ -80,8 +80,8 @@ export default async function ReservationsPage() {
     <div className="p-8">
       <div className="mb-6 flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Rezerwacje</h1>
-          <p className="text-gray-500 text-sm mt-1">
+          <h1 className="text-[30px] font-bold text-gray-900" style={{ letterSpacing: '-0.02em' }}>Rezerwacje</h1>
+          <p className="text-gray-500 text-sm mt-1.5 max-w-2xl">
             Stan rezerwacji lokali — miękkie (z czasem), twarde (umowa rezerwacyjna) i wyłączenia ze sprzedaży.
           </p>
         </div>
@@ -90,7 +90,7 @@ export default async function ReservationsPage() {
 
       {/* Banner krytyczne */}
       {criticalCount > 0 && (
-        <div className="mb-5 bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
+        <div className="mb-5 bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3">
           <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
           <div className="text-sm">
             <p className="font-medium text-red-900">
@@ -271,11 +271,11 @@ export default async function ReservationsPage() {
 function StatCard({ href, icon, label, value, accent }: { href: string; icon: React.ReactNode; label: string; value: number; accent: 'blue' | 'purple' | 'gray' }) {
   const ring: Record<string, string> = { blue: 'bg-blue-50 border-blue-200 hover:border-blue-300', purple: 'bg-purple-50 border-purple-200 hover:border-purple-300', gray: 'bg-gray-50 border-gray-200 hover:border-gray-300' }
   return (
-    <a href={href} className={`rounded-xl border p-4 flex items-center gap-3 transition-colors ${ring[accent]}`}>
+    <a href={href} className={`rounded-xl border px-[18px] py-4 flex items-center gap-3.5 transition-colors ${ring[accent]}`}>
       <div className="flex-shrink-0">{icon}</div>
       <div>
         <p className="text-xs text-gray-600">{label}</p>
-        <p className="text-2xl font-bold text-gray-900">{value}</p>
+        <p className="text-[26px] font-bold text-gray-900 tabular-nums">{value}</p>
       </div>
     </a>
   )
