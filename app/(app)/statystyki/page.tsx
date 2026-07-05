@@ -25,7 +25,10 @@ export default async function StatystykiPage() {
   return (
     <div className="p-8 space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Statystyki CRM</h1>
+        <div className="v2-eyebrow mb-1.5">Inwestycja Nova Staffa · analityka</div>
+        <h1 className="text-[30px] font-bold text-gray-900" style={{ letterSpacing: '-0.02em' }}>
+          Statystyki CRM
+        </h1>
         <p className="text-gray-500 text-sm mt-1">
           Momentum, lejek, ROI źródeł, tempo i cykl sprzedaży, prognoza pipeline, aktywność i mapa sprzedaży
         </p>
@@ -35,7 +38,7 @@ export default async function StatystykiPage() {
       <MomentumTiles m={momentum} />
 
       {/* Lejek konwersji */}
-      <section className="bg-white rounded-xl border border-gray-200 p-6">
+      <section className="bg-white rounded-xl border border-gray-200 p-6 v2-card-in" style={{ animationDelay: '.12s' }}>
         <div className="flex items-baseline justify-between mb-5">
           <h2 className="font-semibold text-gray-900">Lejek konwersji</h2>
           <span className="text-xs text-gray-400">{totalClients} klientów łącznie</span>
@@ -45,7 +48,7 @@ export default async function StatystykiPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Ranking źródeł leadów */}
-        <section className="bg-white rounded-xl border border-gray-200 p-6">
+        <section className="bg-white rounded-xl border border-gray-200 p-6 v2-card-in" style={{ animationDelay: '.18s' }}>
           <h2 className="font-semibold text-gray-900 mb-1">Źródła leadów — ROI</h2>
           <p className="text-xs text-gray-400 mb-4">Leady vs umowy (UMOWA / ODBIÓR) i skuteczność konwersji</p>
           {leadSources.length === 0 ? (
@@ -59,7 +62,7 @@ export default async function StatystykiPage() {
         </section>
 
         {/* Tempo sprzedaży */}
-        <section className="bg-white rounded-xl border border-gray-200 p-6">
+        <section className="bg-white rounded-xl border border-gray-200 p-6 v2-card-in" style={{ animationDelay: '.24s' }}>
           <h2 className="font-semibold text-gray-900 mb-1">Tempo sprzedaży (12 mc)</h2>
           <p className="text-xs text-gray-400 mb-4">
             {signed12m} podpisanych umów · {fmtPln(revenue12m)} przychodu
@@ -70,14 +73,14 @@ export default async function StatystykiPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Cykl sprzedaży */}
-        <section className="bg-white rounded-xl border border-gray-200 p-6">
+        <section className="bg-white rounded-xl border border-gray-200 p-6 v2-card-in" style={{ animationDelay: '.3s' }}>
           <h2 className="font-semibold text-gray-900 mb-1">Długość cyklu sprzedaży</h2>
           <p className="text-xs text-gray-400 mb-4">Mediana dni od dodania klienta do podpisania umowy</p>
           <CycleView cycle={cycle} />
         </section>
 
         {/* Co schodzi najszybciej */}
-        <section className="bg-white rounded-xl border border-gray-200 p-6">
+        <section className="bg-white rounded-xl border border-gray-200 p-6 v2-card-in" style={{ animationDelay: '.36s' }}>
           <h2 className="font-semibold text-gray-900 mb-1">Co schodzi najszybciej</h2>
           <p className="text-xs text-gray-400 mb-4">Mediana dni do sprzedaży — mieszkania wg liczby pokoi, pozostałe wg typu lokalu</p>
           <TimeToSaleView rows={timeToSale} />
@@ -86,7 +89,7 @@ export default async function StatystykiPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Leady do odgrzania */}
-        <section className="bg-white rounded-xl border border-gray-200 p-6">
+        <section className="bg-white rounded-xl border border-gray-200 p-6 v2-card-in" style={{ animationDelay: '.42s' }}>
           <div className="flex items-baseline justify-between mb-1">
             <h2 className="font-semibold text-gray-900">Leady do odgrzania</h2>
             <span className="text-xs text-gray-400">brak kontaktu ≥ {STALE_LEAD_DAYS} dni</span>
@@ -96,7 +99,7 @@ export default async function StatystykiPage() {
         </section>
 
         {/* Prognoza pipeline */}
-        <section className="bg-white rounded-xl border border-gray-200 p-6">
+        <section className="bg-white rounded-xl border border-gray-200 p-6 v2-card-in" style={{ animationDelay: '.48s' }}>
           <h2 className="font-semibold text-gray-900 mb-1">Prognoza przychodu (pipeline)</h2>
           <p className="text-xs text-gray-400 mb-4">Wartość w toku ważona prawdopodobieństwem finalizacji</p>
           <PipelineView p={pipeline} />
@@ -104,14 +107,14 @@ export default async function StatystykiPage() {
       </div>
 
       {/* Puls aktywności */}
-      <section className="bg-white rounded-xl border border-gray-200 p-6">
+      <section className="bg-white rounded-xl border border-gray-200 p-6 v2-card-in" style={{ animationDelay: '.54s' }}>
         <h2 className="font-semibold text-gray-900 mb-1">Puls aktywności (12 mc)</h2>
         <p className="text-xs text-gray-400 mb-4">Liczba działań handlowych w czasie, wg typu</p>
         <ActivityPulseChart data={activity} />
       </section>
 
       {/* Heatmapa budynków */}
-      <section className="bg-white rounded-xl border border-gray-200 p-6">
+      <section className="bg-white rounded-xl border border-gray-200 p-6 v2-card-in" style={{ animationDelay: '.6s' }}>
         <h2 className="font-semibold text-gray-900 mb-1">Mapa sprzedaży lokali</h2>
         <p className="text-xs text-gray-400 mb-4">Budynek × kondygnacja — udział sprzedanych lokali (sprzedane / wszystkie)</p>
         <HeatmapView heatmap={heatmap} />
@@ -126,26 +129,27 @@ export default async function StatystykiPage() {
 function MomentumTiles({ m }: { m: Momentum }) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-      <MomentumTile title="Nowe leady" sub={m.monthLabel} d={m.leads} color="#2563eb" />
-      <MomentumTile title="Podpisane umowy" sub={m.monthLabel} d={m.signed} color="#16a34a" />
-      <MomentumTile title="Przychód" sub={m.monthLabel} d={m.revenue} color="#c9a37a" money />
+      <MomentumTile title="Nowe leady" sub={m.monthLabel} d={m.leads} color="#2563eb" delay={0} />
+      <MomentumTile title="Podpisane umowy" sub={m.monthLabel} d={m.signed} color="#16a34a" delay={0.06} />
+      <MomentumTile title="Przychód" sub={m.monthLabel} d={m.revenue} color="#c9a37a" money delay={0.1} />
     </div>
   )
 }
 
-function MomentumTile({ title, sub, d, color, money }: {
-  title: string; sub: string; d: Delta; color: string; money?: boolean
+function MomentumTile({ title, sub, d, color, money, delay }: {
+  title: string; sub: string; d: Delta; color: string; money?: boolean; delay?: number
 }) {
   const up = d.changePct !== null && d.changePct >= 0
   const deltaLabel =
     d.changePct === null ? 'nowość' : `${up ? '▲' : '▼'} ${Math.abs(Math.round(d.changePct * 100))}%`
   const deltaColor = d.changePct === null ? 'text-gray-400' : up ? 'text-green-600' : 'text-red-500'
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-5">
-      <div className="flex items-start justify-between">
-        <div>
+    <div className="bg-white rounded-xl border border-gray-200 p-5 v2-card-in" style={{ animationDelay: `${delay ?? 0}s` }}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
           <p className="text-sm text-gray-500">{title}</p>
-          <p className="text-3xl font-bold text-gray-900 mt-1">
+          {/* Wartość na osobnej linii — nowrap, żeby kwoty typu „2,5 mln zł" się nie łamały */}
+          <p className="text-3xl font-bold text-gray-900 mt-1 whitespace-nowrap">
             {money ? fmtPln(d.current) : d.current}
           </p>
           <p className="text-xs mt-1">
@@ -153,7 +157,8 @@ function MomentumTile({ title, sub, d, color, money }: {
             <span className="text-gray-400"> vs poprzedni mc ({sub})</span>
           </p>
         </div>
-        <div className="w-24 flex-shrink-0">
+        {/* Sparkline 78px — nie szerszy, inaczej długie kwoty się łamią */}
+        <div className="flex-shrink-0" style={{ width: 78 }}>
           <Sparkline values={d.spark} color={color} />
         </div>
       </div>
@@ -187,8 +192,9 @@ function FunnelView({ funnel }: { funnel: FunnelStep[] }) {
               </div>
               <div className="flex-1 h-7 bg-gray-50 rounded-md overflow-hidden">
                 <div
-                  className="h-full rounded-md flex items-center justify-end px-2 text-xs font-medium text-white transition-all"
+                  className="h-full rounded-md flex items-center justify-end px-2 text-xs font-medium text-white"
                   style={{
+                    transition: 'width .7s ease',
                     width: `${Math.max(pct, 3)}%`,
                     background: step.isBottleneck
                       ? 'linear-gradient(90deg,#ef4444,#f87171)'
@@ -279,7 +285,7 @@ function TimeToSaleView({ rows }: { rows: TimeToSaleRow[] }) {
           <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
             <div
               className="h-full rounded-full"
-              style={{ width: `${(r.medianDays / maxDays) * 100}%`, background: 'linear-gradient(90deg,#16a34a,#4ade80)' }}
+              style={{ transition: 'width .7s ease', width: `${(r.medianDays / maxDays) * 100}%`, background: 'linear-gradient(90deg,#16a34a,#4ade80)' }}
             />
           </div>
         </div>

@@ -298,6 +298,45 @@ input::placeholder, textarea::placeholder { color: var(--text-muted); }
   transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
 }
 
+/* ===== Oprawa v2: karty =====
+   Karty w aplikacji to utility-combo `rounded-xl border p-5/p-6` (brak wspólnego
+   komponentu Card) — promień 20px i hover nakładamy globalnie, tym samym wzorcem
+   co dark-mode'owe nadpisania utility powyżej. */
+.rounded-xl.border.p-5,
+.rounded-xl.border.p-6 {
+  border-radius: 20px;
+  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease,
+              background-color .2s ease;
+}
+.rounded-xl.border.p-5:hover,
+.rounded-xl.border.p-6:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-md);
+  border-color: color-mix(in srgb, var(--accent) 30%, var(--border));
+}
+
+/* Złoty eyebrow nagłówków stron (pulpit, statystyki) */
+.v2-eyebrow {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+/* Wejście kart — kaskada przez rosnące animation-delay na elemencie */
+@keyframes cardIn {
+  from { opacity: 0; transform: translateY(26px) scale(.96); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.v2-card-in { animation: cardIn .5s cubic-bezier(.22,1,.36,1) backwards; }
+
+@media (prefers-reduced-motion: reduce) {
+  .v2-card-in { animation: none; }
+  .rounded-xl.border.p-5:hover,
+  .rounded-xl.border.p-6:hover { transform: none; }
+}
+
 /* ===== Klikalne wiersze tabel (lista lokali/klientów/ofert/sprzedaży) =====
    Tailwindowy hover:bg-gray-50 (#f9fafb) na białym tle jest praktycznie
    niewidoczny. Używamy brandowego --surface-hover (ciepły beż w light, slate

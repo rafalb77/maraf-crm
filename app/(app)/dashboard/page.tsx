@@ -51,47 +51,90 @@ export default async function DashboardPage() {
   const totalUnits = unitsByStatus.reduce((s, u) => s + u._count, 0)
   const totalClients = clientsByStatus.reduce((s, c) => s + c._count, 0)
   const revenue = revenueData._sum.priceGross || 0
+  const soldUnits = unitStats['SPRZEDANY'] || 0
+  const soldPct = totalUnits > 0 ? Math.round((soldUnits / totalUnits) * 100) : 0
 
   return (
     <div className="p-8">
       {/* Top widget: powitanie + news dnia (per user.interests) + pogoda */}
       <TopWidget />
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
-        <KpiCard
-          title="Wolne mieszkania"
-          value={String(residentialStats['WOLNY'] || 0)}
-          sub={`z ${totalResidential} wszystkich`}
-          color="green"
-          icon="🏠"
-        />
-        <KpiCard
-          title="Sprzedane"
-          value={String(unitStats['SPRZEDANY'] || 0)}
-          sub={formatCurrency(revenue)}
-          color="blue"
-          icon="✅"
-        />
-        <KpiCard
-          title="Klienci aktywni"
-          value={String(totalClients)}
-          sub={`${clientStats['UMOWA'] || 0} z umową`}
-          color="purple"
-          icon="👤"
-        />
-        <KpiCard
-          title="Usterki otwarte"
-          value={String(openService.length)}
-          sub="do obsługi"
-          color={openService.length > 0 ? 'red' : 'green'}
-          icon="🔧"
-        />
+      {/* Bento: hero „Sprzedaż łącznie" (navy + złota poświata) + KPI 2×2 */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 mb-8">
+        <div
+          className="lg:col-span-7 v2-card-in relative overflow-hidden rounded-[24px] p-[30px] min-h-[200px]"
+          style={{
+            background:
+              'radial-gradient(620px 320px at 108% 130%, rgba(201,163,122,.30), transparent 62%), linear-gradient(150deg, #2C3E54 0%, #1F2D3F 55%, #161E2B 100%)',
+            boxShadow: '0 12px 32px rgba(28,39,56,.18)',
+          }}
+        >
+          <div className="v2-eyebrow" style={{ color: 'var(--color-brand-gold)' }}>
+            Sprzedaż łącznie
+          </div>
+          <div
+            className="mt-2.5 font-bold tabular-nums"
+            style={{ fontSize: 46, letterSpacing: '-0.02em', color: '#F2E8D6', lineHeight: 1.15 }}
+          >
+            {formatCurrency(revenue)}
+          </div>
+          <div className="mt-1.5 text-[13px]" style={{ color: 'rgba(242,232,214,.65)' }}>
+            {soldUnits} z {totalUnits} lokali sprzedanych · {soldPct}% inwestycji
+          </div>
+          <div
+            className="mt-5 h-2 rounded-full overflow-hidden max-w-[440px]"
+            style={{ background: 'rgba(242,232,214,.14)' }}
+          >
+            <div
+              className="h-full rounded-full"
+              style={{
+                width: `${soldPct}%`,
+                background: 'var(--gradient-brand)',
+                boxShadow: '0 0 12px rgba(201,163,122,.5)',
+                transition: 'width .7s ease',
+              }}
+            />
+          </div>
+        </div>
+
+        <div
+          className="lg:col-span-5 grid grid-cols-1 sm:grid-cols-2 gap-5 v2-card-in"
+          style={{ animationDelay: '.06s' }}
+        >
+          <KpiCard
+            title="Wolne mieszkania"
+            value={String(residentialStats['WOLNY'] || 0)}
+            sub={`z ${totalResidential} wszystkich`}
+            color="green"
+            icon="🏠"
+          />
+          <KpiCard
+            title="Sprzedane"
+            value={String(soldUnits)}
+            sub={formatCurrency(revenue)}
+            color="blue"
+            icon="✅"
+          />
+          <KpiCard
+            title="Klienci aktywni"
+            value={String(totalClients)}
+            sub={`${clientStats['UMOWA'] || 0} z umową`}
+            color="purple"
+            icon="👤"
+          />
+          <KpiCard
+            title="Usterki otwarte"
+            value={String(openService.length)}
+            sub="do obsługi"
+            color={openService.length > 0 ? 'red' : 'green'}
+            icon="🔧"
+          />
+        </div>
       </div>
 
       {/* Units funnel */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-8">
-        <div className="lg:col-span-2 bg-white rounded-xl border border-gray-200 p-6">
+        <div className="lg:col-span-2 bg-white rounded-xl border border-gray-200 p-6 v2-card-in" style={{ animationDelay: '.12s' }}>
           <h2 className="font-semibold text-gray-900 mb-4">Status lokali</h2>
           <div className="grid grid-cols-2 gap-3">
             {[
@@ -120,7 +163,7 @@ export default async function DashboardPage() {
           </div>
         </div>
 
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <div className="bg-white rounded-xl border border-gray-200 p-6 v2-card-in" style={{ animationDelay: '.18s' }}>
           <h2 className="font-semibold text-gray-900 mb-4">Lejek sprzedaży</h2>
           <div className="space-y-2">
             {(['ZAPYTANIE', 'OFERTA', 'REZERWACJA', 'UMOWA', 'ODBIOR'] as const).map((status) => {
@@ -140,7 +183,7 @@ export default async function DashboardPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         {/* Recent Activities */}
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <div className="bg-white rounded-xl border border-gray-200 p-6 v2-card-in" style={{ animationDelay: '.24s' }}>
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-semibold text-gray-900">Ostatnie działania</h2>
           </div>
@@ -167,7 +210,7 @@ export default async function DashboardPage() {
         </div>
 
         {/* Open service requests */}
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <div className="bg-white rounded-xl border border-gray-200 p-6 v2-card-in" style={{ animationDelay: '.3s' }}>
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-semibold text-gray-900">Otwarte usterki</h2>
             <Link href="/service" className="text-sm text-blue-600 hover:text-blue-700">Zobacz wszystkie</Link>

@@ -131,12 +131,12 @@ export function TopWidget() {
 function GreetingCard({ greeting }: { greeting: Greeting }) {
   return (
     <div className="lg:min-w-[180px]">
-      <div className="flex items-center gap-2 text-xs uppercase tracking-wider mb-1"
-           style={{ color: 'var(--text-muted)' }}>
+      {/* Oprawa v2: złoty eyebrow nagłówka pulpitu */}
+      <div className="v2-eyebrow flex items-center gap-2 mb-1">
         <span>{greeting.emoji}</span>
         <span>{greeting.partOfDay}</span>
       </div>
-      <p className="text-2xl font-bold leading-tight" style={{ color: 'var(--text-primary)' }}>
+      <p className="text-[32px] font-bold leading-tight" style={{ color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
         {greeting.text}
       </p>
       <p className="text-sm mt-0.5" style={{ color: 'var(--text-secondary)' }}>
