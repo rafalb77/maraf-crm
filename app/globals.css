@@ -12,6 +12,94 @@
   --color-brand-gold-dark: #8B6F47;
 }
 
+/* ===== Oprawa v2 — tokeny (źródło: handoff/tokens.css) =====
+   Typografia, gradienty, statusy, promienie i cienie jako zmienne.
+   Komponenty czytają var(--*) — nowych kolorów nie wprowadzamy poza tym blokiem. */
+:root {
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+               "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+               "Liberation Mono", monospace;
+
+  --fs-xxs: 10px;
+  --fs-xs:  12px;
+  --fs-sm:  14px;
+  --fs-md:  16px;
+  --fs-lg:  20px;
+  --fs-xl:  24px;
+  --fs-2xl: 30px;
+
+  --lh-tight: 1.2;
+  --lh-snug:  1.35;
+  --lh-body:  1.5;
+  --lh-relaxed: 1.65;
+
+  --tracking-wide: 0.06em;
+  --tracking-wider: 0.1em;
+
+  /* Złoty gradient marki (avatar, paski postępu, hero) */
+  --gradient-brand: linear-gradient(135deg, #E8D0B0 0%, #C9A37A 50%, #8B6F47 100%);
+  /* Poświata aktywnej pozycji sidebara */
+  --gradient-accent-soft: linear-gradient(135deg, rgba(201,163,122,0.18), rgba(201,163,122,0.08));
+
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-pill: 9999px;
+
+  --shadow-xs: 0 1px 2px rgba(28, 39, 56, 0.04);
+  --shadow-sm: 0 1px 3px rgba(28, 39, 56, 0.06), 0 1px 2px rgba(28, 39, 56, 0.04);
+  --shadow-md: 0 4px 12px rgba(28, 39, 56, 0.08), 0 2px 4px rgba(28, 39, 56, 0.04);
+  --shadow-focus: 0 0 0 3px rgba(201, 163, 122, 0.35);
+
+  /* Statusy semantyczne (odbicie map z lib/types.ts) */
+  --status-success-bg:    #DCFCE7;
+  --status-success-fg:    #15803D;
+  --status-success-border:#BBF7D0;
+
+  --status-info-bg:    #DBEAFE;
+  --status-info-fg:    #1D4ED8;
+  --status-info-border:#BFDBFE;
+
+  --status-warning-bg:    #FEF9C3;
+  --status-warning-fg:    #A16207;
+  --status-warning-border:#FEF08A;
+
+  --status-danger-bg:    #FEE2E2;
+  --status-danger-fg:    #B91C1C;
+  --status-danger-border:#FECACA;
+
+  --status-neutral-bg:    #F3F4F6;
+  --status-neutral-fg:    #4B5563;
+  --status-neutral-border:#E5E7EB;
+
+  --status-accent-bg:    var(--accent-soft);
+  --status-accent-fg:    var(--accent);
+  --status-accent-border:#E8D0B0;
+}
+
+.dark {
+  --status-success-bg:    rgba(34, 197, 94, 0.10);
+  --status-success-fg:    #4ADE80;
+  --status-success-border:rgba(34, 197, 94, 0.24);
+
+  --status-info-bg:    rgba(96, 165, 250, 0.10);
+  --status-info-fg:    #60A5FA;
+  --status-info-border:rgba(96, 165, 250, 0.24);
+
+  --status-warning-bg:    rgba(250, 204, 21, 0.10);
+  --status-warning-fg:    #FACC15;
+  --status-warning-border:rgba(250, 204, 21, 0.24);
+
+  --status-danger-bg:    rgba(248, 113, 113, 0.10);
+  --status-danger-fg:    #F87171;
+  --status-danger-border:rgba(248, 113, 113, 0.24);
+
+  --status-neutral-bg:    rgba(148, 163, 184, 0.10);
+  --status-neutral-fg:    #CBD5E1;
+  --status-neutral-border:rgba(148, 163, 184, 0.24);
+}
+
 /* ===== Light theme (default) ===== */
 :root {
   --background: #F7F5F1;
