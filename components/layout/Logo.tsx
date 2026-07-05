@@ -31,6 +31,23 @@ export function LogoFull({ className = '' }: { className?: string }) {
   )
 }
 
+// Oprawa v2: sidebar jest ciemny w OBU motywach, więc logo nie może się
+// przełączać z motywem — zawsze wariant na ciemne tło (kremowy wordmark).
+export function LogoFullOnDark({ className = '' }: { className?: string }) {
+  return (
+    <div className={`relative ${className}`} style={{ width: 150, height: 48 }}>
+      <Image
+        src="/logo-icon-dark.png"
+        alt="MARAF Development"
+        fill
+        priority
+        sizes="150px"
+        className="object-contain object-left"
+      />
+    </div>
+  )
+}
+
 export function LogoIcon({ className = '' }: { className?: string }) {
   return (
     <div className={`relative ${className}`}>

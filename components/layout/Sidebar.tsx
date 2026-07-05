@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { signOut, useSession } from 'next-auth/react'
 import { useEffect, useRef, useState } from 'react'
-import { LogoFull } from './Logo'
+import { LogoFullOnDark } from './Logo'
 import { isAdmin } from '@/lib/auth-utils'
 import { getRequiredPermission } from '@/lib/permissions'
 
@@ -211,6 +211,25 @@ const DIAG_ITEM: NavItem = { href: '/diagnostyka', label: 'Diagnostyka', icon: I
 
 const LS_KEY = 'sidebar.workspace'
 
+// Oprawa v2: sidebar jest ciemny w OBU motywach (gradient navy→grafit),
+// więc nie czyta zmiennych motywu — ma własną, stałą paletę kremowo-złotą.
+const SB = {
+  bg: 'linear-gradient(180deg, #1F2D3F 0%, #161E2B 100%)',
+  border: 'rgba(242,232,214,.10)',
+  text: 'rgba(242,232,214,.72)',
+  textStrong: '#F2E8D6',
+  muted: 'rgba(242,232,214,.45)',
+  hoverBg: 'rgba(242,232,214,.08)',
+  activeText: '#E8D0B0',
+  activeBg: 'linear-gradient(135deg, rgba(201,163,122,.26), rgba(201,163,122,.10))',
+  activeBar: 'inset 3px 0 0 #D4A574',
+  gold: '#D4A574',
+  switcherBorder: 'rgba(242,232,214,.14)',
+  switcherBg: 'rgba(242,232,214,.06)',
+  switcherOpenBg: 'rgba(242,232,214,.12)',
+  dropdownBg: '#1F2D3F',
+}
+
 /** Znajduje workspace zawierający aktualny pathname (po prefiksie URL). */
 function workspaceForPath(pathname: string): string | null {
   for (const ws of WORKSPACES) {
@@ -297,13 +316,16 @@ export function Sidebar() {
 
   return (
     <aside
-      className="fixed left-0 top-0 h-full w-64 flex flex-col z-30 border-r"
-      style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}
+      className="fixed left-0 top-0 h-full w-64 flex flex-col z-30"
+      style={{ background: SB.bg, borderRight: '1px solid rgba(242,232,214,.08)' }}
     >
-      {/* Logo — klik prowadzi na stronę główną (Pulpit) */}
-      <div className="px-5 py-5 border-b" style={{ borderColor: 'var(--border)' }}>
+      {/* Logo — klik prowadzi na stronę główną (Pulpit). 64px — spójnie z TopBarem. */}
+      <div
+        className="h-16 flex-shrink-0 px-5 flex items-center border-b overflow-hidden"
+        style={{ borderColor: SB.border }}
+      >
         <Link href="/dashboard" prefetch={false} aria-label="Strona główna" className="inline-block">
-          <LogoFull />
+          <LogoFullOnDark />
         </Link>
       </div>
 
@@ -337,7 +359,7 @@ export function Sidebar() {
             {section.label && (
               <div
                 className="px-3 mb-2 text-[10px] font-semibold tracking-wider uppercase"
-                style={{ color: 'var(--text-muted)' }}
+                style={{ color: SB.muted }}
               >
                 {section.label}
               </div>
@@ -352,7 +374,7 @@ export function Sidebar() {
       </nav>
 
       {/* Diagnostyka + Konfiguracja + Logout — przypięte na dole. Ustawienia tylko dla admina. */}
-      <div className="px-3 py-4 border-t space-y-0.5" style={{ borderColor: 'var(--border)' }}>
+      <div className="px-3 py-4 border-t space-y-0.5" style={{ borderColor: SB.border }}>
         <ul className="space-y-0.5">
           <NavLink item={DIAG_ITEM} active={isActive(DIAG_ITEM.href)} itemBase={itemBase} />
         </ul>
@@ -364,9 +386,9 @@ export function Sidebar() {
         <button
           onClick={() => signOut({ callbackUrl: '/auth/signin' })}
           className={itemBase + ' w-full'}
-          style={{ color: 'var(--text-secondary)' }}
+          style={{ color: SB.text }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = 'var(--surface-hover)'
+            e.currentTarget.style.backgroundColor = SB.hoverBg
           }}
           onMouseLeave={(e) => {
             e.currentTarget.style.backgroundColor = 'transparent'
@@ -402,14 +424,14 @@ function NavLink({
         style={
           active
             ? {
-                background: 'linear-gradient(135deg, rgba(201,163,122,0.18), rgba(201,163,122,0.08))',
-                color: 'var(--accent)',
-                boxShadow: 'inset 3px 0 0 var(--accent)',
+                background: SB.activeBg,
+                color: SB.activeText,
+                boxShadow: SB.activeBar,
               }
-            : { color: 'var(--text-secondary)' }
+            : { color: SB.text }
         }
         onMouseEnter={(e) => {
-          if (!active) e.currentTarget.style.backgroundColor = 'var(--surface-hover)'
+          if (!active) e.currentTarget.style.backgroundColor = SB.hoverBg
         }}
         onMouseLeave={(e) => {
           if (!active) e.currentTarget.style.backgroundColor = 'transparent'
@@ -461,27 +483,27 @@ function WorkspaceSwitcher({
         onClick={() => setOpen(!open)}
         className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-sm font-medium border transition-colors"
         style={{
-          backgroundColor: open ? 'var(--surface-hover)' : 'var(--surface-alt)',
-          borderColor: 'var(--border)',
-          color: 'var(--text-primary)',
+          backgroundColor: open ? SB.switcherOpenBg : SB.switcherBg,
+          borderColor: SB.switcherBorder,
+          color: SB.textStrong,
         }}
         onMouseEnter={(e) => {
-          if (!open) e.currentTarget.style.backgroundColor = 'var(--surface-hover)'
+          if (!open) e.currentTarget.style.backgroundColor = SB.switcherOpenBg
         }}
         onMouseLeave={(e) => {
-          if (!open) e.currentTarget.style.backgroundColor = 'var(--surface-alt)'
+          if (!open) e.currentTarget.style.backgroundColor = SB.switcherBg
         }}
         aria-haspopup="listbox"
         aria-expanded={open}
       >
         <span className="flex items-center gap-2 min-w-0">
-          <span style={{ color: 'var(--accent)' }}>{active.icon}</span>
+          <span style={{ color: SB.gold }}>{active.icon}</span>
           <span className="truncate">{active.label}</span>
         </span>
         <span
           className="transition-transform"
           style={{
-            color: 'var(--text-muted)',
+            color: SB.muted,
             transform: open ? 'rotate(180deg)' : 'rotate(0deg)',
           }}
         >
@@ -494,8 +516,8 @@ function WorkspaceSwitcher({
           role="listbox"
           className="absolute left-0 right-0 mt-1 rounded-lg border shadow-lg z-40 overflow-hidden"
           style={{
-            backgroundColor: 'var(--surface)',
-            borderColor: 'var(--border)',
+            backgroundColor: SB.dropdownBg,
+            borderColor: SB.switcherBorder,
           }}
         >
           {workspaces.map((ws) => {
@@ -512,12 +534,12 @@ function WorkspaceSwitcher({
                 }}
                 className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left transition-colors"
                 style={{
-                  backgroundColor: isActive ? 'var(--surface-alt)' : 'transparent',
-                  color: isActive ? 'var(--accent)' : 'var(--text-secondary)',
+                  backgroundColor: isActive ? SB.hoverBg : 'transparent',
+                  color: isActive ? SB.activeText : SB.text,
                   fontWeight: isActive ? 600 : 500,
                 }}
                 onMouseEnter={(e) => {
-                  if (!isActive) e.currentTarget.style.backgroundColor = 'var(--surface-hover)'
+                  if (!isActive) e.currentTarget.style.backgroundColor = SB.hoverBg
                 }}
                 onMouseLeave={(e) => {
                   if (!isActive) e.currentTarget.style.backgroundColor = 'transparent'
@@ -528,7 +550,7 @@ function WorkspaceSwitcher({
                 {isActive && (
                   <span
                     className="ml-auto text-[10px] uppercase tracking-wider"
-                    style={{ color: 'var(--text-muted)' }}
+                    style={{ color: SB.muted }}
                   >
                     aktywne
                   </span>
