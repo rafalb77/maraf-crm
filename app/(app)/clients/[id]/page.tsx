@@ -47,22 +47,49 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
       u.reservationType !== 'REZERWACJA',
   )
 
+  // Meta pod nazwiskiem: klient od · źródło · pierwszy przypisany lokal
+  const heroMeta = [
+    `Klient od ${formatDate(client.createdAt)}`,
+    client.source ? `Źródło: ${client.source}` : null,
+    client.clientUnits[0] ? `Lokal ${client.clientUnits[0].unit.number}` : null,
+  ].filter(Boolean).join(' · ')
+
   return (
     <div className="p-8 max-w-6xl">
-      <div className="flex items-start justify-between mb-6">
-        <div>
-          <div className="flex items-center gap-2 text-sm text-gray-500 mb-1">
-            <Link href="/clients" className="hover:text-blue-600">Klienci</Link>
-            <span>/</span>
-            <span>{client.firstName} {client.lastName}</span>
-          </div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold text-gray-900">{client.firstName} {client.lastName}</h1>
+      {/* Powrót do listy */}
+      <Link
+        href="/clients"
+        className="inline-flex items-center gap-1.5 -mt-1.5 mb-4 -ml-2.5 px-2.5 py-1.5 rounded-lg text-[13px] font-medium transition-colors"
+        style={{ color: 'var(--text-muted)' }}
+      >
+        ← Klienci
+      </Link>
+
+      {/* Hero: avatar-inicjały + nazwisko + status + meta + akcje */}
+      <div className="flex items-center gap-[18px] mb-6 flex-wrap v2-card-in">
+        <div
+          className="w-14 h-14 rounded-full flex items-center justify-center text-[19px] font-bold text-white flex-shrink-0"
+          style={{ background: 'var(--gradient-brand)', boxShadow: 'var(--shadow-sm)' }}
+        >
+          {(client.firstName[0] || '') + (client.lastName[0] || '')}
+        </div>
+        <div className="flex-1 min-w-[200px]">
+          <div className="flex items-center gap-3 flex-wrap">
+            <h1 className="text-2xl font-bold text-gray-900" style={{ letterSpacing: '-0.01em' }}>
+              {client.firstName} {client.lastName}
+            </h1>
             <ClientStatusChanger clientId={client.id} currentStatus={client.status as ClientStatus} />
           </div>
-          {client.source && <p className="text-gray-500 text-sm mt-1">Źródło: {client.source}</p>}
+          {heroMeta && <p className="text-[13px] mt-1" style={{ color: 'var(--text-muted)' }}>{heroMeta}</p>}
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2.5">
+          <Link
+            href="/oferty/nowa"
+            className="px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors"
+            style={{ background: 'var(--accent)' }}
+          >
+            + Nowa oferta
+          </Link>
           <Link href={`/clients/${client.id}/edit`}
             className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors">
             Edytuj
@@ -71,33 +98,78 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        {/* Left: personal data + units + service */}
-        <div className="lg:col-span-1 space-y-5">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
+        {/* Lewa (szeroka): historia działań + notatki */}
+        <div className="lg:col-span-2 space-y-4">
+          {/* Activity feed */}
+          <div className="bg-white rounded-xl border border-gray-200 p-5 v2-card-in" style={{ animationDelay: '.06s' }}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-semibold text-gray-900">Historia działań</h2>
+            </div>
+            <ActivityForm clientId={client.id} />
+            <div className="mt-5">
+              {client.activities.length === 0 ? (
+                <p className="text-gray-400 text-sm">Brak zarejestrowanych działań</p>
+              ) : (
+                client.activities.map((a) => (
+                  <div key={a.id} className="flex gap-3.5 py-3 border-b last:border-b-0" style={{ borderColor: 'var(--border-soft)' }}>
+                    <div
+                      className="w-[34px] h-[34px] rounded-full flex items-center justify-center text-sm flex-shrink-0 border"
+                      style={{ background: 'var(--surface-alt)', borderColor: 'var(--border-soft)' }}
+                    >
+                      {activityIcon(a.type)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-2.5">
+                        <span className="text-[13px] font-semibold text-gray-900">
+                          {ACTIVITY_TYPE_LABELS[a.type as ActivityType]}{a.title ? ` — ${a.title}` : ''}
+                        </span>
+                        <span className="text-[11px] tabular-nums flex-shrink-0" style={{ color: 'var(--text-muted)' }}>
+                          {formatDateTime(a.date)}
+                        </span>
+                      </div>
+                      {a.content && (
+                        <p className="text-[13px] text-gray-600 mt-1 leading-relaxed whitespace-pre-wrap">{a.content}</p>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* Notes */}
+          {client.notes && (
+            <div className="bg-white rounded-xl border border-gray-200 p-5 v2-card-in" style={{ animationDelay: '.12s' }}>
+              <h2 className="font-semibold text-gray-900 mb-3.5">Notatki</h2>
+              <div
+                className="px-3.5 py-3 rounded-[10px] text-[13px] text-gray-600 leading-relaxed whitespace-pre-wrap"
+                style={{ background: 'var(--surface-alt)' }}
+              >
+                {client.notes}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Prawa (wąska): dane osobowe + lokale + umowy + serwis */}
+        <div className="lg:col-span-1 space-y-4">
           {/* Personal data */}
-          <div className="bg-white rounded-xl border border-gray-200 p-5">
-            <h2 className="font-semibold text-gray-900 mb-4">Dane osobowe</h2>
-            <div className="space-y-3 text-sm">
+          <div className="bg-white rounded-xl border border-gray-200 p-5 v2-card-in" style={{ animationDelay: '.09s' }}>
+            <h2 className="font-semibold text-gray-900 mb-3.5">Dane osobowe</h2>
+            <div className="space-y-3">
               <DataRow label="Imię i nazwisko" value={`${client.firstName} ${client.lastName}`} />
               <DataRow label="Telefon" value={client.phone || '—'} />
               {client.phone2 && <DataRow label="Telefon 2" value={client.phone2} />}
-              <DataRow label="Email" value={client.email || '—'} />
+              <DataRow label="E-mail" value={client.email || '—'} />
               <DataRow label="PESEL" value={client.pesel || '—'} />
               {client.nip && <DataRow label="NIP" value={client.nip} />}
               <DataRow label="Adres" value={[client.address, client.zipCode, client.city].filter(Boolean).join(', ') || '—'} />
             </div>
           </div>
 
-          {/* Notes */}
-          {client.notes && (
-            <div className="bg-white rounded-xl border border-gray-200 p-5">
-              <h2 className="font-semibold text-gray-900 mb-3">Notatki</h2>
-              <p className="text-sm text-gray-600 whitespace-pre-wrap">{client.notes}</p>
-            </div>
-          )}
-
           {/* Assigned units */}
-          <div className="bg-white rounded-xl border border-gray-200 p-5">
+          <div className="bg-white rounded-xl border border-gray-200 p-5 v2-card-in" style={{ animationDelay: '.15s' }}>
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-semibold text-gray-900">Przypisane lokale</h2>
               <AssignUnitModal clientId={client.id} availableUnits={availableUnits} />
@@ -110,7 +182,11 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
                   const isSoft = cu.unit.reservationType === 'MIEKKA'
                   const canUnassign = cu.unit.reservationType !== 'REZERWACJA'
                   return (
-                    <div key={cu.unitId} className="p-2.5 rounded-lg border border-gray-100">
+                    <div
+                      key={cu.unitId}
+                      className="px-3.5 py-3 rounded-[10px] border transition-colors"
+                      style={{ background: 'var(--surface-alt)', borderColor: 'var(--border-soft)' }}
+                    >
                       {/* Górny wiersz: lokal + status */}
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
@@ -156,7 +232,7 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
           </div>
 
           {/* Contracts */}
-          <div className="bg-white rounded-xl border border-gray-200 p-5">
+          <div className="bg-white rounded-xl border border-gray-200 p-5 v2-card-in" style={{ animationDelay: '.21s' }}>
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-semibold text-gray-900">Umowy</h2>
               <Link href={`/sales/new?clientId=${client.id}`}
@@ -188,7 +264,7 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
           </div>
 
           {/* Service requests */}
-          <div className="bg-white rounded-xl border border-gray-200 p-5">
+          <div className="bg-white rounded-xl border border-gray-200 p-5 v2-card-in" style={{ animationDelay: '.27s' }}>
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-semibold text-gray-900">Serwis / Usterki</h2>
               <Link href={`/service/new?clientId=${client.id}`}
@@ -218,54 +294,22 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
             )}
           </div>
         </div>
-
-        {/* Right: activity feed */}
-        <div className="lg:col-span-2">
-          <div className="bg-white rounded-xl border border-gray-200 p-5">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="font-semibold text-gray-900">Historia działań</h2>
-            </div>
-            <ActivityForm clientId={client.id} />
-            <div className="mt-5 space-y-3">
-              {client.activities.length === 0 ? (
-                <p className="text-gray-400 text-sm">Brak zarejestrowanych działań</p>
-              ) : (
-                client.activities.map((a) => (
-                  <div key={a.id} className="flex gap-3">
-                    <div className="flex flex-col items-center">
-                      <div className="w-8 h-8 bg-blue-50 border border-blue-100 rounded-full flex items-center justify-center text-sm flex-shrink-0">
-                        {activityIcon(a.type)}
-                      </div>
-                      <div className="w-px flex-1 bg-gray-100 mt-1" />
-                    </div>
-                    <div className="flex-1 pb-4 min-w-0">
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <span className="text-xs font-medium text-gray-500">
-                            {ACTIVITY_TYPE_LABELS[a.type as ActivityType]}
-                          </span>
-                          <p className="text-sm font-medium text-gray-900 mt-0.5">{a.title}</p>
-                          {a.content && <p className="text-sm text-gray-600 mt-1 whitespace-pre-wrap">{a.content}</p>}
-                        </div>
-                        <span className="text-xs text-gray-400 flex-shrink-0 mt-0.5">{formatDateTime(a.date)}</span>
-                      </div>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   )
 }
 
+// Etykieta nad wartością (styl v2) zamiast dwóch kolumn
 function DataRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex gap-2">
-      <span className="text-gray-400 w-32 flex-shrink-0">{label}</span>
-      <span className="text-gray-900 font-medium">{value}</span>
+    <div className="flex flex-col gap-0.5">
+      <span
+        className="text-[10px] font-semibold uppercase"
+        style={{ letterSpacing: '.1em', color: 'var(--text-muted)' }}
+      >
+        {label}
+      </span>
+      <span className="text-sm text-gray-900">{value}</span>
     </div>
   )
 }
