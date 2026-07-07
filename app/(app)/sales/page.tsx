@@ -38,22 +38,50 @@ export default async function SalesPage({
     unitNumbers: c.clientUnits.map((cu) => cu.unit.number),
   }))
 
-  // Wartość brutto umowy: pole valueGross, a gdy puste — suma cen brutto powiązanych lokali.
+  // Wartość brutto umowy: pole valueGross, a gdy puste — suma cen brutto z umowy
+  // (snapshot ContractUnit.priceGross; fallback cena bazowa lokalu dla legacy).
   const grossOf = (c: (typeof contracts)[number]) =>
-    c.valueGross ?? c.contractUnits.reduce((s, cu) => s + (cu.unit.priceGross || 0), 0)
+    c.valueGross ?? c.contractUnits.reduce((s, cu) => s + (cu.priceGross ?? cu.unit.priceGross ?? 0), 0)
 
   // KPI liczone z aktualnie wczytanej (przefiltrowanej) listy — zero nowych zapytań.
   const now = new Date()
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
-  const signedValue = contracts
-    .filter((c) => c.status === 'PODPISANA')
-    .reduce((s, c) => s + grossOf(c), 0)
+
+  // Dedup wartości: dane z importu trzymają JEDNĄ transakcję jako OSOBNE umowy
+  // (rezerwacyjna + deweloperska tego samego klienta na te same lokale).
+  // Do wartości sprzedaży liczymy tylko najdalszy etap — umowę pomijamy, gdy ten
+  // sam klient ma podpisaną umowę dalszego etapu współdzielącą choć jeden lokal.
+  const STAGE_RANK: Record<string, number> = { REZERWACYJNA: 1, DEWELOPERSKA: 2, PRZENIESIENIA: 3 }
+  const signed = contracts.filter((c) => c.status === 'PODPISANA')
+  const isSuperseded = (c: (typeof contracts)[number]) =>
+    signed.some(
+      (o) =>
+        o.id !== c.id &&
+        o.clientId === c.clientId &&
+        (STAGE_RANK[o.type] || 0) > (STAGE_RANK[c.type] || 0) &&
+        o.contractUnits.some((ou) => c.contractUnits.some((cu) => cu.unitId === ou.unitId)),
+    )
+  const signedValue = signed.filter((c) => !isSuperseded(c)).reduce((s, c) => s + grossOf(c), 0)
+
   const signedThisMonth = contracts.filter(
     (c) => c.signedAt && new Date(c.signedAt) >= monthStart,
   ).length
-  const ppsm = contracts
-    .flatMap((c) => c.contractUnits.map((cu) => cu.unit.pricePerSqmGross))
-    .filter((v) => v > 0)
+
+  // Średnia cena m²: LOKALE MIESZKALNE z umów deweloperskich (i przeniesienia —
+  // te przeszły przez etap deweloperski), bez rozwiązanych/anulowanych.
+  // Cena ze snapshotu umowy (po rabacie), fallback cena bazowa; m² z pow. lokalu.
+  // Dedup po lokalu — legacy pary umów nie liczą mieszkania dwa razy.
+  const ppsmByUnit = new Map<string, number>()
+  for (const c of contracts) {
+    if (c.type !== 'DEWELOPERSKA' && c.type !== 'PRZENIESIENIA') continue
+    if (c.status === 'ROZWIAZANA' || c.status === 'ANULOWANA') continue
+    for (const cu of c.contractUnits) {
+      if (cu.unit.type !== 'MIESZKALNY' || !(cu.unit.area > 0)) continue
+      const gross = cu.priceGross ?? cu.unit.priceGross
+      if (gross > 0 && !ppsmByUnit.has(cu.unitId)) ppsmByUnit.set(cu.unitId, gross / cu.unit.area)
+    }
+  }
+  const ppsm = [...ppsmByUnit.values()]
   const avgPpsm = ppsm.length ? ppsm.reduce((a, b) => a + b, 0) / ppsm.length : 0
 
   return (
@@ -101,7 +129,7 @@ export default async function SalesPage({
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5">
         <SalesKpi label="Wartość podpisanych umów" value={formatCurrency(signedValue)} delay={0} />
         <SalesKpi label="Umowy w tym miesiącu" value={String(signedThisMonth)} delay={0.06} />
-        <SalesKpi label="Średnia cena m²" value={avgPpsm > 0 ? formatCurrency(avgPpsm) : '—'} delay={0.1} />
+        <SalesKpi label="Średnia cena m² (mieszkania, um. dewelop.)" value={avgPpsm > 0 ? formatCurrency(avgPpsm) : '—'} delay={0.1} />
       </div>
 
       <div className="flex gap-3 mb-4 flex-wrap">

@@ -182,8 +182,12 @@ input::placeholder, textarea::placeholder { color: var(--text-muted); }
    prawie biało, a divide-gray-100 (--border-soft) jako wyraźna jaśniejsza linia.
    Obramowania nagłówków i kart zostają na --border-soft/--border (wyraźniejsze). */
 .dark .border-gray-50 { border-color: var(--row-divider) !important; }
-.dark .divide-gray-100 > * + * { border-color: var(--row-divider) !important; }
-.dark .divide-gray-50 > * + * { border-color: var(--row-divider) !important; }
+/* Tailwind v4: divide-y = border-BOTTOM na :not(:last-child) — selektor `> * + *`
+   (wzorzec v3, border-top bez pierwszego) omijał PIERWSZY wiersz, który świecił
+   kolorem gray-100 (#f3f4f6) na ciemnym tle. `> *` łapie wszystkie wiersze;
+   border-color na wierszu bez szerokości bordera niczego nie zmienia. */
+.dark .divide-gray-100 > * { border-color: var(--row-divider) !important; }
+.dark .divide-gray-50 > * { border-color: var(--row-divider) !important; }
 
 .dark .hover\:bg-gray-50:hover { background-color: var(--surface-hover) !important; }
 .dark .hover\:bg-gray-100:hover { background-color: var(--surface-hover) !important; }
