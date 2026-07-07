@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { signOut } from 'next-auth/react'
 import { User, LogOut, ChevronDown } from 'lucide-react'
 import { ThemeToggle } from './ThemeToggle'
+import { CommandPalette } from './CommandPalette'
 import { Avatar } from '@/components/profil/Avatar'
 import { useRipple } from '@/lib/ripple'
 
@@ -37,7 +38,7 @@ export function TopBar({
 
   return (
     <header
-      className="sticky top-0 z-20 h-16 flex items-center justify-end gap-3 px-6 border-b"
+      className="sticky top-0 z-20 h-16 flex items-center justify-between gap-3 px-6 border-b"
       style={{
         backgroundColor: 'color-mix(in srgb, var(--background) 70%, transparent)',
         backdropFilter: 'blur(16px)',
@@ -45,6 +46,9 @@ export function TopBar({
         borderColor: 'color-mix(in srgb, var(--border) 55%, transparent)',
       }}
     >
+      <CommandPalette />
+
+      <div className="flex items-center gap-3">
       <ThemeToggle />
 
       <div className="relative" ref={wrapRef}>
@@ -119,6 +123,7 @@ export function TopBar({
             </button>
           </div>
         )}
+      </div>
       </div>
     </header>
   )

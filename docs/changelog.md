@@ -4,6 +4,18 @@ Krótkie wpisy „co i **dlaczego**". Bez listy wszystkich commitów — od tego
 
 ---
 
+## 2026-07-07
+
+### Globalna wyszukiwarka ⌘K / Ctrl+K w topbarze
+**Powód**: Rafał chciał szybki globalny skok do dowolnego rekordu (klient, lokal, oferta, umowa, sprawa, faktura) bez klikania po modułach — wzorzec „command palette" (Spotlight/⌘K).
+**Implementacja**:
+- **Endpoint `/api/search?q=`** (`app/api/search/route.ts`): równoległe zapytania (`Promise.all`) po encjach, każda `take: 6`, min. 2 znaki. **Respektuje permissions** — helper `can(perm) = isAdmin || permissions.includes(perm)`, przeszukuje TYLKO dozwolone moduły (ten sam model co middleware/Sidebar). Zwraca płaską listę `{group, groupLabel, title, subtitle, badge, url}`.
+- **Zakres**: Klienci (imię/nazwisko/email/telefon), Lokale (numer/budynek/opis), Oferty (numer/tytuł), Sprzedaż=Contract (numer/inwestycja), Serwis (tytuł/opis), Sprawy (sygnatura/tytuł/counterparty), Finanse — faktury kosztowe (numer/opis + nazwa vendora) i przychodowe (numer/odbiorca). Badge = etykieta statusu z `lib/types.ts` (fallback = surowa wartość, np. seedowy status „KLIENT" spoza enuma).
+- **Pułapka szyfrowania**: pola szyfrowane at-rest (pesel/nip/idNumber/adres — `lib/crypto.ts`) **nie są przeszukiwane** — `contains` po ciphertext nic nie znajdzie. Szukamy tylko po polach jawnych.
+- **Komponent `components/layout/CommandPalette.tsx`** (client, samodzielny): trigger w topbarze + modal. Globalny skrót ⌘K/Ctrl+K (toggle), debounce 180ms + `AbortController` (anti-race), nawigacja ↑/↓/Enter/Esc z podświetleniem aktywnego wiersza i scroll-into-view, stany „min. 2 znaki"/loading/empty, grupowanie z zachowaniem kolejności z API. Detekcja Mac→⌘ / reszta→Ctrl. Motyw przez zmienne CSS (`--surface`/`--border`/`--accent-soft` itd.).
+- **TopBar**: `justify-end` → `justify-between`, `<CommandPalette />` po lewej, kontrolki (ThemeToggle+avatar) opakowane po prawej.
+- **Bez zmian schematu/env** — czysto odczytowe, działa od razu po deployu.
+
 ## 2026-06-16
 
 ### KSeF — szczegóły faktury (dane podmiotów + pozycje), status płatności z FA, status faktur z KSeF
