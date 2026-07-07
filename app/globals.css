@@ -394,6 +394,24 @@ main .bg-white.rounded-xl.border:not(.v2-card-in) {
   background-color: var(--surface-hover) !important;
 }
 
+/* ===== Sidebar: cienki, subtelny scrollbar =====
+   Domyślny systemowy pasek (szczególnie na Windows, ze strzałkami) jest gruby
+   i na zwiniętym panelu (80px) zjada prawie połowę szerokości, spychając ikony.
+   Chudy, kremowy pasek pasuje do granatowego tła i nie tłoczy ikon. */
+.sidebar-nav {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(242, 232, 214, 0.22) transparent;
+}
+.sidebar-nav::-webkit-scrollbar { width: 6px; }
+.sidebar-nav::-webkit-scrollbar-track { background: transparent; }
+.sidebar-nav::-webkit-scrollbar-thumb {
+  background: rgba(242, 232, 214, 0.18);
+  border-radius: 3px;
+}
+.sidebar-nav::-webkit-scrollbar-thumb:hover { background: rgba(242, 232, 214, 0.32); }
+/* Chowamy strzałki (buttons) systemowego paska na Windows */
+.sidebar-nav::-webkit-scrollbar-button { display: none; height: 0; width: 0; }
+
 /* ===== Animacje ikon pogody (TopWidget na dashboardzie) ===== */
 @keyframes weather-spin-kf {
   from { transform: rotate(0deg); }

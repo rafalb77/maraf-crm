@@ -4,7 +4,7 @@ import { Sidebar } from './Sidebar'
 
 // Szerokości panelu bocznego — muszą być zsynchronizowane z marginesem treści.
 const W_EXPANDED = 256 // w-64
-const W_COLLAPSED = 72
+const W_COLLAPSED = 80
 const LS_COLLAPSED = 'sidebar.collapsed'
 
 /**

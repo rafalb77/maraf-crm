@@ -337,7 +337,7 @@ export function Sidebar({
   return (
     <aside
       className="fixed left-0 top-0 h-full flex flex-col z-30 transition-[width] duration-200 ease-out"
-      style={{ background: SB.bg, borderRight: '1px solid rgba(242,232,214,.08)', width: collapsed ? 72 : 256 }}
+      style={{ background: SB.bg, borderRight: '1px solid rgba(242,232,214,.08)', width: collapsed ? 80 : 256 }}
     >
       {/* Logo — klik prowadzi na stronę główną (Pulpit). 64px — spójnie z TopBarem. */}
       <div
@@ -380,7 +380,7 @@ export function Sidebar({
       )}
 
       {/* Nav: Pulpit + sekcje aktualnego workspace'a */}
-      <nav className="flex-1 px-3 py-4 overflow-y-auto">
+      <nav className="sidebar-nav flex-1 px-3 py-4 overflow-y-auto">
         {showDashboard && (
           <ul className="space-y-0.5 mb-4">
             <NavLink item={DASHBOARD_ITEM} active={isActive(DASHBOARD_ITEM.href)} itemBase={itemBase} collapsed={collapsed} />
