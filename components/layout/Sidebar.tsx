@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { signOut, useSession } from 'next-auth/react'
 import { useEffect, useRef, useState } from 'react'
-import { LogoFullOnDark } from './Logo'
+import { LogoFullOnDark, LogoIcon } from './Logo'
 import { isAdmin } from '@/lib/auth-utils'
 import { getRequiredPermission } from '@/lib/permissions'
 import { useRipple } from '@/lib/ripple'
@@ -231,6 +231,18 @@ const SB = {
   dropdownBg: '#1F2D3F',
 }
 
+// Ikona podwójnej strzałki — zwiń (w lewo) / rozwiń (w prawo)
+const CollapseIcon = ({ dir }: { dir: 'left' | 'right' }) => (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth={2}
+      d={dir === 'left' ? 'M11 19l-7-7 7-7m8 14l-7-7 7-7' : 'M13 5l7 7-7 7M5 5l7 7-7 7'}
+    />
+  </svg>
+)
+
 /** Znajduje workspace zawierający aktualny pathname (po prefiksie URL). */
 function workspaceForPath(pathname: string): string | null {
   for (const ws of WORKSPACES) {
@@ -243,7 +255,13 @@ function workspaceForPath(pathname: string): string | null {
   return null
 }
 
-export function Sidebar() {
+export function Sidebar({
+  collapsed = false,
+  onToggleCollapse,
+}: {
+  collapsed?: boolean
+  onToggleCollapse?: () => void
+} = {}) {
   const pathname = usePathname()
   const router = useRouter()
   const { data: session, status } = useSession()
@@ -318,34 +336,46 @@ export function Sidebar() {
 
   return (
     <aside
-      className="fixed left-0 top-0 h-full w-64 flex flex-col z-30"
-      style={{ background: SB.bg, borderRight: '1px solid rgba(242,232,214,.08)' }}
+      className="fixed left-0 top-0 h-full flex flex-col z-30 transition-[width] duration-200 ease-out"
+      style={{ background: SB.bg, borderRight: '1px solid rgba(242,232,214,.08)', width: collapsed ? 72 : 256 }}
     >
       {/* Logo — klik prowadzi na stronę główną (Pulpit). 64px — spójnie z TopBarem. */}
       <div
-        className="h-16 flex-shrink-0 px-5 flex items-center border-b overflow-hidden"
+        className={`h-16 flex-shrink-0 flex items-center border-b overflow-hidden ${collapsed ? 'justify-center px-0' : 'px-5'}`}
         style={{ borderColor: SB.border }}
       >
         <Link href="/dashboard" prefetch={false} aria-label="Strona główna" className="inline-block">
-          <LogoFullOnDark />
+          {collapsed ? <LogoIcon className="w-9 h-9" /> : <LogoFullOnDark />}
         </Link>
       </div>
 
-      {/* Workspace switcher */}
+      {/* Workspace switcher — pełny gdy rozwinięty; zwinięty: sam ikonowy przycisk (rozwija panel) */}
       {visibleWorkspaces.length > 1 && activeWs && (
         <div className="px-3 pt-3">
-          <WorkspaceSwitcher
-            workspaces={visibleWorkspaces}
-            active={activeWs}
-            onSelect={(wsId) => {
-              const ws = visibleWorkspaces.find((w) => w.id === wsId)
-              if (!ws) return
-              window.localStorage.setItem(LS_KEY, wsId)
-              setStoredWs(wsId)
-              const firstItem = ws.sections[0]?.items[0]
-              if (firstItem) router.push(firstItem.href)
-            }}
-          />
+          {collapsed ? (
+            <button
+              type="button"
+              onClick={onToggleCollapse}
+              title={activeWs.label}
+              className="w-full flex items-center justify-center py-2 rounded-lg border transition-colors"
+              style={{ backgroundColor: SB.switcherBg, borderColor: SB.switcherBorder, color: SB.gold }}
+            >
+              {activeWs.icon}
+            </button>
+          ) : (
+            <WorkspaceSwitcher
+              workspaces={visibleWorkspaces}
+              active={activeWs}
+              onSelect={(wsId) => {
+                const ws = visibleWorkspaces.find((w) => w.id === wsId)
+                if (!ws) return
+                window.localStorage.setItem(LS_KEY, wsId)
+                setStoredWs(wsId)
+                const firstItem = ws.sections[0]?.items[0]
+                if (firstItem) router.push(firstItem.href)
+              }}
+            />
+          )}
         </div>
       )}
 
@@ -353,12 +383,12 @@ export function Sidebar() {
       <nav className="flex-1 px-3 py-4 overflow-y-auto">
         {showDashboard && (
           <ul className="space-y-0.5 mb-4">
-            <NavLink item={DASHBOARD_ITEM} active={isActive(DASHBOARD_ITEM.href)} itemBase={itemBase} />
+            <NavLink item={DASHBOARD_ITEM} active={isActive(DASHBOARD_ITEM.href)} itemBase={itemBase} collapsed={collapsed} />
           </ul>
         )}
         {activeWs?.sections.map((section, idx) => (
           <div key={idx} className={idx > 0 ? 'mt-5' : ''}>
-            {section.label && (
+            {section.label && !collapsed && (
               <div
                 className="px-3 mb-2 text-[10px] font-semibold tracking-wider uppercase"
                 style={{ color: SB.muted }}
@@ -368,7 +398,7 @@ export function Sidebar() {
             )}
             <ul className="space-y-0.5">
               {section.items.map((item) => (
-                <NavLink key={item.href} item={item} active={isActive(item.href)} itemBase={itemBase} />
+                <NavLink key={item.href} item={item} active={isActive(item.href)} itemBase={itemBase} collapsed={collapsed} />
               ))}
             </ul>
           </div>
@@ -378,17 +408,18 @@ export function Sidebar() {
       {/* Diagnostyka + Konfiguracja + Logout — przypięte na dole. Ustawienia tylko dla admina. */}
       <div className="px-3 py-4 border-t space-y-0.5" style={{ borderColor: SB.border }}>
         <ul className="space-y-0.5">
-          <NavLink item={DIAG_ITEM} active={isActive(DIAG_ITEM.href)} itemBase={itemBase} />
+          <NavLink item={DIAG_ITEM} active={isActive(DIAG_ITEM.href)} itemBase={itemBase} collapsed={collapsed} />
         </ul>
         {(userIsAdmin || sessionNotReady) && (
           <ul className="space-y-0.5">
-            <NavLink item={SETTINGS_ITEM} active={isActive(SETTINGS_ITEM.href)} itemBase={itemBase} />
+            <NavLink item={SETTINGS_ITEM} active={isActive(SETTINGS_ITEM.href)} itemBase={itemBase} collapsed={collapsed} />
           </ul>
         )}
         <button
           onClick={() => signOut({ callbackUrl: '/auth/signin' })}
           onPointerDown={ripple}
-          className={itemBase + ' w-full'}
+          title={collapsed ? 'Wyloguj' : undefined}
+          className={itemBase + ' w-full' + (collapsed ? ' justify-center' : '')}
           style={{ color: SB.text }}
           onMouseEnter={(e) => {
             e.currentTarget.style.backgroundColor = SB.hoverBg
@@ -398,8 +429,28 @@ export function Sidebar() {
           }}
         >
           {ICONS.logout}
-          Wyloguj
+          {!collapsed && 'Wyloguj'}
         </button>
+
+        {/* Zwiń / rozwiń panel */}
+        {onToggleCollapse && (
+          <button
+            onClick={onToggleCollapse}
+            title={collapsed ? 'Rozwiń panel' : 'Zwiń panel'}
+            aria-label={collapsed ? 'Rozwiń panel' : 'Zwiń panel'}
+            className={itemBase + ' w-full' + (collapsed ? ' justify-center' : '')}
+            style={{ color: SB.muted }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = SB.hoverBg
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'transparent'
+            }}
+          >
+            <CollapseIcon dir={collapsed ? 'right' : 'left'} />
+            {!collapsed && 'Zwiń panel'}
+          </button>
+        )}
       </div>
     </aside>
   )
@@ -413,10 +464,12 @@ function NavLink({
   item,
   active,
   itemBase,
+  collapsed = false,
 }: {
   item: NavItem
   active: boolean
   itemBase: string
+  collapsed?: boolean
 }) {
   const ripple = useRipple()
   return (
@@ -425,7 +478,8 @@ function NavLink({
         href={item.href}
         prefetch={false}
         onPointerDown={ripple}
-        className={itemBase}
+        title={collapsed ? item.label : undefined}
+        className={itemBase + (collapsed ? ' justify-center' : '')}
         style={
           active
             ? {
@@ -443,7 +497,7 @@ function NavLink({
         }}
       >
         {item.icon}
-        {item.label}
+        {!collapsed && item.label}
       </Link>
     </li>
   )
