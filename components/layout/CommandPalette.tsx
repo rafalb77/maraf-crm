@@ -1,5 +1,6 @@
 'use client'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { Search, CornerDownLeft, ArrowUp, ArrowDown } from 'lucide-react'
 
@@ -25,11 +26,15 @@ export function CommandPalette() {
   const [active, setActive] = useState(0)
   const [isMac, setIsMac] = useState(false)
 
+  // Portal montujemy dopiero po stronie klienta (document dostępny).
+  const [mounted, setMounted] = useState(false)
+
   const inputRef = useRef<HTMLInputElement | null>(null)
   const listRef = useRef<HTMLDivElement | null>(null)
   const abortRef = useRef<AbortController | null>(null)
 
   useEffect(() => {
+    setMounted(true)
     setIsMac(/mac|iphone|ipad|ipod/i.test(navigator.platform || navigator.userAgent))
   }, [])
 
@@ -164,9 +169,9 @@ export function CommandPalette() {
         </kbd>
       </button>
 
-      {open && (
+      {open && mounted && createPortal(
         <div
-          className="fixed inset-0 z-50 flex items-start justify-center px-4 pt-[12vh]"
+          className="fixed inset-0 z-[100] flex items-start justify-center px-4 pt-[12vh]"
           style={{ background: 'color-mix(in srgb, black 45%, transparent)' }}
           onMouseDown={(e) => {
             if (e.target === e.currentTarget) setOpen(false)
@@ -284,7 +289,8 @@ export function CommandPalette() {
               </div>
             )}
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </>
   )

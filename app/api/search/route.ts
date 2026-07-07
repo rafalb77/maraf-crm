@@ -11,6 +11,7 @@ import {
   CONTRACT_STATUS_LABELS,
   PURCHASE_INVOICE_STATUS_LABELS,
   SALES_INVOICE_STATUS_LABELS,
+  VENDOR_CATEGORY_LABELS,
 } from '@/lib/types'
 
 /**
@@ -209,10 +210,41 @@ export async function GET(req: NextRequest) {
   }
 
   if (can('finanse')) {
+    // Kontrahenci (vendorzy) — po nazwie/skrócie/NIP. Link do przefiltrowanej
+    // listy faktur danego kontrahenta (/finanse/faktury?vendor=<id>).
+    tasks.push(
+      prisma.vendor
+        .findMany({
+          where: { OR: [{ name: like }, { shortCode: like }, { nip: like }] },
+          take: ITEMS_PER_GROUP,
+          orderBy: { name: 'asc' },
+          include: { _count: { select: { invoices: true } } },
+        })
+        .then((rows) =>
+          rows.map((v) => ({
+            id: v.id,
+            group: 'kontrahenci',
+            groupLabel: 'Kontrahenci',
+            title: v.name,
+            subtitle: [v.nip, v._count.invoices ? `${v._count.invoices} faktur` : null]
+              .filter(Boolean)
+              .join(' · ') || undefined,
+            badge: label(VENDOR_CATEGORY_LABELS as Record<string, string>, v.category),
+            url: `/finanse/faktury?vendor=${v.id}`,
+          })),
+        ),
+    )
     tasks.push(
       prisma.purchaseInvoice
         .findMany({
-          where: { OR: [{ number: like }, { description: like }] },
+          where: {
+            OR: [
+              { number: like },
+              { description: like },
+              { vendor: { name: like } },
+              { vendor: { shortCode: like } },
+            ],
+          },
           take: ITEMS_PER_GROUP,
           orderBy: { issueDate: 'desc' },
           include: { vendor: { select: { name: true } } },

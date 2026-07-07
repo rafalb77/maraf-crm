@@ -15,6 +15,8 @@ Krótkie wpisy „co i **dlaczego**". Bez listy wszystkich commitów — od tego
 - **Komponent `components/layout/CommandPalette.tsx`** (client, samodzielny): trigger w topbarze + modal. Globalny skrót ⌘K/Ctrl+K (toggle), debounce 180ms + `AbortController` (anti-race), nawigacja ↑/↓/Enter/Esc z podświetleniem aktywnego wiersza i scroll-into-view, stany „min. 2 znaki"/loading/empty, grupowanie z zachowaniem kolejności z API. Detekcja Mac→⌘ / reszta→Ctrl. Motyw przez zmienne CSS (`--surface`/`--border`/`--accent-soft` itd.).
 - **TopBar**: `justify-end` → `justify-between`, `<CommandPalette />` po lewej, kontrolki (ThemeToggle+avatar) opakowane po prawej.
 - **Bez zmian schematu/env** — czysto odczytowe, działa od razu po deployu.
+- **Poprawka (ten sam dzień)**: modal **renderowany przez `createPortal` do `document.body`**. Powód: `<header>` topbara ma `backdrop-filter: blur()`, co tworzy *containing block* dla `position: fixed` — przez to `fixed inset-0 z-50` był uwięziony w kontekście `z-20` topbara i sticky nagłówek modułu Finanse (`z-20`) przykrywał pole wyszukiwania. Portal wychodzi poza ten kontekst; z-index podniesiony do `z-[100]`.
+- **Poprawka (ten sam dzień)**: wyszukiwanie kontrahentów. Dodano grupę **Kontrahenci** (Vendor po `name`/`shortCode`/`nip`, link do `/finanse/faktury?vendor=<id>`) **oraz** dopasowanie faktur kosztowych po **nazwie/skrócie vendora** (nested relation filter). Wcześniej szukanie po nazwie kontrahenta nie pokazywało jego faktur (m.in. ściągniętych z KSeF), bo `PurchaseInvoice` matchował tylko `number`/`description`.
 
 ## 2026-06-16
 
