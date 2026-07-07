@@ -62,7 +62,7 @@ export default async function DashboardPage() {
       {/* Bento: hero „Sprzedaż łącznie" (navy + złota poświata) + KPI 2×2 */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-4">
         <div
-          className="lg:col-span-7 v2-card-in relative overflow-hidden rounded-[24px] p-[30px] min-h-[200px]"
+          className="lg:col-span-7 v2-card-in relative overflow-hidden rounded-[24px] p-[30px] flex flex-col justify-center"
           style={{
             background:
               'radial-gradient(620px 320px at 108% 130%, rgba(201,163,122,.30), transparent 62%), linear-gradient(150deg, #2C3E54 0%, #1F2D3F 55%, #161E2B 100%)',
