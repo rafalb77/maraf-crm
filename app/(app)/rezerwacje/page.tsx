@@ -123,13 +123,13 @@ export default async function ReservationsPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-left text-xs uppercase tracking-wide text-gray-500 border-b border-gray-100">
-                  <th className="px-2 py-2 font-medium">Lokal</th>
-                  <th className="px-2 py-2 font-medium">Klient</th>
-                  <th className="px-2 py-2 font-medium">Kontakt</th>
-                  <th className="px-2 py-2 font-medium">Wygasa</th>
-                  <th className="px-2 py-2 font-medium">Pozostało</th>
-                  <th className="px-2 py-2 font-medium text-right">Akcje</th>
+                <tr className="border-b" style={{ borderColor: 'var(--border-soft)' }}>
+                  <Th>Lokal</Th>
+                  <Th>Klient</Th>
+                  <Th>Kontakt</Th>
+                  <Th>Wygasa</Th>
+                  <Th>Pozostało</Th>
+                  <Th right>Akcje</Th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -186,11 +186,11 @@ export default async function ReservationsPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-left text-xs uppercase tracking-wide text-gray-500 border-b border-gray-100">
-                  <th className="px-2 py-2 font-medium">Lokal</th>
-                  <th className="px-2 py-2 font-medium">Klient</th>
-                  <th className="px-2 py-2 font-medium">Umowa</th>
-                  <th className="px-2 py-2 font-medium">Data podpisania</th>
+                <tr className="border-b" style={{ borderColor: 'var(--border-soft)' }}>
+                  <Th>Lokal</Th>
+                  <Th>Klient</Th>
+                  <Th>Umowa</Th>
+                  <Th>Data podpisania</Th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -237,12 +237,12 @@ export default async function ReservationsPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-left text-xs uppercase tracking-wide text-gray-500 border-b border-gray-100">
-                  <th className="px-2 py-2 font-medium">Lokal</th>
-                  <th className="px-2 py-2 font-medium">Typ</th>
-                  <th className="px-2 py-2 font-medium">Budynek</th>
-                  <th className="px-2 py-2 font-medium">Opis</th>
-                  <th className="px-2 py-2 font-medium text-right">Akcje</th>
+                <tr className="border-b" style={{ borderColor: 'var(--border-soft)' }}>
+                  <Th>Lokal</Th>
+                  <Th>Typ</Th>
+                  <Th>Budynek</Th>
+                  <Th>Opis</Th>
+                  <Th right>Akcje</Th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -278,6 +278,18 @@ function StatCard({ href, icon, label, value, accent }: { href: string; icon: Re
         <p className="text-[26px] font-bold text-gray-900 tabular-nums">{value}</p>
       </div>
     </a>
+  )
+}
+
+// Nagłówek kolumny w stylu v2 (11px, weight 600, letter-spacing, text-muted)
+function Th({ children, right }: { children: React.ReactNode; right?: boolean }) {
+  return (
+    <th
+      className={`px-2 py-2.5 text-[11px] font-semibold uppercase ${right ? 'text-right' : 'text-left'}`}
+      style={{ letterSpacing: '.06em', color: 'var(--text-muted)' }}
+    >
+      {children}
+    </th>
   )
 }
 
