@@ -13,6 +13,7 @@ import {
   type Company,
 } from '@/lib/types'
 import { fmtDate, fmtMoney, isOverdue } from '@/lib/finanse-format'
+import { QuickPaymentCell } from '@/components/finanse/QuickPaymentCell'
 
 export type FakturaRow = {
   id: string
@@ -27,6 +28,7 @@ export type FakturaRow = {
   amountVat: number
   amountGross: number
   sumPaid: number
+  remaining: number // pozostalo do zaplaty (po potraceniach)
   status: string
   category: string | null
   notes: string | null
@@ -128,11 +130,12 @@ export function FakturyTable({ rows, totals, currentSort, sortOptions }: Props) 
               <SortableTh colKey="status" label="Status" currentSort={currentSort} onSort={onSort} />
               <th className="px-3 py-3 font-medium text-gray-700">Kategoria</th>
               <th className="px-3 py-3 font-medium text-gray-700">Komentarz</th>
+              <th className="px-3 py-3 font-medium text-gray-700">Płatność</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
             {rows.length === 0 && (
-              <tr><td colSpan={12} className="px-4 py-8 text-center text-gray-400">Brak faktur dla wybranych filtrów.</td></tr>
+              <tr><td colSpan={13} className="px-4 py-8 text-center text-gray-400">Brak faktur dla wybranych filtrów.</td></tr>
             )}
             {rows.map((r) => {
               const overdue = isOverdue(r.dueDate, r.status)
@@ -202,6 +205,9 @@ export function FakturyTable({ rows, totals, currentSort, sortOptions }: Props) 
                   <td className="px-3 py-2">
                     <CommentCell invoiceId={r.id} initial={r.notes} />
                   </td>
+                  <td className="px-3 py-2">
+                    <QuickPaymentCell invoiceId={r.id} remaining={r.remaining} status={r.status} kind="purchase" />
+                  </td>
                 </tr>
               )
             })}
@@ -216,7 +222,7 @@ export function FakturyTable({ rows, totals, currentSort, sortOptions }: Props) 
                 <td></td>
                 <td className="px-3 py-3 text-right tabular-nums">{fmtMoney(totals.vat)}</td>
                 <td className="px-3 py-3 text-right tabular-nums">{fmtMoney(totals.gross)}</td>
-                <td colSpan={3}></td>
+                <td colSpan={4}></td>
               </tr>
             </tfoot>
           )}

@@ -6,6 +6,7 @@ import {
   PURCHASE_INVOICE_CATEGORY_LABELS,
 } from '@/lib/types'
 import { getActiveCompany } from '@/lib/finanse-company'
+import { payableAmount } from '@/lib/finanse-format'
 import { FOLDERS, FOLDER_LABELS, vendorIdsForFolder, vendorIdsWithoutFolder, type Folder } from '@/lib/finanse-folders'
 import { FakturyTable, type FakturaRow } from '@/components/finanse/FakturyTable'
 
@@ -141,6 +142,8 @@ export default async function FakturyListPage({
 
   const rows: FakturaRow[] = invoices.map((inv) => {
     const sumPaid = inv.payments.reduce((s, p) => s + p.amount, 0)
+    // Pozostalo do zaplaty = kwota nalezna po potraceniach (kaucja/KB/prad) - zaplacono.
+    const remaining = Math.round((payableAmount(inv) - sumPaid) * 100) / 100
     return {
       id: inv.id,
       vendorName: inv.vendor.name,
@@ -154,6 +157,7 @@ export default async function FakturyListPage({
       amountVat: inv.amountVat,
       amountGross: inv.amountGross,
       sumPaid,
+      remaining,
       status: inv.status,
       category: inv.category,
       notes: inv.notes,

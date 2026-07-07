@@ -9,6 +9,7 @@ import {
 } from '@/lib/types'
 import { fmtDate, fmtMoney, isOverdue } from '@/lib/finanse-format'
 import { getActiveCompany } from '@/lib/finanse-company'
+import { QuickPaymentCell } from '@/components/finanse/QuickPaymentCell'
 
 type SearchParams = { status?: string; q?: string; year?: string }
 
@@ -79,11 +80,12 @@ export default async function PrzychodyPage({ searchParams }: { searchParams: Se
                 <th className="px-3 py-3 font-medium text-gray-700 text-right">Wpłacono</th>
                 <th className="px-3 py-3 font-medium text-gray-700 text-right">Pozostało</th>
                 <th className="px-3 py-3 font-medium text-gray-700">Status</th>
+                <th className="px-3 py-3 font-medium text-gray-700">Wpłata</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {invoices.length === 0 && (
-                <tr><td colSpan={10} className="px-4 py-8 text-center text-gray-400">Brak faktur przychodowych.</td></tr>
+                <tr><td colSpan={11} className="px-4 py-8 text-center text-gray-400">Brak faktur przychodowych.</td></tr>
               )}
               {invoices.map((inv) => {
                 const paid = inv.payments.reduce((s, p) => s + p.amount, 0)
@@ -115,6 +117,14 @@ export default async function PrzychodyPage({ searchParams }: { searchParams: Se
                         {SALES_INVOICE_STATUS_LABELS[inv.status as SalesInvoiceStatus] || inv.status}
                       </span>
                     </td>
+                    <td className="px-3 py-2">
+                      <QuickPaymentCell
+                        invoiceId={inv.id}
+                        remaining={Math.round(left * 100) / 100}
+                        status={inv.status}
+                        kind="sales"
+                      />
+                    </td>
                   </tr>
                 )
               })}
@@ -126,7 +136,7 @@ export default async function PrzychodyPage({ searchParams }: { searchParams: Se
                   <td className="px-3 py-3 text-right tabular-nums">{fmtMoney(sums._sum.amountNet || 0)}</td>
                   <td className="px-3 py-3 text-right tabular-nums">{fmtMoney(sums._sum.amountVat || 0)}</td>
                   <td className="px-3 py-3 text-right tabular-nums">{fmtMoney(sums._sum.amountGross || 0)}</td>
-                  <td colSpan={3}></td>
+                  <td colSpan={4}></td>
                 </tr>
               </tfoot>
             )}
