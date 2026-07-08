@@ -53,10 +53,10 @@ const COLUMNS: ColDef[] = [
   { key: 'vatRate',     label: 'VAT%',       defaultW: 46,  sortKey: 'vatRate', align: 'right' },
   { key: 'amountVat',   label: 'Kwota VAT',  defaultW: 74,  sortKey: 'amountVat', align: 'right' },
   { key: 'amountGross', label: 'Brutto',     defaultW: 84,  sortKey: 'amountGross', align: 'right' },
-  { key: 'remaining',   label: 'Pozostało',  defaultW: 84,  align: 'right' },
   { key: 'status',      label: 'Status',     defaultW: 92 },
   { key: 'category',    label: 'Kategoria',  defaultW: 70 },
   { key: 'notes',       label: 'Komentarz',  defaultW: 80 },
+  { key: 'remaining',   label: 'Pozostało',  defaultW: 84,  align: 'right' },
   { key: 'payment',     label: 'Płatność',   defaultW: 88 },
 ]
 const COL_WIDTHS_LS_KEY = 'fakturyColWidths.v1'
@@ -270,10 +270,6 @@ export function FakturyTable({ rows, totals, currentSort, sortOptions }: Props) 
                   <td className={`px-1.5 py-2 text-right tabular-nums font-semibold ${unpaid ? 'text-red-600' : 'text-gray-900'}`}>
                     {fmtMoney(r.amountGross)}
                   </td>
-                  {/* Pozostalo do zaplaty = nalezne po potraceniach - zaplacono */}
-                  <td className={`px-1.5 py-2 text-right tabular-nums font-semibold ${r.remaining > 0.01 ? 'text-red-600' : 'text-gray-300'}`}>
-                    {r.remaining > 0.01 ? fmtMoney(r.remaining) : '—'}
-                  </td>
                   <td className="px-1.5 py-2 overflow-hidden">
                     <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
                       PURCHASE_INVOICE_STATUS_COLORS[r.status as PurchaseInvoiceStatus] || 'bg-gray-100 text-gray-700'
@@ -295,6 +291,10 @@ export function FakturyTable({ rows, totals, currentSort, sortOptions }: Props) 
                   <td className="px-1.5 py-2 overflow-hidden">
                     <CommentCell invoiceId={r.id} initial={r.notes} />
                   </td>
+                  {/* Pozostalo do zaplaty = nalezne po potraceniach - zaplacono */}
+                  <td className={`px-1.5 py-2 text-right tabular-nums font-semibold ${r.remaining > 0.01 ? 'text-red-600' : 'text-gray-300'}`}>
+                    {r.remaining > 0.01 ? fmtMoney(r.remaining) : '—'}
+                  </td>
                   <td className="px-1.5 py-2">
                     <QuickPaymentCell invoiceId={r.id} remaining={r.remaining} status={r.status} kind="purchase" />
                   </td>
@@ -312,10 +312,11 @@ export function FakturyTable({ rows, totals, currentSort, sortOptions }: Props) 
                 <td></td>
                 <td className="px-1.5 py-3 text-right tabular-nums">{fmtMoney(totals.vat)}</td>
                 <td className="px-1.5 py-3 text-right tabular-nums">{fmtMoney(totals.gross)}</td>
+                <td colSpan={3}></td>
                 <td className={`px-1.5 py-3 text-right tabular-nums ${totals.remaining > 0.01 ? 'text-red-600' : 'text-gray-400'}`}>
                   {totals.remaining > 0.01 ? fmtMoney(totals.remaining) : '—'}
                 </td>
-                <td colSpan={4}></td>
+                <td></td>
               </tr>
             </tfoot>
           )}
