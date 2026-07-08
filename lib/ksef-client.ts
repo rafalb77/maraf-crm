@@ -792,9 +792,13 @@ export async function syncCompanyFromKsef(
       }
       const xml = await fetchXml(meta.ksefNumber)
       const parsed = parseKsefInvoiceXml(xml, meta.ksefNumber)
-      // Vendor matching po NIP lub utworz
+      // Vendor matching: najpierw po NIP (pewny identyfikator), potem po nazwie.
+      // Pusty NIP nie moze matchowac — inaczej OR z { nip: '' } bylby loteria.
       const vendorName = parsed.sellerName || parsed.sellerNip || 'Nieznany'
-      let vendor = await prisma.vendor.findFirst({ where: { OR: [{ nip: parsed.sellerNip }, { name: vendorName }] } })
+      let vendor = parsed.sellerNip
+        ? await prisma.vendor.findFirst({ where: { nip: parsed.sellerNip } })
+        : null
+      if (!vendor) vendor = await prisma.vendor.findFirst({ where: { name: vendorName } })
       if (!vendor) {
         vendor = await prisma.vendor.create({
           data: { name: vendorName, nip: parsed.sellerNip || null, category: 'DOSTAWCA', notes: 'Auto-utworzony z KSeF' },

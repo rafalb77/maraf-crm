@@ -19,7 +19,7 @@ export default async function FinanseHomePage() {
     due30Count,
     due30Sum,
     paidThisMonthSum,
-    topVendorsRaw,
+    unpaidInvoicesRaw,
   ] = await Promise.all([
     prisma.purchaseInvoice.count({
       where: {
@@ -70,12 +70,18 @@ export default async function FinanseHomePage() {
       where: { paidAt: { gte: monthStart }, invoice: { company } },
       _sum: { amount: true },
     }),
-    prisma.purchaseInvoice.groupBy({
-      by: ['vendorId'],
+    // Niezaplacone FV do TOP 10 — pobieramy pojedynczo (nie groupBy po vendorId),
+    // bo grupujemy po FAKTYCZNYM wykonawcy: subVendor gdy jest (import z Excela
+    // trzymal parasole typu STAFFA jako vendora, a wykonawce w subVendor —
+    // STAFFA to grupa kosztowa, nie kontrahent), inaczej nazwa vendora.
+    prisma.purchaseInvoice.findMany({
       where: { company, status: { notIn: ['OPLACONA', 'ANULOWANA'] } },
-      _sum: { amountGross: true },
-      orderBy: { _sum: { amountGross: 'desc' } },
-      take: 10,
+      select: {
+        amountGross: true,
+        subVendor: true,
+        vendorId: true,
+        vendor: { select: { name: true } },
+      },
     }),
   ])
 
@@ -91,21 +97,27 @@ export default async function FinanseHomePage() {
     }),
   ])
 
-  // Resolve vendor names for top vendors
-  const vendorIds = topVendorsRaw.map((v) => v.vendorId)
-  const vendors = vendorIds.length
-    ? await prisma.vendor.findMany({
-        where: { id: { in: vendorIds } },
-        select: { id: true, name: true, category: true },
-      })
-    : []
-  const vendorMap = new Map(vendors.map((v) => [v.id, v]))
-  const topVendors = topVendorsRaw
-    .map((tv) => ({
-      vendor: vendorMap.get(tv.vendorId),
-      sum: tv._sum.amountGross || 0,
+  // Grupowanie po faktycznym wykonawcy: subVendor || nazwa vendora.
+  // Link: po vendorze gdy grupa to "czysty" vendor, inaczej wyszukiwanie q=
+  // (lista faktur szuka q w subVendor).
+  const groups = new Map<string, { name: string; sum: number; vendorId: string | null }>()
+  for (const inv of unpaidInvoicesRaw) {
+    const name = inv.subVendor?.trim() || inv.vendor.name
+    const g = groups.get(name) || { name, sum: 0, vendorId: null }
+    g.sum += inv.amountGross
+    if (!inv.subVendor?.trim()) g.vendorId = g.vendorId ?? inv.vendorId
+    groups.set(name, g)
+  }
+  const topVendors = [...groups.values()]
+    .sort((a, b) => b.sum - a.sum)
+    .slice(0, 10)
+    .map((g) => ({
+      name: g.name,
+      sum: g.sum,
+      href: g.vendorId
+        ? `/finanse/faktury?vendor=${g.vendorId}`
+        : `/finanse/faktury?q=${encodeURIComponent(g.name)}`,
     }))
-    .filter((tv) => tv.vendor)
 
   const maxVendorSum = topVendors[0]?.sum || 1
 
@@ -168,13 +180,13 @@ export default async function FinanseHomePage() {
             <h2 className="font-semibold text-gray-900 mb-4">Niezapłacone wg kontrahenta (TOP 10)</h2>
             <div className="space-y-3.5">
               {topVendors.map((tv) => (
-                <div key={tv.vendor!.id}>
+                <div key={tv.name}>
                   <div className="flex items-baseline justify-between mb-1">
                     <Link
-                      href={`/finanse/faktury?vendor=${tv.vendor!.id}`}
+                      href={tv.href}
                       className="text-sm font-medium text-gray-900 hover:text-amber-600"
                     >
-                      {tv.vendor!.name}
+                      {tv.name}
                     </Link>
                     <span className="text-sm font-semibold text-gray-900 tabular-nums">
                       {fmtMoney(tv.sum)}
