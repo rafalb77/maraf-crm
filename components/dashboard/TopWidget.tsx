@@ -101,22 +101,22 @@ export function TopWidget() {
     return <GreetingHeader greeting={data.greeting} />
   }
 
-  // Bento v2: nagłówek (eyebrow + H1) nad siatką, potem Pogoda (span 4) + Aktualności (span 8).
+  // Bento v2: nagłówek (eyebrow + H1) nad siatką, potem Aktualności (span 8) + Pogoda (span 4).
   return (
     <>
       <GreetingHeader greeting={data.greeting} />
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-4">
         <div
-          className="lg:col-span-4 bg-white rounded-xl border border-gray-200 p-5 v2-card-in flex flex-col"
+          className="lg:col-span-8 bg-white rounded-xl border border-gray-200 p-5 v2-card-in"
           style={{ animationDelay: '0s' }}
         >
-          {data.weather ? <WeatherCard weather={data.weather} /> : <WeatherPlaceholder />}
+          {data.news ? <NewsCard news={data.news} /> : <NewsPlaceholder />}
         </div>
         <div
-          className="lg:col-span-8 bg-white rounded-xl border border-gray-200 p-5 v2-card-in"
+          className="lg:col-span-4 bg-white rounded-xl border border-gray-200 p-5 v2-card-in flex flex-col"
           style={{ animationDelay: '.06s' }}
         >
-          {data.news ? <NewsCard news={data.news} /> : <NewsPlaceholder />}
+          {data.weather ? <WeatherCard weather={data.weather} /> : <WeatherPlaceholder />}
         </div>
       </div>
     </>
