@@ -11,7 +11,7 @@ import { TopWidget } from '@/components/dashboard/TopWidget'
 import { TaskWidget } from '@/components/dashboard/TaskWidget'
 
 async function getDashboardData() {
-  const [unitsByStatus, residentialByStatus, clientsByStatus, openService, recentActivities, recentClients, revenueData] = await Promise.all([
+  const [unitsByStatus, residentialByStatus, clientsByStatus, openService, recentActivities, recentClients, revenueData, residentialAll, residentialSold] = await Promise.all([
     prisma.unit.groupBy({ by: ['status'], _count: true }),
     // Tylko lokale mieszkalne (bez usługowych, miejsc postojowych, garaży, komórek) — kafelek „Wolne mieszkania"
     prisma.unit.groupBy({ by: ['status'], where: { type: 'MIESZKALNY' }, _count: true }),
@@ -36,14 +36,26 @@ async function getDashboardData() {
       where: { status: 'SPRZEDANY' },
       _sum: { priceGross: true },
     }),
+    // Mieszkania: cały portfel (PUM inwestycji = suma powierzchni wszystkich MIESZKALNY)
+    prisma.unit.aggregate({
+      where: { type: 'MIESZKALNY' },
+      _sum: { area: true, priceGross: true },
+      _count: true,
+    }),
+    // Mieszkania sprzedane: wartość, powierzchnia (PUM sprzedane), sztuki
+    prisma.unit.aggregate({
+      where: { type: 'MIESZKALNY', status: 'SPRZEDANY' },
+      _sum: { area: true, priceGross: true },
+      _count: true,
+    }),
   ])
 
-  return { unitsByStatus, residentialByStatus, clientsByStatus, openService, recentActivities, recentClients, revenueData }
+  return { unitsByStatus, residentialByStatus, clientsByStatus, openService, recentActivities, recentClients, revenueData, residentialAll, residentialSold }
 }
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions)
-  const { unitsByStatus, residentialByStatus, clientsByStatus, openService, recentActivities, recentClients, revenueData } = await getDashboardData()
+  const { unitsByStatus, residentialByStatus, clientsByStatus, openService, recentActivities, recentClients, revenueData, residentialAll, residentialSold } = await getDashboardData()
 
   const unitStats = Object.fromEntries(unitsByStatus.map((u) => [u.status, u._count]))
   const residentialStats = Object.fromEntries(residentialByStatus.map((u) => [u.status, u._count]))
@@ -54,6 +66,14 @@ export default async function DashboardPage() {
   const revenue = revenueData._sum.priceGross || 0
   const soldUnits = unitStats['SPRZEDANY'] || 0
   const soldPct = totalUnits > 0 ? Math.round((soldUnits / totalUnits) * 100) : 0
+
+  // Mieszkania (MIESZKALNY): sztuki, wartość i PUM — % PUM liczony po powierzchni
+  const mSoldCount = residentialSold._count
+  const mSoldValue = residentialSold._sum.priceGross || 0
+  const mSoldArea = residentialSold._sum.area || 0
+  const mTotalArea = residentialAll._sum.area || 0
+  const pumPct = mTotalArea > 0 ? Math.round((mSoldArea / mTotalArea) * 100) : 0
+  const fmtM2 = (n: number) => `${Math.round(n).toLocaleString('pl-PL')} m²`
 
   return (
     <div className="p-8">
@@ -66,7 +86,7 @@ export default async function DashboardPage() {
       {/* Bento: hero „Sprzedaż łącznie" (navy + złota poświata) + KPI 2×2 */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-4">
         <div
-          className="lg:col-span-7 v2-card-in relative overflow-hidden rounded-[24px] p-[30px] flex flex-col justify-center"
+          className="lg:col-span-7 v2-card-in relative overflow-hidden rounded-[24px] p-6 flex flex-col justify-center"
           style={{
             background:
               'radial-gradient(620px 320px at 108% 130%, rgba(201,163,122,.30), transparent 62%), linear-gradient(150deg, #2C3E54 0%, #1F2D3F 55%, #161E2B 100%)',
@@ -78,16 +98,16 @@ export default async function DashboardPage() {
             Sprzedaż łącznie
           </div>
           <div
-            className="mt-2.5 font-bold tabular-nums"
-            style={{ fontSize: 46, letterSpacing: '-0.02em', color: '#F2E8D6', lineHeight: 1.15 }}
+            className="mt-1.5 font-bold tabular-nums"
+            style={{ fontSize: 30, letterSpacing: '-0.02em', color: '#F2E8D6', lineHeight: 1.15 }}
           >
             {formatCurrency(revenue)}
           </div>
-          <div className="mt-1.5 text-[13px]" style={{ color: 'rgba(242,232,214,.65)' }}>
+          <div className="mt-1 text-xs" style={{ color: 'rgba(242,232,214,.65)' }}>
             {soldUnits} z {totalUnits} lokali sprzedanych · {soldPct}% inwestycji
           </div>
           <div
-            className="mt-5 h-2 rounded-full overflow-hidden max-w-[440px]"
+            className="mt-3 h-1.5 rounded-full overflow-hidden max-w-[440px]"
             style={{ background: 'rgba(242,232,214,.14)' }}
           >
             <div
@@ -99,6 +119,46 @@ export default async function DashboardPage() {
                 transition: 'width .7s ease',
               }}
             />
+          </div>
+
+          {/* Mieszkania (MIESZKALNY): wartość sprzedanych, sztuki i % PUM po powierzchni */}
+          <div
+            className="mt-3.5 pt-3 grid grid-cols-3 gap-4 max-w-[560px]"
+            style={{ borderTop: '1px solid rgba(242,232,214,.12)' }}
+          >
+            <div>
+              <div className="v2-eyebrow" style={{ color: 'var(--color-brand-gold)' }}>
+                Mieszkania
+              </div>
+              <div className="mt-0.5 font-bold tabular-nums" style={{ fontSize: 16, color: '#F2E8D6' }}>
+                {mSoldCount} z {totalResidential}
+              </div>
+              <div className="text-[11px]" style={{ color: 'rgba(242,232,214,.65)' }}>
+                sprzedanych
+              </div>
+            </div>
+            <div>
+              <div className="v2-eyebrow" style={{ color: 'var(--color-brand-gold)' }}>
+                Wartość
+              </div>
+              <div className="mt-0.5 font-bold tabular-nums" style={{ fontSize: 16, color: '#F2E8D6' }}>
+                {formatCurrency(mSoldValue)}
+              </div>
+              <div className="text-[11px]" style={{ color: 'rgba(242,232,214,.65)' }}>
+                sprzedane mieszkania
+              </div>
+            </div>
+            <div>
+              <div className="v2-eyebrow" style={{ color: 'var(--color-brand-gold)' }}>
+                PUM
+              </div>
+              <div className="mt-0.5 font-bold tabular-nums" style={{ fontSize: 16, color: '#F2E8D6' }}>
+                {pumPct}%
+              </div>
+              <div className="text-[11px]" style={{ color: 'rgba(242,232,214,.65)' }}>
+                {fmtM2(mSoldArea)} z {fmtM2(mTotalArea)}
+              </div>
+            </div>
           </div>
         </div>
 
@@ -260,14 +320,14 @@ function KpiCard({ title, value, sub, color, icon }: {
     red: 'text-red-700',
   }
   return (
-    <div className={`rounded-xl border p-5 ${bg[color] || 'bg-gray-50 border-gray-200'}`}>
+    <div className={`rounded-xl border p-4 ${bg[color] || 'bg-gray-50 border-gray-200'}`}>
       <div className="flex items-start justify-between">
         <div>
           <p className="text-sm text-gray-500">{title}</p>
-          <p className={`text-3xl font-bold mt-1 ${text[color] || 'text-gray-900'}`}>{value}</p>
-          <p className="text-xs text-gray-500 mt-1">{sub}</p>
+          <p className={`text-2xl font-bold mt-0.5 tabular-nums ${text[color] || 'text-gray-900'}`}>{value}</p>
+          <p className="text-xs text-gray-500 mt-0.5">{sub}</p>
         </div>
-        <span className="text-2xl">{icon}</span>
+        <span className="text-xl">{icon}</span>
       </div>
     </div>
   )
