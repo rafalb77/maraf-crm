@@ -230,37 +230,192 @@ export async function getAgingBuckets(company: Company): Promise<AgingBuckets> {
 
 export type TopVendorRow = { id: string; name: string; total: number; unpaid: number; count: number }
 
+const UNPAID_STATUSES = new Set(['ZATWIERDZONA', 'CZESCIOWO_OPLACONA', 'ZAPLANOWANA', 'WPROWADZONA', 'DO_ZATWIERDZENIA'])
+
+// Grupowanie po FAKTYCZNYM wykonawcy: subVendor || vendor.name.
+// Import z Excela trzymal parasole (STAFFA) jako vendora, a wykonawce
+// w subVendor — parasol to grupa kosztowa, nie kontrahent.
 export async function getTopVendors(company: Company, limit = 10): Promise<TopVendorRow[]> {
-  const grouped = await prisma.purchaseInvoice.groupBy({
-    by: ['vendorId'],
+  const invoices = await prisma.purchaseInvoice.findMany({
     where: { company, status: { not: 'ANULOWANA' } },
-    _sum: { amountGross: true },
-    _count: true,
-    orderBy: { _sum: { amountGross: 'desc' } },
-    take: limit,
+    select: {
+      amountGross: true, deposit: true, buildingCosts: true, electricity: true,
+      subVendor: true, status: true,
+      vendor: { select: { id: true, name: true } },
+      payments: { select: { amount: true } },
+    },
   })
-  if (grouped.length === 0) return []
-  const ids = grouped.map((g) => g.vendorId)
-  const [vendors, unpaidGrouped] = await Promise.all([
-    prisma.vendor.findMany({ where: { id: { in: ids } }, select: { id: true, name: true } }),
-    prisma.purchaseInvoice.findMany({
-      where: { company, vendorId: { in: ids }, status: { in: ['ZATWIERDZONA', 'CZESCIOWO_OPLACONA', 'ZAPLANOWANA', 'WPROWADZONA'] } },
-      select: { vendorId: true, amountGross: true, deposit: true, buildingCosts: true, electricity: true, payments: { select: { amount: true } } },
-    }),
-  ])
-  const nameMap = new Map(vendors.map((v) => [v.id, v.name]))
-  const unpaidMap = new Map<string, number>()
-  for (const inv of unpaidGrouped) {
-    const remaining = Math.max(0, inv.amountGross - (inv.deposit || 0) - (inv.buildingCosts || 0) - (inv.electricity || 0) - inv.payments.reduce((s, p) => s + p.amount, 0))
-    unpaidMap.set(inv.vendorId, (unpaidMap.get(inv.vendorId) || 0) + remaining)
+  const groups = new Map<string, TopVendorRow>()
+  for (const inv of invoices) {
+    const name = inv.subVendor?.trim() || inv.vendor.name
+    const g = groups.get(name) || { id: name, name, total: 0, unpaid: 0, count: 0 }
+    g.total += inv.amountGross
+    g.count += 1
+    if (UNPAID_STATUSES.has(inv.status)) {
+      g.unpaid += Math.max(0, inv.amountGross - (inv.deposit || 0) - (inv.buildingCosts || 0) - (inv.electricity || 0) - inv.payments.reduce((s, p) => s + p.amount, 0))
+    }
+    groups.set(name, g)
   }
-  return grouped.map((g) => ({
-    id: g.vendorId,
-    name: nameMap.get(g.vendorId) || g.vendorId,
-    total: g._sum.amountGross || 0,
-    unpaid: unpaidMap.get(g.vendorId) || 0,
-    count: g._count,
-  }))
+  return [...groups.values()].sort((a, b) => b.total - a.total).slice(0, limit)
+}
+
+// =========================================================================
+// 4b. TERMINOWOSC PLATNOSCI — kto placony przed terminem, kto po (i ile)
+// =========================================================================
+
+export type PunctualityRow = {
+  name: string        // faktyczny wykonawca (subVendor || vendor.name)
+  paidTotal: number   // suma wplat (tylko FV z terminem platnosci)
+  earlyAmount: number // zaplacone w terminie lub przed (paidAt <= dueDate)
+  lateAmount: number  // zaplacone po terminie
+  avgDays: number     // srednia wazona kwota: dodatnia = dni PO terminie, ujemna = przed
+  maxLateDays: number // najwieksze opoznienie pojedynczej wplaty (dni)
+}
+
+export type PunctualityData = {
+  rows: PunctualityRow[]
+  totalEarly: number  // globalnie: kwoty zaplacone w terminie/przed (okno 12 mc)
+  totalLate: number   // globalnie: kwoty zaplacone po terminie
+}
+
+// Okno: wplaty z ostatnich 12 miesiecy (swiezy obraz dyscypliny platniczej).
+export async function getPaymentPunctuality(company: Company, limit = 10): Promise<PunctualityData> {
+  const since = new Date(); since.setMonth(since.getMonth() - 12); since.setHours(0, 0, 0, 0)
+  const invoices = await prisma.purchaseInvoice.findMany({
+    where: {
+      company,
+      status: { not: 'ANULOWANA' },
+      dueDate: { not: null },
+      payments: { some: { paidAt: { gte: since } } },
+    },
+    select: {
+      dueDate: true, subVendor: true,
+      vendor: { select: { name: true } },
+      payments: { select: { amount: true, paidAt: true } },
+    },
+  })
+  const groups = new Map<string, PunctualityRow & { weightedDays: number }>()
+  let totalEarly = 0
+  let totalLate = 0
+  for (const inv of invoices) {
+    const due = new Date(inv.dueDate!); due.setHours(0, 0, 0, 0)
+    const name = inv.subVendor?.trim() || inv.vendor.name
+    const g = groups.get(name) || { name, paidTotal: 0, earlyAmount: 0, lateAmount: 0, avgDays: 0, maxLateDays: 0, weightedDays: 0 }
+    for (const p of inv.payments) {
+      const paid = new Date(p.paidAt); paid.setHours(0, 0, 0, 0)
+      if (paid < since) continue
+      const days = Math.round((paid.getTime() - due.getTime()) / dayMs)
+      g.paidTotal += p.amount
+      if (days <= 0) { g.earlyAmount += p.amount; totalEarly += p.amount }
+      else { g.lateAmount += p.amount; totalLate += p.amount; g.maxLateDays = Math.max(g.maxLateDays, days) }
+      g.weightedDays += days * p.amount
+    }
+    if (g.paidTotal > 0) groups.set(name, g)
+  }
+  const rows = [...groups.values()]
+    .map(({ weightedDays, ...g }) => ({ ...g, avgDays: Math.round((weightedDays / g.paidTotal) * 10) / 10 }))
+    .sort((a, b) => b.paidTotal - a.paidTotal)
+    .slice(0, limit)
+  return { rows, totalEarly, totalLate }
+}
+
+// =========================================================================
+// 4c. NAJWIEKSZE WYDATKI WG WYKONAWCY — TOP 10, okresy YTD / 12mc / calosc
+// =========================================================================
+
+export type TopSpendRow = {
+  name: string
+  total: number     // suma brutto FV w okresie
+  paid: number      // suma wplat do tych FV
+  remaining: number // pozostalo (naleznosc po potraceniach - wplaty, statusy niezaplacone)
+  count: number
+  pct: number       // udzial w wydatkach okresu (0-100)
+}
+export type TopSpendData = { ytd: TopSpendRow[]; m12: TopSpendRow[]; all: TopSpendRow[] }
+
+export async function getTopSpendByContractor(company: Company, limit = 10): Promise<TopSpendData> {
+  const invoices = await prisma.purchaseInvoice.findMany({
+    where: { company, status: { notIn: ['ANULOWANA', 'ODRZUCONA'] } },
+    select: {
+      issueDate: true, amountGross: true, deposit: true, buildingCosts: true, electricity: true,
+      status: true, subVendor: true,
+      vendor: { select: { name: true } },
+      payments: { select: { amount: true } },
+    },
+  })
+  const now = new Date()
+  const ytdStart = new Date(now.getFullYear(), 0, 1)
+  const m12Start = new Date(now); m12Start.setMonth(m12Start.getMonth() - 12)
+
+  function build(from: Date | null): TopSpendRow[] {
+    const groups = new Map<string, TopSpendRow>()
+    let periodTotal = 0
+    for (const inv of invoices) {
+      if (from && inv.issueDate < from) continue
+      const name = inv.subVendor?.trim() || inv.vendor.name
+      const g = groups.get(name) || { name, total: 0, paid: 0, remaining: 0, count: 0, pct: 0 }
+      const paid = inv.payments.reduce((s, p) => s + p.amount, 0)
+      g.total += inv.amountGross
+      g.paid += paid
+      g.count += 1
+      periodTotal += inv.amountGross
+      if (UNPAID_STATUSES.has(inv.status)) {
+        g.remaining += Math.max(0, inv.amountGross - (inv.deposit || 0) - (inv.buildingCosts || 0) - (inv.electricity || 0) - paid)
+      }
+      groups.set(name, g)
+    }
+    return [...groups.values()]
+      .sort((a, b) => b.total - a.total)
+      .slice(0, limit)
+      .map((g) => ({ ...g, pct: periodTotal > 0 ? Math.round((g.total / periodTotal) * 1000) / 10 : 0 }))
+  }
+
+  return { ytd: build(ytdStart), m12: build(m12Start), all: build(null) }
+}
+
+// =========================================================================
+// 4d. OS NADCHODZACYCH PLATNOSCI — zalegle + 6 tygodni + pozniej
+// =========================================================================
+
+export type TimelineBucket = {
+  key: string          // 'overdue' | 'w0'..'w5' | 'later'
+  label: string        // np. '8–14.07'
+  sum: number
+  count: number
+}
+
+export async function getUpcomingPayments(company: Company): Promise<TimelineBucket[]> {
+  const invoices = await prisma.purchaseInvoice.findMany({
+    where: {
+      company,
+      status: { in: [...UNPAID_STATUSES] },
+      dueDate: { not: null },
+    },
+    select: {
+      dueDate: true, amountGross: true, deposit: true, buildingCosts: true, electricity: true,
+      payments: { select: { amount: true } },
+    },
+  })
+  const today = new Date(); today.setHours(0, 0, 0, 0)
+  const fmtD = (d: Date) => `${d.getDate()}.${String(d.getMonth() + 1).padStart(2, '0')}`
+  const buckets: TimelineBucket[] = [{ key: 'overdue', label: 'Zaległe', sum: 0, count: 0 }]
+  for (let k = 0; k < 6; k++) {
+    const from = new Date(today.getTime() + k * 7 * dayMs)
+    const to = new Date(today.getTime() + ((k + 1) * 7 - 1) * dayMs)
+    buckets.push({ key: `w${k}`, label: `${fmtD(from)}–${fmtD(to)}`, sum: 0, count: 0 })
+  }
+  buckets.push({ key: 'later', label: 'Później', sum: 0, count: 0 })
+
+  for (const inv of invoices) {
+    const remaining = Math.max(0, inv.amountGross - (inv.deposit || 0) - (inv.buildingCosts || 0) - (inv.electricity || 0) - inv.payments.reduce((s, p) => s + p.amount, 0))
+    if (remaining < 0.01) continue
+    const due = new Date(inv.dueDate!); due.setHours(0, 0, 0, 0)
+    const diffDays = Math.floor((due.getTime() - today.getTime()) / dayMs)
+    const bucket = diffDays < 0 ? buckets[0] : diffDays < 42 ? buckets[1 + Math.floor(diffDays / 7)] : buckets[buckets.length - 1]
+    bucket.sum += remaining
+    bucket.count += 1
+  }
+  return buckets
 }
 
 // =========================================================================

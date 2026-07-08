@@ -2,6 +2,10 @@ import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
 import { fmtMoney, fmtMoneyShort } from '@/lib/finanse-format'
 import { getActiveCompany } from '@/lib/finanse-company'
+import { getTopSpendByContractor, getPaymentPunctuality, getUpcomingPayments } from '@/lib/finanse-stats'
+import { TopSpendChart } from '@/components/finanse/stats/TopSpendChart'
+import { PaymentPunctualityChart } from '@/components/finanse/stats/PaymentPunctualityChart'
+import { UpcomingTimeline } from '@/components/finanse/stats/UpcomingTimeline'
 
 export default async function FinanseHomePage() {
   const company = getActiveCompany()
@@ -84,8 +88,8 @@ export default async function FinanseHomePage() {
     }),
   ])
 
-  // Kaucje gwarancyjne — zatrzymane (niezwrocone)
-  const [depositActive, depositSoon] = await Promise.all([
+  // Kaucje gwarancyjne — zatrzymane (niezwrocone) + widzety analityczne
+  const [depositActive, depositSoon, topSpend, punctuality, timeline] = await Promise.all([
     prisma.purchaseInvoice.aggregate({
       where: { company, deposit: { gt: 0 }, depositReturnedAt: null },
       _sum: { deposit: true },
@@ -94,6 +98,9 @@ export default async function FinanseHomePage() {
     prisma.purchaseInvoice.count({
       where: { company, deposit: { gt: 0 }, depositReturnedAt: null, depositReturnDate: { lte: in30 } },
     }),
+    getTopSpendByContractor(company),
+    getPaymentPunctuality(company),
+    getUpcomingPayments(company),
   ])
 
   // Grupowanie po faktycznym wykonawcy: subVendor || nazwa vendora.
@@ -171,6 +178,17 @@ export default async function FinanseHomePage() {
           </div>
         </Link>
       )}
+
+      {/* Os czasu nadchodzacych platnosci — zalegle + 6 tygodni */}
+      <div className="mb-6">
+        <UpcomingTimeline buckets={timeline} />
+      </div>
+
+      {/* Analityka: najwieksze wydatki + terminowosc platnosci */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start mb-6">
+        <TopSpendChart data={topSpend} />
+        {punctuality.rows.length > 0 && <PaymentPunctualityChart data={punctuality} />}
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 items-start">
         {topVendors.length > 0 && (
