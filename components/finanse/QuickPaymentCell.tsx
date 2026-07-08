@@ -69,7 +69,7 @@ export function QuickPaymentCell({ invoiceId, remaining, status, kind }: Props) 
     return (
       <button
         onClick={openForm}
-        className="text-xs text-blue-600 hover:text-blue-800 whitespace-nowrap"
+        className="inline-flex items-center bg-blue-600 hover:bg-blue-700 text-white px-2.5 py-1 rounded-md text-xs font-medium whitespace-nowrap"
         title={`Dodaj ${label} (pozostało ${fmtMoney(remaining)})`}
       >
         + {label}
@@ -77,30 +77,37 @@ export function QuickPaymentCell({ invoiceId, remaining, status, kind }: Props) 
     )
   }
 
+  // Edytor rozwijany pionowo (kwota / data / przyciski) — kolumna zostaje waska,
+  // tabela sie nie rozpycha przy dodawaniu platnosci.
   return (
-    <div className="min-w-[180px]">
-      <div className="flex items-center gap-1">
-        <input
-          autoFocus
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter') save(); if (e.key === 'Escape') setOpen(false) }}
-          className="px-2 py-1 border border-blue-300 rounded text-xs tabular-nums w-24"
-          placeholder="kwota"
-          title={`Pozostało: ${fmtMoney(remaining)}`}
-        />
-        <input
-          type="date"
-          value={paidAt}
-          onChange={(e) => setPaidAt(e.target.value)}
-          className="px-1.5 py-1 border border-blue-300 rounded text-xs w-[110px]"
-        />
-        <button onClick={save} disabled={saving || !amount || !paidAt} className="text-green-600 text-sm disabled:opacity-40" title="Zapisz">
-          {saving ? '…' : '✓'}
+    <div className="flex flex-col gap-1 w-[128px]">
+      <input
+        autoFocus
+        value={amount}
+        onChange={(e) => setAmount(e.target.value)}
+        onKeyDown={(e) => { if (e.key === 'Enter') save(); if (e.key === 'Escape') setOpen(false) }}
+        className="px-2 py-1 border border-blue-300 rounded text-xs tabular-nums w-full"
+        placeholder="kwota"
+        title={`Pozostało: ${fmtMoney(remaining)}`}
+      />
+      <input
+        type="date"
+        value={paidAt}
+        onChange={(e) => setPaidAt(e.target.value)}
+        className="px-1.5 py-1 border border-blue-300 rounded text-xs w-full"
+      />
+      <div className="flex items-center gap-2">
+        <button
+          onClick={save}
+          disabled={saving || !amount || !paidAt}
+          className="flex-1 bg-blue-600 hover:bg-blue-700 text-white rounded py-1 text-xs font-medium disabled:opacity-40"
+          title="Zapisz"
+        >
+          {saving ? '…' : 'Zapisz'}
         </button>
-        <button onClick={() => setOpen(false)} className="text-gray-400 text-sm" title="Anuluj">✗</button>
+        <button onClick={() => setOpen(false)} className="text-gray-400 hover:text-gray-600 text-sm px-1" title="Anuluj">✗</button>
       </div>
-      {error && <p className="text-[11px] text-red-600 mt-1 max-w-[220px]">{error}</p>}
+      {error && <p className="text-[11px] text-red-600">{error}</p>}
     </div>
   )
 }

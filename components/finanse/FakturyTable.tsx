@@ -116,7 +116,7 @@ export function FakturyTable({ rows, totals, currentSort, sortOptions }: Props) 
         <table className="w-full text-sm">
           <thead className="bg-gray-50 border-b border-gray-200 text-left">
             <tr>
-              <th className="px-3 py-3 w-8">
+              <th className="px-1.5 py-3 w-8">
                 <input type="checkbox" checked={allOnPageSelected} onChange={toggleAll} title="Zaznacz wszystkie na stronie" />
               </th>
               <SortableTh colKey="vendor" label="Kontrahent" currentSort={currentSort} onSort={onSort} />
@@ -128,9 +128,9 @@ export function FakturyTable({ rows, totals, currentSort, sortOptions }: Props) 
               <SortableTh colKey="amountVat" label="Kwota VAT" align="right" currentSort={currentSort} onSort={onSort} />
               <SortableTh colKey="amountGross" label="Brutto" align="right" currentSort={currentSort} onSort={onSort} />
               <SortableTh colKey="status" label="Status" currentSort={currentSort} onSort={onSort} />
-              <th className="px-3 py-3 font-medium text-gray-700">Kategoria</th>
-              <th className="px-3 py-3 font-medium text-gray-700">Komentarz</th>
-              <th className="px-3 py-3 font-medium text-gray-700">Płatność</th>
+              <th className="px-1.5 py-3 font-medium text-gray-700">Kategoria</th>
+              <th className="px-1.5 py-3 font-medium text-gray-700">Komentarz</th>
+              <th className="px-1.5 py-3 font-medium text-gray-700">Płatność</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
@@ -143,55 +143,58 @@ export function FakturyTable({ rows, totals, currentSort, sortOptions }: Props) 
               const isSel = selected.has(r.id)
               return (
                 <tr key={r.id} className={isSel ? 'bg-blue-50/50' : 'hover:bg-gray-50'}>
-                  <td className="px-3 py-2">
+                  <td className="px-1.5 py-2">
                     <input type="checkbox" checked={isSel} onChange={() => toggle(r.id)} />
                   </td>
-                  <td className="px-3 py-2">
+                  {/* Szerokosc kolumny ograniczona (w-[150px]) — dlugie nazwy obcinane
+                      wielokropkiem, pelna nazwa w tooltipie (title). Kluczowy prefix
+                      (np. PATRIMEX) zostaje widoczny; tabela miesci sie na laptopie. */}
+                  <td className="px-1.5 py-2 w-[120px] max-w-[120px]">
                     {/* Gdy jest podkontrahent (np. Janpol/PATRIMEX pod STAFFA) — to ON
                         jest faktycznym kontrahentem (duzy), a parasol (STAFFA) maly nad nim. */}
                     {r.subVendor ? (
                       <>
-                        <div className="text-[11px] text-gray-400 leading-tight">{r.vendorName}</div>
-                        <div className="font-semibold text-gray-900 flex items-center gap-1.5">
-                          {r.subVendor}
+                        <div className="text-[11px] text-gray-400 leading-tight truncate" title={r.vendorName}>{r.vendorName}</div>
+                        <div className="font-semibold text-gray-900 flex items-center gap-1.5 min-w-0">
+                          <span className="truncate" title={r.subVendor}>{r.subVendor}</span>
                           {r.company === 'MARAF_DEVELOPMENT' && (
-                            <span className="text-[10px] bg-purple-100 text-purple-700 px-1 rounded">MD</span>
+                            <span className="text-[10px] bg-purple-100 text-purple-700 px-1 rounded shrink-0">MD</span>
                           )}
                         </div>
                       </>
                     ) : (
-                      <div className="font-semibold text-gray-900 flex items-center gap-1.5">
-                        {r.vendorName}
+                      <div className="font-semibold text-gray-900 flex items-center gap-1.5 min-w-0">
+                        <span className="truncate" title={r.vendorName}>{r.vendorName}</span>
                         {r.company === 'MARAF_DEVELOPMENT' && (
-                          <span className="text-[10px] bg-purple-100 text-purple-700 px-1 rounded">MD</span>
+                          <span className="text-[10px] bg-purple-100 text-purple-700 px-1 rounded shrink-0">MD</span>
                         )}
                       </div>
                     )}
                   </td>
-                  <td className="px-3 py-2">
+                  <td className="px-1.5 py-2">
                     <Link href={`/finanse/faktury/${r.id}`} className="text-blue-600 hover:underline font-mono text-xs">{r.number}</Link>
                     {r.isKsef && (
                       <span className="ml-1.5 text-[10px] bg-sky-100 text-sky-700 px-1 rounded font-medium align-middle" title="Pobrana z KSeF">KSeF</span>
                     )}
                   </td>
-                  <td className="px-3 py-2 text-gray-600 tabular-nums whitespace-nowrap">{fmtDate(r.issueDate)}</td>
-                  <td className={`px-3 py-2 tabular-nums whitespace-nowrap ${overdue ? 'text-red-600 font-semibold' : 'text-gray-600'}`}>
+                  <td className="px-1.5 py-2 text-gray-600 tabular-nums whitespace-nowrap">{fmtDate(r.issueDate)}</td>
+                  <td className={`px-1.5 py-2 tabular-nums whitespace-nowrap ${overdue ? 'text-red-600 font-semibold' : 'text-gray-600'}`}>
                     {fmtDate(r.dueDate)}{overdue && ' ⚠'}
                   </td>
-                  <td className="px-3 py-2 text-right tabular-nums text-gray-700">{fmtMoney(r.amountNet)}</td>
-                  <td className="px-3 py-2 text-right tabular-nums text-gray-500">{(r.vatRate * 100).toFixed(0)}%</td>
-                  <td className="px-3 py-2 text-right tabular-nums text-gray-700">{fmtMoney(r.amountVat)}</td>
-                  <td className={`px-3 py-2 text-right tabular-nums font-semibold ${unpaid ? 'text-red-600' : 'text-gray-900'}`}>
+                  <td className="px-1.5 py-2 text-right tabular-nums text-gray-700">{fmtMoney(r.amountNet)}</td>
+                  <td className="px-1.5 py-2 text-right tabular-nums text-gray-500">{(r.vatRate * 100).toFixed(0)}%</td>
+                  <td className="px-1.5 py-2 text-right tabular-nums text-gray-700">{fmtMoney(r.amountVat)}</td>
+                  <td className={`px-1.5 py-2 text-right tabular-nums font-semibold ${unpaid ? 'text-red-600' : 'text-gray-900'}`}>
                     {fmtMoney(r.amountGross)}
                   </td>
-                  <td className="px-3 py-2">
+                  <td className="px-1.5 py-2">
                     <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
                       PURCHASE_INVOICE_STATUS_COLORS[r.status as PurchaseInvoiceStatus] || 'bg-gray-100 text-gray-700'
                     }`}>
                       {PURCHASE_INVOICE_STATUS_LABELS[r.status as PurchaseInvoiceStatus] || r.status}
                     </span>
                   </td>
-                  <td className="px-3 py-2">
+                  <td className="px-1.5 py-2">
                     {r.category ? (
                       <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
                         PURCHASE_INVOICE_CATEGORY_COLORS[r.category as PurchaseInvoiceCategory] || 'bg-gray-100 text-gray-600'
@@ -202,10 +205,10 @@ export function FakturyTable({ rows, totals, currentSort, sortOptions }: Props) 
                       <span className="text-gray-300 text-xs">—</span>
                     )}
                   </td>
-                  <td className="px-3 py-2">
+                  <td className="px-1.5 py-2">
                     <CommentCell invoiceId={r.id} initial={r.notes} />
                   </td>
-                  <td className="px-3 py-2">
+                  <td className="px-1.5 py-2">
                     <QuickPaymentCell invoiceId={r.id} remaining={r.remaining} status={r.status} kind="purchase" />
                   </td>
                 </tr>
@@ -215,13 +218,13 @@ export function FakturyTable({ rows, totals, currentSort, sortOptions }: Props) 
           {rows.length > 0 && (
             <tfoot className="bg-gray-50 border-t-2 border-gray-300 font-semibold text-gray-900">
               <tr>
-                <td colSpan={5} className="px-3 py-3">
+                <td colSpan={5} className="px-1.5 py-3">
                   Razem ({totals.count} faktur{totals.onPage < totals.count ? `, na stronie ${totals.onPage}` : ''})
                 </td>
-                <td className="px-3 py-3 text-right tabular-nums">{fmtMoney(totals.net)}</td>
+                <td className="px-1.5 py-3 text-right tabular-nums">{fmtMoney(totals.net)}</td>
                 <td></td>
-                <td className="px-3 py-3 text-right tabular-nums">{fmtMoney(totals.vat)}</td>
-                <td className="px-3 py-3 text-right tabular-nums">{fmtMoney(totals.gross)}</td>
+                <td className="px-1.5 py-3 text-right tabular-nums">{fmtMoney(totals.vat)}</td>
+                <td className="px-1.5 py-3 text-right tabular-nums">{fmtMoney(totals.gross)}</td>
                 <td colSpan={4}></td>
               </tr>
             </tfoot>
@@ -296,7 +299,7 @@ function SortableTh({
   const dir = isActive ? currentSort!.slice(colKey.length + 1) : null
   const arrow = isActive ? (dir === 'asc' ? ' ↑' : ' ↓') : ' ↕'
   return (
-    <th className={`px-3 py-3 font-medium ${align === 'right' ? 'text-right' : 'text-left'}`}>
+    <th className={`px-1.5 py-3 font-medium ${align === 'right' ? 'text-right' : 'text-left'}`}>
       <button
         type="button"
         onClick={() => onSort(colKey)}
