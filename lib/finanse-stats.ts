@@ -419,6 +419,122 @@ export async function getUpcomingPayments(company: Company): Promise<TimelineBuc
 }
 
 // =========================================================================
+// 4e. ZATORY W OBIEGU FAKTUR — jak dlugo FV wisza niezatwierdzone
+// =========================================================================
+
+export type PipelineBucket = { label: string; count: number; sum: number; color: 'green' | 'amber' | 'red' }
+export type PipelineData = {
+  buckets: PipelineBucket[]      // wiek w obiegu: 0-3 / 4-7 / >7 dni
+  total: number
+  totalSum: number
+  urgentCount: number            // z terminem platnosci < 7 dni (lub juz po)
+  urgentSum: number
+  wprowadzoneCount: number
+  doZatwierdzeniaCount: number
+}
+
+export async function getInvoicePipeline(company: Company): Promise<PipelineData> {
+  const invoices = await prisma.purchaseInvoice.findMany({
+    where: { company, status: { in: ['WPROWADZONA', 'DO_ZATWIERDZENIA'] } },
+    select: { amountGross: true, createdAt: true, dueDate: true, status: true },
+  })
+  const today = new Date(); today.setHours(0, 0, 0, 0)
+  const urgentLimit = new Date(today.getTime() + 7 * dayMs)
+  const buckets: PipelineBucket[] = [
+    { label: '0–3 dni', count: 0, sum: 0, color: 'green' },
+    { label: '4–7 dni', count: 0, sum: 0, color: 'amber' },
+    { label: '>7 dni', count: 0, sum: 0, color: 'red' },
+  ]
+  let urgentCount = 0
+  let urgentSum = 0
+  let wprowadzoneCount = 0
+  let doZatwierdzeniaCount = 0
+  for (const inv of invoices) {
+    const age = Math.floor((today.getTime() - new Date(inv.createdAt).setHours(0, 0, 0, 0)) / dayMs)
+    const b = age <= 3 ? buckets[0] : age <= 7 ? buckets[1] : buckets[2]
+    b.count += 1
+    b.sum += inv.amountGross
+    if (inv.dueDate && inv.dueDate < urgentLimit) { urgentCount += 1; urgentSum += inv.amountGross }
+    if (inv.status === 'WPROWADZONA') wprowadzoneCount += 1
+    else doZatwierdzeniaCount += 1
+  }
+  return {
+    buckets,
+    total: invoices.length,
+    totalSum: buckets.reduce((s, b) => s + b.sum, 0),
+    urgentCount, urgentSum, wprowadzoneCount, doZatwierdzeniaCount,
+  }
+}
+
+// =========================================================================
+// 4f. DPO — mediana dni od wystawienia do zaplaty (cykl platnosci)
+// =========================================================================
+
+export type DpoData = {
+  median3m: number | null   // mediana DPO faktur rozliczonych w ost. 3 mc
+  prevMedian3m: number | null // to samo dla poprzednich 3 mc (delta = median3m - prev)
+  latePct3m: number | null  // % KWOT rozliczonych po terminie (ost. 3 mc)
+  spark: { m: string; median: number | null }[] // 12 miesiecy median (wg mc rozliczenia)
+}
+
+function median(values: number[]): number | null {
+  if (!values.length) return null
+  const s = [...values].sort((a, b) => a - b)
+  const mid = Math.floor(s.length / 2)
+  return s.length % 2 ? s[mid] : Math.round((s[mid - 1] + s[mid]) / 2)
+}
+
+export async function getDpo(company: Company): Promise<DpoData> {
+  const since = new Date(); since.setMonth(since.getMonth() - 12); since.setDate(1); since.setHours(0, 0, 0, 0)
+  const invoices = await prisma.purchaseInvoice.findMany({
+    where: { company, status: 'OPLACONA', payments: { some: { paidAt: { gte: since } } } },
+    select: {
+      issueDate: true, dueDate: true, amountGross: true,
+      payments: { select: { paidAt: true } },
+    },
+  })
+  const now = new Date()
+  const d90 = new Date(now.getTime() - 90 * dayMs)
+  const d180 = new Date(now.getTime() - 180 * dayMs)
+
+  type Settled = { settle: Date; dpo: number; late: boolean; amount: number }
+  const settled: Settled[] = []
+  for (const inv of invoices) {
+    if (!inv.payments.length) continue
+    const settle = new Date(Math.max(...inv.payments.map((p) => new Date(p.paidAt).getTime())))
+    const dpo = Math.max(0, Math.round((settle.getTime() - new Date(inv.issueDate).getTime()) / dayMs))
+    const late = inv.dueDate ? settle.getTime() > new Date(inv.dueDate).setHours(23, 59, 59, 999) : false
+    settled.push({ settle, dpo, late, amount: inv.amountGross })
+  }
+
+  const last3 = settled.filter((s) => s.settle >= d90)
+  const prev3 = settled.filter((s) => s.settle >= d180 && s.settle < d90)
+  const late3Sum = last3.filter((s) => s.late).reduce((s, x) => s + x.amount, 0)
+  const total3Sum = last3.reduce((s, x) => s + x.amount, 0)
+
+  // Sparkline: mediana per miesiac rozliczenia, 12 mc
+  const spark: { m: string; median: number | null }[] = []
+  const byMonth = new Map<string, number[]>()
+  for (const s of settled) {
+    const k = `${s.settle.getFullYear()}-${String(s.settle.getMonth() + 1).padStart(2, '0')}`
+    if (!byMonth.has(k)) byMonth.set(k, [])
+    byMonth.get(k)!.push(s.dpo)
+  }
+  for (let i = 11; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+    const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+    spark.push({ m: k, median: median(byMonth.get(k) || []) })
+  }
+
+  return {
+    median3m: median(last3.map((s) => s.dpo)),
+    prevMedian3m: median(prev3.map((s) => s.dpo)),
+    latePct3m: total3Sum > 0 ? Math.round((late3Sum / total3Sum) * 100) : null,
+    spark,
+  }
+}
+
+// =========================================================================
 // 5. KONCENTRACJA RYZYKA — top 3 vs cala suma
 // =========================================================================
 
