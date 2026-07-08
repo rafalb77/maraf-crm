@@ -8,6 +8,7 @@ import {
   ACTIVITY_TYPE_LABELS, SERVICE_STATUS_COLORS, SERVICE_STATUS_LABELS
 } from '@/lib/types'
 import { TopWidget } from '@/components/dashboard/TopWidget'
+import { TaskWidget } from '@/components/dashboard/TaskWidget'
 
 async function getDashboardData() {
   const [unitsByStatus, residentialByStatus, clientsByStatus, openService, recentActivities, recentClients, revenueData] = await Promise.all([
@@ -58,6 +59,9 @@ export default async function DashboardPage() {
     <div className="p-8">
       {/* Top widget: powitanie + news dnia (per user.interests) + pogoda */}
       <TopWidget />
+
+      {/* Centrum zadań: przypomnienia z silnika reguł (rezerwacje, raty) + zadania ręczne */}
+      <TaskWidget />
 
       {/* Bento: hero „Sprzedaż łącznie" (navy + złota poświata) + KPI 2×2 */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-4">

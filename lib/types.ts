@@ -156,6 +156,41 @@ export const CASE_CHANNEL_LABELS: Record<CaseChannel, string> = {
   INNE: 'Inne',
 }
 
+// =====================================================================
+// MODUŁ: ZADANIA (centrum zadań „Do zrobienia" na pulpicie)
+// =====================================================================
+export type TaskType = 'TELEFON' | 'EMAIL' | 'SPOTKANIE' | 'REZERWACJA' | 'PLATNOSC' | 'SPRAWA' | 'INNE'
+export type TaskStatus = 'OTWARTE' | 'ZROBIONE' | 'ANULOWANE'
+// Koszyk pilności — liczony z dueAt względem dnia dzisiejszego (Europe/Warsaw)
+export type TaskBucket = 'PRZETERMINOWANE' | 'DZIS' | 'NADCHODZACE' | 'POZNIEJ'
+
+export const TASK_TYPE_LABELS: Record<TaskType, string> = {
+  TELEFON: 'Telefon',
+  EMAIL: 'E-mail',
+  SPOTKANIE: 'Spotkanie',
+  REZERWACJA: 'Rezerwacja',
+  PLATNOSC: 'Płatność',
+  SPRAWA: 'Sprawa',
+  INNE: 'Inne',
+}
+
+export const TASK_TYPE_ICONS: Record<TaskType, string> = {
+  TELEFON: '📞',
+  EMAIL: '✉️',
+  SPOTKANIE: '🤝',
+  REZERWACJA: '🏠',
+  PLATNOSC: '💰',
+  SPRAWA: '⚠️',
+  INNE: '📌',
+}
+
+export const TASK_BUCKET_LABELS: Record<TaskBucket, string> = {
+  PRZETERMINOWANE: 'Przeterminowane',
+  DZIS: 'Dziś',
+  NADCHODZACE: 'Nadchodzące',
+  POZNIEJ: 'Później',
+}
+
 // Reservation types
 export type ReservationType = 'MIEKKA' | 'REZERWACJA'
 
