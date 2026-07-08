@@ -102,7 +102,7 @@ export default async function FakturyListPage({
   const sortKey = searchParams.sort && SORT_OPTIONS[searchParams.sort] ? searchParams.sort : DEFAULT_SORT_KEY
   const sortDef = SORT_OPTIONS[sortKey]
 
-  const [invoices, total, vendors, statusCountsRaw, sums] = await Promise.all([
+  const [invoices, total, vendors, statusCountsRaw, sums, paymentsSum] = await Promise.all([
     prisma.purchaseInvoice.findMany({
       where,
       orderBy: sortDef.orderBy,
@@ -120,10 +120,18 @@ export default async function FakturyListPage({
       orderBy: { name: 'asc' },
     }),
     prisma.purchaseInvoice.groupBy({ by: ['status'], _count: true }),
-    // Podsumowanie CALEGO filtra (nie tylko strony)
+    // Podsumowanie CALEGO filtra (nie tylko strony) — kwoty + potracenia
     prisma.purchaseInvoice.aggregate({
       where,
-      _sum: { amountNet: true, amountVat: true, amountGross: true },
+      _sum: {
+        amountNet: true, amountVat: true, amountGross: true,
+        deposit: true, buildingCosts: true, electricity: true,
+      },
+    }),
+    // Suma wplat do faktur z filtra — do "Pozostalo" w stopce
+    prisma.purchaseInvoicePayment.aggregate({
+      where: { invoice: where },
+      _sum: { amount: true },
     }),
   ])
 
@@ -261,6 +269,12 @@ export default async function FakturyListPage({
           net: sums._sum.amountNet || 0,
           vat: sums._sum.amountVat || 0,
           gross: sums._sum.amountGross || 0,
+          // Pozostalo dla calego filtra = brutto - potracenia (kaucje/KB/prad) - wplaty
+          remaining: Math.round(((sums._sum.amountGross || 0)
+            - (sums._sum.deposit || 0)
+            - (sums._sum.buildingCosts || 0)
+            - (sums._sum.electricity || 0)
+            - (paymentsSum._sum.amount || 0)) * 100) / 100,
           count: total,
           onPage: rows.length,
         }}

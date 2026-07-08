@@ -35,7 +35,7 @@ export type FakturaRow = {
   isKsef?: boolean
 }
 
-type Totals = { net: number; vat: number; gross: number; count: number; onPage: number }
+type Totals = { net: number; vat: number; gross: number; remaining: number; count: number; onPage: number }
 
 const PAID_STATUSES = new Set(['OPLACONA', 'ANULOWANA'])
 
@@ -182,8 +182,11 @@ export function FakturyTable({ rows, totals, currentSort, sortOptions }: Props) 
 
       <div className="overflow-x-auto">
         {/* table-layout: fixed + colgroup — szerokosci kolumn sterowane stanem
-            (resize przeciaganiem prawej krawedzi naglowka, dblclick = reset). */}
-        <table className="text-sm" style={{ tableLayout: 'fixed', width: tableWidth }}>
+            (resize przeciaganiem prawej krawedzi naglowka, dblclick = reset).
+            width 100% + minWidth: na szerokich ekranach tabela wypelnia
+            kontener (nadmiar rozdzielany proporcjonalnie), na weszych trzyma
+            minimum i przewija poziomo. */}
+        <table className="text-sm" style={{ tableLayout: 'fixed', width: '100%', minWidth: tableWidth }}>
           <colgroup>
             {COLUMNS.map((c) => (
               <col key={c.key} style={{ width: (widths[c.key] ?? c.defaultW) + 'px' }} />
@@ -309,7 +312,10 @@ export function FakturyTable({ rows, totals, currentSort, sortOptions }: Props) 
                 <td></td>
                 <td className="px-1.5 py-3 text-right tabular-nums">{fmtMoney(totals.vat)}</td>
                 <td className="px-1.5 py-3 text-right tabular-nums">{fmtMoney(totals.gross)}</td>
-                <td colSpan={5}></td>
+                <td className={`px-1.5 py-3 text-right tabular-nums ${totals.remaining > 0.01 ? 'text-red-600' : 'text-gray-400'}`}>
+                  {totals.remaining > 0.01 ? fmtMoney(totals.remaining) : '—'}
+                </td>
+                <td colSpan={4}></td>
               </tr>
             </tfoot>
           )}
