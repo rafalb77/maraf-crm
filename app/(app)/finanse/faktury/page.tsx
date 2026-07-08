@@ -73,10 +73,14 @@ export default async function FakturyListPage({
     filters.push({ category: searchParams.category })
   }
   if (searchParams.q) {
+    // Szuka tez po nazwie vendora — dzieki temu q=<oficjalna nazwa> zbiera
+    // zarowno faktury vendora, jak i te pod parasolem (STAFFA) z ta sama
+    // etykieta subVendor (link "Niezaplacone wg kontrahenta" z pulpitu).
     filters.push({
       OR: [
         { number: { contains: searchParams.q, mode: 'insensitive' } },
         { subVendor: { contains: searchParams.q, mode: 'insensitive' } },
+        { vendor: { name: { contains: searchParams.q, mode: 'insensitive' } } },
         { description: { contains: searchParams.q, mode: 'insensitive' } },
       ],
     })
@@ -211,7 +215,7 @@ export default async function FakturyListPage({
         <input
           name="q"
           defaultValue={searchParams.q || ''}
-          placeholder="Numer FV, podkontr., opis..."
+          placeholder="Kontrahent, numer FV, podkontr., opis..."
           className="md:col-span-2 px-3 py-2 border border-gray-300 rounded-lg text-sm"
         />
         <select name="vendor" defaultValue={searchParams.vendor || ''} className="px-3 py-2 border border-gray-300 rounded-lg text-sm">

@@ -79,7 +79,6 @@ export default async function FinanseHomePage() {
       select: {
         amountGross: true,
         subVendor: true,
-        vendorId: true,
         vendor: { select: { name: true } },
       },
     }),
@@ -100,23 +99,22 @@ export default async function FinanseHomePage() {
   // Grupowanie po faktycznym wykonawcy: subVendor || nazwa vendora.
   // Link: po vendorze gdy grupa to "czysty" vendor, inaczej wyszukiwanie q=
   // (lista faktur szuka q w subVendor).
-  const groups = new Map<string, { name: string; sum: number; vendorId: string | null }>()
+  const groups = new Map<string, { name: string; sum: number }>()
   for (const inv of unpaidInvoicesRaw) {
     const name = inv.subVendor?.trim() || inv.vendor.name
-    const g = groups.get(name) || { name, sum: 0, vendorId: null }
+    const g = groups.get(name) || { name, sum: 0 }
     g.sum += inv.amountGross
-    if (!inv.subVendor?.trim()) g.vendorId = g.vendorId ?? inv.vendorId
     groups.set(name, g)
   }
+  // Link zawsze przez q= — wyszukiwarka listy matchuje nazwe vendora ORAZ
+  // subVendor, wiec zbiera tez faktury pod parasolem (STAFFA) z ta etykieta.
   const topVendors = [...groups.values()]
     .sort((a, b) => b.sum - a.sum)
     .slice(0, 10)
     .map((g) => ({
       name: g.name,
       sum: g.sum,
-      href: g.vendorId
-        ? `/finanse/faktury?vendor=${g.vendorId}`
-        : `/finanse/faktury?q=${encodeURIComponent(g.name)}`,
+      href: `/finanse/faktury?q=${encodeURIComponent(g.name)}`,
     }))
 
   const maxVendorSum = topVendors[0]?.sum || 1
