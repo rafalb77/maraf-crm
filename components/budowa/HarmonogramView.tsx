@@ -14,6 +14,7 @@ type Stage = {
   order: number
   plannedStart: string | null
   plannedEnd: string | null
+  notes?: string | null
 }
 type Task = {
   id: string
@@ -60,8 +61,20 @@ export function HarmonogramView({
   const [tasks, setTasks] = useState<Task[]>(initialTasks)
   const [saveStates, setSaveStates] = useState<Record<string, SaveState>>({})
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [showAdd, setShowAdd] = useState(false)
   const today = todayISO()
   const subName = useMemo(() => new Map(subcontractors.map((s) => [s.id, s.name])), [subcontractors])
+
+  async function deleteTask(id: string, name: string) {
+    if (!window.confirm(`Usunąć zadanie „${name}"? Tej operacji nie można cofnąć.`)) return
+    const res = await fetch(`/api/budowa/tasks/${id}`, { method: 'DELETE' })
+    if (res.ok) {
+      setTasks((ts) => ts.filter((t) => t.id !== id))
+    } else {
+      const data = await res.json().catch(() => ({}))
+      window.alert(data.error || 'Nie udało się usunąć')
+    }
+  }
 
   async function saveTask(id: string, patch: Partial<Task>) {
     // optymistycznie
@@ -133,6 +146,29 @@ export function HarmonogramView({
         </div>
       )}
 
+      {/* Ręczne dodawanie zadań/kamieni — uzupełnianie planu obok importu z Excela */}
+      <div className="mb-4">
+        {showAdd ? (
+          <AddTaskForm
+            stages={stages}
+            subcontractors={subcontractors}
+            onClose={() => setShowAdd(false)}
+            onAdded={(t) => {
+              setTasks((ts) => [...ts, t])
+              setShowAdd(false)
+            }}
+          />
+        ) : (
+          <button
+            type="button"
+            onClick={() => setShowAdd(true)}
+            className="px-4 py-2 rounded-lg border border-gray-300 bg-white text-sm font-medium"
+          >
+            ➕ Dodaj zadanie / kamień milowy
+          </button>
+        )}
+      </div>
+
       {groups.map((g) => (
         <StageBlock
           key={g.stage.id}
@@ -144,6 +180,7 @@ export function HarmonogramView({
           saveStates={saveStates}
           errors={errors}
           onSave={saveTask}
+          onDelete={deleteTask}
         />
       ))}
 
@@ -157,8 +194,132 @@ export function HarmonogramView({
           saveStates={saveStates}
           errors={errors}
           onSave={saveTask}
+          onDelete={deleteTask}
         />
       )}
+    </div>
+  )
+}
+
+function AddTaskForm({
+  stages,
+  subcontractors,
+  onClose,
+  onAdded,
+}: {
+  stages: Stage[]
+  subcontractors: Sub[]
+  onClose: () => void
+  onAdded: (task: Task) => void
+}) {
+  const [name, setName] = useState('')
+  const [stageId, setStageId] = useState(stages[0]?.id || '')
+  const [isMilestone, setIsMilestone] = useState(false)
+  const [start, setStart] = useState('')
+  const [end, setEnd] = useState('')
+  const [subId, setSubId] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function submit() {
+    setError(null)
+    setSaving(true)
+    try {
+      const res = await fetch('/api/budowa/tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name,
+          stageId: stageId || null,
+          isMilestone,
+          plannedStart: start,
+          plannedEnd: isMilestone ? start : end,
+          subcontractorId: subId || null,
+        }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || `Błąd (${res.status})`)
+      onAdded(data as Task)
+    } catch (e: any) {
+      setError(e?.message || 'Nie udało się dodać')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const inputCls = 'rounded-lg border border-gray-300 px-3 py-2 text-sm bg-white'
+
+  return (
+    <div className="bg-white rounded-xl border border-gray-200 p-4">
+      <div className="flex flex-wrap items-end gap-3">
+        <label className="flex flex-col gap-1 text-xs text-gray-500 flex-1 min-w-[220px]">
+          Nazwa
+          <input
+            className={inputCls}
+            placeholder={isMilestone ? 'Np. Odbiór stanu surowego' : 'Np. Tynki wewnętrzne kl. B'}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            autoFocus
+          />
+        </label>
+        <label className="flex flex-col gap-1 text-xs text-gray-500">
+          Etap
+          <select className={inputCls} value={stageId} onChange={(e) => setStageId(e.target.value)}>
+            <option value="">— bez etapu —</option>
+            {stages.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="flex items-center gap-2 text-sm pb-2">
+          <input
+            type="checkbox"
+            checked={isMilestone}
+            onChange={(e) => setIsMilestone(e.target.checked)}
+          />
+          ◆ kamień milowy
+        </label>
+        <label className="flex flex-col gap-1 text-xs text-gray-500">
+          {isMilestone ? 'Termin' : 'Od'}
+          <input type="date" className={inputCls} value={start} onChange={(e) => setStart(e.target.value)} />
+        </label>
+        {!isMilestone && (
+          <label className="flex flex-col gap-1 text-xs text-gray-500">
+            Do
+            <input type="date" className={inputCls} value={end} onChange={(e) => setEnd(e.target.value)} />
+          </label>
+        )}
+        {!isMilestone && (
+          <label className="flex flex-col gap-1 text-xs text-gray-500">
+            Wykonawca
+            <select className={inputCls} value={subId} onChange={(e) => setSubId(e.target.value)}>
+              <option value="">—</option>
+              {subcontractors.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        <div className="flex gap-2 pb-0.5">
+          <button
+            type="button"
+            onClick={submit}
+            disabled={saving || name.trim().length < 2 || !start || (!isMilestone && !end)}
+            className="px-4 py-2 rounded-lg text-white text-sm font-semibold disabled:opacity-50"
+            style={{ background: '#1F2D3F' }}
+          >
+            {saving ? 'Dodawanie…' : 'Dodaj'}
+          </button>
+          <button type="button" onClick={onClose} className="px-3 py-2 rounded-lg border border-gray-300 text-sm">
+            Anuluj
+          </button>
+        </div>
+      </div>
+      {error && <div className="mt-2 text-xs text-red-600">{error}</div>}
     </div>
   )
 }
@@ -182,6 +343,7 @@ function StageBlock({
   saveStates,
   errors,
   onSave,
+  onDelete,
 }: {
   stage: Stage
   tasks: Task[]
@@ -191,6 +353,7 @@ function StageBlock({
   saveStates: Record<string, SaveState>
   errors: Record<string, string>
   onSave: (id: string, patch: Partial<Task>) => void
+  onDelete: (id: string, name: string) => void
 }) {
   const [open, setOpen] = useState(true)
   const stageProgress =
@@ -227,8 +390,15 @@ function StageBlock({
 
       {open && (
         <div className="divide-y divide-gray-100">
+          {stage.notes && (
+            <div className="px-5 py-3 text-xs text-gray-500 whitespace-pre-wrap bg-amber-50/40">
+              {stage.notes}
+            </div>
+          )}
           {tasks.length === 0 && (
-            <div className="px-5 py-4 text-sm text-gray-400">Brak zadań w tym etapie.</div>
+            <div className="px-5 py-4 text-sm text-gray-400">
+              Brak zadań w tym etapie — dodaj przyciskiem „➕ Dodaj zadanie" powyżej.
+            </div>
           )}
           {tasks.map((t) => (
             <TaskRow
@@ -240,6 +410,7 @@ function StageBlock({
               saveState={saveStates[t.id] || 'idle'}
               error={errors[t.id]}
               onSave={onSave}
+              onDelete={onDelete}
             />
           ))}
         </div>
@@ -256,6 +427,7 @@ function TaskRow({
   saveState,
   error,
   onSave,
+  onDelete,
 }: {
   task: Task
   today: string
@@ -264,6 +436,7 @@ function TaskRow({
   saveState: SaveState
   error?: string
   onSave: (id: string, patch: Partial<Task>) => void
+  onDelete: (id: string, name: string) => void
 }) {
   const delayed = !!(task.plannedEnd && task.plannedEnd < today && !DONE_STATUSES.has(task.status))
   const delayDays = delayed && task.plannedEnd ? daysBetween(task.plannedEnd, today) : 0
@@ -289,25 +462,41 @@ function TaskRow({
           )}
         </div>
 
-        {/* daty */}
-        <label className="flex items-center gap-1 text-xs text-gray-500">
-          od
-          <input
-            type="date"
-            className={dateCls}
-            value={task.plannedStart || ''}
-            onChange={(e) => onSave(task.id, { plannedStart: e.target.value })}
-          />
-        </label>
-        <label className="flex items-center gap-1 text-xs text-gray-500">
-          do
-          <input
-            type="date"
-            className={dateCls}
-            value={task.plannedEnd || ''}
-            onChange={(e) => onSave(task.id, { plannedEnd: e.target.value })}
-          />
-        </label>
+        {/* daty — kamień milowy ma jeden termin (start == koniec) */}
+        {task.isMilestone ? (
+          <label className="flex items-center gap-1 text-xs text-gray-500">
+            termin
+            <input
+              type="date"
+              className={dateCls}
+              value={task.plannedEnd || ''}
+              onChange={(e) =>
+                onSave(task.id, { plannedStart: e.target.value, plannedEnd: e.target.value })
+              }
+            />
+          </label>
+        ) : (
+          <>
+            <label className="flex items-center gap-1 text-xs text-gray-500">
+              od
+              <input
+                type="date"
+                className={dateCls}
+                value={task.plannedStart || ''}
+                onChange={(e) => onSave(task.id, { plannedStart: e.target.value })}
+              />
+            </label>
+            <label className="flex items-center gap-1 text-xs text-gray-500">
+              do
+              <input
+                type="date"
+                className={dateCls}
+                value={task.plannedEnd || ''}
+                onChange={(e) => onSave(task.id, { plannedEnd: e.target.value })}
+              />
+            </label>
+          </>
+        )}
 
         {/* postęp */}
         <label className="flex items-center gap-1 text-xs text-gray-500">
@@ -360,6 +549,15 @@ function TaskRow({
           {saveState === 'saved' && <span className="text-green-600">✓ zapisano</span>}
           {saveState === 'error' && <span className="text-red-600">✕ błąd</span>}
         </span>
+
+        <button
+          type="button"
+          onClick={() => onDelete(task.id, task.name)}
+          title="Usuń zadanie"
+          className="text-gray-300 hover:text-red-500 text-sm px-1"
+        >
+          ✕
+        </button>
       </div>
 
       <div className="flex items-center gap-3 mt-1">
