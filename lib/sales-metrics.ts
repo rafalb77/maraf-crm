@@ -16,19 +16,36 @@ export async function getSalesValue(): Promise<{
   residential: number
   soldCount: number
   residentialCount: number
+  reservation: number
+  reservationCount: number
 }> {
-  const soldUnits = await prisma.unit.findMany({
-    where: { status: 'SPRZEDANY' },
-    select: {
-      id: true,
-      type: true,
-      priceGross: true,
-      contractUnits: {
-        where: { contract: { type: { in: [...BINDING] } } },
-        select: { priceGross: true, contract: { select: { type: true } } },
+  const [soldUnits, reservedUnits] = await Promise.all([
+    prisma.unit.findMany({
+      where: { status: 'SPRZEDANY' },
+      select: {
+        id: true,
+        type: true,
+        priceGross: true,
+        contractUnits: {
+          where: { contract: { type: { in: [...BINDING] } } },
+          select: { priceGross: true, contract: { select: { type: true } } },
+        },
       },
-    },
-  })
+    }),
+    // „Na rezerwacyjnych" = lokale twardo zarezerwowane podpisaną umową
+    // rezerwacyjną (nie awansowaną jeszcze do deweloperskiej — te są już SPRZEDANE).
+    prisma.unit.findMany({
+      where: { status: 'ZAREZERWOWANY', reservationType: 'REZERWACJA' },
+      select: {
+        id: true,
+        priceGross: true,
+        contractUnits: {
+          where: { contract: { type: 'REZERWACYJNA', status: 'PODPISANA' } },
+          select: { priceGross: true },
+        },
+      },
+    }),
+  ])
 
   let total = 0
   let residential = 0
@@ -45,5 +62,15 @@ export async function getSalesValue(): Promise<{
       residentialCount++
     }
   }
-  return { total, residential, soldCount: soldUnits.length, residentialCount }
+
+  let reservation = 0
+  let reservationCount = 0
+  for (const u of reservedUnits) {
+    // Tylko lokale objęte PODPISANĄ umową rezerwacyjną (filtr w contractUnits).
+    if (u.contractUnits.length === 0) continue
+    reservation += u.contractUnits[0].priceGross ?? u.priceGross ?? 0
+    reservationCount++
+  }
+
+  return { total, residential, soldCount: soldUnits.length, residentialCount, reservation, reservationCount }
 }

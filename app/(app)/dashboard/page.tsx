@@ -103,11 +103,18 @@ export default async function DashboardPage() {
           <div className="v2-eyebrow" style={{ color: 'var(--color-brand-gold)' }}>
             Sprzedaż łącznie
           </div>
-          <div
-            className="mt-1.5 font-bold tabular-nums"
-            style={{ fontSize: 30, letterSpacing: '-0.02em', color: '#F2E8D6', lineHeight: 1.15 }}
-          >
-            {formatCurrency(revenue)}
+          <div className="mt-1.5 flex items-baseline gap-x-3 gap-y-1 flex-wrap">
+            <span
+              className="font-bold tabular-nums"
+              style={{ fontSize: 30, letterSpacing: '-0.02em', color: '#F2E8D6', lineHeight: 1.15 }}
+            >
+              {formatCurrency(revenue)}
+            </span>
+            {salesValue.reservation > 0 && (
+              <span className="tabular-nums" style={{ fontSize: 15, color: 'rgba(242,232,214,.58)' }}>
+                + {formatCurrency(salesValue.reservation)} w rezerwacjach
+              </span>
+            )}
           </div>
           <div className="mt-1 text-xs" style={{ color: 'rgba(242,232,214,.65)' }}>
             {soldUnits} z {totalUnits} lokali sprzedanych · {soldPct}% inwestycji
