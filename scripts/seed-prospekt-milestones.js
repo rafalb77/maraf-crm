@@ -34,6 +34,7 @@ const NEW_STAGES = [
     key: 'E4',
     name: 'Kl. A — okna, ścianki, instalacje, tynki, dach',
     order: 3,
+    plannedStart: d('2026-06-11'),
     plannedEnd: d('2026-10-11'),
     notes:
       'Zakres z prospektu (etap 4, transza 15%, termin 11.10.2026):\n' +
@@ -50,6 +51,7 @@ const NEW_STAGES = [
     key: 'E5',
     name: 'Kl. B i C — okna, instalacje, tynki',
     order: 4,
+    plannedStart: d('2026-10-12'),
     plannedEnd: d('2027-02-18'),
     notes:
       'Zakres z prospektu (etap 5, transza 15%, termin 18.02.2027):\n' +
@@ -64,6 +66,7 @@ const NEW_STAGES = [
     key: 'E6',
     name: 'Wykończenie części wspólnych + elewacja',
     order: 5,
+    plannedStart: d('2027-02-19'),
     plannedEnd: d('2027-05-30'),
     notes:
       'Zakres z prospektu (etap 6, transza 10%, termin 30.05.2027):\n' +
@@ -79,6 +82,7 @@ const NEW_STAGES = [
     key: 'E7',
     name: 'Prace zewnętrzne i odbiory',
     order: 6,
+    plannedStart: d('2027-05-31'),
     plannedEnd: d('2027-09-30'),
     notes:
       'Zakres z prospektu (etap 7, transza 10%, termin 30.09.2027):\n' +
@@ -105,6 +109,46 @@ const MILESTONES = [
 const MILESTONE_DESC =
   'Termin umowny z prospektu informacyjnego (harmonogram przedsięwzięcia deweloperskiego, ' +
   'rachunek powierniczy ING). Po zakończeniu etapu — wypłata transzy eskrow.'
+
+// Pozycje z prospektu rozpisane na zadania (etapy 4-7 — te bez harmonogramu z Excela).
+// Okno czasowe zadania = okno etapu (od dnia po poprzednim kamieniu do terminu etapu);
+// TERMINY ORIENTACYJNE — uszczegółowi Rafał/kierownik w UI. Numeracja "4.1"-"7.5"
+// kontynuuje WBS z Excela: jeśli kiedyś przyjdzie szczegółowy Excel na te etapy z tą samą
+// numeracją, importer przejmie te wiersze (nazwa/kolejność), zachowując daty/postęp.
+// [numer, nazwa, klucz etapu, start okna, koniec okna]
+const PROSPEKT_TASKS = [
+  // Etap 4 (Kl. A) — okno 11.06.2026 → 11.10.2026
+  ['4.1', 'Dostawa i montaż okien w lokalach kl. A', 'E4', '2026-06-11', '2026-10-11'],
+  ['4.2', 'Ścianki działowe + kominy kl. A, B, C', 'E4', '2026-06-11', '2026-10-11'],
+  ['4.3', 'Piony instalacji wewnętrznych kl. A, B, C', 'E4', '2026-06-11', '2026-10-11'],
+  ['4.4', 'Instalacje elektryczne w lokalach kl. A', 'E4', '2026-06-11', '2026-10-11'],
+  ['4.5', 'Tynki wewnętrzne kl. A', 'E4', '2026-06-11', '2026-10-11'],
+  ['4.6', 'Izolacja dachu', 'E4', '2026-06-11', '2026-10-11'],
+  ['4.7', 'Attyka i kominy', 'E4', '2026-06-11', '2026-10-11'],
+  // Etap 5 (Kl. B i C) — okno 12.10.2026 → 18.02.2027
+  ['5.1', 'Dostawa i montaż okien w lokalach kl. B, C', 'E5', '2026-10-12', '2027-02-18'],
+  ['5.2', 'Instalacja CWU + ogrzewanie podłogowe kl. A, B, C', 'E5', '2026-10-12', '2027-02-18'],
+  ['5.3', 'Podkłady pod posadzki kl. A, B, C', 'E5', '2026-10-12', '2027-02-18'],
+  ['5.4', 'Instalacje elektryczne w lokalach kl. B, C', 'E5', '2026-10-12', '2027-02-18'],
+  ['5.5', 'Tynki wewnętrzne kl. B, C', 'E5', '2026-10-12', '2027-02-18'],
+  // Etap 6 (części wspólne + elewacja) — okno 19.02.2027 → 30.05.2027
+  ['6.1', 'Posadzki w garażu', 'E6', '2027-02-19', '2027-05-30'],
+  ['6.2', 'Prace wykończeniowe w garażu', 'E6', '2027-02-19', '2027-05-30'],
+  ['6.3', 'Tynki zewnętrzne + obróbki blacharskie', 'E6', '2027-02-19', '2027-05-30'],
+  ['6.4', 'Montaż wind', 'E6', '2027-02-19', '2027-05-30'],
+  ['6.5', 'Stolarka drzwiowa + okna na klatkach schodowych', 'E6', '2027-02-19', '2027-05-30'],
+  ['6.6', 'Wykończenie korytarzy + klatek schodowych', 'E6', '2027-02-19', '2027-05-30'],
+  // Etap 7 (zewnętrzne + odbiory) — okno 31.05.2027 → 30.09.2027
+  ['7.1', 'Ogrodzenia i balustrady', 'E7', '2027-05-31', '2027-09-30'],
+  ['7.2', 'Przyłącza wod-kan, węzeł cieplny, woda, prąd', 'E7', '2027-05-31', '2027-09-30'],
+  ['7.3', 'Zagospodarowanie terenu, utwardzenia, humusowanie', 'E7', '2027-05-31', '2027-09-30'],
+  ['7.4', 'Montaż osprzętu instalacyjnego', 'E7', '2027-05-31', '2027-09-30'],
+  ['7.5', 'Odbiory: pomiary geodezyjne, ppoż, PINB, samodzielność lokali', 'E7', '2027-05-31', '2027-09-30'],
+]
+
+const TASK_DESC =
+  'Pozycja z prospektu informacyjnego. Termin ORIENTACYJNY (okno etapu) — do uszczegółowienia ' +
+  'przez kierownika budowy.'
 
 async function main() {
   const inv = await prisma.investment.findFirst({
@@ -136,13 +180,23 @@ async function main() {
     const existing = stages.find((x) => x.name === s.name)
     if (existing) {
       byKey[s.key] = existing.id
-      console.log('Etap istnieje:', s.name)
+      // dopełnij plannedStart, jeśli etap powstał wcześniejszą wersją skryptu (bez okna)
+      if (!existing.plannedStart && s.plannedStart) {
+        await prisma.constructionStage.update({
+          where: { id: existing.id },
+          data: { plannedStart: s.plannedStart },
+        })
+        console.log('Etap istnieje (uzupełniono początek okna):', s.name)
+      } else {
+        console.log('Etap istnieje:', s.name)
+      }
     } else {
       const created = await prisma.constructionStage.create({
         data: {
           investmentId: inv.id,
           name: s.name,
           order: s.order,
+          plannedStart: s.plannedStart || null,
           plannedEnd: s.plannedEnd,
           notes: s.notes,
         },
@@ -182,7 +236,40 @@ async function main() {
     console.log(`Kamień ${number}: ${dateISO} — ${name}`)
   }
 
-  console.log(`\nGotowe. Kamienie: ${created} nowych, ${skipped} istniało. Etapy-szkielety: ${NEW_STAGES.length}.`)
+  // Zadania z pozycji prospektu (etapy 4-7) — idempotentnie po number
+  let tCreated = 0
+  let tSkipped = 0
+  let orderCounter = 0
+  for (const [number, name, stageKey, startISO, endISO] of PROSPEKT_TASKS) {
+    orderCounter++
+    const exists = await prisma.constructionTask.findFirst({
+      where: { investmentId: inv.id, number },
+      select: { id: true },
+    })
+    if (exists) {
+      tSkipped++
+      continue
+    }
+    await prisma.constructionTask.create({
+      data: {
+        investmentId: inv.id,
+        stageId: byKey[stageKey] || null,
+        number,
+        name,
+        description: TASK_DESC,
+        plannedStart: d(startISO),
+        plannedEnd: d(endISO),
+        orderIndex: 800 + orderCounter, // przed kamieniami (900+), za zadaniami z Excela
+      },
+    })
+    tCreated++
+    console.log(`Zadanie ${number}: ${name}`)
+  }
+
+  console.log(
+    `\nGotowe. Kamienie: ${created} nowych, ${skipped} istniało. ` +
+      `Zadania z prospektu: ${tCreated} nowych, ${tSkipped} istniało. Etapy-szkielety: ${NEW_STAGES.length}.`,
+  )
 }
 
 main()
