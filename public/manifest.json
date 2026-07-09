@@ -1,0 +1,16 @@
+{
+  "name": "MARAF Budowa",
+  "short_name": "Budowa",
+  "description": "Raport z budowy — MARAF CRM",
+  "start_url": "/checkin",
+  "display": "standalone",
+  "background_color": "#F7F5F1",
+  "theme_color": "#1F2D3F",
+  "icons": [
+    {
+      "src": "/logo-icon.png",
+      "sizes": "any",
+      "type": "image/png"
+    }
+  ]
+}

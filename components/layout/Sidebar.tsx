@@ -168,9 +168,12 @@ const WORKSPACES: Workspace[] = [
     sections: [
       {
         items: [
-          // Etap 0 — sam pulpit; kolejne pozycje (harmonogram, dziennik, wykonawcy,
-          // koszty, przegląd) dochodzą w Etapach 1-3 — patrz docs/budowa-rozpoczecie.md
+          // Kolejne pozycje (harmonogram, wykonawcy, koszty) dochodzą w Etapach 2-3
+          // — patrz docs/budowa-rozpoczecie.md. /checkin celowo bez linku (kierownik
+          // ma bezpośredni link/ikonę na telefonie, permission 'checkin').
           { href: '/budowa', label: 'Pulpit budowy', icon: ICONS.dashboard },
+          { href: '/budowa/dziennik', label: 'Dziennik budowy', icon: ICONS.cases },
+          { href: '/budowa/przeglad', label: 'Widok prezesa', icon: ICONS.clients },
         ],
       },
     ],

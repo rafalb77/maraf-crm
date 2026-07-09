@@ -79,10 +79,14 @@ export const authOptions: NextAuthOptions = {
   ],
   session: {
     strategy: 'jwt',
-    // 8h zamiast domyślnych 30 dni — CRM przechowuje wrażliwe dane (PESEL, kontakty,
-    // umowy), więc utracony laptop = max 8h ekspozycji zamiast miesiąca.
-    // User loguje się rano, sesja trzyma cały dzień pracy. Po 8h logowanie ponowne.
-    maxAge: 8 * 60 * 60,
+    // GÓRNA granica ważności cookie/JWT = 30 dni. Realny limit egzekwuje middleware
+    // per-konto na bazie token.authAt (moment logowania):
+    //  - konto kierownika budowy (permissions == ['checkin']) → 30 dni (telefon na
+    //    budowie; konto nie widzi kwot, CRM ani finansów — patrz docs/budowa-rozpoczecie.md)
+    //  - wszyscy pozostali → 8h jak dotychczas (wrażliwe dane: PESEL, umowy)
+    // Uwaga: ścieżki z kropką (pliki /uploads/*) omijają middleware (matcher) — tam
+    // obowiązuje pełne 30 dni, akceptowalne (same pliki, bez danych osobowych w listach).
+    maxAge: 30 * 24 * 60 * 60,
   },
   pages: { signIn: '/auth/signin' },
   callbacks: {
@@ -101,9 +105,15 @@ export const authOptions: NextAuthOptions = {
           if (dbUser) {
             token.id = dbUser.id
             token.permissions = dbUser.permissions
+            // Konto check-in-only (kierownik budowy) → dłuższa sesja (patrz session.maxAge).
+            token.checkinOnly =
+              dbUser.permissions.length === 1 && dbUser.permissions[0] === 'checkin'
           }
         }
       }
+      // Moment logowania — middleware liczy od niego realny limit sesji (8h / 30 dni).
+      // Tylko przy świeżym loginie (user obecny); refresh tokena NIE przedłuża sesji.
+      if (user) token.authAt = Date.now()
       return token
     },
     async session({ session, token }) {

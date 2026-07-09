@@ -46,6 +46,7 @@ model User {
 
   // Moduł Zadania
   assignedTasks              Task[]                      @relation("TaskAssignee")
+  siteReports                SiteReport[]                @relation("SiteReportAuthor")
 }
 
 // status: ZAPYTANIE | OFERTA | REZERWACJA | UMOWA | ODBIOR
@@ -1442,4 +1443,79 @@ model Investment {
   active         Boolean   @default(true)
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
+
+  reports  SiteReport[]
+  photos   SitePhoto[]
+  comments ConstructionComment[]
+}
+
+// Check-in kierownika budowy (Etap 1) — celowo płaski i krótki (2 minuty na telefonie).
+// Flagi (hasIssue/needsDecision/needsContractorAction) tworzą Taski dla Rafała przez
+// lib/budowa-tasks.ts (ruleKey BUDOWA_*). Sekcja aktualizacji zadań (SiteReportTaskUpdate)
+// dochodzi w Etapie 2 razem z harmonogramem.
+model SiteReport {
+  id            String   @id @default(cuid())
+  investmentId  String
+  reportDate    DateTime @default(now())
+  authorId      String?
+  authorEmail   String?  // snapshot (wzorzec AuditLog) — przetrwa usunięcie konta
+  workDone      String   // "co zrobiono" — krótki tekst
+  hasIssue      Boolean  @default(false)
+  issueNote     String?
+  needsDecision Boolean  @default(false)
+  decisionNote  String?
+  needsContractorAction Boolean @default(false) // "wykonawca musi zareagować"
+  contractorActionNote  String?
+  contractorActionSubcontractorId String? // skalar — dotyczy wykonawcy z rejestru Przerobów
+  createdAt     DateTime @default(now())
+
+  investment Investment @relation(fields: [investmentId], references: [id], onDelete: Cascade)
+  author     User?      @relation("SiteReportAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  photos     SitePhoto[]
+  comments   ConstructionComment[]
+
+  @@index([investmentId, reportDate])
+}
+
+// Zdjęcie z budowy. Wchodzi przez check-in (reportId) albo luzem przy inwestycji.
+// taskId (przypięcie do zadania harmonogramu) dochodzi w Etapie 2 — etap i wykonawca
+// będą wtedy WYNIKAĆ z zadania (join), bez osobnego tagowania.
+model SitePhoto {
+  id           String   @id @default(cuid())
+  investmentId String
+  reportId     String?
+  url          String   // /uploads/budowa/<investmentId>/<ts>-<safeName>
+  caption      String?
+  takenAt      DateTime @default(now())
+  uploadedById String?  // skalar bez FK (wzorzec CaseDocument)
+  createdAt    DateTime @default(now())
+
+  investment Investment  @relation(fields: [investmentId], references: [id], onDelete: Cascade)
+  report     SiteReport? @relation(fields: [reportId], references: [id], onDelete: SetNull)
+  comments   ConstructionComment[]
+
+  @@index([investmentId, takenAt])
+}
+
+// Komentarz/flaga (głównie tata z Widoku Prezesa): przy raporcie, zdjęciu albo luzem
+// przy inwestycji. needsClarification=true → Task dla Rafała (BUDOWA_WYJASNIENIE).
+// onDelete: SetNull (NIE Cascade) — usunięcie raportu/zdjęcia nie kasuje komentarza,
+// zostaje przy inwestycji. taskId (zadanie harmonogramu) dochodzi w Etapie 2.
+model ConstructionComment {
+  id                 String    @id @default(cuid())
+  investmentId       String
+  reportId           String?
+  photoId            String?
+  body               String    @default("") // może być puste — sama flaga "do wyjaśnienia"
+  needsClarification Boolean   @default(false)
+  resolvedAt         DateTime?
+  authorId           String?   // skalar bez FK
+  authorEmail        String?
+  createdAt          DateTime  @default(now())
+
+  investment Investment  @relation(fields: [investmentId], references: [id], onDelete: Cascade)
+  report     SiteReport? @relation(fields: [reportId], references: [id], onDelete: SetNull)
+  photo      SitePhoto?  @relation(fields: [photoId], references: [id], onDelete: SetNull)
+
+  @@index([investmentId, createdAt])
 }
