@@ -27,9 +27,9 @@ const norm = (s: string) => s.toUpperCase().replace(/[^A-Z0-9ĄĆĘŁŃÓŚŹŻ]
 // Obejmuje krotkie nazwy z Excela i oficjalne z KSeF (po scaleniu):
 //  PLAY -> "P4 sp. z o. o.", Jawne -> "JAWN-E Kancelaria...",
 //  Develogic -> "Develogic spolka z o.o.", Toya -> "Toya Spolka z o.o.",
-//  RAFAŁ -> "PB Project Rafał Boruch".
+//  RAFAŁ -> "RB Project Rafał Boruch".
 const STALE_PREFIXES = [
-  'EURON', 'PLAY', 'P4', 'TOYA', 'POLISA', 'JAWN', 'DEVELOGIC', 'PBPROJECT',
+  'EURON', 'PLAY', 'P4', 'TOYA', 'POLISA', 'JAWN', 'DEVELOGIC', 'RBPROJECT',
 ]
 // Nazwy dopasowywane TYLKO doslownie (prefiks bylby zbyt lapczywy —
 // np. "Bogdan Boruch" to osobny kontrahent, nie sekcja STALE "Bogdan").
