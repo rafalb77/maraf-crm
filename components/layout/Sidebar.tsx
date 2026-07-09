@@ -172,6 +172,7 @@ const WORKSPACES: Workspace[] = [
           // — patrz docs/budowa-rozpoczecie.md. /checkin celowo bez linku (kierownik
           // ma bezpośredni link/ikonę na telefonie, permission 'checkin').
           { href: '/budowa', label: 'Pulpit budowy', icon: ICONS.dashboard },
+          { href: '/budowa/harmonogram', label: 'Harmonogram', icon: ICONS.calendar },
           { href: '/budowa/dziennik', label: 'Dziennik budowy', icon: ICONS.cases },
           { href: '/budowa/przeglad', label: 'Widok prezesa', icon: ICONS.clients },
         ],

@@ -395,6 +395,8 @@ model Task {
   contractId    String?
   paymentId     String?
   caseId        String?
+  investmentId       String? // moduł Budowa (Etap 2)
+  constructionTaskId String? // moduł Budowa (Etap 2)
   googleEventId String? // faza 3: sync z Google Calendar
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -405,6 +407,8 @@ model Task {
   contract Contract?        @relation(fields: [contractId], references: [id], onDelete: Cascade)
   payment  ContractPayment? @relation(fields: [paymentId], references: [id], onDelete: Cascade)
   case     Case?            @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  investment       Investment?       @relation(fields: [investmentId], references: [id], onDelete: Cascade)
+  constructionTask ConstructionTask? @relation(fields: [constructionTaskId], references: [id], onDelete: Cascade)
 
   @@index([status, dueAt])
   @@index([assigneeId, status])
@@ -678,6 +682,7 @@ model Subcontractor {
 
   contracts SubContract[]
   protocols Protocol[]
+  constructionTasks ConstructionTask[] // moduł Budowa (Etap 2)
 }
 
 // Umowa z podwykonawcą — kosztorys umowny w pozycjach (ContractWorkItem)
@@ -707,6 +712,7 @@ model SubContract {
   subcontractor Subcontractor      @relation(fields: [subcontractorId], references: [id], onDelete: Cascade)
   workItems     ContractWorkItem[]
   protocols     Protocol[]
+  constructionTasks ConstructionTask[] // moduł Budowa (Etap 2)
 }
 
 // Pozycja umowna (kosztorys) — jedna linia w protokole przerobowym.
@@ -1448,6 +1454,92 @@ model Investment {
   reports  SiteReport[]
   photos   SitePhoto[]
   comments ConstructionComment[]
+  stages   ConstructionStage[]
+  tasks    ConstructionTask[]
+  reminderTasks Task[]
+}
+
+// Etap budowy (Etap 2) — grupa zadań na Gancie (zwijalna). Daty planowane opcjonalne —
+// w praktyce wynikają z zadań (min/max); wpisane ręcznie mają pierwszeństwo w widokach.
+// status: PLANOWANY | W_TOKU | ZAKONCZONY | WSTRZYMANY
+model ConstructionStage {
+  id           String    @id @default(cuid())
+  investmentId String
+  name         String    // "Stan zero", "Konstrukcja Budynku - część nadziemna"
+  order        Int       @default(0)
+  status       String    @default("PLANOWANY")
+  plannedStart DateTime?
+  plannedEnd   DateTime?
+  budgetNet    Float?    // mianownik alertów kosztowych (Etap 3)
+  color        String?   // kolor pasków na Gancie
+  notes        String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  investment Investment         @relation(fields: [investmentId], references: [id], onDelete: Cascade)
+  tasks      ConstructionTask[]
+
+  @@unique([investmentId, name])
+}
+
+// Zadanie harmonogramu budowy (Etap 2). To NIE jest Task (centrum przypomnień) —
+// Task dostaje tylko zaczep constructionTaskId do przypomnień (BUDOWA_OPOZNIENIE itd.).
+// Odbiór częściowy = jawny akt (acceptance*): DO_ODBIORU → ZAKONCZONE (PRZYJETY[_Z_UWAGAMI])
+// albo → W_TOKU (ODRZUCONY z notatką). Kamień milowy: isMilestone + plannedStart==plannedEnd.
+// status: PLANOWANE | W_TOKU | WSTRZYMANE | DO_ODBIORU | ZAKONCZONE | ANULOWANE
+// acceptanceResult: PRZYJETY | PRZYJETY_Z_UWAGAMI | ODRZUCONY
+model ConstructionTask {
+  id              String    @id @default(cuid())
+  investmentId    String
+  stageId         String?
+  number          String?   // numeracja z harmonogramu ("1.1", "2.14") — czytelność + import
+  name            String
+  description     String?
+  isMilestone     Boolean   @default(false)
+  status          String    @default("PLANOWANE")
+  progress        Int       @default(0) // 0-100; ręcznie albo z check-inów (SiteReportTaskUpdate)
+  plannedStart    DateTime
+  plannedEnd      DateTime
+  actualStart     DateTime?
+  actualEnd       DateTime?
+  subcontractorId String?
+  subContractId   String?
+  delayReason     String?
+  acceptedAt       DateTime?
+  acceptedByEmail  String?
+  acceptanceResult String?
+  acceptanceNote   String?
+  orderIndex      Int       @default(0)
+  notes           String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  investment    Investment         @relation(fields: [investmentId], references: [id], onDelete: Cascade)
+  stage         ConstructionStage? @relation(fields: [stageId], references: [id], onDelete: SetNull)
+  subcontractor Subcontractor?     @relation(fields: [subcontractorId], references: [id], onDelete: SetNull)
+  subContract   SubContract?       @relation(fields: [subContractId], references: [id], onDelete: SetNull)
+  predecessors  TaskDependency[]   @relation("DepSuccessor")
+  successors    TaskDependency[]   @relation("DepPredecessor")
+  reminderTasks Task[]
+
+  @@index([investmentId, status])
+  @@index([stageId])
+  @@index([subcontractorId])
+}
+
+// Zależność FS (koniec→początek) — służy do RYSOWANIA strzałek na Gancie, nie do
+// auto-przeliczania harmonogramu (świadomie bez CPM — patrz docs/budowa-rozpoczecie.md).
+// POST /api/budowa/dependencies MUSI walidować cykle (DFS) — @@unique łapie tylko duplikat pary.
+model TaskDependency {
+  id            String @id @default(cuid())
+  predecessorId String
+  successorId   String
+  type          String @default("FS")
+
+  predecessor ConstructionTask @relation("DepPredecessor", fields: [predecessorId], references: [id], onDelete: Cascade)
+  successor   ConstructionTask @relation("DepSuccessor", fields: [successorId], references: [id], onDelete: Cascade)
+
+  @@unique([predecessorId, successorId])
 }
 
 // Check-in kierownika budowy (Etap 1) — celowo płaski i krótki (2 minuty na telefonie).

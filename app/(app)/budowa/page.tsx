@@ -57,6 +57,23 @@ export default async function BudowaPage() {
     }),
   ])
 
+  // Postęp + opóźnienia z harmonogramu (Etap 2). Prosta średnia % zadań (decyzja nr 5).
+  const schedTasks = await prisma.constructionTask.findMany({
+    where: { investmentId: investment.id, status: { not: 'ANULOWANE' } },
+    select: { progress: true, status: true, plannedEnd: true },
+  })
+  const todayStr = new Date().toISOString().slice(0, 10)
+  const avgProgress =
+    schedTasks.length === 0
+      ? null
+      : Math.round(schedTasks.reduce((s, t) => s + t.progress, 0) / schedTasks.length)
+  const delayedCount = schedTasks.filter(
+    (t) =>
+      t.plannedEnd &&
+      t.plannedEnd.toISOString().slice(0, 10) < todayStr &&
+      t.status !== 'ZAKONCZONE',
+  ).length
+
   return (
     <div className="p-8">
       {/* Nagłówek inwestycji */}
@@ -92,8 +109,23 @@ export default async function BudowaPage() {
         </div>
         <div className="bg-white rounded-xl border border-gray-200 p-6">
           <div className="text-xs uppercase tracking-wider text-gray-400 mb-1">Postęp</div>
-          <div className="text-lg font-semibold text-gray-400">—</div>
-          <div className="text-sm text-gray-500 mt-1">liczony z harmonogramu (Etap 2)</div>
+          {avgProgress === null ? (
+            <>
+              <div className="text-lg font-semibold text-gray-400">—</div>
+              <div className="text-sm text-gray-500 mt-1">
+                <Link href="/budowa/harmonogram/import" prefetch={false} className="underline">
+                  Zaimportuj harmonogram
+                </Link>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="text-lg font-semibold">{avgProgress}%</div>
+              <div className={`text-sm mt-1 ${delayedCount > 0 ? 'text-red-600' : 'text-gray-500'}`}>
+                {delayedCount > 0 ? `${delayedCount} zadań opóźnionych` : 'brak opóźnień'}
+              </div>
+            </>
+          )}
         </div>
       </div>
 

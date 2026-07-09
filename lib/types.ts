@@ -482,3 +482,36 @@ export const INVESTMENT_STATUS_COLORS: Record<InvestmentStatus, string> = {
   ODBIORY: 'bg-yellow-100 text-yellow-700',
   ZAKONCZONA: 'bg-green-100 text-green-700',
 }
+
+export type ConstructionStageStatus = 'PLANOWANY' | 'W_TOKU' | 'ZAKONCZONY' | 'WSTRZYMANY'
+export type ConstructionTaskStatus =
+  | 'PLANOWANE'
+  | 'W_TOKU'
+  | 'WSTRZYMANE'
+  | 'DO_ODBIORU'
+  | 'ZAKONCZONE'
+  | 'ANULOWANE'
+
+export const CONSTRUCTION_TASK_STATUS_LABELS: Record<ConstructionTaskStatus, string> = {
+  PLANOWANE: 'Planowane',
+  W_TOKU: 'W toku',
+  WSTRZYMANE: 'Wstrzymane',
+  DO_ODBIORU: 'Do odbioru',
+  ZAKONCZONE: 'Zakończone',
+  ANULOWANE: 'Anulowane',
+}
+
+export const CONSTRUCTION_TASK_STATUS_COLORS: Record<ConstructionTaskStatus, string> = {
+  PLANOWANE: 'bg-gray-100 text-gray-600',
+  W_TOKU: 'bg-blue-100 text-blue-700',
+  WSTRZYMANE: 'bg-orange-100 text-orange-700',
+  DO_ODBIORU: 'bg-purple-100 text-purple-700',
+  ZAKONCZONE: 'bg-green-100 text-green-700',
+  ANULOWANE: 'bg-gray-100 text-gray-400',
+}
+
+export const ACCEPTANCE_RESULT_LABELS: Record<string, string> = {
+  PRZYJETY: 'Przyjęty',
+  PRZYJETY_Z_UWAGAMI: 'Przyjęty z uwagami',
+  ODRZUCONY: 'Odrzucony',
+}
