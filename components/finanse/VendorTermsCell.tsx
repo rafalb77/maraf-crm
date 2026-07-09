@@ -7,6 +7,7 @@ export type TermsRow = {
   depositPct: number | null
   depositReturnMonths: number | null
   buildingCostsPct: number | null
+  calcBasis: string           // BRUTTO | NETTO — baza naliczania %
   notes: string | null
 }
 
@@ -18,13 +19,14 @@ type Props = {
   legacyKbPct: number | null
 }
 
-const emptyRow = (investment = ''): TermsRow => ({ investment, depositPct: null, depositReturnMonths: null, buildingCostsPct: null, notes: null })
+const emptyRow = (investment = ''): TermsRow => ({ investment, depositPct: null, depositReturnMonths: null, buildingCostsPct: null, calcBasis: 'BRUTTO', notes: null })
 
-function fmtRow(r: { depositPct: number | null; depositReturnMonths: number | null; buildingCostsPct: number | null }): string {
+function fmtRow(r: { depositPct: number | null; depositReturnMonths: number | null; buildingCostsPct: number | null; calcBasis?: string }): string {
   const parts: string[] = []
   parts.push(r.depositPct != null ? `kaucja ${r.depositPct}%` : 'kaucja —')
   if (r.depositReturnMonths != null) parts.push(`zwrot ${r.depositReturnMonths} mc`)
   parts.push(r.buildingCostsPct != null ? `KB ${r.buildingCostsPct}%` : 'KB —')
+  if (r.calcBasis === 'NETTO') parts.push('od netto')
   return parts.join(' • ')
 }
 
@@ -59,7 +61,7 @@ export function VendorTermsCell({ vendorId, terms, legacyDepositPct, legacyKbPct
   function setField(idx: number, field: keyof TermsRow, value: string) {
     setRows((rs) => rs.map((r, i) => {
       if (i !== idx) return r
-      if (field === 'investment' || field === 'notes') return { ...r, [field]: value }
+      if (field === 'investment' || field === 'notes' || field === 'calcBasis') return { ...r, [field]: value }
       const n = value.trim() === '' ? null : parseFloat(value.replace(',', '.'))
       return { ...r, [field]: n != null && isFinite(n) ? n : null }
     }))
@@ -87,6 +89,7 @@ export function VendorTermsCell({ vendorId, terms, legacyDepositPct, legacyKbPct
             depositPct: row.depositPct,
             depositReturnMonths: row.depositReturnMonths,
             buildingCostsPct: row.buildingCostsPct,
+            calcBasis: row.calcBasis === 'NETTO' ? 'NETTO' : 'BRUTTO',
             notes: row.notes?.trim() || null,
           }),
         })
@@ -175,6 +178,15 @@ export function VendorTermsCell({ vendorId, terms, legacyDepositPct, legacyKbPct
               />
               <span className="text-gray-400">%</span>
             </label>
+            <select
+              value={row.calcBasis === 'NETTO' ? 'NETTO' : 'BRUTTO'}
+              onChange={(e) => setField(idx, 'calcBasis', e.target.value)}
+              className="px-1 py-1 border border-gray-300 rounded"
+              title="Baza naliczania % — od wartości brutto czy netto faktury (wg umowy)"
+            >
+              <option value="BRUTTO">od brutto</option>
+              <option value="NETTO">od netto</option>
+            </select>
             <input
               value={row.notes ?? ''}
               onChange={(e) => setField(idx, 'notes', e.target.value)}

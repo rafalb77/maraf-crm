@@ -1,6 +1,10 @@
 // Glowne foldery faktur — pochodzace z zakladek Excela Marty (PŁATNOŚCI 2026.xlsx).
-// Filtruja faktury kosztowe wg vendora. Stała mapowanie nazwa-vendora -> folder
-// (bo Vendor.mainFolder nie jest polem w bazie — uproszczona wersja).
+// Filtruja faktury kosztowe wg vendora.
+//
+// Dopasowanie TOLERANCYJNE (2026-07): po scaleniu duplikatow kontrahenci nosza
+// oficjalne nazwy z KSeF (np. "BAUTER SERWIS Sp. z o.o.", "Promatbud Sp. z o.o.",
+// "P4 sp. z o. o." = Play) — foldery matchuja po znormalizowanym prefiksie,
+// zeby zakladki przetrwaly zmiany nazw. Normalizacja: upper + tylko [A-Z0-9].
 
 import { prisma } from './prisma'
 
@@ -15,28 +19,31 @@ export const FOLDER_LABELS: Record<Folder, string> = {
   INNE: 'Inne',
 }
 
-// Sekcje z zakladki STAŁE w Excelu Marty (kontrahenci stałych kosztów).
-// Niektóre nazwy z różnymi wielkościami liter — wszystkie wariacje.
-const STALE_VENDOR_NAMES = new Set([
-  'EURON', 'Euron',
-  'PLAY', 'Play',
-  'TOYA', 'Toya',
-  'POLISA', 'Polisa',
-  'Jawne', 'JAWNE',
-  'DEVELOGIC', 'Develogic',
-  'MD',
-  'Bogdan', 'BOGDAN',
-  'MARTA', 'Marta',
-  'RAFAŁ', 'Rafał', 'RAFAL', 'Rafal',
-])
+/** Normalizacja nazwy do porownan: upper + bez znakow niealfanumerycznych.
+ *  "JAWN-E Kancelaria" -> "JAWNEKANCELARIA", "P4 sp. z o. o." -> "P4SPZOO". */
+const norm = (s: string) => s.toUpperCase().replace(/[^A-Z0-9ĄĆĘŁŃÓŚŹŻ]/g, '')
+
+// Sekcje z zakladki STAŁE — dopasowanie po PREFIKSIE znormalizowanej nazwy.
+// Obejmuje krotkie nazwy z Excela i oficjalne z KSeF (po scaleniu):
+//  PLAY -> "P4 sp. z o. o.", Jawne -> "JAWN-E Kancelaria...",
+//  Develogic -> "Develogic spolka z o.o.", Toya -> "Toya Spolka z o.o.",
+//  RAFAŁ -> "PB Project Rafał Boruch".
+const STALE_PREFIXES = [
+  'EURON', 'PLAY', 'P4', 'TOYA', 'POLISA', 'JAWN', 'DEVELOGIC', 'PBPROJECT',
+]
+// Nazwy dopasowywane TYLKO doslownie (prefiks bylby zbyt lapczywy —
+// np. "Bogdan Boruch" to osobny kontrahent, nie sekcja STALE "Bogdan").
+const STALE_EXACT = new Set(['MD', 'BOGDAN', 'MARTA', 'RAFAŁ', 'RAFAL'])
 
 /** Mapowanie nazwy vendora na folder. null = brak przypisania (Pozostali). */
 export function folderForVendorName(name: string): Folder | null {
-  if (name === 'STAFFA') return 'STAFFA'
-  if (name === 'PROMATBUD') return 'PROMATBUD'
-  if (name === 'BAUTER') return 'BAUTER'
-  if (name === 'INNE') return 'INNE'
-  if (STALE_VENDOR_NAMES.has(name)) return 'STALE'
+  const n = norm(name)
+  if (n === 'STAFFA') return 'STAFFA'
+  if (n === 'INNE') return 'INNE'
+  if (n.startsWith('PROMATBUD')) return 'PROMATBUD'
+  if (n.startsWith('BAUTER')) return 'BAUTER'
+  if (STALE_EXACT.has(n)) return 'STALE'
+  if (STALE_PREFIXES.some((p) => n.startsWith(p))) return 'STALE'
   return null
 }
 

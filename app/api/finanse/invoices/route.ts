@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { getEffectiveTerms, computeDepositReturnDate } from '@/lib/vendor-terms'
+import { getEffectiveTerms, computeDepositReturnDate, termsBase } from '@/lib/vendor-terms'
 
 // POST — utworzenie nowej faktury zakupowej.
 // Body: { vendorId, number, issueDate, dueDate?, vatRate, amountGross, amountNet?, amountVat?,
@@ -66,19 +66,21 @@ export async function POST(req: NextRequest) {
   // Pulapka Number(null)=0: null/'' to jawne "brak" (nie zero-procent).
   const numOrNull = (v: any): number | null =>
     v === null || v === undefined || v === '' ? null : isFinite(Number(v)) ? Number(v) : null
+  // Baza naliczania % z warunkow umowy: netto lub brutto (default BRUTTO).
+  const pctBase = termsBase(amountNet, amountGross, terms.calcBasis)
   const depPct = body.depositPct === undefined
     ? (amountGross > 0 ? terms.depositPct : null)
     : numOrNull(body.depositPct)
   const explicitDeposit = numOrNull(body.deposit)
   const deposit = explicitDeposit !== null ? explicitDeposit
-    : depPct !== null ? Math.round(amountGross * (depPct / 100) * 100) / 100
+    : depPct !== null ? Math.round(pctBase * (depPct / 100) * 100) / 100
     : null
   const kbPct = body.buildingCostsPct === undefined
     ? (amountGross > 0 ? terms.buildingCostsPct : null)
     : numOrNull(body.buildingCostsPct)
   const explicitKb = numOrNull(body.buildingCosts)
   const buildingCosts = explicitKb !== null ? explicitKb
-    : kbPct !== null ? Math.round(amountGross * (kbPct / 100) * 100) / 100
+    : kbPct !== null ? Math.round(pctBase * (kbPct / 100) * 100) / 100
     : null
 
   // Termin zwrotu kaucji z umowy: data wystawienia + N miesiecy — gdy jest

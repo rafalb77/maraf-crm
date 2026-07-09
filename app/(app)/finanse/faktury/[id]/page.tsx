@@ -164,6 +164,7 @@ export default async function InvoiceDetailsPage({ params }: { params: { id: str
         <DepositForm
           invoiceId={inv.id}
           amountGross={inv.amountGross}
+          amountNet={inv.amountNet}
           deposit={inv.deposit}
           depositPct={inv.depositPct}
           buildingCosts={inv.buildingCosts}
@@ -176,6 +177,7 @@ export default async function InvoiceDetailsPage({ params }: { params: { id: str
             depositPct: vendorTerms.depositPct,
             depositReturnMonths: vendorTerms.depositReturnMonths,
             buildingCostsPct: vendorTerms.buildingCostsPct,
+            calcBasis: vendorTerms.calcBasis,
           } : null}
         />
       </div>

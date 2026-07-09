@@ -28,7 +28,7 @@ import { createPublicKey, publicEncrypt, constants as cryptoConstants } from 'no
 import { XMLParser } from 'fast-xml-parser'
 import { prisma } from './prisma'
 import { KSEF_DEFAULTS } from './ksef-defaults'
-import { getEffectiveTerms, computeDepositReturnDate } from './vendor-terms'
+import { getEffectiveTerms, computeDepositReturnDate, termsBase } from './vendor-terms'
 import type { Company, KsefInvoiceData, KsefParty, KsefLine, KsefPayment } from './types'
 
 export type KsefEnvironment = 'PROD' | 'TEST' | 'DEMO'
@@ -825,11 +825,12 @@ export async function syncCompanyFromKsef(
       // /finanse/kontrahenci. Tylko dodatnie kwoty (korekty pomijamy).
       const terms = await getEffectiveTerms(vendor!.id)
       const applyTerms = parsed.amountGross > 0 && (terms.depositPct != null || terms.buildingCostsPct != null)
+      const tBase = termsBase(parsed.amountNet, parsed.amountGross, terms.calcBasis)
       const tDeposit = applyTerms && terms.depositPct != null
-        ? Math.round(parsed.amountGross * (terms.depositPct / 100) * 100) / 100
+        ? Math.round(tBase * (terms.depositPct / 100) * 100) / 100
         : null
       const tKb = applyTerms && terms.buildingCostsPct != null
-        ? Math.round(parsed.amountGross * (terms.buildingCostsPct / 100) * 100) / 100
+        ? Math.round(tBase * (terms.buildingCostsPct / 100) * 100) / 100
         : null
       await prisma.$transaction(async (tx) => {
         const created = await tx.purchaseInvoice.create({

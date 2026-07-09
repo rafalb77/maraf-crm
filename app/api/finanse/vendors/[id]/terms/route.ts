@@ -39,6 +39,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   const depositReturnMonthsRaw = num(body.depositReturnMonths)
   const depositReturnMonths = depositReturnMonthsRaw != null ? Math.round(depositReturnMonthsRaw) : null
   const buildingCostsPct = num(body.buildingCostsPct)
+  const calcBasis = body.calcBasis === 'NETTO' ? 'NETTO' : 'BRUTTO'
   const notes = body.notes ? String(body.notes).trim() : null
 
   if (depositPct != null && (depositPct < 0 || depositPct > 100)) {
@@ -53,8 +54,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
   const saved = await prisma.vendorTerms.upsert({
     where: { vendorId_investment: { vendorId: params.id, investment } },
-    create: { vendorId: params.id, investment, depositPct, depositReturnMonths, buildingCostsPct, notes },
-    update: { depositPct, depositReturnMonths, buildingCostsPct, notes },
+    create: { vendorId: params.id, investment, depositPct, depositReturnMonths, buildingCostsPct, calcBasis, notes },
+    update: { depositPct, depositReturnMonths, buildingCostsPct, calcBasis, notes },
   })
   return NextResponse.json(saved)
 }

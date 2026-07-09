@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { getEffectiveTerms, computeDepositReturnDate } from '@/lib/vendor-terms'
+import { getEffectiveTerms, computeDepositReturnDate, termsBase } from '@/lib/vendor-terms'
 
 // PATCH /api/finanse/invoices/[id]/deposit
 // Zapis kaucji gwarancyjnej i potracen. Dziala na kazdym statusie.
@@ -21,9 +21,13 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
   const inv = await prisma.purchaseInvoice.findUnique({
     where: { id: params.id },
-    select: { id: true, amountGross: true, vendorId: true, issueDate: true, depositReturnDate: true },
+    select: { id: true, amountGross: true, amountNet: true, vendorId: true, issueDate: true, depositReturnDate: true },
   })
   if (!inv) return NextResponse.json({ error: 'Faktura nie istnieje' }, { status: 404 })
+
+  // Warunki umowne kontrahenta — baza % (netto/brutto) + okres zwrotu kaucji.
+  const terms = await getEffectiveTerms(inv.vendorId)
+  const pctBase = termsBase(inv.amountNet, inv.amountGross, terms.calcBasis)
 
   const num = (v: any): number | null => {
     if (v === null || v === undefined || v === '') return null
@@ -40,8 +44,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   if (body.deposit !== undefined) {
     data.deposit = depositAmount
   } else if (pct !== null) {
-    // wyliczamy kwote z procentu
-    data.deposit = Math.round(inv.amountGross * (pct / 100) * 100) / 100
+    // wyliczamy kwote z procentu — od bazy z warunkow umowy (netto/brutto)
+    data.deposit = Math.round(pctBase * (pct / 100) * 100) / 100
   }
 
   // Koszty budowy: analogicznie do kaucji — % LUB kwota
@@ -51,7 +55,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   if (body.buildingCosts !== undefined) {
     data.buildingCosts = kbAmount
   } else if (kbPct !== null) {
-    data.buildingCosts = Math.round(inv.amountGross * (kbPct / 100) * 100) / 100
+    data.buildingCosts = Math.round(pctBase * (kbPct / 100) * 100) / 100
   }
 
   if (body.electricity !== undefined) data.electricity = num(body.electricity)
@@ -64,7 +68,6 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     // (data wystawienia + N miesiecy).
     const effectiveDeposit = data.deposit !== undefined ? data.deposit : null
     if (effectiveDeposit != null && effectiveDeposit > 0 && !inv.depositReturnDate) {
-      const terms = await getEffectiveTerms(inv.vendorId)
       if (terms.depositReturnMonths != null) {
         data.depositReturnDate = computeDepositReturnDate(inv.issueDate, terms.depositReturnMonths)
       }

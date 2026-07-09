@@ -18,7 +18,7 @@ export default async function KontrahenciPage() {
         select: { amountGross: true, payments: { select: { amount: true } } },
       },
       terms: {
-        select: { investment: true, depositPct: true, depositReturnMonths: true, buildingCostsPct: true, notes: true },
+        select: { investment: true, depositPct: true, depositReturnMonths: true, buildingCostsPct: true, calcBasis: true, notes: true },
         orderBy: { investment: 'asc' },
       },
     },
@@ -64,8 +64,9 @@ export default async function KontrahenciPage() {
                 <tr key={v.id} className={!v.isActive ? 'opacity-50' : ''}>
                   <td className="px-4 py-2.5">
                     <Link
-                      href={`/finanse/faktury?vendor=${v.id}`}
+                      href={`/finanse/kontrahenci/${v.id}`}
                       className="font-medium text-gray-900 hover:text-blue-600"
+                      title="Karta kontrahenta — warunki umowne i statystyki"
                     >
                       {v.name}
                     </Link>
@@ -83,7 +84,11 @@ export default async function KontrahenciPage() {
                       legacyKbPct={v.defaultBuildingCostsPct}
                     />
                   </td>
-                  <td className="px-4 py-2.5 text-right tabular-nums text-gray-700">{v._count.invoices}</td>
+                  <td className="px-4 py-2.5 text-right tabular-nums text-gray-700">
+                    <Link href={`/finanse/faktury?vendor=${v.id}`} className="hover:text-blue-600" title="Faktury kontrahenta">
+                      {v._count.invoices}
+                    </Link>
+                  </td>
                   <td className="px-4 py-2.5 text-right tabular-nums font-medium text-gray-900">
                     {unpaid > 0.01 ? fmtMoney(unpaid) : '—'}
                   </td>

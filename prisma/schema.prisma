@@ -993,6 +993,7 @@ model VendorTerms {
   depositPct          Float?   // % kaucji zatrzymywanej z każdej FV
   depositReturnMonths Int?     // po ilu miesiącach od wystawienia FV zwrot kaucji
   buildingCostsPct    Float?   // % kosztów budowy naliczany podwykonawcy (zwykle 0,5–1%)
+  calcBasis           String   @default("BRUTTO") // baza naliczania % z umowy: BRUTTO | NETTO
   notes               String?  // np. numer umowy
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt

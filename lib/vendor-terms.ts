@@ -4,15 +4,23 @@
 
 import { prisma } from './prisma'
 
+export type CalcBasis = 'BRUTTO' | 'NETTO'
+
 export type EffectiveTerms = {
   depositPct: number | null
   depositReturnMonths: number | null
   buildingCostsPct: number | null
+  calcBasis: CalcBasis // baza naliczania % (umowy bywaja od netto)
   notes: string | null
   source: 'terms' | 'legacy' | null // skad wziete (null = brak jakichkolwiek warunkow)
 }
 
-const EMPTY: EffectiveTerms = { depositPct: null, depositReturnMonths: null, buildingCostsPct: null, notes: null, source: null }
+const EMPTY: EffectiveTerms = { depositPct: null, depositReturnMonths: null, buildingCostsPct: null, calcBasis: 'BRUTTO', notes: null, source: null }
+
+/** Kwota-baza do naliczen % wg warunkow umowy (netto lub brutto). */
+export function termsBase(amountNet: number, amountGross: number, basis: CalcBasis): number {
+  return basis === 'NETTO' ? amountNet : amountGross
+}
 
 /**
  * Efektywne warunki kontrahenta dla danej budowy.
@@ -33,6 +41,7 @@ export async function getEffectiveTerms(vendorId: string, investment = ''): Prom
       depositPct: chosen.depositPct,
       depositReturnMonths: chosen.depositReturnMonths,
       buildingCostsPct: chosen.buildingCostsPct,
+      calcBasis: chosen.calcBasis === 'NETTO' ? 'NETTO' : 'BRUTTO',
       notes: chosen.notes,
       source: 'terms',
     }
@@ -42,6 +51,7 @@ export async function getEffectiveTerms(vendorId: string, investment = ''): Prom
       depositPct: vendor.defaultDepositPct,
       depositReturnMonths: null,
       buildingCostsPct: vendor.defaultBuildingCostsPct,
+      calcBasis: 'BRUTTO',
       notes: null,
       source: 'legacy',
     }

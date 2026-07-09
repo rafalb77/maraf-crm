@@ -6,6 +6,7 @@ import { fmtMoney, fmtDate } from '@/lib/finanse-format'
 type Props = {
   invoiceId: string
   amountGross: number
+  amountNet?: number
   deposit: number | null
   depositPct: number | null
   buildingCosts: number | null
@@ -14,8 +15,9 @@ type Props = {
   depositReturnDate: string | null
   depositReturnedAt: string | null
   issueDate?: string | null
-  // Warunki umowne kontrahenta — do przycisku "zastosuj warunki"
-  terms?: { depositPct: number | null; depositReturnMonths: number | null; buildingCostsPct: number | null } | null
+  // Warunki umowne kontrahenta — do przycisku "zastosuj warunki".
+  // calcBasis: baza naliczania % (BRUTTO | NETTO) wg umowy.
+  terms?: { depositPct: number | null; depositReturnMonths: number | null; buildingCostsPct: number | null; calcBasis?: string } | null
 }
 
 export function DepositForm(p: Props) {
@@ -31,9 +33,12 @@ export function DepositForm(p: Props) {
   const [error, setError] = useState<string | null>(null)
 
   const num = (s: string) => { const n = parseFloat(s.replace(',', '.')); return isFinite(n) ? n : 0 }
-  const depFromPct = pct ? Math.round(p.amountGross * (num(pct) / 100) * 100) / 100 : null
+  // Baza % wg warunkow umowy: netto lub brutto (default brutto).
+  const isNetto = p.terms?.calcBasis === 'NETTO' && p.amountNet != null
+  const pctBase = isNetto ? p.amountNet! : p.amountGross
+  const depFromPct = pct ? Math.round(pctBase * (num(pct) / 100) * 100) / 100 : null
   const effectiveDeposit = deposit ? num(deposit) : (depFromPct || 0)
-  const kbFromPct = kbPct ? Math.round(p.amountGross * (num(kbPct) / 100) * 100) / 100 : null
+  const kbFromPct = kbPct ? Math.round(pctBase * (num(kbPct) / 100) * 100) / 100 : null
   const effectiveKb = kb ? num(kb) : (kbFromPct || 0)
   const payable = Math.round((p.amountGross - effectiveDeposit - effectiveKb - num(prad)) * 100) / 100
 
@@ -157,6 +162,7 @@ export function DepositForm(p: Props) {
             {p.terms!.depositPct != null && ` • kaucja ${p.terms!.depositPct}%`}
             {p.terms!.depositReturnMonths != null && ` • zwrot ${p.terms!.depositReturnMonths} mc`}
             {p.terms!.buildingCostsPct != null && ` • KB ${p.terms!.buildingCostsPct}%`}
+            {p.terms!.calcBasis === 'NETTO' && ' • od netto'}
           </button>
         ) : (
           <a
@@ -202,6 +208,7 @@ export function DepositForm(p: Props) {
       </div>
       <p className="text-xs text-gray-400 mt-2">
         Do zapłaty = brutto ({fmtMoney(p.amountGross)}) − kaucja − koszty budowy − prąd. Kaucja zwracana osobno po terminie.
+        {isNetto && <> Procenty liczone <strong>od netto</strong> ({fmtMoney(p.amountNet!)}) wg warunków umowy.</>}
       </p>
       {error && <p className="text-sm text-red-600 mt-2">{error}</p>}
       <div className="flex gap-2 mt-3">
