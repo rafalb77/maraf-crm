@@ -40,8 +40,57 @@ Szybki dostęp do paneli, URL-i, hostingów. Hasła trzymamy w password managerz
 
 - Hosted by Coolify (kontener obok aplikacji)
 - Dostęp: `DATABASE_URL` w env Coolify
-- Backup: TODO (na razie brak automatycznego)
+- Backup: **Coolify Scheduled Backups → Backblaze B2** (patrz sekcja „Backup i odtwarzanie bazy" niżej)
 - Migracje: NIE używamy `prisma migrate` — tylko `prisma db push` po zmianie schema
+
+## Backup i odtwarzanie bazy
+
+**Zasada**: backup MUSI być poza OVH. Incydent z 2026-07 (wygasła subskrypcja OVH → serwer stanął) pokazał, że ryzykiem nie jest tylko awaria dysku, ale utrata całego konta OVH — dlatego backup idzie do **Backblaze B2** (osobny dostawca, osobny billing), a nie do OVH Object Storage. Szersze tło i alternatywy: `docs/system-core.md` § 4.
+
+### Konfiguracja docelowa
+
+- **Storage**: Backblaze B2, bucket `maraf-crm-backups` (private), region EU
+  - Konto B2: login w password managerze; Application Key (S3-compatible) też tam
+  - Endpoint S3: `https://s3.<region>.backblazeb2.com` (region widoczny przy buckecie, np. `eu-central-003`)
+- **Coolify**: panel → **Storages** → dodany S3 storage „Backblaze B2"
+- **Harmonogram**: zasób PostgreSQL → zakładka **Backups** → Scheduled Backup
+  - Frequency: `0 2 * * *` (codziennie 02:00)
+  - „Save to S3" = ON, storage: Backblaze B2
+  - Retencja: ~14 kopii lokalnie (Backups Amount to Keep), w B2 lifecycle rule bucketa (np. 30 dni)
+
+### Jak sprawdzić, że backupy działają
+
+1. Coolify → zasób PostgreSQL → **Backups** → lista wykonań (status + rozmiar pliku; rozmiar 0 B = alarm)
+2. Backblaze → bucket `maraf-crm-backups` → czy pojawiają się nowe pliki z bieżącą datą
+3. Raz na kwartał: testowe odtworzenie na lokalnym Postgresie (patrz niżej)
+
+### Odtwarzanie (restore)
+
+Coolify robi dump przez `pg_dump` (format custom, plik `.dmp`/`.dump`, może być zgzipowany).
+
+**Scenariusz A — baza żyje, cofamy dane (np. ktoś coś skasował):**
+1. Coolify → PostgreSQL → Backups → pobierz właściwy plik (albo ściągnij z B2)
+2. Wgraj do kontenera bazy i odtwórz (Terminal Coolify na zasobie PostgreSQL albo SSH na VPS):
+   ```bash
+   # z VPS: znajdź kontener bazy
+   sudo docker ps | grep postgres
+   sudo docker cp backup.dmp <kontener>:/tmp/backup.dmp
+   sudo docker exec -it <kontener> pg_restore -U <POSTGRES_USER> -d <POSTGRES_DB> \
+     --clean --if-exists /tmp/backup.dmp
+   ```
+3. Restart aplikacji CRM w Coolify + smoke test na crm.maraf.pl
+
+**Scenariusz B — VPS/konto OVH przepadło (disaster recovery):**
+1. Nowy VPS (OVH lub inny) → zainstaluj Coolify (`curl -fsSL https://cdn.coollabs.io/coolify/install.sh | bash`)
+2. Utwórz zasób PostgreSQL 16, ustaw `POSTGRES_USER`/`POSTGRES_DB`/hasło
+3. Ściągnij najnowszy dump z Backblaze B2 (panel B2 albo `rclone`/`aws s3` z Application Key)
+4. `pg_restore` jak w scenariuszu A
+5. Postaw aplikację z repo GitHub (Dockerfile), ustaw env vars wg `CLAUDE.md` sekcja „Zmienne środowiskowe (Coolify)", przepnij DNS crm.maraf.pl na nowy IP
+6. **Uwaga**: wolumen `uploads/` (rysunki, PDF-y) NIE jest w backupie bazy — patrz niżej
+
+### Luka: pliki z wolumenu `uploads/`
+
+Backup Coolify obejmuje **tylko bazę**. Pliki uploadowane (rysunki, karty PDF) leżą na wolumenie Dockera na VPS. TODO: cron na VPS z `rclone sync` wolumenu do tego samego bucketa B2 (prefiks `uploads/`). Do czasu wdrożenia — po większych uploadach warto ręcznie zgrać kopię.
 
 ## SMTP (wysyłka maili z aplikacji)
 

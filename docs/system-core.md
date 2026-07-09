@@ -69,7 +69,7 @@ Pakiet wdrożony **2026-05-15** (commit `a563135`):
 
 ### 🔴 KRYTYCZNE (must-have)
 
-- [ ] **Backup bazy** — Coolify → Database → Scheduled Backups → `daily` + S3 (OVH Object Storage / Cloudflare R2 / Backblaze B2). Patrz § 4.
+- [ ] **Backup bazy** — Coolify → Database → Scheduled Backups → `daily` + S3 (Backblaze B2). Patrz § 4 i `docs/infrastruktura.md` → „Backup i odtwarzanie bazy".
 - [ ] **`prisma db push`** w Coolify Terminal — tworzy tabelę `AuditLog`:
   ```bash
   node node_modules/prisma/build/index.js db push --skip-generate
@@ -97,32 +97,33 @@ Po incydencie SMTP-hack `bogdan.boruch@maraf.pl` (Synthient breach — hasło wy
 
 ## 4. Backup bazy — gdzie i jak
 
-OVH VPS = jedna lokalizacja. Backup MUSI być POZA tym VPS-em.
+OVH VPS = jedna lokalizacja. Backup MUSI być POZA tym VPS-em — i po incydencie z 2026-07 (wygasła subskrypcja OVH, serwer stanął) także **POZA kontem OVH**: Object Storage w Public Cloud wisi na tym samym billingu co VPS, więc nie chroni przed utratą konta.
 
-### Opcja A: OVH Object Storage (rekomendowana — zostaje w ekosystemie)
+Procedura operacyjna (konfiguracja, weryfikacja, restore): **`docs/infrastruktura.md` → „Backup i odtwarzanie bazy"**.
 
-**Plus**: jesteś już klientem OVH, brak egress fees między usługami, ~0,01 EUR/GB/mc.
+### Opcja A: Backblaze B2 (rekomendowana — osobny dostawca, osobny billing)
 
-1. **OVH Manager → Public Cloud** (utwórz projekt jeśli nie masz)
-2. **Storage → Object Storage → Create container** → np. `maraf-crm-backups`
-3. **Users & Roles → Add user → Object Store Operator** → wygeneruj **S3 credentials**
-4. Endpoint: `https://s3.{region}.io.cloud.ovh.net` (`waw` = Warszawa, `gra` = Gravelines)
-5. **Coolify → Storages → + S3 Storage → S3 Compatible** → wklej endpoint, bucket, Access Key, Secret
-6. **Coolify → Database → Scheduled Backups → + New** → Frequency: `daily` (lub `0 2 * * *`), Storage: nowo dodany S3
+**Plus**: 10 GB za darmo (mała baza CRM mieści się w darmowym progu), S3-compatible, niezależne od losu konta OVH.
 
-### Opcja B: Cloudflare R2 / Backblaze B2
+1. **backblaze.com → konto B2** → Buckets → Create Bucket → `maraf-crm-backups` (Private), region EU
+2. **App Keys → Add a New Application Key** → dostęp tylko do tego bucketa → zapisz `keyID` + `applicationKey` w password managerze
+3. Endpoint: `https://s3.<region>.backblazeb2.com` (region widać przy buckecie, np. `eu-central-003`)
+4. **Coolify → Storages → + Add → S3 Compatible** → wklej endpoint, bucket, Access Key (`keyID`), Secret (`applicationKey`)
+5. **Coolify → zasób PostgreSQL → Backups → Scheduled Backups** → Frequency: `0 2 * * *`, „Save to S3" = ON, Storage: nowo dodany
 
-Analogicznie — różnice cenowe groszowe dla małej bazy. Konfiguracja identyczna (oba S3-compatible).
+### Opcja B: OVH Object Storage / Cloudflare R2
+
+Konfiguracja analogiczna (S3-compatible). OVH: Public Cloud → Object Storage → container + user „Object Store Operator" → S3 credentials, endpoint `https://s3.{region}.io.cloud.ovh.net` (`waw`/`gra`). **Uwaga**: OVH Object Storage dzieli billing z VPS-em — patrz nagłówek sekcji.
 
 ### Bonus: OVH Automated Backup (snapshoty całego VPS)
 
 **Niezależne od Coolify** — OVH hypervisor robi snapshoty całego dysku VPS codziennie, trzyma ~7 dni. Włączasz w OVH Manager → Twój VPS → Automated Backup. ~3-5 EUR/mc.
 
 **Po co?**
-- Object Storage backup = szybki rollback bazy (np. ktoś coś skasował)
-- VPS Automated Backup = disaster recovery (cały serwer padł, hacker zaszyfrował dysk)
+- Backup bazy w B2 = szybki rollback bazy (np. ktoś coś skasował) + przeżywa utratę konta OVH
+- VPS Automated Backup = disaster recovery (cały serwer padł, hacker zaszyfrował dysk) — ale NIE chroni przed wygaśnięciem konta OVH
 
-**Rekomendacja**: zacznij od Object Storage (groszowy koszt, lepszy niż nic). VPS Automated Backup dodaj jak będziesz mieć kilka tysięcy klientów + transakcje.
+**Rekomendacja**: zacznij od B2 (darmowy próg, lepszy niż nic). VPS Automated Backup dodaj jak będziesz mieć kilka tysięcy klientów + transakcje.
 
 ---
 
