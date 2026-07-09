@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { formatCurrency } from '@/lib/utils'
 import { SalesTable } from '@/components/sales/SalesTable'
 import { NewContractFromReservationButton } from '@/components/sales/NewContractFromReservationButton'
+import { getSalesValue } from '@/lib/sales-metrics'
 
 export default async function SalesPage({
   searchParams,
@@ -43,25 +44,13 @@ export default async function SalesPage({
   const grossOf = (c: (typeof contracts)[number]) =>
     c.valueGross ?? c.contractUnits.reduce((s, cu) => s + (cu.priceGross ?? cu.unit.priceGross ?? 0), 0)
 
-  // KPI liczone z aktualnie wczytanej (przefiltrowanej) listy — zero nowych zapytań.
   const now = new Date()
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
 
-  // Dedup wartości: dane z importu trzymają JEDNĄ transakcję jako OSOBNE umowy
-  // (rezerwacyjna + deweloperska tego samego klienta na te same lokale).
-  // Do wartości sprzedaży liczymy tylko najdalszy etap — umowę pomijamy, gdy ten
-  // sam klient ma podpisaną umowę dalszego etapu współdzielącą choć jeden lokal.
-  const STAGE_RANK: Record<string, number> = { REZERWACYJNA: 1, DEWELOPERSKA: 2, PRZENIESIENIA: 3 }
-  const signed = contracts.filter((c) => c.status === 'PODPISANA')
-  const isSuperseded = (c: (typeof contracts)[number]) =>
-    signed.some(
-      (o) =>
-        o.id !== c.id &&
-        o.clientId === c.clientId &&
-        (STAGE_RANK[o.type] || 0) > (STAGE_RANK[c.type] || 0) &&
-        o.contractUnits.some((ou) => c.contractUnits.some((cu) => cu.unitId === ou.unitId)),
-    )
-  const signedValue = signed.filter((c) => !isSuperseded(c)).reduce((s, c) => s + grossOf(c), 0)
+  // Wartość SPRZEDAŻY — jedno źródło prawdy wspólne z pulpitem: lokale SPRZEDANE
+  // (umowy wiążące) po cenie z umowy. Bez dublowania rezerwacyjna+deweloperska.
+  // Niezależne od filtra listy — zawsze pokazuje całą sprzedaż.
+  const salesValue = await getSalesValue()
 
   const signedThisMonth = contracts.filter(
     (c) => c.signedAt && new Date(c.signedAt) >= monthStart,
@@ -127,7 +116,7 @@ export default async function SalesPage({
 
       {/* KPI sprzedaży (bento v2) */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5">
-        <SalesKpi label="Wartość podpisanych umów" value={formatCurrency(signedValue)} delay={0} />
+        <SalesKpi label="Wartość sprzedaży" value={formatCurrency(salesValue.total)} delay={0} />
         <SalesKpi label="Umowy w tym miesiącu" value={String(signedThisMonth)} delay={0.06} />
         <SalesKpi label="Średnia cena m² (mieszkania, um. dewelop.)" value={avgPpsm > 0 ? formatCurrency(avgPpsm) : '—'} delay={0.1} />
       </div>

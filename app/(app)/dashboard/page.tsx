@@ -9,9 +9,10 @@ import {
 } from '@/lib/types'
 import { TopWidget } from '@/components/dashboard/TopWidget'
 import { TaskWidget } from '@/components/dashboard/TaskWidget'
+import { getSalesValue } from '@/lib/sales-metrics'
 
 async function getDashboardData() {
-  const [unitsByStatus, residentialByStatus, clientsByStatus, openService, recentActivities, recentClients, revenueData, residentialAll, residentialSold] = await Promise.all([
+  const [unitsByStatus, residentialByStatus, clientsByStatus, openService, recentActivities, recentClients, revenueData, residentialAll, residentialSold, salesValue] = await Promise.all([
     prisma.unit.groupBy({ by: ['status'], _count: true }),
     // Tylko lokale mieszkalne (bez usługowych, miejsc postojowych, garaży, komórek) — kafelek „Wolne mieszkania"
     prisma.unit.groupBy({ by: ['status'], where: { type: 'MIESZKALNY' }, _count: true }),
@@ -48,14 +49,16 @@ async function getDashboardData() {
       _sum: { area: true, priceGross: true },
       _count: true,
     }),
+    // Wartość sprzedaży — wspólne źródło prawdy (cena z umowy wiążącej, nie cennik).
+    getSalesValue(),
   ])
 
-  return { unitsByStatus, residentialByStatus, clientsByStatus, openService, recentActivities, recentClients, revenueData, residentialAll, residentialSold }
+  return { unitsByStatus, residentialByStatus, clientsByStatus, openService, recentActivities, recentClients, revenueData, residentialAll, residentialSold, salesValue }
 }
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions)
-  const { unitsByStatus, residentialByStatus, clientsByStatus, openService, recentActivities, recentClients, revenueData, residentialAll, residentialSold } = await getDashboardData()
+  const { unitsByStatus, residentialByStatus, clientsByStatus, openService, recentActivities, recentClients, revenueData, residentialAll, residentialSold, salesValue } = await getDashboardData()
 
   const unitStats = Object.fromEntries(unitsByStatus.map((u) => [u.status, u._count]))
   const residentialStats = Object.fromEntries(residentialByStatus.map((u) => [u.status, u._count]))
@@ -63,13 +66,16 @@ export default async function DashboardPage() {
   const clientStats = Object.fromEntries(clientsByStatus.map((c) => [c.status, c._count]))
   const totalUnits = unitsByStatus.reduce((s, u) => s + u._count, 0)
   const totalClients = clientsByStatus.reduce((s, c) => s + c._count, 0)
-  const revenue = revenueData._sum.priceGross || 0
+  // Wartość sprzedaży = cena z umów wiążących (po rabacie), nie cennik. revenueData
+  // (suma cennika SPRZEDANYCH) już nieużywane do kwoty — zostaje dla zgodności.
+  void revenueData
+  const revenue = salesValue.total
   const soldUnits = unitStats['SPRZEDANY'] || 0
   const soldPct = totalUnits > 0 ? Math.round((soldUnits / totalUnits) * 100) : 0
 
   // Mieszkania (MIESZKALNY): sztuki, wartość i PUM — % PUM liczony po powierzchni
   const mSoldCount = residentialSold._count
-  const mSoldValue = residentialSold._sum.priceGross || 0
+  const mSoldValue = salesValue.residential // cena z umowy (po rabacie), nie cennik
   const mSoldArea = residentialSold._sum.area || 0
   const mTotalArea = residentialAll._sum.area || 0
   const pumPct = mTotalArea > 0 ? Math.round((mSoldArea / mTotalArea) * 100) : 0
