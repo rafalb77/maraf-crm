@@ -8,6 +8,7 @@ type Vendor = {
   category: string
   defaultDepositPct: number | null
   defaultBuildingCostsPct: number | null
+  depositReturnMonths?: number | null // z warunkow umownych — auto-termin zwrotu kaucji
 }
 
 export function NewInvoiceForm({ vendors, company }: { vendors: Vendor[]; company: string }) {
@@ -195,9 +196,13 @@ export function NewInvoiceForm({ vendors, company }: { vendors: Vendor[]; compan
           <input value={buildingCostsPct} onChange={(e) => setBuildingCostsPct(e.target.value)} placeholder="np. 1" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm tabular-nums" />
         </Row>
       </div>
-      {selectedVendor && (selectedVendor.defaultDepositPct != null || selectedVendor.defaultBuildingCostsPct != null) && (
+      {selectedVendor && (selectedVendor.defaultDepositPct != null || selectedVendor.defaultBuildingCostsPct != null || selectedVendor.depositReturnMonths != null) && (
         <p className="text-xs text-gray-400">
-          Domyślne wartości pobrane z kontrahenta <strong>{selectedVendor.name}</strong> (można edytować w <a href="/finanse/kontrahenci" className="text-blue-600 hover:underline">/finanse/kontrahenci</a>).
+          Warunki umowne kontrahenta <strong>{selectedVendor.name}</strong>
+          {selectedVendor.depositReturnMonths != null && depositPct && (
+            <> — termin zwrotu kaucji ustawi się automatycznie na <strong>+{selectedVendor.depositReturnMonths} mc</strong> od daty wystawienia</>
+          )}
+          {' '}(edycja w <a href="/finanse/kontrahenci" className="text-blue-600 hover:underline">/finanse/kontrahenci</a>).
         </p>
       )}
 

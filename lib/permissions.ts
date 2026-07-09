@@ -24,6 +24,8 @@ export const ALL_PERMISSIONS = [
   'przeroby',
   'finanse',
   'statystyki',
+  'budowa',
+  'checkin',
 ] as const
 
 // Sub-permissions w obrębie sekcji. Stringi z dot-notation, sprawdzane przez
@@ -49,6 +51,8 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
   przeroby: 'Przeroby',
   finanse: 'Finanse',
   statystyki: 'Statystyki',
+  budowa: 'Budowa',
+  checkin: 'Budowa — raport kierownika',
 }
 
 export const SUB_PERMISSION_LABELS: Record<SubPermission, string> = {
@@ -56,6 +60,8 @@ export const SUB_PERMISSION_LABELS: Record<SubPermission, string> = {
 }
 
 // Kolejność preferowana — po logowaniu user ląduje na pierwszej dostępnej.
+// 'budowa'/'checkin' na końcu — user z szerszymi uprawnieniami (Marta, Bohdan)
+// ląduje tam gdzie dotychczas; kierownik budowy (samo 'checkin') trafia na /checkin.
 const PREFERRED_LANDING_ORDER: Permission[] = [
   'dashboard',
   'przeroby',
@@ -68,6 +74,8 @@ const PREFERRED_LANDING_ORDER: Permission[] = [
   'cases',
   'mailing',
   'calendar',
+  'budowa',
+  'checkin',
 ]
 
 /**
@@ -102,6 +110,8 @@ export function getRequiredPermission(pathname: string): Permission | 'admin' | 
   if (pathname.startsWith('/przeroby')) return 'przeroby'
   if (pathname.startsWith('/finanse')) return 'finanse'
   if (pathname.startsWith('/statystyki')) return 'statystyki'
+  if (pathname.startsWith('/budowa')) return 'budowa'
+  if (pathname.startsWith('/checkin')) return 'checkin' // mobilny raport kierownika (Etap 1)
   if (pathname.startsWith('/settings')) return 'admin'
 
   // API
@@ -120,6 +130,9 @@ export function getRequiredPermission(pathname: string): Permission | 'admin' | 
   if (pathname.startsWith('/api/przeroby')) return 'przeroby'
   if (pathname.startsWith('/api/finanse')) return 'finanse'
   if (pathname.startsWith('/api/statystyki')) return 'statystyki'
+  // UWAGA: /api/budowa/checkin PRZED /api/budowa (bardziej szczegółowy prefiks pierwszy)
+  if (pathname.startsWith('/api/budowa/checkin')) return 'checkin'
+  if (pathname.startsWith('/api/budowa')) return 'budowa'
 
   // Admin-only API (zarządzanie userami, settings)
   if (pathname.startsWith('/api/users')) return 'admin'

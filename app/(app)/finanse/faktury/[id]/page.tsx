@@ -18,6 +18,7 @@ import {
 } from '@/lib/types'
 import type { KsefInvoiceData } from '@/lib/types'
 import { fmtDate, fmtMoney, isOverdue, payableAmount } from '@/lib/finanse-format'
+import { getEffectiveTerms } from '@/lib/vendor-terms'
 import { InvoiceActions } from '@/components/finanse/InvoiceActions'
 import { KsefInvoiceDetails } from '@/components/finanse/KsefInvoiceDetails'
 import { AddPaymentForm } from '@/components/finanse/AddPaymentForm'
@@ -43,11 +44,14 @@ export default async function InvoiceDetailsPage({ params }: { params: { id: str
 
   // Lista kontrahentów do formularza edycji (zmiana vendora przy błędach importu).
   // Dokładamy bieżącego vendora gdyby był nieaktywny — by select pokazał aktualny wybór.
-  const activeVendors = await prisma.vendor.findMany({
-    where: { isActive: true },
-    select: { id: true, name: true },
-    orderBy: { name: 'asc' },
-  })
+  const [activeVendors, vendorTerms] = await Promise.all([
+    prisma.vendor.findMany({
+      where: { isActive: true },
+      select: { id: true, name: true },
+      orderBy: { name: 'asc' },
+    }),
+    getEffectiveTerms(inv.vendorId),
+  ])
   const vendors = activeVendors.some((v) => v.id === inv.vendorId)
     ? activeVendors
     : [{ id: inv.vendor.id, name: inv.vendor.name }, ...activeVendors]
@@ -167,6 +171,12 @@ export default async function InvoiceDetailsPage({ params }: { params: { id: str
           electricity={inv.electricity}
           depositReturnDate={inv.depositReturnDate ? inv.depositReturnDate.toISOString() : null}
           depositReturnedAt={inv.depositReturnedAt ? inv.depositReturnedAt.toISOString() : null}
+          issueDate={inv.issueDate.toISOString()}
+          terms={vendorTerms.source ? {
+            depositPct: vendorTerms.depositPct,
+            depositReturnMonths: vendorTerms.depositReturnMonths,
+            buildingCostsPct: vendorTerms.buildingCostsPct,
+          } : null}
         />
       </div>
 

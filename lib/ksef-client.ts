@@ -28,6 +28,7 @@ import { createPublicKey, publicEncrypt, constants as cryptoConstants } from 'no
 import { XMLParser } from 'fast-xml-parser'
 import { prisma } from './prisma'
 import { KSEF_DEFAULTS } from './ksef-defaults'
+import { getEffectiveTerms, computeDepositReturnDate } from './vendor-terms'
 import type { Company, KsefInvoiceData, KsefParty, KsefLine, KsefPayment } from './types'
 
 export type KsefEnvironment = 'PROD' | 'TEST' | 'DEMO'
@@ -819,6 +820,17 @@ export async function syncCompanyFromKsef(
         continue
       }
       const out = ksefPaymentOutcome(parsed, 'WPROWADZONA')
+      // Warunki umowne kontrahenta (kaucja %, okres zwrotu, KB %) — naliczane
+      // automatycznie przy FV z KSeF, gdy user skonfigurowal warunki w
+      // /finanse/kontrahenci. Tylko dodatnie kwoty (korekty pomijamy).
+      const terms = await getEffectiveTerms(vendor!.id)
+      const applyTerms = parsed.amountGross > 0 && (terms.depositPct != null || terms.buildingCostsPct != null)
+      const tDeposit = applyTerms && terms.depositPct != null
+        ? Math.round(parsed.amountGross * (terms.depositPct / 100) * 100) / 100
+        : null
+      const tKb = applyTerms && terms.buildingCostsPct != null
+        ? Math.round(parsed.amountGross * (terms.buildingCostsPct / 100) * 100) / 100
+        : null
       await prisma.$transaction(async (tx) => {
         const created = await tx.purchaseInvoice.create({
           data: {
@@ -836,6 +848,13 @@ export async function syncCompanyFromKsef(
             ksefNumber: meta.ksefNumber,
             ksefData: asJson(parsed.data),
             description: `Z KSeF (${meta.ksefNumber})`,
+            deposit: tDeposit,
+            depositPct: applyTerms ? terms.depositPct : null,
+            depositReturnDate: tDeposit != null && terms.depositReturnMonths != null
+              ? computeDepositReturnDate(parsed.issueDate, terms.depositReturnMonths)
+              : null,
+            buildingCosts: tKb,
+            buildingCostsPct: applyTerms ? terms.buildingCostsPct : null,
           },
         })
         if (out.paidTotal > 0.01) {

@@ -111,6 +111,11 @@ const ICONS = {
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
     </svg>
   ),
+  wsBudowa: (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317a4.5 4.5 0 016.336 4.486l-3.276 3.276a3.004 3.004 0 002.25 2.25l3.276-3.276a4.5 4.5 0 01-4.884 6.166l-7.152 6.132a2.548 2.548 0 11-3.586-3.586l6.132-7.152a4.5 4.5 0 01.904-8.296z" />
+    </svg>
+  ),
   wsFin: (
     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M5 6h14a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2zm7 8h2" />
@@ -152,6 +157,20 @@ const WORKSPACES: Workspace[] = [
           { href: '/mailing', label: 'Mailing', icon: ICONS.mailing },
           { href: '/calendar', label: 'Kalendarz', icon: ICONS.calendar },
           { href: '/statystyki', label: 'Statystyki', icon: ICONS.stats },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'budowa',
+    label: 'Budowa',
+    icon: ICONS.wsBudowa,
+    sections: [
+      {
+        items: [
+          // Etap 0 — sam pulpit; kolejne pozycje (harmonogram, dziennik, wykonawcy,
+          // koszty, przegląd) dochodzą w Etapach 1-3 — patrz docs/budowa-rozpoczecie.md
+          { href: '/budowa', label: 'Pulpit budowy', icon: ICONS.dashboard },
         ],
       },
     ],

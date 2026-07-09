@@ -5,10 +5,30 @@ import { COMPANY_LABELS } from '@/lib/types'
 
 export default async function NowaFakturaPage() {
   const company = getActiveCompany()
-  const vendors = await prisma.vendor.findMany({
+  const vendorsRaw = await prisma.vendor.findMany({
     where: { isActive: true },
-    select: { id: true, name: true, category: true, defaultDepositPct: true, defaultBuildingCostsPct: true },
+    select: {
+      id: true, name: true, category: true,
+      defaultDepositPct: true, defaultBuildingCostsPct: true,
+      terms: {
+        where: { investment: '' },
+        select: { depositPct: true, depositReturnMonths: true, buildingCostsPct: true },
+      },
+    },
     orderBy: { name: 'asc' },
+  })
+  // Efektywne warunki do prefill: wiersz VendorTerms (domyslny) > legacy pola.
+  const vendors = vendorsRaw.map((v) => {
+    const t = v.terms[0]
+    const hasTerms = !!t && (t.depositPct != null || t.depositReturnMonths != null || t.buildingCostsPct != null)
+    return {
+      id: v.id,
+      name: v.name,
+      category: v.category,
+      defaultDepositPct: hasTerms ? t.depositPct : v.defaultDepositPct,
+      defaultBuildingCostsPct: hasTerms ? t.buildingCostsPct : v.defaultBuildingCostsPct,
+      depositReturnMonths: hasTerms ? t.depositReturnMonths : null,
+    }
   })
 
   return (

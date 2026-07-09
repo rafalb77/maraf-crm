@@ -33,7 +33,19 @@ async function main() {
     },
   })
 
-  console.log(`✅ Seed zakończony. Admin: ${email}`)
+  // Moduł Budowa (Etap 0): jedyna aktywna inwestycja. Idempotentne — upsert po slug,
+  // update pusty żeby nie nadpisywać danych edytowanych później w UI.
+  await prisma.investment.upsert({
+    where: { slug: 'nova-staffa' },
+    update: {},
+    create: {
+      name: 'Nova Staffa',
+      slug: 'nova-staffa',
+      status: 'W_BUDOWIE',
+    },
+  })
+
+  console.log(`✅ Seed zakończony. Admin: ${email}. Inwestycja: Nova Staffa.`)
 }
 
 main()

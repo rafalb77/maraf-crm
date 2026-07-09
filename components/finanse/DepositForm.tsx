@@ -13,6 +13,9 @@ type Props = {
   electricity: number | null
   depositReturnDate: string | null
   depositReturnedAt: string | null
+  issueDate?: string | null
+  // Warunki umowne kontrahenta — do przycisku "zastosuj warunki"
+  terms?: { depositPct: number | null; depositReturnMonths: number | null; buildingCostsPct: number | null } | null
 }
 
 export function DepositForm(p: Props) {
@@ -33,6 +36,20 @@ export function DepositForm(p: Props) {
   const kbFromPct = kbPct ? Math.round(p.amountGross * (num(kbPct) / 100) * 100) / 100 : null
   const effectiveKb = kb ? num(kb) : (kbFromPct || 0)
   const payable = Math.round((p.amountGross - effectiveDeposit - effectiveKb - num(prad)) * 100) / 100
+
+  const hasTerms = !!(p.terms && (p.terms.depositPct != null || p.terms.buildingCostsPct != null || p.terms.depositReturnMonths != null))
+
+  // Wypelnia formularz warunkami z umowy kontrahenta (kaucja % / zwrot / KB %).
+  function applyTerms() {
+    if (!p.terms) return
+    if (p.terms.depositPct != null) { setPct(String(p.terms.depositPct)); setDeposit('') }
+    if (p.terms.buildingCostsPct != null) { setKbPct(String(p.terms.buildingCostsPct)); setKb('') }
+    if (p.terms.depositReturnMonths != null && p.issueDate) {
+      const d = new Date(p.issueDate)
+      d.setMonth(d.getMonth() + p.terms.depositReturnMonths)
+      setReturnDate(d.toISOString().slice(0, 10))
+    }
+  }
 
   async function save(extra: Record<string, any> = {}) {
     setSaving(true)
@@ -128,7 +145,21 @@ export function DepositForm(p: Props) {
   // Widok edycji
   return (
     <div className="bg-white border border-gray-300 rounded-lg p-4">
-      <p className="text-sm font-semibold text-gray-900 mb-3">Kaucja i potrącenia</p>
+      <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+        <p className="text-sm font-semibold text-gray-900">Kaucja i potrącenia</p>
+        {hasTerms && (
+          <button
+            onClick={applyTerms}
+            className="text-xs bg-amber-50 border border-amber-200 hover:bg-amber-100 text-amber-800 px-2.5 py-1 rounded-lg"
+            title="Wypełnij polami z warunków umownych kontrahenta (/finanse/kontrahenci)"
+          >
+            ⚡ Zastosuj warunki umowne
+            {p.terms!.depositPct != null && ` • kaucja ${p.terms!.depositPct}%`}
+            {p.terms!.depositReturnMonths != null && ` • zwrot ${p.terms!.depositReturnMonths} mc`}
+            {p.terms!.buildingCostsPct != null && ` • KB ${p.terms!.buildingCostsPct}%`}
+          </button>
+        )}
+      </div>
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
         <div>
           <label className="text-xs text-gray-500 uppercase font-semibold mb-1 block">Kaucja %</label>

@@ -967,14 +967,39 @@ model Vendor {
   category  String   @default("DOSTAWCA")
   notes     String?
   isActive  Boolean  @default(true)
-  // Domyślne % kaucji gwarancyjnej i kosztów budowy dla tego kontrahenta.
-  // Prefilują pola faktury przy tworzeniu (user może nadpisać per FV).
+  // LEGACY: domyślne % kaucji/KB — zastąpione przez VendorTerms (wiersz
+  // z investment=''). Zostawione dla kompatybilności; getEffectiveTerms
+  // czyta je jako fallback. Migracja: scripts/migrate-vendor-terms.js.
   defaultDepositPct       Float?
   defaultBuildingCostsPct Float?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   invoices PurchaseInvoice[]
+  terms    VendorTerms[]
+}
+
+// Warunki umowne kontrahenta (z umowy podwykonawczej): kaucja gwarancyjna
+// i koszty budowy. investment = '' → warunki domyślne (obecna budowa);
+// gdy system zacznie obsługiwać wiele budów, kontrahent dostaje osobne
+// wiersze per budowa (nazwa budowy jako identyfikator — do czasu modelu
+// Inwestycji). Sentinel '' zamiast null, bo unique z NULL w Postgres
+// nie wymusza unikalności (NULL != NULL).
+model VendorTerms {
+  id                  String   @id @default(cuid())
+  vendorId            String
+  investment          String   @default("") // '' = domyślne / wszystkie budowy
+  depositPct          Float?   // % kaucji zatrzymywanej z każdej FV
+  depositReturnMonths Int?     // po ilu miesiącach od wystawienia FV zwrot kaucji
+  buildingCostsPct    Float?   // % kosztów budowy naliczany podwykonawcy (zwykle 0,5–1%)
+  notes               String?  // np. numer umowy
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  vendor Vendor @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+
+  @@unique([vendorId, investment])
+  @@index([vendorId])
 }
 
 // status: WPROWADZONA | DO_ZATWIERDZENIA | ZATWIERDZONA | ZAPLANOWANA | OPLACONA | CZESCIOWO_OPLACONA | ODRZUCONA | ANULOWANA
@@ -1390,4 +1415,31 @@ model EscrowRelease {
 
   @@index([accountId])
   @@index([date])
+}
+
+// =====================================================================
+// MODUŁ: BUDOWA (Project Manager) — patrz docs/budowa-rozpoczecie.md
+// =====================================================================
+
+// Inwestycja budowlana — pierwsza encja modułu Budowa (Etap 0).
+// UWAGA: model InvestmentImage (wyżej) NIE jest relacją do Investment — to globalne
+// wizualizacje marketingowe zarządzane w /settings. Nie łączyć.
+// Docelowo tu podepną się: PurchaseInvoice.investmentId (Etap 3), Contract.investmentName,
+// EscrowAccount.investmentName (przyszłość). Listy relacji (stages/tasks/reports/photos/
+// comments/invoices) dochodzą przyrostowo w Etapach 1-3 — patrz fazowanie w docu.
+// status: PRZYGOTOWANIE | W_BUDOWIE | ODBIORY | ZAKONCZONA
+model Investment {
+  id             String    @id @default(cuid())
+  name           String    @unique // "Nova Staffa"
+  slug           String    @unique // "nova-staffa"
+  address        String?
+  status         String    @default("W_BUDOWIE")
+  startDate      DateTime?
+  plannedEndDate DateTime? // termin końcowy — odniesienie dla alertu "zagrożony koniec"
+  actualEndDate  DateTime?
+  budgetNet      Float?
+  notes          String?
+  active         Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 }

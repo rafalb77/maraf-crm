@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { getEffectiveTerms, computeDepositReturnDate } from '@/lib/vendor-terms'
 
 // POST — utworzenie nowej faktury zakupowej.
 // Body: { vendorId, number, issueDate, dueDate?, vatRate, amountGross, amountNet?, amountVat?,
@@ -57,15 +58,36 @@ export async function POST(req: NextRequest) {
 
   const company = body.company === 'MARAF_DEVELOPMENT' ? 'MARAF_DEVELOPMENT' : 'MARAF'
 
+  // Warunki umowne kontrahenta (kaucja %, okres zwrotu, KB %) — fallback gdy
+  // pole NIE przyszlo w body (undefined). Jawny null = user swiadomie wyczyszcz.
+  const terms = await getEffectiveTerms(vendorId)
+
   // Kaucja i KB: % auto-licza kwote z brutto, kwota nadpisuje %.
-  const depPct = isFinite(Number(body.depositPct)) ? Number(body.depositPct) : null
-  const deposit = isFinite(Number(body.deposit)) ? Number(body.deposit)
+  // Pulapka Number(null)=0: null/'' to jawne "brak" (nie zero-procent).
+  const numOrNull = (v: any): number | null =>
+    v === null || v === undefined || v === '' ? null : isFinite(Number(v)) ? Number(v) : null
+  const depPct = body.depositPct === undefined
+    ? (amountGross > 0 ? terms.depositPct : null)
+    : numOrNull(body.depositPct)
+  const explicitDeposit = numOrNull(body.deposit)
+  const deposit = explicitDeposit !== null ? explicitDeposit
     : depPct !== null ? Math.round(amountGross * (depPct / 100) * 100) / 100
     : null
-  const kbPct = isFinite(Number(body.buildingCostsPct)) ? Number(body.buildingCostsPct) : null
-  const buildingCosts = isFinite(Number(body.buildingCosts)) ? Number(body.buildingCosts)
+  const kbPct = body.buildingCostsPct === undefined
+    ? (amountGross > 0 ? terms.buildingCostsPct : null)
+    : numOrNull(body.buildingCostsPct)
+  const explicitKb = numOrNull(body.buildingCosts)
+  const buildingCosts = explicitKb !== null ? explicitKb
     : kbPct !== null ? Math.round(amountGross * (kbPct / 100) * 100) / 100
     : null
+
+  // Termin zwrotu kaucji z umowy: data wystawienia + N miesiecy — gdy jest
+  // kaucja, umowa okresla okres, a body nie podaje wlasnej daty.
+  const depositReturnDate = body.depositReturnDate
+    ? new Date(body.depositReturnDate)
+    : deposit != null && deposit > 0 && terms.depositReturnMonths != null
+      ? computeDepositReturnDate(issueDate, terms.depositReturnMonths)
+      : null
 
   const created = await prisma.purchaseInvoice.create({
     data: {
@@ -82,9 +104,10 @@ export async function POST(req: NextRequest) {
       description: body.description ? String(body.description).trim() : null,
       deposit,
       depositPct: depPct,
+      depositReturnDate,
       buildingCosts,
       buildingCostsPct: kbPct,
-      electricity: isFinite(Number(body.electricity)) ? Number(body.electricity) : null,
+      electricity: numOrNull(body.electricity),
       status: 'ZATWIERDZONA',
       createdById: session.user.id || null,
     },

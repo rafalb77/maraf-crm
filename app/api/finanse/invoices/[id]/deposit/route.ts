@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { getEffectiveTerms, computeDepositReturnDate } from '@/lib/vendor-terms'
 
 // PATCH /api/finanse/invoices/[id]/deposit
 // Zapis kaucji gwarancyjnej i potracen. Dziala na kazdym statusie.
@@ -20,7 +21,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
   const inv = await prisma.purchaseInvoice.findUnique({
     where: { id: params.id },
-    select: { id: true, amountGross: true },
+    select: { id: true, amountGross: true, vendorId: true, issueDate: true, depositReturnDate: true },
   })
   if (!inv) return NextResponse.json({ error: 'Faktura nie istnieje' }, { status: 404 })
 
@@ -55,8 +56,21 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
   if (body.electricity !== undefined) data.electricity = num(body.electricity)
 
-  if (body.depositReturnDate !== undefined) {
-    data.depositReturnDate = body.depositReturnDate ? new Date(body.depositReturnDate) : null
+  if (body.depositReturnDate !== undefined && body.depositReturnDate !== null && body.depositReturnDate !== '') {
+    data.depositReturnDate = new Date(body.depositReturnDate)
+  } else {
+    // Brak jawnej daty zwrotu: gdy kaucja jest ustawiana (niezerowa), a FV
+    // nie ma jeszcze terminu — auto-termin z warunkow umownych kontrahenta
+    // (data wystawienia + N miesiecy).
+    const effectiveDeposit = data.deposit !== undefined ? data.deposit : null
+    if (effectiveDeposit != null && effectiveDeposit > 0 && !inv.depositReturnDate) {
+      const terms = await getEffectiveTerms(inv.vendorId)
+      if (terms.depositReturnMonths != null) {
+        data.depositReturnDate = computeDepositReturnDate(inv.issueDate, terms.depositReturnMonths)
+      }
+    } else if (body.depositReturnDate === null || body.depositReturnDate === '') {
+      data.depositReturnDate = null
+    }
   }
 
   if (body.markReturned === true) data.depositReturnedAt = new Date()

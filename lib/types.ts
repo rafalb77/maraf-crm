@@ -462,3 +462,23 @@ export const KSEF_PAYMENT_METHOD_LABELS: Record<string, string> = {
   '6': 'Przelew',
   '7': 'Płatność mobilna',
 }
+
+// =====================================================================
+// MODUŁ: BUDOWA (Project Manager) — patrz docs/budowa-rozpoczecie.md
+// =====================================================================
+
+export type InvestmentStatus = 'PRZYGOTOWANIE' | 'W_BUDOWIE' | 'ODBIORY' | 'ZAKONCZONA'
+
+export const INVESTMENT_STATUS_LABELS: Record<InvestmentStatus, string> = {
+  PRZYGOTOWANIE: 'Przygotowanie',
+  W_BUDOWIE: 'W budowie',
+  ODBIORY: 'Odbiory',
+  ZAKONCZONA: 'Zakończona',
+}
+
+export const INVESTMENT_STATUS_COLORS: Record<InvestmentStatus, string> = {
+  PRZYGOTOWANIE: 'bg-gray-100 text-gray-600',
+  W_BUDOWIE: 'bg-blue-100 text-blue-700',
+  ODBIORY: 'bg-yellow-100 text-yellow-700',
+  ZAKONCZONA: 'bg-green-100 text-green-700',
+}
