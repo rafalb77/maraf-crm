@@ -147,7 +147,7 @@ export function DepositForm(p: Props) {
     <div className="bg-white border border-gray-300 rounded-lg p-4">
       <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
         <p className="text-sm font-semibold text-gray-900">Kaucja i potrącenia</p>
-        {hasTerms && (
+        {hasTerms ? (
           <button
             onClick={applyTerms}
             className="text-xs bg-amber-50 border border-amber-200 hover:bg-amber-100 text-amber-800 px-2.5 py-1 rounded-lg"
@@ -158,6 +158,14 @@ export function DepositForm(p: Props) {
             {p.terms!.depositReturnMonths != null && ` • zwrot ${p.terms!.depositReturnMonths} mc`}
             {p.terms!.buildingCostsPct != null && ` • KB ${p.terms!.buildingCostsPct}%`}
           </button>
+        ) : (
+          <a
+            href="/finanse/kontrahenci"
+            className="text-xs text-blue-600 hover:text-blue-800"
+            title="Ustaw % kaucji, okres zwrotu i % KB w warunkach umownych — będą prefilować faktury i naliczać się z KSeF"
+          >
+            Kontrahent nie ma warunków umownych — ustaw w Kontrahenci →
+          </a>
         )}
       </div>
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
