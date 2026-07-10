@@ -210,8 +210,9 @@ export async function GET(req: NextRequest) {
   }
 
   if (can('finanse')) {
-    // Kontrahenci (vendorzy) — po nazwie/skrócie/NIP. Link do przefiltrowanej
-    // listy faktur danego kontrahenta (/finanse/faktury?vendor=<id>).
+    // Kontrahenci (vendorzy) — po nazwie/skrócie/NIP. Link do karty kontrahenta.
+    // Licznik faktur obejmuje tez FV, gdzie firma jest podwykonawca (subVendor)
+    // pod zbiorczym wpisem z importu Excela (STAFFA itd.) — spojnie z lista/karta.
     tasks.push(
       prisma.vendor
         .findMany({
@@ -220,19 +221,27 @@ export async function GET(req: NextRequest) {
           orderBy: { name: 'asc' },
           include: { _count: { select: { invoices: true } } },
         })
-        .then((rows) =>
-          rows.map((v) => ({
-            id: v.id,
-            group: 'kontrahenci',
-            groupLabel: 'Kontrahenci',
-            title: v.name,
-            subtitle: [v.nip, v._count.invoices ? `${v._count.invoices} faktur` : null]
-              .filter(Boolean)
-              .join(' · ') || undefined,
-            badge: label(VENDOR_CATEGORY_LABELS as Record<string, string>, v.category),
-            url: `/finanse/faktury?vendor=${v.id}`,
-          })),
-        ),
+        .then(async (rows) => {
+          const labeledCounts = await Promise.all(
+            rows.map((v) =>
+              prisma.purchaseInvoice.count({
+                where: { subVendor: { equals: v.name.trim(), mode: 'insensitive' }, vendorId: { not: v.id } },
+              }),
+            ),
+          )
+          return rows.map((v, idx) => {
+            const total = v._count.invoices + labeledCounts[idx]
+            return {
+              id: v.id,
+              group: 'kontrahenci',
+              groupLabel: 'Kontrahenci',
+              title: v.name,
+              subtitle: [v.nip, total ? `${total} faktur` : null].filter(Boolean).join(' · ') || undefined,
+              badge: label(VENDOR_CATEGORY_LABELS as Record<string, string>, v.category),
+              url: `/finanse/kontrahenci/${v.id}`,
+            }
+          })
+        }),
     )
     tasks.push(
       prisma.purchaseInvoice
@@ -241,6 +250,7 @@ export async function GET(req: NextRequest) {
             OR: [
               { number: like },
               { description: like },
+              { subVendor: like },
               { vendor: { name: like } },
               { vendor: { shortCode: like } },
             ],
@@ -255,7 +265,7 @@ export async function GET(req: NextRequest) {
             group: 'finanse-koszty',
             groupLabel: 'Faktury kosztowe',
             title: i.number,
-            subtitle: i.vendor?.name || i.description || undefined,
+            subtitle: i.subVendor || i.vendor?.name || i.description || undefined,
             badge: label(PURCHASE_INVOICE_STATUS_LABELS, i.status),
             url: `/finanse/faktury/${i.id}`,
           })),
