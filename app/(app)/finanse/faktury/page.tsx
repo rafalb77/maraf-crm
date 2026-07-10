@@ -58,7 +58,15 @@ export default async function FakturyListPage({
   today.setHours(0, 0, 0, 0)
 
   const filters: any[] = [{ company }]
-  if (searchParams.vendor) filters.push({ vendorId: searchParams.vendor })
+  if (searchParams.vendor) {
+    // Filtr po kontrahencie obejmuje tez faktury, gdzie firma jest podwykonawca
+    // (subVendor) pod zbiorczym wpisem z importu Excela (np. STAFFA) — pelna
+    // wspolpraca, nie tylko FV formalnie przypisane do kontrahenta.
+    const fv = await prisma.vendor.findUnique({ where: { id: searchParams.vendor }, select: { name: true } })
+    filters.push(fv
+      ? { OR: [{ vendorId: searchParams.vendor }, { subVendor: { equals: fv.name.trim(), mode: 'insensitive' } }] }
+      : { vendorId: searchParams.vendor })
+  }
   if (searchParams.folder) {
     if (searchParams.folder === 'POZOSTALI') {
       const ids = await vendorIdsWithoutFolder()

@@ -20,24 +20,35 @@ export default async function KontrahentPage({ params }: { params: { id: string 
         select: { investment: true, depositPct: true, depositReturnMonths: true, buildingCostsPct: true, calcBasis: true, notes: true },
         orderBy: { investment: 'asc' },
       },
-      invoices: {
-        where: { company, status: { not: 'ANULOWANA' } },
-        select: {
-          issueDate: true, dueDate: true, status: true,
-          amountGross: true, amountNet: true,
-          deposit: true, depositReturnDate: true, depositReturnedAt: true,
-          buildingCosts: true, electricity: true,
-          ksefNumber: true, subVendor: true,
-          payments: { select: { amount: true, paidAt: true } },
-        },
-      },
     },
   })
   if (!vendor) notFound()
 
+  // Pelna wspolpraca: FV przypisane do kontrahenta ORAZ te, gdzie jest
+  // podwykonawca (subVendor) pod zbiorczym wpisem z importu Excela (STAFFA itd.).
+  const invoices = await prisma.purchaseInvoice.findMany({
+    where: {
+      company,
+      status: { not: 'ANULOWANA' },
+      OR: [
+        { vendorId: vendor.id },
+        { subVendor: { equals: vendor.name.trim(), mode: 'insensitive' } },
+      ],
+    },
+    select: {
+      issueDate: true, dueDate: true, status: true,
+      amountGross: true, amountNet: true,
+      deposit: true, depositReturnDate: true, depositReturnedAt: true,
+      buildingCosts: true, electricity: true,
+      ksefNumber: true, subVendor: true,
+      payments: { select: { amount: true, paidAt: true } },
+    },
+  })
+
   const now = new Date()
   const m12 = new Date(now); m12.setMonth(m12.getMonth() - 12)
-  const inv = vendor.invoices
+  const inv = invoices
+  const labeledCount = inv.filter((i) => i.subVendor).length
 
   // --- Obroty ---
   const totalAll = inv.reduce((s, i) => s + i.amountGross, 0)
@@ -115,6 +126,7 @@ export default async function KontrahentPage({ params }: { params: { id: string 
               {VENDOR_CATEGORY_LABELS[vendor.category as VendorCategory] || vendor.category}
               {vendor.nip && <> • NIP <span className="font-mono">{vendor.nip}</span></>}
               {ksefCount > 0 && <> • {ksefCount} FV z KSeF</>}
+              {labeledCount > 0 && <> • {labeledCount} FV jako podwykonawca (import z Excela)</>}
             </p>
             {vendor.notes && <p className="text-sm text-gray-500 mt-1">{vendor.notes}</p>}
           </div>

@@ -9,21 +9,46 @@ export default async function KontrahenciPage() {
   const company = getActiveCompany()
   // Kontrahenci aktywnej firmy = ci, ktorzy maja przynajmniej 1 fakture tej firmy.
   // Liczniki/sumy liczone tylko z faktur aktywnej firmy.
-  const allVendors = await prisma.vendor.findMany({
-    orderBy: [{ isActive: 'desc' }, { name: 'asc' }],
-    include: {
-      _count: { select: { invoices: { where: { company } } } },
-      invoices: {
-        where: { company, status: { notIn: ['OPLACONA', 'ANULOWANA'] } },
-        select: { amountGross: true, payments: { select: { amount: true } } },
+  const [allVendors, labeledInvoices] = await Promise.all([
+    prisma.vendor.findMany({
+      orderBy: [{ isActive: 'desc' }, { name: 'asc' }],
+      include: {
+        _count: { select: { invoices: { where: { company } } } },
+        invoices: {
+          where: { company, status: { notIn: ['OPLACONA', 'ANULOWANA'] } },
+          select: { amountGross: true, payments: { select: { amount: true } } },
+        },
+        terms: {
+          select: { investment: true, depositPct: true, depositReturnMonths: true, buildingCostsPct: true, calcBasis: true, notes: true },
+          orderBy: { investment: 'asc' },
+        },
       },
-      terms: {
-        select: { investment: true, depositPct: true, depositReturnMonths: true, buildingCostsPct: true, calcBasis: true, notes: true },
-        orderBy: { investment: 'asc' },
-      },
-    },
-  })
-  const vendors = allVendors.filter((v) => v._count.invoices > 0)
+    }),
+    // FV z etykieta podwykonawcy (import z Excela pod zbiorczymi wpisami typu
+    // STAFFA) — doliczane kontrahentowi o tej samej nazwie, zeby liczniki
+    // pokazywaly pelna wspolprace (jak filtr vendora i karta kontrahenta).
+    prisma.purchaseInvoice.findMany({
+      where: { company, subVendor: { not: null }, status: { not: 'ANULOWANA' } },
+      select: { subVendor: true, vendorId: true, status: true, amountGross: true, payments: { select: { amount: true } } },
+    }),
+  ])
+  const UNPAID = new Set(['ZATWIERDZONA', 'CZESCIOWO_OPLACONA', 'ZAPLANOWANA', 'WPROWADZONA', 'DO_ZATWIERDZENIA'])
+  const labeledByName = new Map<string, { ownerId: string; unpaidLeft: number }[]>()
+  for (const i of labeledInvoices) {
+    const key = i.subVendor!.trim().toUpperCase()
+    const unpaidLeft = UNPAID.has(i.status)
+      ? Math.max(0, i.amountGross - i.payments.reduce((s, p) => s + p.amount, 0))
+      : 0
+    if (!labeledByName.has(key)) labeledByName.set(key, [])
+    labeledByName.get(key)!.push({ ownerId: i.vendorId, unpaidLeft })
+  }
+  // Doliczaj tylko FV wiszace pod INNYM wpisem (etykieta = nazwa tego kontrahenta,
+  // ale wlascicielem faktury jest np. STAFFA) — bez podwojnego liczenia wlasnych.
+  const labeledFor = (v: { id: string; name: string }) => {
+    const rows = (labeledByName.get(v.name.trim().toUpperCase()) || []).filter((r) => r.ownerId !== v.id)
+    return { count: rows.length, unpaid: rows.reduce((s, r) => s + r.unpaidLeft, 0) }
+  }
+  const vendors = allVendors.filter((v) => v._count.invoices > 0 || labeledFor(v).count > 0)
 
   return (
     <div className="p-8">
@@ -56,10 +81,12 @@ export default async function KontrahenciPage() {
               </tr>
             )}
             {vendors.map((v) => {
+              const labeled = labeledFor(v)
               const unpaid = v.invoices.reduce((s, i) => {
                 const paid = i.payments.reduce((p, x) => p + x.amount, 0)
                 return s + Math.max(0, i.amountGross - paid)
-              }, 0)
+              }, 0) + labeled.unpaid
+              const invoiceCount = v._count.invoices + labeled.count
               return (
                 <tr key={v.id} className={!v.isActive ? 'opacity-50' : ''}>
                   <td className="px-4 py-2.5">
@@ -85,8 +112,12 @@ export default async function KontrahenciPage() {
                     />
                   </td>
                   <td className="px-4 py-2.5 text-right tabular-nums text-gray-700">
-                    <Link href={`/finanse/faktury?vendor=${v.id}`} className="hover:text-blue-600" title="Faktury kontrahenta">
-                      {v._count.invoices}
+                    <Link
+                      href={`/finanse/faktury?vendor=${v.id}`}
+                      className="hover:text-blue-600"
+                      title={labeled.count > 0 ? `Faktury kontrahenta (w tym ${labeled.count} jako podwykonawca z importu Excela)` : 'Faktury kontrahenta'}
+                    >
+                      {invoiceCount}
                     </Link>
                   </td>
                   <td className="px-4 py-2.5 text-right tabular-nums font-medium text-gray-900">
