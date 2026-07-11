@@ -51,6 +51,8 @@ export default async function HarmonogramPage({
         isMilestone: true,
         subcontractorId: true,
         delayReason: true,
+        acceptanceResult: true,
+        acceptedAt: true,
       },
     }),
     prisma.subcontractor.findMany({
@@ -107,6 +109,8 @@ export default async function HarmonogramPage({
     isMilestone: t.isMilestone,
     subcontractorId: t.subcontractorId,
     delayReason: t.delayReason,
+    acceptanceResult: t.acceptanceResult,
+    acceptedAt: toISODate(t.acceptedAt),
   }))
 
   const tabCls = (active: boolean) =>

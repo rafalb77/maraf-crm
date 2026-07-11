@@ -18,6 +18,19 @@ const DRAFT_KEY = 'budowa.checkin.draft'
 type Sub = { id: string; name: string }
 type PhotoStatus = 'czeka' | 'wysyłanie' | 'ok' | 'błąd'
 type PhotoItem = { file: File; status: PhotoStatus; error?: string }
+type CheckTask = {
+  id: string
+  number: string | null
+  name: string
+  status: string
+  progress: number
+  plannedEnd: string
+  acceptanceResult: string | null
+  acceptanceNote: string | null
+}
+type TaskUpdate = { progress?: number; ready: boolean; note: string }
+
+const PROGRESS_STEPS = [25, 50, 75, 100]
 
 type Draft = {
   workDone: string
@@ -44,12 +57,17 @@ const EMPTY_DRAFT: Draft = {
 export function CheckinForm({
   investmentName,
   subcontractors,
+  tasks = [],
 }: {
   investmentName: string
   subcontractors: Sub[]
+  tasks?: CheckTask[]
 }) {
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT)
   const [photos, setPhotos] = useState<PhotoItem[]>([])
+  const [taskUpdates, setTaskUpdates] = useState<Record<string, TaskUpdate>>({})
+  const [openTaskId, setOpenTaskId] = useState<string | null>(null)
+  const [showAllTasks, setShowAllTasks] = useState(false)
   const [phase, setPhase] = useState<'form' | 'saving' | 'photos' | 'done'>('form')
   const [reportId, setReportId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -122,6 +140,14 @@ export function CheckinForm({
           needsContractorAction: draft.needsContractor,
           contractorActionNote: draft.contractorNote,
           contractorSubcontractorId: draft.contractorId || null,
+          taskUpdates: Object.entries(taskUpdates)
+            .filter(([, u]) => u.progress !== undefined || u.ready || u.note.trim())
+            .map(([taskId, u]) => ({
+              taskId,
+              progress: u.progress,
+              readyForAcceptance: u.ready,
+              note: u.note.trim() || null,
+            })),
         }),
       })
       const data = await res.json().catch(() => ({}))
@@ -152,9 +178,18 @@ export function CheckinForm({
   function resetForm() {
     setDraft(EMPTY_DRAFT)
     setPhotos([])
+    setTaskUpdates({})
+    setOpenTaskId(null)
     setReportId(null)
     setError(null)
     setPhase('form')
+  }
+
+  function setTaskUpdate(id: string, patch: Partial<TaskUpdate>) {
+    setTaskUpdates((m) => {
+      const prev: TaskUpdate = m[id] ?? { ready: false, note: '' }
+      return { ...m, [id]: { ...prev, ...patch } }
+    })
   }
 
   const failedCount = photos.filter((p) => p.status === 'błąd').length
@@ -249,7 +284,115 @@ export function CheckinForm({
           />
         </div>
 
-        {/* 2. Problem */}
+        {/* 2. Zadania z harmonogramu (Etap 2) — opcjonalne, tapnięcie rozwija szczegóły */}
+        {tasks.length > 0 && (
+          <div>
+            <label className="block text-sm font-semibold mb-1.5">
+              Zadania — przy czym dziś pracowano? <span className="font-normal text-gray-400">(opcjonalnie)</span>
+            </label>
+            <div className="space-y-2">
+              {(showAllTasks ? tasks : tasks.slice(0, 7)).map((t) => {
+                const u = taskUpdates[t.id]
+                const open = openTaskId === t.id
+                const touched = u && (u.progress !== undefined || u.ready || u.note.trim())
+                const shownProgress = u?.progress ?? t.progress
+                return (
+                  <div
+                    key={t.id}
+                    className={`rounded-xl border transition-colors ${
+                      touched ? 'border-amber-400 bg-amber-50' : 'border-gray-300 bg-white'
+                    }`}
+                  >
+                    <button
+                      type="button"
+                      className="w-full px-4 py-3 text-left"
+                      onClick={() => setOpenTaskId(open ? null : t.id)}
+                      disabled={busy}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-sm font-medium">
+                          {t.number && <span className="text-gray-400 mr-1">{t.number}</span>}
+                          {t.name}
+                        </span>
+                        <span className="shrink-0 text-xs text-gray-500">
+                          {t.status === 'DO_ODBIORU' ? '📋 czeka na odbiór' : `${shownProgress}%`}
+                        </span>
+                      </div>
+                      <div className="text-xs text-gray-400 mt-0.5">
+                        do {t.plannedEnd.split('-').reverse().join('.')}
+                        {touched && ' • zmienione ✓'}
+                      </div>
+                      {t.acceptanceResult === 'ODRZUCONY' && t.acceptanceNote && (
+                        <div className="mt-1 text-xs text-red-700 bg-red-50 rounded-lg px-2 py-1">
+                          ↩ Uwagi z odbioru: {t.acceptanceNote}
+                        </div>
+                      )}
+                    </button>
+                    {open && (
+                      <div className="px-4 pb-3 space-y-2">
+                        <div className="flex gap-2">
+                          {PROGRESS_STEPS.map((p) => (
+                            <button
+                              key={p}
+                              type="button"
+                              disabled={busy}
+                              onClick={() =>
+                                setTaskUpdate(t.id, { progress: u?.progress === p ? undefined : p })
+                              }
+                              className={`flex-1 py-2 rounded-lg text-sm font-semibold border ${
+                                u?.progress === p
+                                  ? 'bg-amber-500 border-amber-500 text-white'
+                                  : 'border-gray-300 bg-white'
+                              }`}
+                            >
+                              {p}%
+                            </button>
+                          ))}
+                        </div>
+                        <button
+                          type="button"
+                          disabled={busy || t.status === 'DO_ODBIORU'}
+                          onClick={() => setTaskUpdate(t.id, { ready: !u?.ready })}
+                          className={`w-full py-2.5 rounded-lg text-sm font-semibold border ${
+                            u?.ready
+                              ? 'bg-green-600 border-green-600 text-white'
+                              : t.status === 'DO_ODBIORU'
+                                ? 'border-gray-200 text-gray-400'
+                                : 'border-gray-300 bg-white'
+                          }`}
+                        >
+                          {t.status === 'DO_ODBIORU'
+                            ? '📋 już zgłoszone do odbioru'
+                            : u?.ready
+                              ? '✓ Gotowe do odbioru'
+                              : 'Zgłoś do odbioru'}
+                        </button>
+                        <input
+                          className={inputCls}
+                          placeholder="Notatka: uwaga jakościowa / obmiar (opcjonalnie)"
+                          value={u?.note || ''}
+                          onChange={(e) => setTaskUpdate(t.id, { note: e.target.value })}
+                          disabled={busy}
+                        />
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+              {tasks.length > 7 && !showAllTasks && (
+                <button
+                  type="button"
+                  onClick={() => setShowAllTasks(true)}
+                  className="w-full py-2 rounded-lg border border-dashed border-gray-300 text-sm text-gray-500"
+                >
+                  Pokaż wszystkie ({tasks.length})
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* 3. Problem */}
         {toggleRow('⚠️ Jest problem / opóźnienie?', draft.hasIssue, (v) => set('hasIssue', v))}
         {draft.hasIssue && (
           <textarea

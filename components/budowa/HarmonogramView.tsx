@@ -28,6 +28,8 @@ type Task = {
   isMilestone: boolean
   subcontractorId: string | null
   delayReason: string | null
+  acceptanceResult?: string | null
+  acceptedAt?: string | null
 }
 type Sub = { id: string; name: string }
 type SaveState = 'idle' | 'saving' | 'saved' | 'error'
@@ -64,6 +66,35 @@ export function HarmonogramView({
   const [showAdd, setShowAdd] = useState(false)
   const today = todayISO()
   const subName = useMemo(() => new Map(subcontractors.map((s) => [s.id, s.name])), [subcontractors])
+
+  // Akt odbioru częściowego (Etap 2): wynik + notatka → POST /odbior; aktualizuje wiersz lokalnie
+  async function acceptTask(id: string, result: string, note: string): Promise<string | null> {
+    try {
+      const res = await fetch(`/api/budowa/tasks/${id}/odbior`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ result, note: note || null }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) return data.error || `Błąd (${res.status})`
+      setTasks((ts) =>
+        ts.map((t) =>
+          t.id === id
+            ? {
+                ...t,
+                status: data.status,
+                progress: data.progress ?? t.progress,
+                acceptanceResult: data.acceptanceResult,
+                acceptedAt: data.acceptedAt,
+              }
+            : t,
+        ),
+      )
+      return null
+    } catch {
+      return 'Błąd połączenia'
+    }
+  }
 
   async function deleteTask(id: string, name: string) {
     if (!window.confirm(`Usunąć zadanie „${name}"? Tej operacji nie można cofnąć.`)) return
@@ -181,6 +212,7 @@ export function HarmonogramView({
           errors={errors}
           onSave={saveTask}
           onDelete={deleteTask}
+          onAccept={acceptTask}
         />
       ))}
 
@@ -195,6 +227,7 @@ export function HarmonogramView({
           errors={errors}
           onSave={saveTask}
           onDelete={deleteTask}
+          onAccept={acceptTask}
         />
       )}
     </div>
@@ -344,6 +377,7 @@ function StageBlock({
   errors,
   onSave,
   onDelete,
+  onAccept,
 }: {
   stage: Stage
   tasks: Task[]
@@ -354,6 +388,7 @@ function StageBlock({
   errors: Record<string, string>
   onSave: (id: string, patch: Partial<Task>) => void
   onDelete: (id: string, name: string) => void
+  onAccept: (id: string, result: string, note: string) => Promise<string | null>
 }) {
   const [open, setOpen] = useState(true)
   const stageProgress =
@@ -411,6 +446,7 @@ function StageBlock({
               error={errors[t.id]}
               onSave={onSave}
               onDelete={onDelete}
+              onAccept={onAccept}
             />
           ))}
         </div>
@@ -428,6 +464,7 @@ function TaskRow({
   error,
   onSave,
   onDelete,
+  onAccept,
 }: {
   task: Task
   today: string
@@ -437,11 +474,28 @@ function TaskRow({
   error?: string
   onSave: (id: string, patch: Partial<Task>) => void
   onDelete: (id: string, name: string) => void
+  onAccept: (id: string, result: string, note: string) => Promise<string | null>
 }) {
   const delayed = !!(task.plannedEnd && task.plannedEnd < today && !DONE_STATUSES.has(task.status))
   const delayDays = delayed && task.plannedEnd ? daysBetween(task.plannedEnd, today) : 0
   const statusColor =
     CONSTRUCTION_TASK_STATUS_COLORS[task.status as ConstructionTaskStatus] || 'bg-gray-100 text-gray-600'
+  const [showAccept, setShowAccept] = useState(false)
+  const [acceptNote, setAcceptNote] = useState('')
+  const [acceptBusy, setAcceptBusy] = useState(false)
+  const [acceptErr, setAcceptErr] = useState<string | null>(null)
+
+  async function doAccept(result: string) {
+    setAcceptBusy(true)
+    setAcceptErr(null)
+    const err = await onAccept(task.id, result, acceptNote.trim())
+    setAcceptBusy(false)
+    if (err) setAcceptErr(err)
+    else {
+      setShowAccept(false)
+      setAcceptNote('')
+    }
+  }
 
   const dateCls = 'rounded-lg border border-gray-300 px-2 py-1 text-sm bg-white'
 
@@ -458,6 +512,17 @@ function TaskRow({
           {task.subcontractorId && (
             <div className="text-xs text-gray-400 mt-0.5">
               {subName.get(task.subcontractorId) || 'wykonawca'}
+            </div>
+          )}
+          {task.acceptanceResult && task.acceptedAt && (
+            <div
+              className={`text-xs mt-0.5 ${
+                task.acceptanceResult === 'ODRZUCONY' ? 'text-red-600' : 'text-green-700'
+              }`}
+            >
+              {task.acceptanceResult === 'PRZYJETY' && `✓ odebrano ${fmtPL(task.acceptedAt)}`}
+              {task.acceptanceResult === 'PRZYJETY_Z_UWAGAMI' && `✓ odebrano z uwagami ${fmtPL(task.acceptedAt)}`}
+              {task.acceptanceResult === 'ODRZUCONY' && `↩ odbiór odrzucony ${fmtPL(task.acceptedAt)} — do poprawy`}
             </div>
           )}
         </div>
@@ -543,6 +608,17 @@ function TaskRow({
           ))}
         </select>
 
+        {/* odbiór częściowy — tylko dla zadań czekających */}
+        {task.status === 'DO_ODBIORU' && (
+          <button
+            type="button"
+            onClick={() => setShowAccept((v) => !v)}
+            className="px-3 py-1 rounded-lg bg-green-600 text-white text-xs font-semibold"
+          >
+            📋 Odbierz…
+          </button>
+        )}
+
         {/* status zapisu */}
         <span className="w-16 text-xs">
           {saveState === 'saving' && <span className="text-amber-600">zapis…</span>}
@@ -568,6 +644,55 @@ function TaskRow({
         )}
         {error && <span className="text-xs text-red-600">{error}</span>}
       </div>
+
+      {/* panel odbioru częściowego */}
+      {showAccept && task.status === 'DO_ODBIORU' && (
+        <div className="mt-2 p-3 rounded-xl border border-green-200 bg-green-50/50">
+          <div className="text-sm font-semibold mb-2">Odbiór częściowy: {task.name}</div>
+          <input
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm bg-white mb-2"
+            placeholder="Uwagi z odbioru (wymagane przy odrzuceniu)"
+            value={acceptNote}
+            onChange={(e) => setAcceptNote(e.target.value)}
+            disabled={acceptBusy}
+          />
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              disabled={acceptBusy}
+              onClick={() => doAccept('PRZYJETY')}
+              className="px-4 py-2 rounded-lg bg-green-600 text-white text-sm font-semibold disabled:opacity-50"
+            >
+              ✓ Przyjęty
+            </button>
+            <button
+              type="button"
+              disabled={acceptBusy}
+              onClick={() => doAccept('PRZYJETY_Z_UWAGAMI')}
+              className="px-4 py-2 rounded-lg bg-yellow-500 text-white text-sm font-semibold disabled:opacity-50"
+            >
+              ✓ Przyjęty z uwagami
+            </button>
+            <button
+              type="button"
+              disabled={acceptBusy}
+              onClick={() => doAccept('ODRZUCONY')}
+              className="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-semibold disabled:opacity-50"
+            >
+              ✕ Odrzucony — do poprawy
+            </button>
+            <button
+              type="button"
+              disabled={acceptBusy}
+              onClick={() => setShowAccept(false)}
+              className="px-3 py-2 rounded-lg border border-gray-300 text-sm"
+            >
+              Anuluj
+            </button>
+          </div>
+          {acceptErr && <div className="mt-2 text-xs text-red-600">{acceptErr}</div>}
+        </div>
+      )}
     </div>
   )
 }

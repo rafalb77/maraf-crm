@@ -1553,6 +1553,7 @@ model ConstructionTask {
   predecessors  TaskDependency[]   @relation("DepSuccessor")
   successors    TaskDependency[]   @relation("DepPredecessor")
   reminderTasks Task[]
+  reportUpdates SiteReportTaskUpdate[]
 
   @@index([investmentId, status])
   @@index([stageId])
@@ -1594,12 +1595,32 @@ model SiteReport {
   contractorActionSubcontractorId String? // skalar — dotyczy wykonawcy z rejestru Przerobów
   createdAt     DateTime @default(now())
 
-  investment Investment @relation(fields: [investmentId], references: [id], onDelete: Cascade)
-  author     User?      @relation("SiteReportAuthor", fields: [authorId], references: [id], onDelete: SetNull)
-  photos     SitePhoto[]
-  comments   ConstructionComment[]
+  investment  Investment @relation(fields: [investmentId], references: [id], onDelete: Cascade)
+  author      User?      @relation("SiteReportAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  photos      SitePhoto[]
+  comments    ConstructionComment[]
+  taskUpdates SiteReportTaskUpdate[]
 
   @@index([investmentId, reportDate])
+}
+
+// Aktualizacja zadania z check-inu kierownika (Etap 2): postęp / gotowe do odbioru /
+// notatka (uwaga jakościowa lub obmiar tekstem — decyzja nr 9 w docs/budowa-rozpoczecie.md).
+// Zapis raportu APLIKUJE wartości na ConstructionTask (progress, W_TOKU/DO_ODBIORU,
+// actualStart) — wpis tutaj to trwały ślad "kto kiedy co zgłosił".
+model SiteReportTaskUpdate {
+  id                 String  @id @default(cuid())
+  reportId           String
+  taskId             String
+  progress           Int?    // przyciski 25/50/75/100 w check-inie
+  readyForAcceptance Boolean @default(false) // → status zadania DO_ODBIORU
+  note               String? // uwaga jakościowa / obmiar tekstem
+
+  report SiteReport       @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  task   ConstructionTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
+  @@index([reportId])
 }
 
 // Zdjęcie z budowy. Wchodzi przez check-in (reportId) albo luzem przy inwestycji.

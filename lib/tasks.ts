@@ -1,5 +1,6 @@
 import { prisma } from './prisma'
 import { expireSoftReservations, attachReservedByClient } from './reservations'
+import { buildBudowaTaskRows, reconcileBudowaTask } from './budowa-task-rules'
 import type { TaskBucket } from './types'
 
 /**
@@ -147,12 +148,13 @@ export async function generateTasks(): Promise<GenerateResult> {
   const { autoClosed, cancelled } = await reconcileRuleTasks()
 
   const now = new Date()
-  const [reservationRows, paymentRows] = await Promise.all([
+  const [reservationRows, paymentRows, budowaRows] = await Promise.all([
     buildReservationTaskRows(now),
     buildPaymentTaskRows(now),
+    buildBudowaTaskRows(now), // moduł Budowa: opóźnienia / odbiory / kończące się umowy
   ])
 
-  const rows = [...reservationRows, ...paymentRows]
+  const rows = [...reservationRows, ...paymentRows, ...budowaRows]
   let created = 0
   if (rows.length > 0) {
     // skipDuplicates + unique(ruleKey) = idempotencja (także wobec zadań już
@@ -273,14 +275,26 @@ export async function reconcileRuleTasks(): Promise<{ autoClosed: number; cancel
           reservedById: true,
         },
       },
+      constructionTask: { select: { status: true, plannedEnd: true } },
     },
   })
 
   const doneIds: string[] = []
   const cancelIds: string[] = []
+  const reconcileNow = new Date()
 
   for (const t of open) {
     const [rule, , keyDate] = (t.ruleKey || '').split(':')
+
+    if (rule.startsWith('BUDOWA_')) {
+      // Reguły cron-owe budowy (OPOZNIENIE/ODBIOR/UMOWA_KONIEC) — logika w
+      // lib/budowa-task-rules.ts. Event-driven (PROBLEM/RAPORT_DECYZJA/WYKONAWCA)
+      // zwracają null = Rafał domyka ręcznie (WYJASNIENIE domyka PATCH komentarza).
+      const decision = await reconcileBudowaTask(rule, t.ruleKey || '', t.constructionTask, reconcileNow)
+      if (decision === 'done') doneIds.push(t.id)
+      else if (decision === 'cancel') cancelIds.push(t.id)
+      continue
+    }
 
     if (rule === 'PAYMENT_DUE') {
       const p = t.payment

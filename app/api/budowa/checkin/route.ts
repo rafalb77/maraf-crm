@@ -69,6 +69,50 @@ export async function POST(req: NextRequest) {
     },
   })
 
+  // Sekcja zadań (Etap 2): postęp / gotowe do odbioru / notatka per zadanie.
+  // Wpisy SiteReportTaskUpdate = trwały ślad; wartości APLIKUJEMY na zadania
+  // (progress, PLANOWANE→W_TOKU + actualStart, →DO_ODBIORU). Kamienie pomijamy.
+  const rawUpdates: any[] = Array.isArray(body.taskUpdates) ? body.taskUpdates.slice(0, 100) : []
+  if (rawUpdates.length > 0) {
+    const ids = rawUpdates.map((u) => String(u?.taskId || '')).filter(Boolean)
+    const valid = await prisma.constructionTask.findMany({
+      where: { id: { in: ids }, investmentId: investment.id, isMilestone: false },
+      select: { id: true, status: true, progress: true, actualStart: true },
+    })
+    const byId = new Map(valid.map((t) => [t.id, t]))
+    const now = new Date()
+
+    for (const u of rawUpdates) {
+      const task = byId.get(String(u?.taskId || ''))
+      if (!task) continue
+      const progress =
+        u.progress !== undefined && u.progress !== null && Number.isFinite(Number(u.progress))
+          ? Math.max(0, Math.min(100, Math.round(Number(u.progress))))
+          : null
+      const ready = u.readyForAcceptance === true
+      const note = u.note ? String(u.note).slice(0, 1000) : null
+      if (progress === null && !ready && !note) continue
+
+      const taskData: Record<string, unknown> = {}
+      if (progress !== null && progress !== task.progress) taskData.progress = progress
+      if (ready && task.status !== 'DO_ODBIORU' && task.status !== 'ZAKONCZONE') {
+        taskData.status = 'DO_ODBIORU'
+      } else if (progress !== null && progress > 0 && task.status === 'PLANOWANE') {
+        taskData.status = 'W_TOKU'
+      }
+      if ((progress ?? 0) > 0 && !task.actualStart) taskData.actualStart = now
+
+      await prisma.$transaction([
+        prisma.siteReportTaskUpdate.create({
+          data: { reportId: report.id, taskId: task.id, progress, readyForAcceptance: ready, note },
+        }),
+        ...(Object.keys(taskData).length > 0
+          ? [prisma.constructionTask.update({ where: { id: task.id }, data: taskData })]
+          : []),
+      ])
+    }
+  }
+
   // Flagi → Taski dla Rafała (idempotentne po ruleKey). Awaria reguł nie może
   // utopić zapisanego raportu — łapiemy i logujemy.
   try {
