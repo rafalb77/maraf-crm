@@ -1,8 +1,8 @@
 # Dostarczalność maili maraf.pl + novastaffa.pl — SPF/DMARC/DKIM
 
-**Status**: 🟡 OTWARTE — maraf.pl naprawione (patrz Update 2026-07-11), **czeka novastaffa.pl** (nadawca CRM: brak DKIM i DMARC przez wildcard DNS) + ewentualny ticket PTR do home.pl.
+**Status**: 🟢 ZAMKNIĘTE 2026-07-11 — Rafał: „maile dochodzą, sytuacja wyprostowana, temat odpuszczamy". maraf.pl ma komplet (SPF `~all`+include, DMARC, DKIM, blacklisty czyste). novastaffa.pl (nadawca CRM) formalnie bez jawnego DKIM/DMARC (wildcard DNS), ALE w praktyce maile docierają — **nie ruszamy dopóki realnie działa**. Checklist naprawy niżej zostaje na wypadek, gdyby w przyszłości maile zaczęły wpadać do spamu (np. po zaostrzeniu polityk Gmail/WP).
 
-**Plik dla nowej sesji** — najpierw czytaj „Update 2026-07-11" na dole (aktualny stan + checklist), historia wyżej.
+**Plik dla nowej sesji**: temat jest ZAMKNIĘTY — wracaj tu tylko jeśli pojawią się realne odrzucenia/spam. Wtedy checklist novastaffa.pl w „Update 2026-07-11".
 
 ---
 
