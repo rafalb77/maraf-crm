@@ -29,9 +29,14 @@ export async function PATCH(req: NextRequest, { params }: { params: { unitId: st
     return NextResponse.json({ error: 'Powiadomienia dotyczą tylko rezerwacji miękkich' }, { status: 400 })
   }
 
-  await prisma.unit.update({
-    where: { id: params.unitId },
-    data: { reservationAlertsMuted: body.muted },
-  })
-  return NextResponse.json({ success: true, muted: body.muted })
+  try {
+    await prisma.unit.update({
+      where: { id: params.unitId },
+      data: { reservationAlertsMuted: body.muted },
+    })
+    return NextResponse.json({ success: true, muted: body.muted })
+  } catch (e: any) {
+    console.error('[reservations.alerts] toggle error:', e?.message)
+    return NextResponse.json({ error: 'Błąd zapisu — spróbuj ponownie' }, { status: 500 })
+  }
 }

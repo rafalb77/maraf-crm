@@ -24,10 +24,17 @@ export function MuteAlertsButton({ unitId, muted }: { unitId: string; muted: boo
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
         alert(data.error || 'Błąd zmiany powiadomień')
-        setBusy(false); return
+        return
       }
       router.refresh()
-    } catch (e: any) { alert(e.message); setBusy(false) }
+    } catch (e: any) {
+      alert(e.message)
+    } finally {
+      // setBusy(false) MUSI być też na ścieżce sukcesu — router.refresh()
+      // odświeża server components, ale zachowuje stan klienta (busy=true
+      // zostawiłoby spinner na zawsze).
+      setBusy(false)
+    }
   }
 
   return (
