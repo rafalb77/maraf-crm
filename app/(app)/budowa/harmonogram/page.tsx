@@ -1,11 +1,13 @@
 import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
 import { HarmonogramView } from '@/components/budowa/HarmonogramView'
+import { GanttLazy } from '@/components/budowa/GanttLazy'
 
 /**
  * /budowa/harmonogram — harmonogram budowy (moduł Budowa, Etap 2).
- * Edytowalna lista etapów i zadań: zmiana terminów/postępu/statusu inline.
- * Wykres Gantta (SVAR) dojdzie jako warstwa wizualna nad tymi samymi danymi.
+ * Dwa widoki na tych samych danych (?widok=):
+ *  - gantt (domyślny) — SVAR React Gantt: zwijane etapy, drag terminów, linia "dziś"
+ *  - lista — edycja inline (daty/postęp/status/wykonawca), dodawanie, usuwanie
  */
 export const dynamic = 'force-dynamic'
 
@@ -13,7 +15,12 @@ function toISODate(d: Date | null): string | null {
   return d ? d.toISOString().slice(0, 10) : null
 }
 
-export default async function HarmonogramPage() {
+export default async function HarmonogramPage({
+  searchParams,
+}: {
+  searchParams: { widok?: string }
+}) {
+  const widok = searchParams.widok === 'lista' ? 'lista' : 'gantt'
   const investment = await prisma.investment.findFirst({
     where: { active: true },
     orderBy: { createdAt: 'asc' },
@@ -102,24 +109,45 @@ export default async function HarmonogramPage() {
     delayReason: t.delayReason,
   }))
 
+  const tabCls = (active: boolean) =>
+    `px-4 py-2 rounded-lg text-sm font-semibold ${
+      active ? 'bg-gray-900 text-white' : 'bg-white border border-gray-200 text-gray-600'
+    }`
+
   return (
     <div className="p-8">
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <h1 className="text-2xl font-bold">Harmonogram — {investment.name}</h1>
-        <Link
-          href="/budowa/harmonogram/import"
-          prefetch={false}
-          className="px-4 py-2 rounded-lg border border-gray-300 bg-white text-sm font-medium"
-        >
-          📥 Importuj / aktualizuj z Excela
-        </Link>
+        <div className="flex gap-2">
+          <Link href="/budowa/harmonogram" prefetch={false} className={tabCls(widok === 'gantt')}>
+            Gantt
+          </Link>
+          <Link
+            href="/budowa/harmonogram?widok=lista"
+            prefetch={false}
+            className={tabCls(widok === 'lista')}
+          >
+            Lista
+          </Link>
+          <Link
+            href="/budowa/harmonogram/import"
+            prefetch={false}
+            className="px-4 py-2 rounded-lg border border-gray-300 bg-white text-sm font-medium"
+          >
+            📥 Import z Excela
+          </Link>
+        </div>
       </div>
-      <HarmonogramView
-        stages={serializedStages}
-        tasks={serializedTasks}
-        subcontractors={subs}
-        plannedEndDate={toISODate(investment.plannedEndDate)}
-      />
+      {widok === 'gantt' ? (
+        <GanttLazy stages={serializedStages} tasks={serializedTasks} />
+      ) : (
+        <HarmonogramView
+          stages={serializedStages}
+          tasks={serializedTasks}
+          subcontractors={subs}
+          plannedEndDate={toISODate(investment.plannedEndDate)}
+        />
+      )}
     </div>
   )
 }
