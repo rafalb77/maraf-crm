@@ -80,9 +80,12 @@ testowa: `/settings` → sekcja „Powiadomienia o rezerwacjach" (admin-only).
 1. Push → auto-deploy. Po deployu **`prisma db push`** w Coolify Terminal
    (`node node_modules/prisma/build/index.js db push --skip-generate`) — nowa tabela
    `NotificationLog`.
-2. Coolify → Scheduled Tasks → Add:
-   `curl -X POST "https://crm.maraf.pl/api/public/reservations/alerts?secret=$RESERVATIONS_CRON_SECRET"`,
-   cron `*/15 * * * *` (sekret już istnieje w env — ten sam co digest).
+2. Coolify → Scheduled Tasks → Add, Frequency `*/15 * * * *` (sekret już istnieje
+   w env — ten sam co digest). **UWAGA: obraz produkcyjny NIE MA curla**
+   (`sh: curl: not found` — potwierdzone 2026-07-11) — komenda przez node:
+   ```
+   node -e "fetch('https://crm.maraf.pl/api/public/reservations/alerts?secret='+process.env.RESERVATIONS_CRON_SECRET,{method:'POST'}).then(async r=>{const t=await r.text();console.log(t);if(!r.ok)process.exit(1)})"
+   ```
 3. `/settings` → „Powiadomienia o rezerwacjach": przejrzyj/dostosuj szablony,
    wyślij test e-mail.
 4. **Etap 2 (SMS)**: konto firmowe na smsapi.pl → rejestracja nazwy nadawcy „MARAF"

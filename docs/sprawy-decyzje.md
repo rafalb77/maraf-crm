@@ -52,9 +52,10 @@ Logika: bierze sprawy **otwarte** z `deadline ≤ dziś+N` (domyślnie N=3, też
 
 **Kalendarz świadomie pominięty** w MVP — `createEvent()` istnieje, ale codzienny cron tworzyłby duplikaty eventów; czystsze byłoby tworzenie eventu raz przy ustawieniu terminu (kierunek na później).
 
-Coolify scheduled task (przykład, codziennie 08:00):
+Coolify scheduled task (przykład, codziennie 08:00). **Uwaga: obraz produkcyjny
+nie ma curla** (potwierdzone 2026-07-11 przy tasku rezerwacji) — używać node:
 ```
-curl -fsS -X POST "https://<host>/api/public/cases/reminders?secret=$CASES_CRON_SECRET"
+node -e "fetch('https://<host>/api/public/cases/reminders?secret='+process.env.CASES_CRON_SECRET,{method:'POST'}).then(async r=>{const t=await r.text();console.log(t);if(!r.ok)process.exit(1)})"
 ```
 
 ---
