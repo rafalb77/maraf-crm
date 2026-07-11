@@ -63,6 +63,20 @@ testowa: `/settings` → sekcja „Powiadomienia o rezerwacjach" (admin-only).
   Bez skonfigurowanego crona w Coolify feature jest nieaktywny (to jest „włącznik"
   produkcyjny).
 
+## Wyciszanie per rezerwacja (2026-07-11)
+
+Przełącznik „Powiadomienia / Wyciszone" (dzwonek) przy każdej rezerwacji miękkiej
+na `/rezerwacje` — pole `Unit.reservationAlertsMuted`, endpoint
+`PATCH /api/reservations/[unitId]/alerts {muted}`. Wyciszona rezerwacja jest
+pomijana przez cron we WSZYSTKICH kanałach (e-mail, SMS i zadanie „Zadzwoń");
+licznik w wyniku przebiegu: `skipped.muted`. Powód: możliwość przetestowania
+mechanizmu bez wysyłki do prawdziwych klientów + wyjątki ad-hoc.
+
+Semantyka flagi: czyszczona przy zwolnieniu, auto-wygaśnięciu i zakładaniu nowej
+rezerwacji (żaden lokal nie „dziedziczy" wyciszenia po poprzednim kliencie);
+przenoszona przy zamianie lokalu (swap — to ta sama rezerwacja). Przedłużenie
+NIE zmienia flagi — wyciszona rezerwacja po przedłużeniu pozostaje wyciszona.
+
 ## Pułapki
 
 - `expireSoftReservations()` zwalnia rezerwację przy pierwszym odczycie po terminie

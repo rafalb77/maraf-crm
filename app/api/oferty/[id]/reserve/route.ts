@@ -47,7 +47,7 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
       }
       await tx.unit.update({
         where: { id: u.id },
-        data: { status: 'ZAREZERWOWANY', reservationType: 'MIEKKA', reservationExpiresAt: expiresAt, reservedById: offer.clientId },
+        data: { status: 'ZAREZERWOWANY', reservationType: 'MIEKKA', reservationExpiresAt: expiresAt, reservedById: offer.clientId, reservationAlertsMuted: false },
       })
       await tx.clientUnit.upsert({
         where: { clientId_unitId: { clientId: offer.clientId!, unitId: u.id } },

@@ -45,6 +45,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         reservationType: 'MIEKKA',
         reservationExpiresAt: expiresAt,
         reservedById: params.id,
+        reservationAlertsMuted: false,
       },
     }),
   ])

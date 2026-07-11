@@ -1,8 +1,53 @@
 'use client'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Clock, X, Undo2, Loader2, ArrowLeftRight } from 'lucide-react'
+import { Clock, X, Undo2, Loader2, ArrowLeftRight, Bell, BellOff } from 'lucide-react'
 import { UNIT_TYPE_LABELS, type UnitType } from '@/lib/types'
+
+/**
+ * Przełącznik automatycznych powiadomień dla konkretnej rezerwacji miękkiej
+ * (e-mail/SMS do klienta + zadanie „Zadzwoń" — patrz lib/reservation-alerts.ts).
+ * Wyciszona rezerwacja jest pomijana przez cron powiadomień.
+ */
+export function MuteAlertsButton({ unitId, muted }: { unitId: string; muted: boolean }) {
+  const router = useRouter()
+  const [busy, setBusy] = useState(false)
+
+  async function toggle() {
+    setBusy(true)
+    try {
+      const res = await fetch(`/api/reservations/${unitId}/alerts`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ muted: !muted }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        alert(data.error || 'Błąd zmiany powiadomień')
+        setBusy(false); return
+      }
+      router.refresh()
+    } catch (e: any) { alert(e.message); setBusy(false) }
+  }
+
+  return (
+    <button
+      onClick={toggle}
+      disabled={busy}
+      title={muted
+        ? 'Powiadomienia automatyczne WYŁĄCZONE dla tej rezerwacji — kliknij, aby włączyć'
+        : 'Powiadomienia automatyczne włączone (e-mail/SMS/zadanie przed wygaśnięciem) — kliknij, aby wyłączyć'}
+      className={`px-2.5 py-1 text-xs font-medium border rounded inline-flex items-center gap-1 disabled:opacity-50 ${
+        muted
+          ? 'text-gray-500 border-gray-300 bg-gray-100 hover:bg-gray-200'
+          : 'text-emerald-700 border-emerald-300 hover:bg-emerald-50'
+      }`}
+    >
+      {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : muted ? <BellOff className="w-3.5 h-3.5" /> : <Bell className="w-3.5 h-3.5" />}
+      {muted ? 'Wyciszone' : 'Powiadomienia'}
+    </button>
+  )
+}
 
 export function ExtendButton({ unitId, defaultDays = 7 }: { unitId: string; defaultDays?: number }) {
   const router = useRouter()

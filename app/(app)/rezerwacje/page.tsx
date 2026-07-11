@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { Clock, Lock, Ban, AlertTriangle } from 'lucide-react'
 import { expireSoftReservations, attachReservedByClient } from '@/lib/reservations'
 import { formatDate } from '@/lib/utils'
-import { ExtendButton, ReleaseButton, SwapButton, RestoreFromUnavailableButton } from '@/components/reservations/ReservationActions'
+import { ExtendButton, ReleaseButton, SwapButton, RestoreFromUnavailableButton, MuteAlertsButton } from '@/components/reservations/ReservationActions'
 import { NewReservationModal } from '@/components/reservations/NewReservationModal'
 import { PromoteReservationButton } from '@/components/clients/PromoteReservationButton'
 
@@ -161,6 +161,7 @@ export default async function ReservationsPage() {
                           {u.reservedBy && <PromoteReservationButton clientId={u.reservedBy.id} variant="compact" />}
                           <ExtendButton unitId={u.id} defaultDays={7} />
                           <SwapButton unitId={u.id} unitNumber={u.number} unitType={u.type} />
+                          <MuteAlertsButton unitId={u.id} muted={u.reservationAlertsMuted} />
                           <ReleaseButton unitId={u.id} unitNumber={u.number} />
                         </div>
                       </td>

@@ -180,7 +180,7 @@ export type AlertsRunResult = {
   emailsSent: number
   smsSent: number
   tasksCreated: number
-  skipped: { noEmail: number; noPhone: number; quietHours: number; alreadySent: number }
+  skipped: { noEmail: number; noPhone: number; quietHours: number; alreadySent: number; muted: number }
   errors: string[]
 }
 
@@ -189,6 +189,7 @@ type ExpiringUnit = {
   number: string
   reservationExpiresAt: Date
   reservedById: string | null
+  reservationAlertsMuted: boolean
   reservedBy: ReservationClient | null
 }
 
@@ -199,7 +200,7 @@ export async function runReservationAlerts(now = new Date()): Promise<AlertsRunR
     emailsSent: 0,
     smsSent: 0,
     tasksCreated: 0,
-    skipped: { noEmail: 0, noPhone: 0, quietHours: 0, alreadySent: 0 },
+    skipped: { noEmail: 0, noPhone: 0, quietHours: 0, alreadySent: 0, muted: 0 },
     errors: [],
   }
 
@@ -240,10 +241,15 @@ async function runAlertsLocked(
   result: AlertsRunResult,
   now: Date,
 ): Promise<AlertsRunResult> {
-  const expiring = (await getExpiringSoftReservations(cfg.hoursBefore)).filter(
+  const inWindow = (await getExpiringSoftReservations(cfg.hoursBefore)).filter(
     (u) => !!u.reservationExpiresAt,
   ) as unknown as ExpiringUnit[]
-  result.checked = expiring.length
+  result.checked = inWindow.length
+
+  // Rezerwacje wyciszone ręcznie (przełącznik na /rezerwacje) — pomijamy
+  // WSZYSTKIE kanały: e-mail, SMS i zadanie „Zadzwoń".
+  const expiring = inWindow.filter((u) => !u.reservationAlertsMuted)
+  result.skipped.muted = inWindow.length - expiring.length
   if (expiring.length === 0) return result
 
   // Które lokale już obsłużone (per kanał) — jedno zapytanie zamiast N.

@@ -106,6 +106,10 @@ model Unit {
   reservationType      String?
   reservationExpiresAt DateTime?
   reservedById         String?
+  // Wyciszenie automatycznych powiadomień (e-mail/SMS/zadanie „Zadzwoń") dla TEJ
+  // rezerwacji — patrz lib/reservation-alerts.ts. Czyszczone przy zwolnieniu/
+  // wygaśnięciu/nowej rezerwacji, przenoszone przy zamianie lokalu (swap).
+  reservationAlertsMuted Boolean @default(false)
   // Pola integracji z 3D Estate (matryca 3D) — patrz docs/integracja-3destate-decyzje.md
   // visibleOnMatrix=false ukrywa lokal na matrycy 3DE niezależnie od statusu (np. lokale przed wprowadzeniem do sprzedaży)
   visibleOnMatrix       Boolean   @default(true)

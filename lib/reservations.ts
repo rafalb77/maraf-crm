@@ -41,6 +41,7 @@ export async function expireSoftReservations() {
         reservationType: null,
         reservationExpiresAt: null,
         reservedById: null,
+        reservationAlertsMuted: false,
       },
     }),
     prisma.clientUnit.deleteMany({
@@ -129,6 +130,7 @@ export async function releaseSoftReservation(unitId: string): Promise<void> {
         reservationType: null,
         reservationExpiresAt: null,
         reservedById: null,
+        reservationAlertsMuted: false,
       },
     }),
     prisma.clientUnit.deleteMany({ where: { unitId } }),
@@ -150,7 +152,7 @@ export async function swapSoftReservation(oldUnitId: string, newUnitId: string):
   const [oldUnit, newUnit] = await Promise.all([
     prisma.unit.findUnique({
       where: { id: oldUnitId },
-      select: { reservationType: true, reservationExpiresAt: true, reservedById: true },
+      select: { reservationType: true, reservationExpiresAt: true, reservedById: true, reservationAlertsMuted: true },
     }),
     prisma.unit.findUnique({
       where: { id: newUnitId },
@@ -174,14 +176,15 @@ export async function swapSoftReservation(oldUnitId: string, newUnitId: string):
     // Zwolnij stary
     await tx.unit.update({
       where: { id: oldUnitId },
-      data: { status: 'WOLNY', reservationType: null, reservationExpiresAt: null, reservedById: null },
+      data: { status: 'WOLNY', reservationType: null, reservationExpiresAt: null, reservedById: null, reservationAlertsMuted: false },
     })
     await tx.clientUnit.deleteMany({ where: { unitId: oldUnitId } })
 
-    // Zarezerwuj nowy (ten sam klient + data wygaśnięcia)
+    // Zarezerwuj nowy (ten sam klient + data wygaśnięcia; wyciszenie powiadomień
+    // podąża za rezerwacją — to wciąż ta sama rezerwacja, tylko inny lokal)
     await tx.unit.update({
       where: { id: newUnitId },
-      data: { status: 'ZAREZERWOWANY', reservationType: 'MIEKKA', reservationExpiresAt: expiresAt, reservedById: clientId },
+      data: { status: 'ZAREZERWOWANY', reservationType: 'MIEKKA', reservationExpiresAt: expiresAt, reservedById: clientId, reservationAlertsMuted: oldUnit.reservationAlertsMuted },
     })
     if (clientId) {
       await tx.clientUnit.upsert({

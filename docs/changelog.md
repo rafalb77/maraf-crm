@@ -4,6 +4,12 @@ Krótkie wpisy „co i **dlaczego**". Bez listy wszystkich commitów — od tego
 
 ---
 
+## 2026-07-11
+
+### Rezerwacje — wyciszanie powiadomień per rezerwacja
+**Powód**: Rafał chce testować mechanizm powiadomień bez wysyłki do prawdziwych klientów; przydatne też dla wyjątków ad-hoc. Szczegóły: `docs/rezerwacje-powiadomienia-decyzje.md` (sekcja „Wyciszanie per rezerwacja").
+**Implementacja**: pole `Unit.reservationAlertsMuted` (default false), przełącznik-dzwonek w akcjach na `/rezerwacje` (`MuteAlertsButton`), `PATCH /api/reservations/[unitId]/alerts {muted}`. Cron pomija wyciszone we wszystkich kanałach (`skipped.muted` w wyniku). Flaga czyszczona przy release/expire/nowej rezerwacji, przenoszona przy swap, nietykana przy przedłużeniu. **WYMAGA na produkcji `prisma db push`** (kolumna na Unit) — do wykonania OD RAZU po deployu, bo cron co 15 min zacznie failować na brakującej kolumnie (nieszkodliwe, ale głośne).
+
 ## 2026-07-10
 
 ### Rezerwacje — automatyczne powiadomienia klienta przed wygaśnięciem miękkiej (e-mail/SMS + zadanie „Zadzwoń")
