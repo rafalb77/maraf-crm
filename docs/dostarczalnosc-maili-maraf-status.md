@@ -1,8 +1,8 @@
-# Dostarczalność maili maraf.pl — naprawa SPF/DMARC/DKIM (2026-05-25)
+# Dostarczalność maili maraf.pl + novastaffa.pl — SPF/DMARC/DKIM
 
-**Status**: 🟡 OTWARTE. W trakcie naprawy konfiguracji DNS + ticket do home.pl.
+**Status**: 🟡 OTWARTE — maraf.pl naprawione (patrz Update 2026-07-11), **czeka novastaffa.pl** (nadawca CRM: brak DKIM i DMARC przez wildcard DNS) + ewentualny ticket PTR do home.pl.
 
-**Plik dla nowej sesji** — gdy temat wraca, czytaj od góry.
+**Plik dla nowej sesji** — najpierw czytaj „Update 2026-07-11" na dole (aktualny stan + checklist), historia wyżej.
 
 ---
 
@@ -115,7 +115,63 @@ record:
 
 Częściowo. SPF (z `~all`) + DMARC + DKIM to fundament — usunie dużą część scoringu. ALE score 250 sugeruje że dochodzi **reputacja IP po incydencie** (działka home.pl + czas) i ewentualnie **PTR mismatch** (działka home.pl). Dlatego ticket do home.pl równolegle, nie tylko DNS. Realistycznie: poprawa stopniowa przez dni-tygodnie w miarę gojenia reputacji + po działaniach home.pl.
 
+## Update 2026-07-11 — maraf.pl ✅ zrobione; odkryto lukę w novastaffa.pl (nadawca CRM)
+
+Kontrola live DNS (8.8.8.8) + 5 blacklist. Kontekst: wdrożyliśmy automatyczne
+powiadomienia e-mail do klientów o wygasających rezerwacjach
+(`docs/rezerwacje-powiadomienia-decyzje.md`) — wysyłane przez SMTP home.pl
+z **`biuro@novastaffa.pl`**, więc ich dostarczalność zależy od DNS
+**novastaffa.pl**, nie maraf.pl.
+
+### maraf.pl — plan z 25.05 WYKONANY
+
+| Element | Stan 2026-07-11 |
+|---|---|
+| SPF | ✅ `v=spf1 ip4:89.161.166.193 a mx include:_spf.home.pl ~all` (jest `~all` + include) |
+| DMARC | ✅ `v=DMARC1; p=none; rua=mailto:rafal.boruch@maraf.pl` |
+| DKIM | ✅ selektor `dkim` istnieje (podpisywanie potwierdzone raportem DMARC 25.05) |
+| Blacklisty | ✅ zen.spamhaus, spamcop, barracuda, sorbs, psbl — czysto |
+| PTR | ⚠️ nadal `cloudserver030165.home.pl` (tylko home.pl; drobiazg — HELO spójne z PTR) |
+
+Zostaje (opcjonalnie): ticket do home.pl o PTR/reputację — **tylko jeśli maile
+Rafała nadal są odrzucane** (minęło 7 tygodni od incydentu, reputacja mogła się
+zagoić; przetestować zanim wyśle się ticket).
+
+### novastaffa.pl — ❌ brak DKIM i DMARC (wildcard DNS zjada rekordy)
+
+Stan: SPF = `v=spf1 a mx ~all` → ✅ pass (A domeny = 89.161.166.193 = serwer
+wysyłkowy). ALE w strefie jest **wildcard `*` → CNAME na apex** (dowolna
+subdomena resolvuje na 89.161.166.193), przez co:
+
+- `dkim._domainkey.novastaffa.pl` → CNAME na apex → **brak klucza DKIM**
+  (żaden selektor; maile z CRM idą bez ważnego podpisu DKIM),
+- `_dmarc.novastaffa.pl` → CNAME na apex → **brak DMARC**.
+
+Gmail (wymogi nadawców od 2024) i wp.pl (tam są klienci, np. @wp.pl) traktują
+brak DKIM+DMARC jako silny sygnał spamowy — dokładnie dla maili transakcyjnych
+CRM do klientów.
+
+### Checklist naprawy novastaffa.pl (panel home.pl)
+
+- [ ] **DKIM**: panel home.pl → Poczta → domena novastaffa.pl → włącz podpis
+  DKIM (home.pl sam doda rekord `dkim._domainkey` do strefy; rekord jawny
+  wygrywa z wildcardem). Jeśli w panelu brak opcji → ticket do home.pl.
+- [ ] **DMARC**: DNS novastaffa.pl → dodaj TXT:
+  `Host: _dmarc`, `Wartość: v=DMARC1; p=none; rua=mailto:biuro@novastaffa.pl`
+  (rua w tej samej domenie = bez dodatkowej autoryzacji cross-domain).
+- [ ] (opcjonalnie) **SPF** doprecyzować jak w maraf.pl:
+  `v=spf1 ip4:89.161.166.193 a mx include:_spf.home.pl ~all` — odporne na
+  przenosiny IP w ramach home.pl.
+- [ ] (higiena, decyzja świadoma) wildcard `*` CNAME zostawić lub usunąć —
+  jawne rekordy i tak wygrywają, ale wildcard utrudnia diagnostykę.
+- [ ] **Weryfikacja po ~1-24h propagacji**: w CRM `/settings` → „Powiadomienia
+  o rezerwacjach" → „Test e-mail" na adres z **mail-tester.com** (testuje
+  dokładnie ścieżkę powiadomień: SMTP home.pl + nagłówki auto-mail). Cel ≥ 9/10,
+  w raporcie DKIM=pass i DMARC=pass. Drugi test: mail na własne konto @wp.pl
+  i @gmail.com — sprawdzić że nie wpada do spamu/„Ofert".
+
 ## Powiązane
 
 - `docs/incident-bogdan-mail-status.md` — źródłowy incydent (hack SMTP który nadszarpnął reputację)
-- `docs/infrastruktura.md` — sekcja DNS (było zalecenie SPF `v=spf1 include:_spf.home.pl ~all` — nigdy nie wdrożone do końca)
+- `docs/infrastruktura.md` — sekcja DNS (było zalecenie SPF `v=spf1 include:_spf.home.pl ~all` — nigdy nie wdrożone do końca) + sekcja SMTP (nadawca CRM = biuro@novastaffa.pl)
+- `docs/rezerwacje-powiadomienia-decyzje.md` — automatyczne maile do klientów, których dotyczy novastaffa.pl
