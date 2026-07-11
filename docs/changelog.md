@@ -4,6 +4,19 @@ Krótkie wpisy „co i **dlaczego**". Bez listy wszystkich commitów — od tego
 
 ---
 
+## 2026-07-10
+
+### Rezerwacje — automatyczne powiadomienia klienta przed wygaśnięciem miękkiej (e-mail/SMS + zadanie „Zadzwoń")
+**Powód**: Rafał chciał, żeby na 48 h (konfigurowalne) przed końcem rezerwacji miękkiej klient dostał automatycznie e-mail i SMS, a na pulpicie pojawiło się powiadomienie „zadzwoń do klienta" — w tym samym momencie. Pełny kontekst: `docs/rezerwacje-powiadomienia-decyzje.md`.
+**Implementacja**:
+- **`lib/reservation-alerts.ts`** (`runReservationAlerts()`): selekcja `getExpiringSoftReservations(X)`, grupowanie per klient (1 wiadomość z listą lokali), szablony z Settings (placeholdery `{imie} {lokal} {data}…`), wysyłka e-mail (`lib/mailer`) + SMS + Task `RES_CALL:<unitId>:<yyyy-mm-dd>`; RES_CALL anuluje otwarte RES_EXPIRE tego samego lokalu/terminu i ma gałąź w `reconcileRuleTasks` (anti-zombie).
+- **Idempotencja: nowy model `NotificationLog`** — `dedupeKey @unique` = `RES_ALERT:<unitId>:<kanał>:<expiresAt ISO>`, wpis tylko po UDANEJ wysyłce (błąd → retry następnym przebiegiem; przedłużenie rezerwacji = nowa data = nowy cykl). Skalary bez FK (wzorzec AuditLog).
+- **`lib/sms.ts`** — pierwszy moduł SMS w systemie: SMSAPI.pl przez `fetch` (bez SDK), token/nadawca w Settings (`sms.apiToken`/`sms.from`), `normalizePhonePl()` (wolny tekst → E.164, stacjonarne odrzucane), mapa błędów bramki na polskie komunikaty. SMS-y tylko w oknie 8–20 czasu PL (konfigurowalne).
+- **Cron**: `POST /api/public/reservations/alerts` (sekret `RESERVATIONS_CRON_SECRET` — reużyty), Coolify Scheduled Task **co 15 min**. Digest dzienny do handlowca (expiring-email) zostaje bez zmian.
+- **UI**: `/settings` → sekcja „Powiadomienia o rezerwacjach" (`ReservationAlertsSection`) — próg godzin, przełączniki kanałów, szablony (licznik znaków SMS + ostrzeżenie o ogonkach → UCS-2), konfiguracja SMSAPI, wysyłka testowa (`POST /api/settings/reservation-alerts-test`).
+- **Ślad**: Activity na karcie klienta (EMAIL / NOTATKA „SMS: …" — celowo bez nowego typu aktywności) + audit `NOTIFY_EMAIL`/`NOTIFY_SMS`.
+- **WYMAGA na produkcji**: `prisma db push` (tabela `NotificationLog`) + nowy scheduled task w Coolify (`*/15 * * * *`). SMS czeka na konto SMSAPI + rejestrację nadawcy „MARAF" (1-3 dni) — kanał domyślnie OFF, e-mail i zadania ON.
+
 ## 2026-07-07
 
 ### Globalna wyszukiwarka ⌘K / Ctrl+K w topbarze

@@ -5,6 +5,7 @@ import { SettingsForm } from '@/components/settings/SettingsForm'
 import { UsersSection } from '@/components/settings/UsersSection'
 import { InvestmentImagesSection } from '@/components/settings/InvestmentImagesSection'
 import { IntegrationsSection } from '@/components/settings/IntegrationsSection'
+import { ReservationAlertsSection } from '@/components/settings/ReservationAlertsSection'
 
 export default async function SettingsPage({
   searchParams,
@@ -119,6 +120,9 @@ GOOGLE_REDIRECT_URI="https://crm.maraf.pl/api/calendar/callback"`}</pre>
 
         {/* Wizualizacje wspolne dla calej inwestycji (tlo dla kreacji Meta Ads) */}
         <InvestmentImagesSection initialImages={investmentImages} />
+
+        {/* Powiadomienia o wygasających rezerwacjach (e-mail/SMS do klienta + zadanie na pulpicie) */}
+        <ReservationAlertsSection />
 
         {/* Integracja 3D Estate (matryca 3D) — pull endpoint dla matrycy 3D */}
         <IntegrationsSection />

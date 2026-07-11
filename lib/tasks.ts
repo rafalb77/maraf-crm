@@ -8,6 +8,10 @@ import type { TaskBucket } from './types'
  * Reguły (source=RULE, idempotentne przez unikalny Task.ruleKey):
  *  - RES_EXPIRE:<unitId>:<yyyy-mm-dd>  — rezerwacja lokalu wygasa w ciągu N dni
  *    (Settings: tasks.reservationWarnDays, default 3)
+ *  - RES_CALL:<unitId>:<yyyy-mm-dd>    — „zadzwoń do klienta" na X godzin przed
+ *    wygaśnięciem miękkiej; tworzone przez lib/reservation-alerts.ts (cron
+ *    powiadomień), tu tylko auto-domykane. Przy utworzeniu anuluje otwarte
+ *    RES_EXPIRE tego samego lokalu/terminu (nie dublujemy wpisów w widgecie).
  *  - PAYMENT_DUE:<paymentId>:<yyyy-mm-dd> — rata harmonogramu (PLANOWANA) z terminem
  *    w ciągu N dni lub po terminie (Settings: tasks.paymentWarnDays, default 7)
  *
@@ -289,7 +293,7 @@ export async function reconcileRuleTasks(): Promise<{ autoClosed: number; cancel
       } else if (!p.plannedDate || warsawDateKey(p.plannedDate) !== keyDate) {
         cancelIds.push(t.id) // termin przesunięty — nowe zadanie powstanie we właściwym horyzoncie
       }
-    } else if (rule === 'RES_EXPIRE') {
+    } else if (rule === 'RES_EXPIRE' || rule === 'RES_CALL') {
       const u = t.unit
       if (!u) {
         cancelIds.push(t.id)

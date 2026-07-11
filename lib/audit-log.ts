@@ -26,6 +26,8 @@ export type AuditAction =
   | 'PERMISSION_CHANGE'
   | 'PASSWORD_RESET_REQUEST'
   | 'PASSWORD_RESET'
+  | 'NOTIFY_EMAIL'
+  | 'NOTIFY_SMS'
 
 export type AuditArgs = {
   userId?: string | null

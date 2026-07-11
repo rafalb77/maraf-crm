@@ -361,6 +361,34 @@ model Settings {
 }
 
 // =============================================================
+// REJESTR POWIADOMIEŃ AUTOMATYCZNYCH (moduł Rezerwacje)
+// =============================================================
+// Ślad wysłanych powiadomień do klientów (e-mail/SMS o wygasającej rezerwacji
+// miękkiej) — patrz lib/reservation-alerts.ts. Idempotencja wysyłki przez
+// dedupeKey @unique = "RES_ALERT:<unitId>:<channel>:<expiresAt ISO>":
+//  - wpis powstaje TYLKO po udanej wysyłce; nieudana → brak wpisu → retry
+//    przy kolejnym przebiegu crona (wzorzec Case.reminderSentAt),
+//  - przedłużenie rezerwacji zmienia expiresAt → nowy klucz → nowy cykl.
+// unitId/clientId to skalary bez FK (wzorzec AuditLog) — historia przeżywa
+// zwolnienie lokalu i usunięcie klienta.
+//
+// channel: EMAIL | SMS
+model NotificationLog {
+  id        String   @id @default(cuid())
+  dedupeKey String   @unique
+  unitId    String
+  clientId  String?
+  channel   String
+  recipient String // adres e-mail / numer po normalizacji
+  subject   String?
+  body      String?
+  sentAt    DateTime @default(now())
+
+  @@index([unitId, sentAt])
+  @@index([clientId, sentAt])
+}
+
+// =============================================================
 // MODUŁ: ZADANIA (centrum zadań „Do zrobienia" na pulpicie)
 // =============================================================
 // Zadania ręczne (source=MANUAL) + generowane automatycznie z danych
