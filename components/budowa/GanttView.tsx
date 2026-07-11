@@ -2,18 +2,23 @@
 
 /**
  * Gantt harmonogramu budowy — SVAR React Gantt (MIT) + własna warstwa wizualna.
- * Moduł Budowa, Etap 2. Redesign po feedbacku Rafała 2026-07-11.
+ * Moduł Budowa, Etap 2. Redesign v2 po feedbacku Rafała 2026-07-11 + research
+ * wzorców Linear/Monday/Asana (docs/budowa-rozpoczecie.md, sekcja Gantt).
  *
- * - pełny CSS biblioteki (all.css — okrojony style.css psuł wirtualizację/scroll!)
- * - własny taskTemplate: paski w kolorach etapu, pasek postępu, % i nazwa na pasku,
- *   hover = uniesienie + cień + chip z datami; kamienie = złote romby (spóźnione: czerwone, pulsują)
- * - Tooltip (hover) z pełnym kontekstem: etap, terminy, dni, postęp, wykonawca, opóźnienie
- * - highlightTime: weekendy + kolumna "dziś" (widoczne przy skali dziennej)
- * - pasek narzędzi: skala Dzień/Tydzień/Miesiąc, przycisk "Dziś", legenda kolorów etapów
- * - drag/resize → PATCH /api/budowa/tasks/[id] (bez zmian); edytor SVAR wyłączony
- * - dark mode w locie (MutationObserver na .dark); linia "dziś" własna (markery SVAR = PRO)
+ * Warstwa "premium" (wszystko nasze, zero PRO):
+ *  - sprężynowe easingi (CSS linear()), kaskadowe wejście pasków (stagger per wiersz)
+ *  - paski w kolorach etapu; postęp = "płonący" gradient z przesuwającym się blaskiem
+ *    i żarzącą kropką (ember) na granicy postępu
+ *  - hover HUD: uniesienie + złota obwódka + chip z datami + uchwyty resize
+ *  - kamienie: złote romby, rozbłysk pierścienia na hover; spóźnione pulsują na czerwono
+ *  - celownik: kolumna dnia pod kursorem + pigułka z datą na osi (interaktywna linijka)
+ *  - MINIMAPA: pasek całej inwestycji pod wykresem, przeciągalne okienko widoku
+ *  - linia "dziś" z gradientem i pulsującą latarnią; przycisk Dziś = płynny scroll + flash
+ *  - crossfade przy zmianie skali; wszystko za prefers-reduced-motion
  *
- * Konwencja dat: SVAR end EKSKLUZYWNY vs plannedEnd INKLUZYWNY (+1/-1 dzień w adapterze).
+ * Techniczne: pełny all.css (okrojony style.css psuł scroll); łańcuch height:100%
+ * przez divy motywu/tooltipa (bez tego znika pionowy scroll); markery SVAR = PRO,
+ * linia "dziś" własna. Daty: SVAR end EKSKLUZYWNY vs plannedEnd INKLUZYWNY (+1/-1).
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -97,26 +102,32 @@ type PresetKey = keyof typeof SCALE_PRESETS
 
 // ---------------------------------------------------------------- pasek zadania
 function TaskBar({ data }: { data: any }) {
+  const style = { ['--c' as any]: data.$color, ['--i' as any]: data.$idx ?? 0 }
   if (data.type === 'milestone') {
     return (
-      <div className={`bud-ms${data.$late ? ' bud-ms-late' : ''}`} title={data.text}>
+      <div className={`bud-ms${data.$late ? ' bud-ms-late' : ''}`} style={style} title={data.text}>
         <span className="bud-ms-label">{data.text}</span>
       </div>
     )
   }
   if (data.type === 'summary') {
-    return <div className="bud-summary" style={{ ['--c' as any]: data.$color }} />
+    return <div className="bud-summary" style={style} />
   }
   const pct = Math.max(0, Math.min(100, Math.round(data.progress ?? 0)))
   return (
     <div
-      className={`bud-bar${data.$late ? ' bud-bar-late' : ''}${data.$done ? ' bud-bar-done' : ''}`}
-      style={{ ['--c' as any]: data.$color }}
+      className={`bud-bar${data.$late ? ' bud-bar-late' : ''}${data.$done ? ' bud-bar-done' : ''}${pct > 0 && pct < 100 ? ' bud-bar-active' : ''}`}
+      style={style}
     >
-      <div className="bud-bar-fill" style={{ width: `${pct}%` }} />
+      <div className="bud-bar-clip">
+        <div className="bud-bar-fill" style={{ width: `${pct}%` }} />
+      </div>
+      {pct > 0 && pct < 100 && <span className="bud-ember" style={{ left: `${pct}%` }} />}
       <span className="bud-bar-text">{data.$shortName}</span>
       <span className="bud-bar-pct">{pct > 0 ? `${pct}%` : ''}</span>
       {data.$late && <span className="bud-bar-warn">⚠</span>}
+      <span className="bud-grip bud-grip-l" />
+      <span className="bud-grip bud-grip-r" />
       <span className="bud-bar-dates">
         {fmtPL(data.$isoStart)} – {fmtPL(data.$isoEnd)}
       </span>
@@ -182,56 +193,12 @@ export function GanttView({
   const [preset, setPreset] = useState<PresetKey>('tydzien')
   const apiRef = useRef<any>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+  const minimapRef = useRef<HTMLDivElement>(null)
+  const minimapWinRef = useRef<HTMLDivElement>(null)
   const [saveInfo, setSaveInfo] = useState<string | null>(null)
   const [tooltipApi, setTooltipApi] = useState<any>(null)
-  // Pionowy scroll: SVAR wirtualizuje wiersze przez akcję 'scroll-chart' w store,
-  // ale w wersji React 2.7 ŻADEN element nie karmi jej pionowo (wheel na wykresie
-  // obsługuje tylko ctrl+zoom) — stąd "zadania nie przewijają się" na produkcji.
-  // Mostek: własny natywny pasek przewijania (proxy) + wheel na całym widgecie,
-  // oba wołają exec('scroll-chart', {top}).
-  const vscrollRef = useRef<HTMLDivElement>(null)
-  const syncingRef = useRef(false)
-  const [contentH, setContentH] = useState(0)
-
-  function visibleRowsHeight(): number {
-    const api = apiRef.current
-    if (!api) return 0
-    const st = api.getState()
-    const cellH = st.cellHeight || 30
-    const seen = new Set<string>()
-    const walk = (arr: any[]) => {
-      for (const t of arr || []) {
-        if (seen.has(String(t.id))) continue
-        seen.add(String(t.id))
-        if (t.data && t.open !== false) walk(t.data)
-      }
-    }
-    walk(st._tasks || [])
-    return seen.size * cellH
-  }
-
-  function refreshContentHeight() {
-    setContentH(visibleRowsHeight())
-  }
-
-  function doScroll(top: number) {
-    const api = apiRef.current
-    if (!api) return
-    const viewH = (containerRef.current?.querySelector('.bud-size') as HTMLElement)?.clientHeight || 420
-    const max = Math.max(0, visibleRowsHeight() - viewH + 60)
-    const clamped = Math.max(0, Math.min(max, Math.round(top)))
-    try {
-      api.exec('scroll-chart', { top: clamped })
-    } catch {}
-    const proxy = vscrollRef.current
-    if (proxy && Math.abs(proxy.scrollTop - clamped) > 1) {
-      syncingRef.current = true
-      proxy.scrollTop = clamped
-      requestAnimationFrame(() => {
-        syncingRef.current = false
-      })
-    }
-  }
+  // zakres czasu wykresu (z _scales SVAR) — pozycjonuje minimapę zgodnie z osią wykresu
+  const [mapRange, setMapRange] = useState<{ t0: number; t1: number } | null>(null)
 
   useEffect(() => {
     const root = document.documentElement
@@ -242,7 +209,10 @@ export function GanttView({
   }, [])
 
   useEffect(() => {
-    const onResize = () => updateTodayLine()
+    const onResize = () => {
+      updateTodayLine()
+      syncMinimap()
+    }
     window.addEventListener('resize', onResize)
     return () => window.removeEventListener('resize', onResize)
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -250,9 +220,10 @@ export function GanttView({
 
   const subName = useMemo(() => new Map(subcontractors.map((s) => [s.id, s.name])), [subcontractors])
 
-  const { data, legend } = useMemo(() => {
+  const { data, legend, laneOf } = useMemo(() => {
     const rows: any[] = []
     const legend: { name: string; color: string }[] = []
+    const laneOf = new Map<string, number>() // stageRowId -> lane minimapy
     const byStage = new Map<string, Task[]>()
     const orphans: Task[] = []
     for (const t of tasks) {
@@ -262,10 +233,12 @@ export function GanttView({
       } else orphans.push(t)
     }
 
+    let idx = 0
     const todayMs = Date.now()
-    const pushStage = (id: string, name: string, children: Task[], idx: number, s?: Stage) => {
-      const color = STAGE_COLORS[idx % STAGE_COLORS.length]
+    const pushStage = (id: string, name: string, children: Task[], lane: number, s?: Stage) => {
+      const color = STAGE_COLORS[lane % STAGE_COLORS.length]
       legend.push({ name, color })
+      laneOf.set(`s:${id}`, lane)
       const dated = children.filter((c) => c.plannedStart && c.plannedEnd)
       const minStart = dated.length
         ? new Date(Math.min(...dated.map((c) => parseISO(c.plannedStart!).getTime())))
@@ -285,15 +258,13 @@ export function GanttView({
         start: minStart,
         end: new Date(maxEnd.getTime() + DAY),
         $color: color,
+        $idx: idx++,
       })
       for (const t of children) {
         if (!t.plannedStart || !t.plannedEnd) continue
         const start = parseISO(t.plannedStart)
         const endIncl = parseISO(t.plannedEnd)
-        const late =
-          !t.isMilestone
-            ? t.status !== 'ZAKONCZONE' && t.status !== 'ANULOWANE' && endIncl.getTime() + DAY < todayMs
-            : t.status !== 'ZAKONCZONE' && endIncl.getTime() + DAY < todayMs
+        const late = t.status !== 'ZAKONCZONE' && t.status !== 'ANULOWANE' && endIncl.getTime() + DAY < todayMs
         rows.push({
           id: t.id,
           parent: `s:${id}`,
@@ -305,6 +276,7 @@ export function GanttView({
           end: t.isMilestone ? undefined : new Date(endIncl.getTime() + DAY),
           progress: t.isMilestone ? undefined : t.progress,
           $color: color,
+          $lane: lane,
           $late: late,
           $done: t.status === 'ZAKONCZONE',
           $stageName: name,
@@ -312,6 +284,7 @@ export function GanttView({
           $isoStart: t.plannedStart,
           $isoEnd: t.plannedEnd,
           $shortName: t.name.length > 34 ? t.name.slice(0, 33) + '…' : t.name,
+          $idx: idx++,
         })
       }
     }
@@ -319,11 +292,11 @@ export function GanttView({
     const sorted = [...stages].sort((a, b) => a.order - b.order)
     sorted.forEach((s, i) => pushStage(s.id, s.name, byStage.get(s.id) || [], i, s))
     if (orphans.length) pushStage('_orphan', 'Bez etapu', orphans, sorted.length)
-    return { data: rows, legend }
+    return { data: rows, legend, laneOf }
   }, [stages, tasks, subName])
 
   const columns = useMemo(
-    () => [{ id: 'text', header: 'Zadanie', flexgrow: 1, width: 300 }],
+    () => [{ id: 'text', header: 'Zadanie', flexgrow: 1, width: 280 }],
     [],
   )
 
@@ -337,18 +310,21 @@ export function GanttView({
     return dow === 0 || dow === 6 ? 'bud-cell-weekend' : ''
   }
 
-  function updateTodayLine() {
-    const api = apiRef.current
-    const host = containerRef.current
-    if (!api || !host) return
-    const st = api.getState()
-    const sc = st?._scales
-    const chart = host.querySelector('.wx-chart') as HTMLElement | null
-    if (!sc || !chart) return
-    const t0 = sc.start instanceof Date ? sc.start.getTime() : null
-    const t1 = sc.end instanceof Date ? sc.end.getTime() : null
-    if (!t0 || !t1 || t1 <= t0) return
-    const x = Math.round(((Date.now() - t0) / (t1 - t0)) * sc.width)
+  // ------------------------------------------------------------ warstwy nad wykresem
+  function chartEl(): HTMLElement | null {
+    return (containerRef.current?.querySelector('.wx-chart') as HTMLElement) || null
+  }
+  function scaleRange(): { t0: number; t1: number; width: number } | null {
+    const sc = apiRef.current?.getState()?._scales
+    if (!sc || !(sc.start instanceof Date) || !(sc.end instanceof Date)) return null
+    return { t0: sc.start.getTime(), t1: sc.end.getTime(), width: sc.width }
+  }
+
+  function updateTodayLine(flash = false) {
+    const chart = chartEl()
+    const r = scaleRange()
+    if (!chart || !r) return
+    const x = Math.round(((Date.now() - r.t0) / (r.t1 - r.t0)) * r.width)
     let line = chart.querySelector('.budowa-today-line') as HTMLElement | null
     if (!line) {
       line = document.createElement('div')
@@ -358,7 +334,92 @@ export function GanttView({
     }
     line.style.left = `${x}px`
     line.style.height = `${Math.max(chart.scrollHeight, chart.clientHeight)}px`
-    line.style.display = x >= 0 && x <= sc.width ? 'block' : 'none'
+    line.style.display = x >= 0 && x <= r.width ? 'block' : 'none'
+    if (flash) {
+      line.classList.remove('bud-flash')
+      void line.offsetWidth // restart animacji
+      line.classList.add('bud-flash')
+    }
+  }
+
+  // celownik: kolumna dnia pod kursorem + pigułka z datą
+  function setupCrosshair() {
+    const chart = chartEl()
+    if (!chart) return
+    let cross = chart.querySelector('.bud-crosshair') as HTMLElement | null
+    if (!cross) {
+      cross = document.createElement('div')
+      cross.className = 'bud-crosshair'
+      cross.innerHTML = '<span></span>'
+      chart.appendChild(cross)
+    }
+    const chip = cross.querySelector('span') as HTMLElement
+    let raf = 0
+    const onMove = (e: PointerEvent) => {
+      if (raf) return
+      raf = requestAnimationFrame(() => {
+        raf = 0
+        const r = scaleRange()
+        if (!r || !cross) return
+        const rect = chart.getBoundingClientRect()
+        const x = e.clientX - rect.left + chart.scrollLeft
+        const t = r.t0 + (x / r.width) * (r.t1 - r.t0)
+        const d = new Date(t)
+        // przyciągnij do początku dnia
+        const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()
+        const px = Math.round(((dayStart - r.t0) / (r.t1 - r.t0)) * r.width)
+        const pxW = Math.max(2, Math.round((DAY / (r.t1 - r.t0)) * r.width))
+        cross.style.transform = `translateX(${px}px)`
+        cross.style.width = `${pxW}px`
+        cross.style.height = `${Math.max(chart.scrollHeight, chart.clientHeight)}px`
+        cross.style.opacity = '1'
+        chip.textContent = new Intl.DateTimeFormat('pl-PL', { day: '2-digit', month: '2-digit' }).format(d)
+      })
+    }
+    const onLeave = () => {
+      if (cross) cross.style.opacity = '0'
+    }
+    chart.addEventListener('pointermove', onMove, { passive: true })
+    chart.addEventListener('pointerleave', onLeave, { passive: true })
+  }
+
+  // minimapa: okienko widoku synchronizowane ze scrollem wykresu
+  function syncMinimap() {
+    const chart = chartEl()
+    const r = scaleRange()
+    const win = minimapWinRef.current
+    if (!chart || !r || !win) return
+    // elementy SVAR raportują zerowe boxy (treść absolutna) — widoczną szerokość
+    // wykresu liczymy z NASZEGO kontenera minus szerokość gridu (state.gridWidth)
+    const gridW = apiRef.current?.getState()?.gridWidth ?? 0
+    const visibleW = Math.max(0, (containerRef.current?.clientWidth ?? 0) - gridW)
+    const frac = chart.scrollLeft / r.width
+    const fracW = visibleW > 0 ? Math.min(1, visibleW / r.width) : 0.1
+    win.style.left = `${(frac * 100).toFixed(2)}%`
+    win.style.width = `${(fracW * 100).toFixed(2)}%`
+  }
+  function minimapNavigate(clientX: number, smooth: boolean) {
+    const chart = chartEl()
+    const r = scaleRange()
+    const map = minimapRef.current
+    if (!chart || !r || !map) return
+    const rect = map.getBoundingClientRect()
+    const frac = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width))
+    const gridW = apiRef.current?.getState()?.gridWidth ?? 0
+    const visibleW = Math.max(200, (containerRef.current?.clientWidth ?? 0) - gridW)
+    const left = frac * r.width - visibleW / 2
+    chart.scrollTo({ left, behavior: smooth ? 'smooth' : 'auto' })
+  }
+  function onMinimapPointerDown(e: React.PointerEvent) {
+    e.preventDefault()
+    minimapNavigate(e.clientX, true)
+    const onMove = (ev: PointerEvent) => minimapNavigate(ev.clientX, false)
+    const onUp = () => {
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+    }
+    window.addEventListener('pointermove', onMove, { passive: true })
+    window.addEventListener('pointerup', onUp)
   }
 
   async function persistTask(id: string, task: any) {
@@ -394,14 +455,35 @@ export function GanttView({
     } catch {}
     setTimeout(() => {
       updateTodayLine()
-      refreshContentHeight()
+      setupCrosshair()
+      const r = scaleRange()
+      if (r) setMapRange({ t0: r.t0, t1: r.t1 })
+      const chart = chartEl()
+      if (chart) {
+        let raf = 0
+        chart.addEventListener(
+          'scroll',
+          () => {
+            if (raf) return
+            raf = requestAnimationFrame(() => {
+              raf = 0
+              syncMinimap()
+            })
+          },
+          { passive: true },
+        )
+      }
+      syncMinimap()
     }, 0)
     try {
-      api.on('zoom-scale', () => setTimeout(updateTodayLine, 0))
-    } catch {}
-    // zwijanie/rozwijanie etapów zmienia liczbę widocznych wierszy → wysokość proxy
-    try {
-      api.on('open-task', () => setTimeout(refreshContentHeight, 0))
+      api.on('zoom-scale', () =>
+        setTimeout(() => {
+          updateTodayLine()
+          const r = scaleRange()
+          if (r) setMapRange({ t0: r.t0, t1: r.t1 })
+          syncMinimap()
+        }, 0),
+      )
     } catch {}
     api.intercept('show-editor', () => false)
     api.intercept('update-task', (ev: any) => {
@@ -415,32 +497,42 @@ export function GanttView({
     })
   }
 
-  // wheel nad widgetem = pionowe przewijanie (ctrl+wheel zostaje dla zoomu SVAR)
-  useEffect(() => {
-    const host = containerRef.current
-    if (!host) return
-    const onWheel = (e: WheelEvent) => {
-      if (e.ctrlKey || e.metaKey) return // zoom SVAR
-      if (!(e.target as HTMLElement).closest('.bud-size')) return
-      if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return // poziome gesty zostaw wykresowi
-      e.preventDefault()
-      const api = apiRef.current
-      const cur = api?.getState()?.scrollTop || 0
-      doScroll(cur + e.deltaY)
-    }
-    host.addEventListener('wheel', onWheel, { passive: false })
-    return () => host.removeEventListener('wheel', onWheel)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
   function scrollToToday() {
     try {
       apiRef.current?.exec('scroll-chart', { date: new Date(Date.now() - 7 * DAY) })
     } catch {}
+    setTimeout(() => updateTodayLine(true), 350)
   }
 
   const Theme = dark ? WillowDark : Willow
   const sc = SCALE_PRESETS[preset]
+
+  // dane minimapy: zadania jako kreski w pasie etapu, kamienie jako romby
+  const miniItems = useMemo(() => {
+    if (!mapRange) return []
+    const span = mapRange.t1 - mapRange.t0
+    const items: { key: string; left: number; width: number; lane: number; color: string; ms: boolean; late: boolean }[] = []
+    for (const row of data) {
+      if (String(row.id).startsWith('s:')) continue
+      const start = row.start instanceof Date ? row.start.getTime() : null
+      if (!start) continue
+      const end = row.end instanceof Date ? row.end.getTime() : start + DAY
+      items.push({
+        key: String(row.id),
+        left: ((start - mapRange.t0) / span) * 100,
+        width: Math.max(0.4, ((end - start) / span) * 100),
+        lane: row.$lane ?? 0,
+        color: row.$color,
+        ms: row.type === 'milestone',
+        late: !!row.$late,
+      })
+    }
+    return items
+  }, [data, mapRange])
+  const miniToday = mapRange
+    ? Math.max(0, Math.min(100, ((Date.now() - mapRange.t0) / (mapRange.t1 - mapRange.t0)) * 100))
+    : null
+  const laneCount = Math.max(1, legend.length)
 
   return (
     <div ref={containerRef} className="budowa-gantt bg-white rounded-xl border border-gray-200 overflow-hidden">
@@ -474,42 +566,56 @@ export function GanttView({
         <span className="bud-save">{saveInfo}</span>
       </div>
 
-      <div className="bud-wrap" style={{ height: 'calc(100vh - 300px)', minHeight: 420 }}>
-        <div className="bud-size">
-          <Theme>
-            <Tooltip api={tooltipApi} content={TaskTip as any}>
-              <Gantt
-                key={preset}
-                tasks={data}
-                links={[]}
-                scales={sc.scales as any}
-                columns={columns as any}
-                cellWidth={sc.cellWidth}
-                cellHeight={30}
-                scaleHeight={30}
-                taskTemplate={TaskBar as any}
-                highlightTime={highlightTime as any}
-                zoom
-                init={init}
-              />
-            </Tooltip>
-          </Theme>
-        </div>
-        {/* natywny pasek przewijania (proxy) — karmi scroll-chart */}
-        <div
-          ref={vscrollRef}
-          className="bud-vscroll"
-          onScroll={(e) => {
-            if (syncingRef.current) return
-            doScroll((e.target as HTMLElement).scrollTop)
-          }}
-        >
-          <div style={{ height: contentH || 1 }} />
-        </div>
+      <div key={preset} className="bud-size bud-zoom-in" style={{ height: 'calc(100vh - 348px)', minHeight: 380 }}>
+        <Theme>
+          <Tooltip api={tooltipApi} content={TaskTip as any}>
+            <Gantt
+              tasks={data}
+              links={[]}
+              scales={sc.scales as any}
+              columns={columns as any}
+              cellWidth={sc.cellWidth}
+              cellHeight={28}
+              scaleHeight={28}
+              taskTemplate={TaskBar as any}
+              highlightTime={highlightTime as any}
+              zoom
+              init={init}
+            />
+          </Tooltip>
+        </Theme>
       </div>
+
+      {/* MINIMAPA: cała inwestycja z lotu ptaka + przeciągalne okienko widoku */}
+      <div
+        ref={minimapRef}
+        className="bud-minimap"
+        style={{ height: `${10 + laneCount * 7}px` }}
+        onPointerDown={onMinimapPointerDown}
+        title="Minimapa — kliknij albo przeciągnij, żeby nawigować"
+      >
+        {miniItems.map((m) =>
+          m.ms ? (
+            <span
+              key={m.key}
+              className={`bud-mini-ms${m.late ? ' bud-mini-late' : ''}`}
+              style={{ left: `${m.left}%`, top: `${5 + m.lane * 7}px` }}
+            />
+          ) : (
+            <span
+              key={m.key}
+              className={`bud-mini-bar${m.late ? ' bud-mini-late' : ''}`}
+              style={{ left: `${m.left}%`, width: `${m.width}%`, top: `${5 + m.lane * 7}px`, background: m.color }}
+            />
+          ),
+        )}
+        {miniToday !== null && <span className="bud-mini-today" style={{ left: `${miniToday}%` }} />}
+        <div ref={minimapWinRef} className="bud-mini-win" />
+      </div>
+
       <div className="bud-footer">
         Przeciągnij pasek lub jego krawędź, żeby zmienić termin (zapis automatyczny) • Ctrl+kółko = płynny zoom •
-        edycja szczegółów w widoku „Lista"
+        minimapa na dole nawiguje po całej inwestycji • edycja szczegółów w widoku „Lista"
       </div>
     </div>
   )
@@ -518,136 +624,229 @@ export function GanttView({
 // ---------------------------------------------------------------- style
 const BUDOWA_GANTT_CSS = `
 .budowa-gantt {
-  --wx-font-size: 12.5px;
-  --wx-font-size-sm: 11px;
   --wx-gantt-bar-border-radius: 6px;
+  --spring: linear(0, 0.36 5.5%, 1.03 21%, 1.005 41%, 1);
+}
+/* motyw SVAR definiuje własny --wx-font-size na .wx-theme — nadpisujemy NA motywie */
+.budowa-gantt .wx-theme {
+  --wx-font-size: 11.5px;
+  --wx-font-size-sm: 10.5px;
+  font-size: 11.5px;
 }
 /* Łańcuch wysokości: divy motywu i tooltipa NIE dziedziczą height —
-   bez tego .wx-gantt rośnie do pełnej treści, zewnętrzny overflow-hidden
-   go przycina i ZNIKA pionowy scroll (bug z produkcji 2026-07-11). */
+   bez tego .wx-gantt rośnie do pełnej treści i ZNIKA pionowy scroll. */
 .bud-size > *, .bud-size .wx-theme, .bud-size .wx-tooltip-area { height: 100%; }
-/* pionowy scroll idzie przez nasz mostek (wheel + proxy) — natywne przewijanie
-   wewnętrznych elementów wyłączone, żeby nie rozjeżdżało się ze store */
-.bud-size .wx-chart, .bud-size .wx-table-container { overflow-y: hidden !important; }
-.bud-wrap { position: relative; display: flex; }
-.bud-wrap .bud-size { flex: 1; min-width: 0; height: 100%; }
-.bud-vscroll {
-  width: 14px; height: 100%; overflow-y: auto; overflow-x: hidden; flex-shrink: 0;
-  border-left: 1px solid var(--wx-border, #e5e7eb);
-}
-.bud-vscroll::-webkit-scrollbar { width: 12px; }
-.bud-vscroll::-webkit-scrollbar-thumb { background: color-mix(in srgb, #C9A37A 55%, transparent); border-radius: 6px; }
-.bud-vscroll::-webkit-scrollbar-thumb:hover { background: #C9A37A; }
+
 .bud-toolbar {
   display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
-  padding: 8px 12px; border-bottom: 1px solid var(--wx-border, #e5e7eb);
+  padding: 7px 12px; border-bottom: 1px solid var(--wx-border, #e5e7eb);
   background: var(--surface, #fff);
 }
 .bud-toolbar-group { display: flex; gap: 4px; }
 .bud-scale-btn, .bud-today-btn {
-  padding: 4px 12px; border-radius: 8px; font-size: 12px; font-weight: 600;
+  padding: 3px 11px; border-radius: 8px; font-size: 11.5px; font-weight: 600;
   border: 1px solid #d1d5db; background: transparent; color: inherit;
-  cursor: pointer; transition: all .15s ease;
+  cursor: pointer; transition: transform .3s var(--spring), border-color .15s, color .15s;
 }
 .bud-scale-btn:hover, .bud-today-btn:hover { border-color: #C9A37A; color: #b08a5f; transform: translateY(-1px); }
 .bud-scale-btn-on { background: #1F2D3F; border-color: #1F2D3F; color: #F2E8D6; }
 .dark .bud-scale-btn-on { background: #C9A37A; border-color: #C9A37A; color: #1F2D3F; }
 .bud-today-btn { border-style: dashed; }
 .bud-legend { display: flex; gap: 10px; flex-wrap: wrap; margin-left: auto; }
-.bud-legend-item { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; opacity: .8; }
-.bud-legend-item i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+.bud-legend-item { display: inline-flex; align-items: center; gap: 5px; font-size: 10.5px; opacity: .8; }
+.bud-legend-item i { width: 9px; height: 9px; border-radius: 3px; display: inline-block; }
 .bud-save { font-size: 11px; min-width: 70px; text-align: right; color: #15803d; }
-.bud-footer { padding: 6px 12px; font-size: 11px; color: #9ca3af; border-top: 1px solid var(--wx-border, #e5e7eb); }
+.bud-footer { padding: 5px 12px; font-size: 10.5px; color: #9ca3af; border-top: 1px solid var(--wx-border, #e5e7eb); }
+
+/* crossfade przy zmianie skali */
+@keyframes bud-zoom { from { opacity: 0; transform: scale(.985); } }
+.bud-zoom-in { animation: bud-zoom .2s ease; }
 
 /* ------ paski zadań (taskTemplate) ------ */
 .budowa-gantt .wx-bar { background: transparent !important; box-shadow: none !important; overflow: visible !important; }
 .bud-bar {
   position: absolute; inset: 3px 0; border-radius: 6px;
-  background: color-mix(in srgb, var(--c) 22%, transparent);
+  background: color-mix(in srgb, var(--c) 20%, transparent);
   border: 1px solid color-mix(in srgb, var(--c) 55%, transparent);
-  overflow: hidden; display: flex; align-items: center;
-  transition: transform .15s ease, box-shadow .15s ease, filter .15s ease;
-  animation: bud-in .35s ease backwards;
+  display: flex; align-items: center;
+  transition: transform .35s var(--spring), box-shadow .25s ease, filter .2s ease;
 }
+.bud-bar-clip { position: absolute; inset: 0; border-radius: 5px; overflow: hidden; }
 .bud-bar-fill {
-  position: absolute; inset: 0 auto 0 0; border-radius: 5px 0 0 5px;
-  background: linear-gradient(180deg, color-mix(in srgb, var(--c) 92%, #fff), var(--c));
-  transition: width .3s ease;
+  position: absolute; inset: 0 auto 0 0;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--c) 88%, #fff), var(--c));
+  transition: width .6s cubic-bezier(.22, 1, .36, 1);
+}
+/* przesuwający się blask na pasku postępu (tylko zadania w toku, zdesynchronizowane) */
+.bud-bar-active .bud-bar-fill::after {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(105deg, transparent 40%, rgba(255,255,255,.35) 50%, transparent 60%);
+  background-size: 250% 100%;
+  animation: bud-shimmer 3.2s ease-in-out infinite;
+  animation-delay: calc(var(--i, 0) * -400ms);
+}
+@keyframes bud-shimmer { from { background-position: 210% 0; } to { background-position: -60% 0; } }
+/* żarząca się kropka na granicy postępu */
+.bud-ember {
+  position: absolute; top: 50%; width: 7px; height: 7px; margin: -3.5px 0 0 -3.5px;
+  border-radius: 999px; background: color-mix(in srgb, var(--c) 60%, #fff);
+  box-shadow: 0 0 6px 1px var(--c); z-index: 1;
+  animation: bud-ember-pulse 2.2s ease-in-out infinite;
+  animation-delay: calc(var(--i, 0) * -300ms);
+}
+@keyframes bud-ember-pulse {
+  0%, 100% { box-shadow: 0 0 5px 1px var(--c); opacity: .85; }
+  50% { box-shadow: 0 0 11px 3px var(--c); opacity: 1; }
 }
 .bud-bar-text {
-  position: relative; z-index: 1; padding: 0 8px; font-size: 11px; font-weight: 600;
+  position: relative; z-index: 1; padding: 0 8px; font-size: 10.5px; font-weight: 600;
   color: var(--wx-color-font, #374151); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   text-shadow: 0 0 4px var(--surface, #fff);
 }
 .bud-bar-pct {
-  position: relative; z-index: 1; margin-left: auto; padding: 0 6px; font-size: 10px;
+  position: relative; z-index: 1; margin-left: auto; padding: 0 6px; font-size: 9.5px;
   font-weight: 700; color: var(--wx-color-font, #374151); opacity: .75;
 }
-.bud-bar-warn { position: relative; z-index: 1; padding-right: 6px; font-size: 11px; }
+.bud-bar-warn { position: relative; z-index: 1; padding-right: 5px; font-size: 10.5px; }
+/* uchwyty resize — widoczne dopiero na hover (afordancja) */
+.bud-grip {
+  position: absolute; top: 50%; width: 3px; height: 12px; margin-top: -6px;
+  border-radius: 2px; background: color-mix(in srgb, var(--c) 80%, #000);
+  opacity: 0; transition: opacity .2s ease;
+}
+.bud-grip-l { left: 3px; } .bud-grip-r { right: 3px; }
+.bud-bar:hover .bud-grip { opacity: .7; }
+/* chip z datami nad paskiem */
 .bud-bar-dates {
-  position: absolute; z-index: 2; left: 50%; top: -22px; transform: translateX(-50%) translateY(4px);
+  position: absolute; z-index: 3; left: 50%; top: -23px; transform: translateX(-50%) translateY(4px);
   background: #1F2D3F; color: #F2E8D6; font-size: 10px; font-weight: 600;
   padding: 2px 8px; border-radius: 6px; white-space: nowrap;
-  opacity: 0; pointer-events: none; transition: opacity .15s ease, transform .15s ease;
+  opacity: 0; pointer-events: none; transition: opacity .18s ease, transform .3s var(--spring);
 }
-.bud-bar:hover { transform: translateY(-1px); box-shadow: 0 4px 14px color-mix(in srgb, var(--c) 45%, transparent); filter: saturate(1.15); }
+.bud-bar:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px color-mix(in srgb, var(--c) 40%, transparent), 0 0 0 1.5px color-mix(in srgb, var(--c) 80%, #fff);
+  filter: saturate(1.15);
+}
 .bud-bar:hover .bud-bar-dates { opacity: 1; transform: translateX(-50%) translateY(0); }
 .bud-bar-late { border-color: #dc2626; }
 .bud-bar-late .bud-bar-fill { background: linear-gradient(180deg, #ef4444, #dc2626); }
+.bud-bar-late .bud-ember { background: #fecaca; box-shadow: 0 0 8px 2px #dc2626; }
 .bud-bar-done { opacity: .55; }
 .bud-bar-done .bud-bar-fill { background: linear-gradient(180deg, #86efac, #22c55e); }
+
+/* kaskadowe wejście pasków (stagger per wiersz, cap 550ms) */
+@keyframes bud-in { from { opacity: 0; transform: scaleX(.6); } }
+.bud-bar, .bud-summary { transform-origin: left center; animation: bud-in .45s var(--spring) backwards; animation-delay: min(calc(var(--i, 0) * 28ms), 550ms); }
 
 /* ------ kamienie milowe ------ */
 .budowa-gantt .wx-bar.wx-milestone .wx-content { background: transparent !important; }
 .bud-ms { position: absolute; inset: 0; }
 .bud-ms::before {
-  content: ''; position: absolute; left: 50%; top: 50%; width: 14px; height: 14px;
+  content: ''; position: absolute; left: 50%; top: 50%; width: 13px; height: 13px;
   transform: translate(-50%, -50%) rotate(45deg);
   background: linear-gradient(135deg, #E8D0B0, #C9A37A);
   border: 2px solid #8B6F47; border-radius: 3px;
-  transition: transform .15s ease, box-shadow .15s ease;
+  transition: transform .35s var(--spring), box-shadow .2s ease;
+  animation: bud-ms-in .5s var(--spring) backwards;
+  animation-delay: min(calc(var(--i, 0) * 28ms), 550ms);
 }
-.bud-ms:hover::before { transform: translate(-50%, -50%) rotate(45deg) scale(1.25); box-shadow: 0 0 12px rgba(201,163,122,.8); }
+@keyframes bud-ms-in { from { transform: translate(-50%, -50%) rotate(45deg) scale(0); } 70% { transform: translate(-50%, -50%) rotate(45deg) scale(1.2); } }
+/* rozbłysk pierścienia na hover */
+.bud-ms::after {
+  content: ''; position: absolute; left: 50%; top: 50%; width: 13px; height: 13px;
+  margin: -6.5px 0 0 -6.5px; border-radius: 3px; transform: rotate(45deg);
+  border: 2px solid #C9A37A; opacity: 0; pointer-events: none;
+}
+.bud-ms:hover::before { transform: translate(-50%, -50%) rotate(45deg) scale(1.3); box-shadow: 0 0 14px rgba(201,163,122,.9); }
+.bud-ms:hover::after { animation: bud-ripple .7s ease-out; }
+@keyframes bud-ripple { from { opacity: .9; transform: rotate(45deg) scale(1); } to { opacity: 0; transform: rotate(45deg) scale(2.6); } }
 .bud-ms-label {
-  position: absolute; left: calc(50% + 14px); top: 50%; transform: translateY(-50%);
-  font-size: 10.5px; font-weight: 600; white-space: nowrap; opacity: .85;
+  position: absolute; left: calc(50% + 13px); top: 50%; transform: translateY(-50%);
+  font-size: 10px; font-weight: 600; white-space: nowrap; opacity: .85;
   color: var(--wx-color-font, #374151);
 }
-.bud-ms-late::before { background: linear-gradient(135deg, #f87171, #dc2626); border-color: #991b1b; animation: bud-pulse 1.6s ease infinite; }
+.bud-ms-late::before {
+  background: linear-gradient(135deg, #f87171, #dc2626); border-color: #991b1b;
+  animation: bud-ms-in .5s var(--spring) backwards, bud-pulse 1.6s .6s ease infinite;
+  animation-delay: min(calc(var(--i, 0) * 28ms), 550ms), .6s;
+}
 @keyframes bud-pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(220,38,38,.5); } 50% { box-shadow: 0 0 0 7px rgba(220,38,38,0); } }
-@keyframes bud-in { from { opacity: 0; transform: scaleX(.7); transform-origin: left; } }
 
 /* ------ wiersze etapów (summary) ------ */
 .bud-summary { position: absolute; inset: 8px 0; border-radius: 4px;
-  background: repeating-linear-gradient(-45deg, color-mix(in srgb, var(--c) 38%, transparent) 0 6px, color-mix(in srgb, var(--c) 20%, transparent) 6px 12px);
+  background: repeating-linear-gradient(-45deg, color-mix(in srgb, var(--c) 38%, transparent) 0 6px, color-mix(in srgb, var(--c) 18%, transparent) 6px 12px);
   border-left: 3px solid var(--c); border-right: 3px solid var(--c);
 }
 
 /* ------ hover wiersza + siatka ------ */
 .budowa-gantt .wx-row:hover { background: color-mix(in srgb, #C9A37A 7%, transparent); }
-.bud-cell-weekend { background: color-mix(in srgb, var(--wx-color-font, #6b7280) 6%, transparent); }
-.bud-cell-today { background: color-mix(in srgb, #C9A37A 18%, transparent); }
+.bud-cell-weekend { background: repeating-linear-gradient(45deg, transparent 0 5px, color-mix(in srgb, var(--wx-color-font, #6b7280) 7%, transparent) 5px 6px); }
+.bud-cell-today { background: color-mix(in srgb, #C9A37A 16%, transparent); }
 
 /* ------ linia "dziś" ------ */
 .budowa-gantt .wx-chart { position: relative; }
-.budowa-today-line { position: absolute; top: 0; width: 0; z-index: 4; pointer-events: none; border-left: 2px solid #d4a574; }
-.budowa-today-line i {
-  position: sticky; top: 34px; display: block; width: 8px; height: 8px; margin-left: -5px;
-  border-radius: 999px; background: #d4a574; box-shadow: 0 0 0 3px rgba(212,165,116,.3);
-  animation: bud-pulse-soft 2s ease infinite;
+.budowa-today-line {
+  position: absolute; top: 0; width: 0; z-index: 4; pointer-events: none;
+  border-left: 2px solid transparent;
+  border-image: linear-gradient(180deg, transparent, #d4a574 6%, #d4a574 94%, transparent) 1;
 }
-@keyframes bud-pulse-soft { 0%,100% { box-shadow: 0 0 0 3px rgba(212,165,116,.3); } 50% { box-shadow: 0 0 0 7px rgba(212,165,116,.12); } }
+.budowa-today-line i {
+  position: sticky; top: 32px; display: block; width: 8px; height: 8px; margin-left: -5px;
+  border-radius: 999px; background: #d4a574;
+  animation: bud-pulse-soft 2s ease-in-out infinite;
+}
+@keyframes bud-pulse-soft { 0%,100% { box-shadow: 0 0 0 3px rgba(212,165,116,.3); } 50% { box-shadow: 0 0 0 8px rgba(212,165,116,.1); } }
 .budowa-today-line span {
-  position: sticky; top: 44px; display: inline-block; transform: translateX(-50%);
+  position: sticky; top: 42px; display: inline-block; transform: translateX(-50%);
   background: #d4a574; color: #1F2D3F; font-size: 10px; font-weight: 700;
   padding: 1px 6px; border-radius: 999px; white-space: nowrap;
+}
+.budowa-today-line.bud-flash i { animation: bud-flash-anim 1.1s ease; }
+@keyframes bud-flash-anim { 0%, 40% { box-shadow: 0 0 0 12px rgba(212,165,116,.45); } 100% { box-shadow: 0 0 0 3px rgba(212,165,116,.3); } }
+
+/* ------ celownik (kolumna dnia pod kursorem) ------ */
+.bud-crosshair {
+  position: absolute; top: 0; z-index: 3; pointer-events: none; opacity: 0;
+  background: color-mix(in srgb, #C9A37A 9%, transparent);
+  border-inline: 1px solid color-mix(in srgb, #C9A37A 30%, transparent);
+  transition: opacity .15s ease;
+}
+.bud-crosshair span {
+  position: sticky; top: 4px; display: inline-block; transform: translateX(-50%); margin-left: 50%;
+  background: color-mix(in srgb, #1F2D3F 92%, #C9A37A); color: #F2E8D6;
+  font-size: 9.5px; font-weight: 700; padding: 1px 6px; border-radius: 999px; white-space: nowrap;
+}
+
+/* ------ minimapa ------ */
+.bud-minimap {
+  position: relative; margin: 0; cursor: pointer; touch-action: none;
+  background: color-mix(in srgb, #1F2D3F 5%, transparent);
+  border-top: 1px solid var(--wx-border, #e5e7eb);
+  overflow: hidden; user-select: none;
+}
+.dark .bud-minimap { background: rgba(0,0,0,.25); }
+.bud-mini-bar { position: absolute; height: 4px; border-radius: 2px; opacity: .85; }
+.bud-mini-ms {
+  position: absolute; width: 5px; height: 5px; margin-left: -2.5px; margin-top: -1px;
+  transform: rotate(45deg); background: #C9A37A; border-radius: 1px;
+}
+.bud-mini-late { box-shadow: 0 0 4px 1px rgba(220,38,38,.8); }
+.bud-mini-ms.bud-mini-late { background: #dc2626; }
+.bud-mini-today { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: #d4a574; }
+.bud-mini-win {
+  position: absolute; top: 0; bottom: 0;
+  background: color-mix(in srgb, #C9A37A 14%, transparent);
+  border: 1px solid color-mix(in srgb, #C9A37A 65%, transparent);
+  border-radius: 4px; box-shadow: 0 0 8px rgba(201,163,122,.25);
+  transition: left .08s linear, width .15s ease;
 }
 
 /* ------ tooltip ------ */
 .bud-tip { max-width: 280px; padding: 10px 12px; font-size: 12px; line-height: 1.45; }
 .bud-tip-title { font-weight: 700; margin-bottom: 6px; }
 .bud-tip-num { display: inline-block; margin-right: 6px; padding: 0 5px; border-radius: 4px;
-  background: rgba(201,163,122,.25); font-size: 10.5px; font-weight: 700; }
+  background: rgba(201,163,122,.25); font-size: 10px; font-weight: 700; }
 .bud-tip-row { display: flex; align-items: center; gap: 6px; opacity: .9; margin-top: 2px; }
 .bud-tip-row i { width: 9px; height: 9px; border-radius: 3px; flex-shrink: 0; }
 .bud-tip-meter { width: 90px; height: 6px; border-radius: 999px; background: rgba(128,128,128,.25); overflow: hidden; }
@@ -656,4 +855,9 @@ const BUDOWA_GANTT_CSS = `
 
 /* motyw: akcent zaznaczenia */
 .budowa-gantt .wx-willow-theme, .budowa-gantt .wx-willow-dark-theme { --wx-gantt-select-color: rgba(212,165,116,.16); }
+
+/* dostępność: bez animacji przy prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  .budowa-gantt *, .budowa-gantt *::before, .budowa-gantt *::after { animation: none !important; transition: none !important; }
+}
 `
