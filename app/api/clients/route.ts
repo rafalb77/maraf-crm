@@ -59,6 +59,9 @@ export async function POST(req: NextRequest) {
       status: body.status || 'ZAPYTANIE',
       source: body.source || null,
       notes: body.notes || null,
+      // Twórca rekordu zostaje opiekunem klienta (można zmienić na karcie).
+      // Jawny ownerId w body ma pierwszeństwo (np. import/przypisanie).
+      ownerId: body.ownerId || (session.user as any)?.id || null,
     },
   })
 

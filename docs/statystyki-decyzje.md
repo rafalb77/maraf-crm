@@ -90,8 +90,11 @@ Zachowanie:
 - **Wykres ewolucji cen lokali** — wymaga modelu `PriceHistory` (wspólny z dane.gov.pl + 3D Estate,
   patrz `docs/raportowanie-dane-gov-rozpoczecie.md`). Gdy `PriceHistory` powstanie, dorzucić sekcję
   trendu cennika w czasie — dane już będą, koszt minimalny.
-- **Rankingi per-handlowiec** — niemożliwe bez dodania `ownerId` na `Client`/`Contract`/`Activity`
-  (obecnie brak przypisania kto prowadzi leada / wpisał działanie). Activity to agregat firmowy.
+- **Rankingi per-handlowiec** — **`Client.ownerId` istnieje od 2026-07-12** (opiekun klienta, patrz
+  changelog + `docs/rezerwacje-powiadomienia-decyzje.md`); pozwala już na rankingi „per opiekun leada".
+  Do pełnego obrazu sprzedażowego zostaje `ownerId` na `Contract` (kto zamknął umowę) i ew. `Activity`
+  (kto wpisał działanie — dziś agregat firmowy). Uwaga: starzy klienci mają `ownerId=null` do czasu
+  ręcznego przypisania — rankingi trzeba liczyć z tej luki (pomijać null albo pokazywać „nieprzypisani").
 - **Przychód z `Unit.priceGross` vs `Contract.valueGross`** — stat przychodu używa `valueGross` umów
   (realna wartość transakcji). Jeśli umowy nie mają wypełnionego `valueGross`, przychód pokaże 0
   mimo podpisanych umów.

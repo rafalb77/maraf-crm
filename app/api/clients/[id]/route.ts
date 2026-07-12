@@ -66,6 +66,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
   if (body.firstName !== undefined) data.firstName = body.firstName
   if (body.lastName !== undefined) data.lastName = body.lastName
   if (body.status !== undefined) data.status = body.status
+  if (body.ownerId !== undefined) data.ownerId = body.ownerId || null // opiekun (zmiana z karty klienta)
   for (const k of [
     'email', 'phone', 'phone2', 'pesel', 'nip', 'idNumber',
     'fatherName', 'motherName', 'address', 'city', 'zipCode', 'source', 'notes',

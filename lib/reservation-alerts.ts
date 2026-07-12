@@ -428,6 +428,8 @@ async function runAlertsLocked(
         dueAt: u.reservationExpiresAt,
         unitId: u.id,
         clientId: u.reservedById,
+        // Kieruj do opiekuna klienta (null = pula wspólna, widoczne dla wszystkich)
+        assigneeId: u.reservedBy?.ownerId ?? null,
       }
     })
     if (rows.length > 0) {

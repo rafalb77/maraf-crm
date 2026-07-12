@@ -205,6 +205,8 @@ async function buildReservationTaskRows(now: Date) {
         dueAt: expires,
         unitId: u.id,
         clientId: u.reservedById,
+        // Kieruj do opiekuna klienta (null = pula wspólna, widoczne dla wszystkich)
+        assigneeId: u.reservedBy?.ownerId ?? null,
       }
     })
 }

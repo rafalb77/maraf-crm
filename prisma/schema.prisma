@@ -47,6 +47,9 @@ model User {
   // Moduł Zadania
   assignedTasks              Task[]                      @relation("TaskAssignee")
   siteReports                SiteReport[]                @relation("SiteReportAuthor")
+
+  // CRM — opiekun klienta
+  ownedClients               Client[]                    @relation("ClientOwner")
 }
 
 // status: ZAPYTANIE | OFERTA | REZERWACJA | UMOWA | ODBIOR
@@ -68,9 +71,15 @@ model Client {
   status     String   @default("ZAPYTANIE")
   source     String?
   notes      String?
+  // Opiekun klienta (handlowiec). Auto = twórca rekordu (POST /api/clients),
+  // zmienialny na karcie klienta. Zasila kierowanie zadań rezerwacyjnych do
+  // konkretnej osoby (Task.assigneeId) — patrz lib/reservation-alerts.ts,
+  // lib/tasks.ts. Fundament pod rankingi per-handlowiec (docs/statystyki).
+  ownerId    String?
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
+  owner           User?            @relation("ClientOwner", fields: [ownerId], references: [id], onDelete: SetNull)
   activities      Activity[]
   clientUnits     ClientUnit[]
   serviceRequests ServiceRequest[]
@@ -79,6 +88,8 @@ model Client {
   offers          Offer[]
   cases           Case[]
   tasks           Task[]
+
+  @@index([ownerId])
 }
 
 // type: MIESZKALNY | USLUGOWY | PARKING | GARAZ | KOMORKA

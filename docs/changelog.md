@@ -4,6 +4,17 @@ Krótkie wpisy „co i **dlaczego**". Bez listy wszystkich commitów — od tego
 
 ---
 
+## 2026-07-12
+
+### CRM — opiekun klienta (Client.ownerId) + kierowanie zadań do handlowca
+**Powód**: Rafał chciał, żeby zadania i alerty o rezerwacjach trafiały do konkretnego opiekuna zamiast do wspólnej puli (a przy okazji fundament pod rankingi per-handlowiec w Statystykach). Wcześniej `Task.assigneeId` istniał, ale nigdy nie był ustawiany ani filtrowany — pulpit pokazywał wszystkim wszystko.
+**Implementacja**:
+- **Model**: `Client.ownerId` (String?, relacja `owner User? @relation("ClientOwner")`, `onDelete: SetNull`, index). Twórca rekordu zostaje opiekunem (`POST /api/clients` bierze `session.user.id`), zmiana na karcie klienta (`ClientOwnerChanger` → `PUT /api/clients/[id] {ownerId}`, pusty = odpięcie; partial-update nie rusza reszty pól).
+- **Kierowanie zadań**: `attachReservedByClient` dokłada `ownerId`; reguły rezerwacyjne ustawiają `Task.assigneeId = opiekun` — `RES_CALL` (lib/reservation-alerts.ts) i `RES_EXPIRE` (lib/tasks.ts). `null` = pula wspólna (bez zmian dla klientów bez opiekuna).
+- **Pulpit**: `GET /api/tasks` zwraca `assignee {id,name,preferredName}` + `currentUserId`. Widget „Do zrobienia": przełącznik **Wszystkie/Moje** (domyślnie Wszystkie — brak regresji; „Moje" = przypisane do mnie LUB nieprzypisane, ukrywa cudze) + fioletowy badge z imieniem opiekuna (albo „ja"). Przełącznik pokazuje się tylko gdy jakiekolwiek zadanie ma opiekuna.
+- **Zakres**: świadomie NIE ruszam pełnych rankingów per-handlowiec (wymagają `ownerId` też na Contract/Activity — osobny temat) ani przypisania opiekuna do istniejących klientów (backfill ręczny/przez kartę). Zmiana opiekuna nie przepina już istniejących zadań RULE (assignment przy tworzeniu; nowy cykl po zmianie daty).
+- **WYMAGA na produkcji `prisma db push`** (kolumna `Client.ownerId`) — od razu po deployu.
+
 ## 2026-07-11
 
 ### Rezerwacje — wyciszanie powiadomień per rezerwacja

@@ -62,6 +62,7 @@ export type ReservationClient = {
   lastName: string
   email: string | null
   phone: string | null
+  ownerId: string | null
 }
 
 /**
@@ -76,7 +77,7 @@ export async function attachReservedByClient<
   if (ids.length === 0) return units.map((u) => ({ ...u, reservedBy: null }))
   const clients = await prisma.client.findMany({
     where: { id: { in: ids } },
-    select: { id: true, firstName: true, lastName: true, email: true, phone: true },
+    select: { id: true, firstName: true, lastName: true, email: true, phone: true, ownerId: true },
   })
   const byId = new Map(clients.map((c) => [c.id, c]))
   return units.map((u) => ({

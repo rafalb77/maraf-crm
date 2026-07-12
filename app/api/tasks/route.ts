@@ -35,6 +35,7 @@ export async function GET() {
         contract: { select: { id: true, number: true, valueGross: true } },
         payment: { select: { id: true, title: true, plannedAmount: true, plannedDate: true } },
         case: { select: { id: true, number: true } },
+        assignee: { select: { id: true, name: true, preferredName: true } },
       },
     }),
     prisma.task.count({
@@ -55,6 +56,7 @@ export async function GET() {
 
   return NextResponse.json({
     tasks,
+    currentUserId: (session.user as any)?.id || null,
     stats: {
       openCount: tasks.length,
       overdueCount,

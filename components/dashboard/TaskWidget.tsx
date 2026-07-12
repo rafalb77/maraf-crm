@@ -30,6 +30,7 @@ type ApiTask = {
   unit: { id: string; number: string } | null
   contract: { id: string; number: string } | null
   case: { id: string; number: string } | null
+  assignee: { id: string; name: string | null; preferredName: string | null } | null
 }
 
 type Stats = { openCount: number; overdueCount: number; todayCount: number; doneToday: number }
@@ -57,6 +58,8 @@ function fmtShort(date: string): string {
 export function TaskWidget() {
   const [tasks, setTasks] = useState<ApiTask[]>([])
   const [stats, setStats] = useState<Stats | null>(null)
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+  const [onlyMine, setOnlyMine] = useState(false)
   const [loading, setLoading] = useState(true)
   const [addTitle, setAddTitle] = useState('')
   const [adding, setAdding] = useState(false)
@@ -70,6 +73,7 @@ export function TaskWidget() {
       const d = await r.json()
       setTasks(d.tasks)
       setStats(d.stats)
+      setCurrentUserId(d.currentUserId ?? null)
     } catch {
       // 401 / timeout — widget znika, pulpit działa dalej
       setTasks([])
@@ -153,6 +157,16 @@ export function TaskWidget() {
     }
   }
 
+  // Czy przypisania są w użyciu — dopiero wtedy filtr „Moje/Wszystkie" ma sens.
+  const hasAssignments = useMemo(() => tasks.some((t) => t.assignee), [tasks])
+
+  // „Moje" = przypisane do mnie LUB nieprzypisane (wspólna pula); ukrywa tylko
+  // zadania cudze. Domyślnie „Wszystkie" — brak regresji dotychczasowego widoku.
+  const visibleTasks = useMemo(() => {
+    if (!onlyMine || !currentUserId) return tasks
+    return tasks.filter((t) => !t.assignee || t.assignee.id === currentUserId)
+  }, [tasks, onlyMine, currentUserId])
+
   const grouped = useMemo(() => {
     const g: Record<TaskBucket, ApiTask[]> = {
       PRZETERMINOWANE: [],
@@ -160,9 +174,9 @@ export function TaskWidget() {
       NADCHODZACE: [],
       POZNIEJ: [],
     }
-    for (const t of tasks) g[t.bucket].push(t)
+    for (const t of visibleTasks) g[t.bucket].push(t)
     return g
-  }, [tasks])
+  }, [visibleTasks])
 
   if (loading) {
     return (
@@ -188,6 +202,22 @@ export function TaskWidget() {
             {stats.overdueCount} po terminie
           </span>
         )}
+        {hasAssignments && currentUserId && (
+          <div className="flex items-center rounded-lg border border-gray-200 overflow-hidden text-xs">
+            <button
+              onClick={() => setOnlyMine(false)}
+              className={`px-2.5 py-1 font-medium transition-colors ${!onlyMine ? 'bg-blue-50 text-blue-700' : 'text-gray-500 hover:bg-gray-50'}`}
+            >
+              Wszystkie
+            </button>
+            <button
+              onClick={() => setOnlyMine(true)}
+              className={`px-2.5 py-1 font-medium transition-colors border-l border-gray-200 ${onlyMine ? 'bg-blue-50 text-blue-700' : 'text-gray-500 hover:bg-gray-50'}`}
+            >
+              Moje
+            </button>
+          </div>
+        )}
         <div className="flex-1" />
         <span className="text-xs text-gray-500">
           {stats.doneToday} z {todayTotal} na dziś
@@ -199,6 +229,13 @@ export function TaskWidget() {
 
       {stats.openCount === 0 ? (
         <p className="text-sm text-gray-400 mb-4">Brak otwartych zadań — wszystko ogarnięte ✅</p>
+      ) : visibleTasks.length === 0 ? (
+        <p className="text-sm text-gray-400 mb-4">
+          Brak zadań przypisanych do Ciebie.{' '}
+          <button onClick={() => setOnlyMine(false)} className="text-blue-600 hover:text-blue-700 font-medium">
+            Pokaż wszystkie ({stats.openCount})
+          </button>
+        </p>
       ) : (
         <div className="space-y-4 mb-4">
           {BUCKET_ORDER.map((bucket) => {
@@ -233,6 +270,7 @@ export function TaskWidget() {
                     <TaskRow
                       key={t.id}
                       task={t}
+                      currentUserId={currentUserId}
                       snoozeOpen={snoozeOpenId === t.id}
                       onToggleSnoozeMenu={() => setSnoozeOpenId(snoozeOpenId === t.id ? null : t.id)}
                       onComplete={() => complete(t)}
@@ -279,8 +317,14 @@ function snoozeOptions(): { label: string; until: Date }[] {
   ]
 }
 
+function assigneeShortName(a: { name: string | null; preferredName: string | null }): string {
+  const full = a.preferredName || a.name || ''
+  return full.split(' ')[0] || full || 'ktoś'
+}
+
 function TaskRow({
   task: t,
+  currentUserId,
   snoozeOpen,
   onToggleSnoozeMenu,
   onComplete,
@@ -289,6 +333,7 @@ function TaskRow({
   onRemove,
 }: {
   task: ApiTask
+  currentUserId: string | null
   snoozeOpen: boolean
   onToggleSnoozeMenu: () => void
   onComplete: () => void
@@ -296,6 +341,7 @@ function TaskRow({
   onTogglePin: () => void
   onRemove: () => void
 }) {
+  const assignedToMe = !!t.assignee && t.assignee.id === currentUserId
   const meta: React.ReactNode[] = []
   if (t.client) {
     meta.push(
@@ -341,7 +387,7 @@ function TaskRow({
           {t.pinned && <Star className="inline w-3.5 h-3.5 text-amber-500 fill-amber-400 mr-1 -mt-0.5" />}
           {t.title}
         </p>
-        {(meta.length > 0 || t.source === 'RULE') && (
+        {(meta.length > 0 || t.source === 'RULE' || t.assignee) && (
           <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-1 flex-wrap">
             {meta.map((m, i) => (
               <span key={i} className="flex items-center gap-1">
@@ -352,6 +398,14 @@ function TaskRow({
             {t.source === 'RULE' && (
               <span className="px-1.5 rounded bg-gray-100 text-gray-400 text-[10px] font-medium uppercase tracking-wide">
                 auto
+              </span>
+            )}
+            {t.assignee && (
+              <span
+                title={`Opiekun: ${t.assignee.preferredName || t.assignee.name || '—'}`}
+                className={`px-1.5 rounded text-[10px] font-medium ${assignedToMe ? 'bg-blue-100 text-blue-700' : 'bg-violet-100 text-violet-700'}`}
+              >
+                {assignedToMe ? 'ja' : assigneeShortName(t.assignee)}
               </span>
             )}
           </p>

@@ -20,10 +20,11 @@ import { ClientStatusChanger } from '@/components/clients/ClientStatusChanger'
 import { UnassignUnitButton } from '@/components/clients/UnassignUnitButton'
 import { PromoteReservationButton } from '@/components/clients/PromoteReservationButton'
 import { SwapButton } from '@/components/reservations/ReservationActions'
+import { ClientOwnerChanger } from '@/components/clients/ClientOwnerChanger'
 
 export default async function ClientDetailPage({ params }: { params: { id: string } }) {
   await expireSoftReservations()
-  const [client, allUnits] = await Promise.all([
+  const [client, allUnits, users] = await Promise.all([
     prisma.client.findUnique({
       where: { id: params.id },
       include: {
@@ -34,6 +35,10 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
       },
     }),
     prisma.unit.findMany({ orderBy: { number: 'asc' } }),
+    prisma.user.findMany({
+      select: { id: true, name: true, preferredName: true, email: true },
+      orderBy: [{ name: 'asc' }, { email: 'asc' }],
+    }),
   ])
 
   if (!client) notFound()
@@ -158,6 +163,12 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
           <div className="bg-white rounded-xl border border-gray-200 p-5 v2-card-in" style={{ animationDelay: '.09s' }}>
             <h2 className="font-semibold text-gray-900 mb-3.5">Dane osobowe</h2>
             <div className="space-y-3">
+              <div className="flex flex-col gap-0.5">
+                <span className="text-[10px] font-semibold uppercase" style={{ letterSpacing: '.1em', color: 'var(--text-muted)' }}>
+                  Opiekun
+                </span>
+                <ClientOwnerChanger clientId={client.id} ownerId={client.ownerId} users={users} />
+              </div>
               <DataRow label="Imię i nazwisko" value={`${client.firstName} ${client.lastName}`} />
               <DataRow label="Telefon" value={client.phone || '—'} />
               {client.phone2 && <DataRow label="Telefon 2" value={client.phone2} />}
