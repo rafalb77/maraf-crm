@@ -77,6 +77,7 @@ export async function getOfferPdfHtml(
 ): Promise<string> {
   const logoMaraf = await imageToDataUrl('logo-icon-light.png')
   const logoNova = await imageToDataUrl('logo-novastaffa.png')
+  const logoSygnet = await imageToDataUrl('logo-icon.png')
 
   const itemsHtml = offer.items
     .map(
@@ -99,24 +100,27 @@ export async function getOfferPdfHtml(
     )
     .join('')
 
-  const bullets = [
+  const leftBullets = [
     'Sąsiedztwo <strong>Lasu Krogulec</strong> — spacery, jogging, świeże powietrze',
-    'Windy w <strong>każdej klatce</strong> + plac zabaw',
     'Loggie lub balkony w <strong>każdym mieszkaniu</strong>',
-    'Możliwość montażu <strong>stacji ładowania EV</strong> na parkingach zewnętrznych',
     'ŁKA, autobus i rower miejski w <strong>300 m</strong>',
-    '<strong>Zielone dachy</strong> z roślinnością ekstensywną',
     'Mieszkania <strong>1–4 pokojowe</strong> z przemyślanymi metrażami',
+    '<strong>Zielone tarasy</strong> z roślinnością ekstensywną',
+  ]
+  const rightBullets = [
+    'Windy w <strong>każdej klatce</strong> + plac zabaw',
+    'Możliwość montażu <strong>stacji ładowania EV</strong> na parkingach zewnętrznych',
     '<strong>Doświadczony deweloper</strong> — Maraf Development',
   ]
-  const bulletsHtml = bullets
-    .map(
-      (b) => `<div style="display: flex; gap: 8px; align-items: flex-start;">
+  const renderBullets = (arr: string[]) =>
+    arr
+      .map(
+        (b) => `<div style="display: flex; gap: 8px; align-items: flex-start;">
         <span style="color: ${GOLD_DARK}; font-weight: 700;">·</span>
         <span>${b}</span>
       </div>`,
-    )
-    .join('')
+      )
+      .join('')
 
   return `<!DOCTYPE html>
 <html lang="pl">
@@ -132,13 +136,18 @@ export async function getOfferPdfHtml(
       font-size: 11px;
       line-height: 1.5;
     }
-    .doc { max-width: 186mm; margin: 0 auto; padding: 0; }
+    .doc { max-width: 186mm; margin: 0 auto; padding: 0; position: relative; }
+    .watermark { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 120mm; height: 120mm; opacity: 0.05; z-index: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; pointer-events: none; }
+    .watermark img { width: 100%; height: 100%; object-fit: contain; }
+    .content { position: relative; z-index: 1; }
     .gold-line { background: linear-gradient(90deg, ${GOLD} 0%, ${GOLD_DARK} 50%, ${GOLD} 100%); height: 2px; }
     table { width: 100%; border-collapse: collapse; }
   </style>
 </head>
 <body>
   <div class="doc">
+    ${logoSygnet ? `<div class="watermark"><img src="${logoSygnet}" alt="" /></div>` : ''}
+    <div class="content">
 
     <!-- HEADER -->
     <header style="display: flex; align-items: center; justify-content: space-between; gap: 24px;">
@@ -191,8 +200,9 @@ export async function getOfferPdfHtml(
         Bezpośrednie sąsiedztwo <strong>Lasu Krogulec</strong> w zacisznej części Zgierza,
         z doskonałą komunikacją do <strong>centrum Zgierza i Łodzi</strong>.
       </p>
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px 20px; font-size: 11px; color: #4b5563;">
-        ${bulletsHtml}
+      <div style="display: flex; gap: 20px; font-size: 11px; color: #4b5563;">
+        <div style="flex: 1; display: flex; flex-direction: column; gap: 6px;">${renderBullets(leftBullets)}</div>
+        <div style="flex: 1; display: flex; flex-direction: column; gap: 6px;">${renderBullets(rightBullets)}</div>
       </div>
     </section>
 
@@ -256,15 +266,6 @@ export async function getOfferPdfHtml(
         : ''
     }
 
-    ${
-      settingsMap.bankAccount
-        ? `<section style="margin-top: 20px;">
-            <p style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: #9ca3af;">Numer konta bankowego</p>
-            <p style="font-size: 11px; font-family: ui-monospace, monospace; margin-top: 2px; color: ${NAVY};">${escapeHtml(settingsMap.bankAccount)}</p>
-          </section>`
-        : ''
-    }
-
     <!-- FOOTER -->
     <footer style="margin-top: 40px; padding-top: 16px; border-top: 1px solid #E2DCD0; font-size: 10px; color: #9ca3af;">
       <div style="display: flex; justify-content: space-between; align-items: flex-end;">
@@ -285,6 +286,7 @@ export async function getOfferPdfHtml(
       }
     </footer>
 
+    </div>
   </div>
 </body>
 </html>`

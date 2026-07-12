@@ -54,7 +54,29 @@ export default async function OfferPrintPage({ params }: { params: Promise<{ id:
       <div className="bg-white min-h-screen p-8 print:p-0 print-doc">
         <PrintActions />
 
-        <div className="mx-auto" style={{ maxWidth: '186mm' }}>
+        <div className="mx-auto" style={{ maxWidth: '186mm', position: 'relative' }}>
+          {/* ===================== SYGNET W TLE ===================== */}
+          <div
+            aria-hidden
+            className="pointer-events-none select-none"
+            style={{
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              width: '120mm',
+              height: '120mm',
+              opacity: 0.05,
+              zIndex: 0,
+              WebkitPrintColorAdjust: 'exact',
+              printColorAdjust: 'exact',
+            }}
+          >
+            <Image src="/logo-icon.png" alt="" fill priority className="object-contain" sizes="454px" />
+          </div>
+
+          {/* ===================== TREŚĆ (nad sygnetem) ===================== */}
+          <div style={{ position: 'relative', zIndex: 1 }}>
           {/* ===================== HEADER ===================== */}
           <header className="page-break-avoid">
             <div className="flex items-center justify-between gap-6">
@@ -135,15 +157,19 @@ export default async function OfferPrintPage({ params }: { params: Promise<{ id:
               z doskonałą komunikacją do <strong>centrum Zgierza i Łodzi</strong>.
             </p>
 
-            <div className="grid grid-cols-2 gap-x-5 gap-y-1.5 text-[11px] text-gray-700">
-              <Bullet>Sąsiedztwo <strong>Lasu Krogulec</strong> — spacery, jogging, świeże powietrze</Bullet>
-              <Bullet>Windy w <strong>każdej klatce</strong> + plac zabaw</Bullet>
-              <Bullet>Loggie lub balkony w <strong>każdym mieszkaniu</strong></Bullet>
-              <Bullet>Możliwość montażu <strong>stacji ładowania EV</strong> na parkingach zewnętrznych</Bullet>
-              <Bullet>ŁKA, autobus i rower miejski w <strong>300 m</strong></Bullet>
-              <Bullet><strong>Zielone dachy</strong> z roślinnością ekstensywną</Bullet>
-              <Bullet>Mieszkania <strong>1–4 pokojowe</strong> z przemyślanymi metrażami</Bullet>
-              <Bullet><strong>Doświadczony deweloper</strong> — Maraf Development</Bullet>
+            <div className="flex gap-x-5 text-[11px] text-gray-700">
+              <div className="flex-1 flex flex-col gap-y-1.5">
+                <Bullet>Sąsiedztwo <strong>Lasu Krogulec</strong> — spacery, jogging, świeże powietrze</Bullet>
+                <Bullet>Loggie lub balkony w <strong>każdym mieszkaniu</strong></Bullet>
+                <Bullet>ŁKA, autobus i rower miejski w <strong>300 m</strong></Bullet>
+                <Bullet>Mieszkania <strong>1–4 pokojowe</strong> z przemyślanymi metrażami</Bullet>
+                <Bullet><strong>Zielone tarasy</strong> z roślinnością ekstensywną</Bullet>
+              </div>
+              <div className="flex-1 flex flex-col gap-y-1.5">
+                <Bullet>Windy w <strong>każdej klatce</strong> + plac zabaw</Bullet>
+                <Bullet>Możliwość montażu <strong>stacji ładowania EV</strong> na parkingach zewnętrznych</Bullet>
+                <Bullet><strong>Doświadczony deweloper</strong> — Maraf Development</Bullet>
+              </div>
             </div>
           </section>
 
@@ -229,14 +255,6 @@ export default async function OfferPrintPage({ params }: { params: Promise<{ id:
             </section>
           )}
 
-          {/* ===================== BANK ACCOUNT ===================== */}
-          {settingsMap.bankAccount && (
-            <section className="mt-5 page-break-avoid">
-              <p className="text-[10px] uppercase tracking-wider text-gray-500">Numer konta bankowego</p>
-              <p className="text-xs font-mono mt-0.5" style={{ color: NAVY }}>{settingsMap.bankAccount}</p>
-            </section>
-          )}
-
           {/* ===================== FOOTER ===================== */}
           <footer className="mt-10 pt-4 border-t text-[10px] text-gray-500 page-break-avoid"
                   style={{ borderColor: '#E2DCD0' }}>
@@ -257,6 +275,7 @@ export default async function OfferPrintPage({ params }: { params: Promise<{ id:
               </div>
             )}
           </footer>
+          </div>
         </div>
       </div>
     </>
