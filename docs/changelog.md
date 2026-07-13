@@ -6,6 +6,9 @@ Krótkie wpisy „co i **dlaczego**". Bez listy wszystkich commitów — od tego
 
 ## 2026-07-12
 
+### 🔴 Incydent + fix: dedupe klientów gubił dane kontaktowe (telefon/adres)
+**Objaw**: klienci tracili telefon (Kopacka, Syguła), niektórzy wszystkie dane (Soszyński); nawrotowe. **Przyczyna**: `scripts/dedupe-clients.js` przy scalaniu duplikatów wybierał keepera po liczbie powiązań i **kasował duplikaty bez przeniesienia pól skalarnych** — jeśli keeper miał pusty telefon a duplikat go miał, telefon ginął przy `delete`. **Fix**: przed usunięciem duplikatu uzupełniamy PUSTE pola keepera z duplikatu (`scalarFill`; nigdy nie nadpisujemy niepustych; ciphertext kopiowany 1:1). **Utracone dane** = hard delete → do odtworzenia z backupu OVH (nie da się zgadnąć). Pełen rozbiór: `docs/incident-utrata-danych-klientow.md`. Wykluczono: import (add-only), szyfrowanie (phone plaintext), deploy opiekuna klienta.
+
 ### CRM — opiekun klienta (Client.ownerId) + kierowanie zadań do handlowca
 **Powód**: Rafał chciał, żeby zadania i alerty o rezerwacjach trafiały do konkretnego opiekuna zamiast do wspólnej puli (a przy okazji fundament pod rankingi per-handlowiec w Statystykach). Wcześniej `Task.assigneeId` istniał, ale nigdy nie był ustawiany ani filtrowany — pulpit pokazywał wszystkim wszystko.
 **Implementacja**:

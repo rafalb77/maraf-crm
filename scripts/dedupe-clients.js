@@ -2,7 +2,18 @@
 //
 // Grupuje klientów po kluczu: imię|nazwisko|email (lowercase). W każdej grupie
 // >1 zostawia JEDNEGO ("keeper" — z największą liczbą powiązań, remis: najstarszy),
-// przepina wszystkie powiązania pozostałych na keepera i kasuje duplikaty.
+// SCALA brakujące pola kontaktowe/osobowe z duplikatów na keepera, przepina
+// wszystkie powiązania i kasuje duplikaty.
+//
+// ⚠️ SCALANIE PÓL (dodane 2026-07-12 po incydencie utraty danych): keeper
+// wybierany jest po LICZBIE POWIĄZAŃ, nie po kompletności danych — więc keeper
+// może mieć pusty telefon/adres, a bogatszy w dane duplikat być kasowany.
+// WCZEŚNIEJ delete duplikatu kasował te dane bezpowrotnie (klient tracił telefon,
+// czasem wszystkie dane). Teraz: przed usunięciem duplikatu każde PUSTE pole
+// keepera jest uzupełniane wartością z duplikatu (nigdy nie nadpisujemy pola
+// niepustego). Wartości kopiowane są 1:1 przez bazowy PrismaClient — pola
+// szyfrowane (pesel/adres/…) są kopiowane jako ciphertext (ten sam klucz), więc
+// pozostają odczytywalne przez extension w lib/prisma.ts.
 //
 // Powiązania przepinane: Contract.clientId, ContractClient, ClientUnit,
 // Activity, ServiceRequest, Offer. Dla relacji z unikalnym kluczem
@@ -20,6 +31,26 @@ const { PrismaClient } = require('@prisma/client')
 
 const APPLY = process.argv.includes('--apply')
 const norm = (s) => String(s ?? '').trim().toLowerCase()
+
+// Pola scalane z duplikatu na keepera, gdy u keepera są puste. Wartości
+// kopiowane 1:1 (dla szyfrowanych = ciphertext, ten sam klucz). NIE scalamy
+// firstName/lastName (klucz grupy) ani status (etap lejka — keeper wygrywa).
+const MERGE_FIELDS = [
+  'email', 'phone', 'phone2', 'pesel', 'nip', 'idNumber',
+  'fatherName', 'motherName', 'address', 'city', 'zipCode',
+  'source', 'notes', 'ownerId',
+]
+
+const isEmpty = (v) => v === null || v === undefined || v === ''
+
+/** Zwraca { pole: wartość } z pól duplikatu, którymi uzupełnić PUSTE pola keepera. */
+function scalarFill(keeper, dup) {
+  const fill = {}
+  for (const f of MERGE_FIELDS) {
+    if (isEmpty(keeper[f]) && !isEmpty(dup[f])) fill[f] = dup[f]
+  }
+  return fill
+}
 
 async function relationCounts(prisma, clientId) {
   const [contracts, contractClients, clientUnits, activities, serviceRequests, offers] = await Promise.all([
@@ -65,8 +96,8 @@ async function relink(tx, dupId, keepId) {
 async function main() {
   const prisma = new PrismaClient()
   try {
+    // Pełne rekordy (wszystkie pola scalane) — potrzebne do uzupełniania keepera.
     const clients = await prisma.client.findMany({
-      select: { id: true, firstName: true, lastName: true, email: true, pesel: true, createdAt: true },
       orderBy: { createdAt: 'asc' },
     })
 
@@ -99,11 +130,23 @@ async function main() {
       const name = `${arr[0].firstName} ${arr[0].lastName}`.trim()
       console.log(`\n• ${name} (${arr[0].email || 'brak email'}) — ${arr.length} kopii`)
       console.log(`    KEEP  ${keeper.c.id}  (powiązań: ${keeper.rc.total})`)
-      for (const d of dups) console.log(`    DEL   ${d.c.id}  (powiązań: ${d.rc.total})`)
+      for (const d of dups) {
+        const preview = scalarFill(keeper.c, d.c)
+        const mergeNote = Object.keys(preview).length ? `  → scali: ${Object.keys(preview).join(', ')}` : ''
+        console.log(`    DEL   ${d.c.id}  (powiązań: ${d.rc.total})${mergeNote}`)
+      }
 
       if (APPLY) {
         await prisma.$transaction(async (tx) => {
           for (const d of dups) {
+            // NAJPIERW uzupełnij puste pola keepera danymi z duplikatu, żeby
+            // delete nie skasował np. jedynego telefonu klienta.
+            const fill = scalarFill(keeper.c, d.c)
+            if (Object.keys(fill).length > 0) {
+              await tx.client.update({ where: { id: keeper.c.id }, data: fill })
+              Object.assign(keeper.c, fill) // keeper w pamięci też uzupełniony (kolejne dups)
+              console.log(`    MERGE ${Object.keys(fill).join(', ')} ← ${d.c.id}`)
+            }
             await relink(tx, d.c.id, keeper.c.id)
             await tx.client.delete({ where: { id: d.c.id } })
           }
