@@ -17,6 +17,9 @@ type Props = {
   // legacy fallback (Vendor.default*) — pokazywany dopoki brak wiersza terms
   legacyDepositPct: number | null
   legacyKbPct: number | null
+  // prominent = widok karty kontrahenta: podsumowanie + wyrazny przycisk
+  // "Edytuj warunki" (na liscie klikalny jest sam tekst, dla kompaktu).
+  prominent?: boolean
 }
 
 const emptyRow = (investment = ''): TermsRow => ({ investment, depositPct: null, depositReturnMonths: null, buildingCostsPct: null, calcBasis: 'BRUTTO', notes: null })
@@ -33,7 +36,7 @@ function fmtRow(r: { depositPct: number | null; depositReturnMonths: number | nu
 // Warunki umowne kontrahenta: kaucja gwarancyjna (% + okres zwrotu z umowy)
 // i % kosztow budowy. Wiersz "domyslne" + opcjonalne wiersze per budowa
 // (rozne umowy na roznych budowach). Edycja inline w tabeli kontrahentow.
-export function VendorTermsCell({ vendorId, terms, legacyDepositPct, legacyKbPct }: Props) {
+export function VendorTermsCell({ vendorId, terms, legacyDepositPct, legacyKbPct, prominent }: Props) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [rows, setRows] = useState<TermsRow[]>([])
@@ -112,6 +115,28 @@ export function VendorTermsCell({ vendorId, terms, legacyDepositPct, legacyKbPct
   }
 
   if (!open) {
+    const buildInfo = buildRows.length > 0 && (
+      <p className={`text-gray-400 ${prominent ? 'text-xs mt-1' : 'text-[10px] mt-0.5'}`}>
+        + {buildRows.length} {buildRows.length === 1 ? 'budowa' : 'budowy'}: {buildRows.map((b) => b.investment).join(', ')}
+      </p>
+    )
+    // Widok karty — wyrazny przycisk edycji (na liscie klikalny jest sam tekst).
+    if (prominent) {
+      return (
+        <div>
+          {summary
+            ? <p className="text-sm text-gray-700 tabular-nums">{summary}</p>
+            : <p className="text-sm text-gray-400 italic">Brak warunków umownych</p>}
+          {buildInfo}
+          <button
+            onClick={openEditor}
+            className="mt-3 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium"
+          >
+            {summary ? '✎ Edytuj warunki' : '+ Ustaw warunki umowne'}
+          </button>
+        </div>
+      )
+    }
     return (
       <div className="text-xs">
         <button onClick={openEditor} className="text-left hover:text-blue-600" title="Kliknij aby edytować warunki umowne">
@@ -121,11 +146,7 @@ export function VendorTermsCell({ vendorId, terms, legacyDepositPct, legacyKbPct
             <span className="text-gray-300 italic">+ ustaw warunki</span>
           )}
         </button>
-        {buildRows.length > 0 && (
-          <p className="text-[10px] text-gray-400 mt-0.5">
-            + {buildRows.length} {buildRows.length === 1 ? 'budowa' : 'budowy'}: {buildRows.map((b) => b.investment).join(', ')}
-          </p>
-        )}
+        {buildInfo}
       </div>
     )
   }

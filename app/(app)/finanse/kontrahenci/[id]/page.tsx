@@ -151,6 +151,7 @@ export default async function KontrahentPage({ params }: { params: { id: string 
           terms={vendor.terms}
           legacyDepositPct={vendor.defaultDepositPct}
           legacyKbPct={vendor.defaultBuildingCostsPct}
+          prominent
         />
       </div>
 
