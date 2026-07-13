@@ -68,7 +68,28 @@ Test lokalny: (a) dwie różne osoby o tym samym nazwisku bez maila → obie
 nietknięte; (b) prawdziwy duplikat po e-mailu, keeper bez telefonu + dup z
 telefonem → keeper dostaje telefon, dup skasowany + snapshot w AuditLog.
 
-## Odtworzenie UTRACONYCH danych (do zrobienia — wymaga backupu)
+## Zabezpieczenia systemowe (2026-07-13) — „żeby się nie powtórzyło"
+
+Obrona wielowarstwowa, niezależna od konkretnego błędu w logice skryptu:
+
+1. **Auto-backup przed każdą operacją masową** — `dedupe-clients.js --apply` zrzuca
+   PEŁNĄ tabelę klientów do `scripts/backups/clients-before-dedupe-<ts>.json`
+   ZANIM cokolwiek zmieni. Punkt przywracania niezależny od backupu OVH.
+   (Katalog w `.gitignore` — zawiera PII, choć pola wrażliwe jako ciphertext.)
+2. **Limit promienia rażenia** — jeśli operacja skasowałaby > `DEDUPE_MAX_DELETE`
+   (domyślnie 25) rekordów → **ABORT** (chyba że świadome `--force`). Katastrofa
+   (masowa kolizja kluczy) nie wykona się po cichu.
+3. **Snapshot każdego usunięcia do AuditLog** — pełny rekord + kto/kiedy.
+4. **Narzędzie odzysku** — `scripts/restore-clients-from-dump.js <plik> --apply`
+   odtwarza WYŁĄCZNIE klientów o ID nieobecnym w bazie (twardo skasowanych),
+   nigdy nie nadpisuje istniejących. Działa ze zrzutów z pkt 1.
+5. **Usuwanie przez UI/API już bezpieczne** — `DELETE /api/clients/[id]` od dawna
+   zapisuje pełny snapshot do AuditLog (odwracalne). Luka była tylko w skrypcie.
+
+Zasada operacyjna: **skrypty uruchamiać z NAJNOWSZEGO deployu** (obraz z fixem),
+zawsze najpierw RAPORT (bez `--apply`), i mieć backup. Zapisane w nagłówku skryptu.
+
+## Odtworzenie UTRACONYCH danych (Rafał odzyskuje inaczej)
 
 Skasowane rekordy to **hard delete** — danych nie ma już w żywej bazie. NIE da się
 ich zgadnąć. Ścieżka odzysku:

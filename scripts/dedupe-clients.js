@@ -25,13 +25,27 @@
 // Użycie (Coolify Terminal):
 //   node scripts/dedupe-clients.js            # RAPORT — nic nie zmienia
 //   node scripts/dedupe-clients.js --apply    # wykonuje scalanie
+//   node scripts/dedupe-clients.js --apply --force   # pomija limit bezpieczeństwa
+//
+// WARSTWY BEZPIECZEŃSTWA (2026-07-13, po incydencie utraty danych):
+//   1. Przed KAŻDYM --apply zrzucamy PEŁNĄ tabelę klientów do pliku JSON
+//      (scripts/backups/) — punkt przywracania niezależny od backupu OVH.
+//      Przywracanie: node scripts/restore-clients-from-dump.js <plik> --apply
+//   2. LIMIT PROMIENIA RAŻENIA: jeśli operacja skasowałaby więcej niż
+//      DEDUPE_MAX_DELETE (domyślnie 25) rekordów — ABORT (chyba że --force).
+//      Chroni przed katastrofą (np. masowa kolizja kluczy).
+//   3. Snapshot każdego kasowanego rekordu do AuditLog (odwracalność, ślad kto/kiedy).
 //
 // PESEL nie jest używany w kluczu (klienci z PESEL nie dublują się — dedup
 // importu po nim działa; duplikaty to rekordy bez PESEL). Email jest plaintext,
 // więc bazowy PrismaClient (bez deszyfrowania) wystarcza.
 const { PrismaClient } = require('@prisma/client')
+const fs = require('fs')
+const path = require('path')
 
 const APPLY = process.argv.includes('--apply')
+const FORCE = process.argv.includes('--force')
+const MAX_DELETE = Number(process.env.DEDUPE_MAX_DELETE || 25)
 const norm = (s) => String(s ?? '').trim().toLowerCase()
 
 // Pola scalane z duplikatu na keepera, gdy u keepera są puste. Wartości
@@ -120,12 +134,35 @@ async function main() {
     }
 
     const dupGroups = [...groups.entries()].filter(([, arr]) => arr.length > 1)
+    const plannedDeletes = dupGroups.reduce((s, [, arr]) => s + arr.length - 1, 0)
     console.log(`Klientów łącznie: ${clients.length}`)
     console.log(`Pominięto (brak e-maila, NIE deduplikowane): ${skippedNoEmail}`)
     console.log(`Grup z duplikatami (po e-mailu): ${dupGroups.length}`)
+    console.log(`Do skasowania (duplikaty): ${plannedDeletes}`)
     if (dupGroups.length === 0) {
       console.log('Brak duplikatów z e-mailem — nic do zrobienia.')
       return
+    }
+
+    if (APPLY) {
+      // WARSTWA 2: limit promienia rażenia — nienaturalnie duża liczba usunięć
+      // (np. masowa kolizja kluczy) NIE wykona się bez świadomego --force.
+      if (plannedDeletes > MAX_DELETE && !FORCE) {
+        console.error(`\n⛔ ABORT: ${plannedDeletes} rekordów do usunięcia > limit ${MAX_DELETE}.`)
+        console.error('   To bywa objawem błędu (masowa kolizja / zła baza). Przejrzyj RAPORT (bez --apply).')
+        console.error('   Jeśli świadomie: powtórz z --force (i upewnij się, że masz backup).')
+        console.error('   Limit zmienisz przez DEDUPE_MAX_DELETE=<n>.')
+        return
+      }
+
+      // WARSTWA 1: pełny zrzut WSZYSTKICH klientów PRZED jakąkolwiek zmianą.
+      const dumpDir = path.join(__dirname, 'backups')
+      fs.mkdirSync(dumpDir, { recursive: true })
+      const stamp = new Date().toISOString().replace(/[:.]/g, '-')
+      const dumpFile = path.join(dumpDir, `clients-before-dedupe-${stamp}.json`)
+      fs.writeFileSync(dumpFile, JSON.stringify(clients, null, 2))
+      console.log(`\n💾 Backup przed scalaniem: ${dumpFile} (${clients.length} klientów)`)
+      console.log('   Przywracanie: node scripts/restore-clients-from-dump.js "' + dumpFile + '" --apply\n')
     }
 
     let toDelete = 0

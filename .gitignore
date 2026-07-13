@@ -44,3 +44,6 @@ Thumbs.db
 
 # Prisma — wygenerowany klient
 node_modules/.prisma/
+
+# Zrzuty bezpieczeństwa przed operacjami masowymi (zawierają PII) — nie commitować
+scripts/backups/
