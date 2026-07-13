@@ -18,14 +18,20 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
   const editableStatuses = ['WPROWADZONA', 'DO_ZATWIERDZENIA', 'ODRZUCONA']
   const adminUser = isAdmin(session.user.email)
-  if (!adminUser && !editableStatuses.includes(inv.status)) {
+
+  let body: any
+  try { body = await req.json() } catch { return NextResponse.json({ error: 'Nieprawidłowy JSON' }, { status: 400 }) }
+
+  // Pola-klasyfikacje (kategoria kosztowa, notatka) sa edytowalne ZAWSZE —
+  // to tagi zarzadcze, nie dane finansowe wymagajace ponownej akceptacji.
+  // Bramka statusu (poza adminem) dotyczy tylko pol finansowych/tozsamosci FV.
+  const CLASSIFICATION_FIELDS = new Set(['category', 'notes'])
+  const touchesGuarded = Object.keys(body).some((k) => !CLASSIFICATION_FIELDS.has(k))
+  if (!adminUser && touchesGuarded && !editableStatuses.includes(inv.status)) {
     return NextResponse.json({
       error: `Faktura w statusie ${inv.status} nie moze byc edytowana. Cofnij do edycji przez akcje "Resetuj".`,
     }, { status: 400 })
   }
-
-  let body: any
-  try { body = await req.json() } catch { return NextResponse.json({ error: 'Nieprawidłowy JSON' }, { status: 400 }) }
 
   const data: any = {}
   if (body.number !== undefined) data.number = String(body.number).trim()
