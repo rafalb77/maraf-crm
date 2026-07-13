@@ -3,6 +3,7 @@ import { authOptions } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import { AppShell } from '@/components/layout/AppShell'
 import { TopBar } from '@/components/layout/TopBar'
+import { VersionWatcher } from '@/components/VersionWatcher'
 
 // Wszystkie strony pod (app) wymagaja zalogowanej sesji NextAuth i robia
 // queries do Prismy — nie ma sensu probowac SSG. Wymuszamy dynamic rendering
@@ -17,6 +18,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <AppShell topBar={<TopBar userName={session.user?.name} userEmail={session.user?.email} />}>
       {children}
+      <VersionWatcher />
     </AppShell>
   )
 }
