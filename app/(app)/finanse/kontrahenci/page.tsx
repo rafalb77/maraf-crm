@@ -1,9 +1,13 @@
 import Link from 'next/link'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+import { isAdmin } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
 import { fmtMoney } from '@/lib/finanse-format'
 import { VENDOR_CATEGORY_LABELS, type VendorCategory } from '@/lib/types'
 import { getActiveCompany } from '@/lib/finanse-company'
 import { VendorTermsCell } from '@/components/finanse/VendorTermsCell'
+import { UnifyLabelsButton } from '@/components/finanse/UnifyLabelsButton'
 
 type SearchParams = { q?: string; sort?: string }
 
@@ -14,6 +18,8 @@ const DEFAULT_SORT = 'name-asc'
 
 export default async function KontrahenciPage({ searchParams }: { searchParams: SearchParams }) {
   const company = getActiveCompany()
+  const session = await getServerSession(authOptions)
+  const admin = isAdmin(session?.user?.email)
   const q = (searchParams.q || '').trim()
   const sort = searchParams.sort && SORT_KEYS.has(searchParams.sort) ? searchParams.sort : DEFAULT_SORT
 
@@ -105,6 +111,7 @@ export default async function KontrahenciPage({ searchParams }: { searchParams: 
             {rows.length} kontrahentów{q && <> (filtr: „{q}")</>}
           </p>
         </div>
+        {admin && <UnifyLabelsButton />}
         <form method="get" className="flex gap-2 items-center">
           {sort !== DEFAULT_SORT && <input type="hidden" name="sort" value={sort} />}
           <input
