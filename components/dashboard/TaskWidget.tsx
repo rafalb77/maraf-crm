@@ -5,8 +5,11 @@ import { Loader2, Plus, Star, Clock, Phone, X, ChevronDown, ChevronUp } from 'lu
 import {
   TASK_TYPE_ICONS,
   TASK_BUCKET_LABELS,
+  TASK_CATEGORY_LABELS,
+  TASK_CATEGORY_CHIP_COLORS,
   type TaskBucket,
   type TaskType,
+  type TaskCategory,
 } from '@/lib/types'
 
 /**
@@ -26,6 +29,7 @@ type ApiTask = {
   source: 'MANUAL' | 'RULE'
   score: number
   bucket: TaskBucket
+  category: TaskCategory
   client: { id: string; firstName: string; lastName: string; phone: string | null } | null
   unit: { id: string; number: string } | null
   contract: { id: string; number: string } | null
@@ -36,6 +40,11 @@ type ApiTask = {
 type Stats = { openCount: number; overdueCount: number; todayCount: number; doneToday: number }
 
 const BUCKET_ORDER: TaskBucket[] = ['PRZETERMINOWANE', 'DZIS', 'NADCHODZACE', 'POZNIEJ']
+
+// Filtr kategorii (CRM/Budowa/Finanse) — wybór pamiętany per przeglądarka
+const CATEGORY_ORDER: TaskCategory[] = ['CRM', 'BUDOWA', 'FINANSE']
+const CATEGORY_LS_KEY = 'tasks.categoryFilter'
+type CategoryFilter = 'ALL' | TaskCategory
 
 const BUCKET_HEADER_COLORS: Record<TaskBucket, string> = {
   PRZETERMINOWANE: 'text-red-600',
@@ -60,6 +69,21 @@ export function TaskWidget() {
   const [stats, setStats] = useState<Stats | null>(null)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [onlyMine, setOnlyMine] = useState(false)
+  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('ALL')
+
+  // wczytaj zapamiętany filtr kategorii
+  useEffect(() => {
+    try {
+      const v = window.localStorage.getItem(CATEGORY_LS_KEY)
+      if (v === 'CRM' || v === 'BUDOWA' || v === 'FINANSE') setCategoryFilter(v)
+    } catch {}
+  }, [])
+  function pickCategory(c: CategoryFilter) {
+    setCategoryFilter(c)
+    try {
+      window.localStorage.setItem(CATEGORY_LS_KEY, c)
+    } catch {}
+  }
   const [loading, setLoading] = useState(true)
   const [addTitle, setAddTitle] = useState('')
   const [adding, setAdding] = useState(false)
@@ -162,10 +186,22 @@ export function TaskWidget() {
 
   // „Moje" = przypisane do mnie LUB nieprzypisane (wspólna pula); ukrywa tylko
   // zadania cudze. Domyślnie „Wszystkie" — brak regresji dotychczasowego widoku.
-  const visibleTasks = useMemo(() => {
+  const mineTasks = useMemo(() => {
     if (!onlyMine || !currentUserId) return tasks
     return tasks.filter((t) => !t.assignee || t.assignee.id === currentUserId)
   }, [tasks, onlyMine, currentUserId])
+
+  // liczniki per kategoria (na zbiorze po filtrze "Moje" — chipy pokazują realny stan)
+  const categoryCounts = useMemo(() => {
+    const c: Record<TaskCategory, number> = { CRM: 0, BUDOWA: 0, FINANSE: 0 }
+    for (const t of mineTasks) c[t.category] = (c[t.category] || 0) + 1
+    return c
+  }, [mineTasks])
+
+  const visibleTasks = useMemo(() => {
+    if (categoryFilter === 'ALL') return mineTasks
+    return mineTasks.filter((t) => t.category === categoryFilter)
+  }, [mineTasks, categoryFilter])
 
   const grouped = useMemo(() => {
     const g: Record<TaskBucket, ApiTask[]> = {
@@ -227,14 +263,56 @@ export function TaskWidget() {
         </div>
       </div>
 
+      {/* Segregacja: CRM / Budowa / Finanse (chip tylko gdy kategoria ma zadania) */}
+      {mineTasks.length > 0 && (
+        <div className="flex items-center gap-1.5 mb-3 flex-wrap">
+          <button
+            onClick={() => pickCategory('ALL')}
+            className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
+              categoryFilter === 'ALL'
+                ? 'bg-gray-900 text-white'
+                : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+            }`}
+          >
+            Wszystkie ({mineTasks.length})
+          </button>
+          {CATEGORY_ORDER.map((c) =>
+            categoryCounts[c] > 0 ? (
+              <button
+                key={c}
+                onClick={() => pickCategory(categoryFilter === c ? 'ALL' : c)}
+                className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
+                  categoryFilter === c
+                    ? TASK_CATEGORY_CHIP_COLORS[c] + ' ring-1 ring-current'
+                    : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                }`}
+              >
+                {TASK_CATEGORY_LABELS[c]} ({categoryCounts[c]})
+              </button>
+            ) : null,
+          )}
+        </div>
+      )}
+
       {stats.openCount === 0 ? (
         <p className="text-sm text-gray-400 mb-4">Brak otwartych zadań — wszystko ogarnięte ✅</p>
       ) : visibleTasks.length === 0 ? (
         <p className="text-sm text-gray-400 mb-4">
-          Brak zadań przypisanych do Ciebie.{' '}
-          <button onClick={() => setOnlyMine(false)} className="text-blue-600 hover:text-blue-700 font-medium">
-            Pokaż wszystkie ({stats.openCount})
-          </button>
+          {categoryFilter !== 'ALL' ? (
+            <>
+              Brak zadań w kategorii {TASK_CATEGORY_LABELS[categoryFilter]}.{' '}
+              <button onClick={() => pickCategory('ALL')} className="text-blue-600 hover:text-blue-700 font-medium">
+                Pokaż wszystkie ({mineTasks.length})
+              </button>
+            </>
+          ) : (
+            <>
+              Brak zadań przypisanych do Ciebie.{' '}
+              <button onClick={() => setOnlyMine(false)} className="text-blue-600 hover:text-blue-700 font-medium">
+                Pokaż wszystkie ({stats.openCount})
+              </button>
+            </>
+          )}
         </p>
       ) : (
         <div className="space-y-4 mb-4">
@@ -387,7 +465,8 @@ function TaskRow({
           {t.pinned && <Star className="inline w-3.5 h-3.5 text-amber-500 fill-amber-400 mr-1 -mt-0.5" />}
           {t.title}
         </p>
-        {(meta.length > 0 || t.source === 'RULE' || t.assignee) && (
+        {/* meta zawsze widoczna — badge kategorii jest na każdym zadaniu */}
+        {(
           <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-1 flex-wrap">
             {meta.map((m, i) => (
               <span key={i} className="flex items-center gap-1">
@@ -395,6 +474,11 @@ function TaskRow({
                 {m}
               </span>
             ))}
+            <span
+              className={`px-1.5 rounded text-[10px] font-medium ${TASK_CATEGORY_CHIP_COLORS[t.category]}`}
+            >
+              {TASK_CATEGORY_LABELS[t.category]}
+            </span>
             {t.source === 'RULE' && (
               <span className="px-1.5 rounded bg-gray-100 text-gray-400 text-[10px] font-medium uppercase tracking-wide">
                 auto

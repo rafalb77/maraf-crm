@@ -191,6 +191,24 @@ export const TASK_BUCKET_LABELS: Record<TaskBucket, string> = {
   POZNIEJ: 'Później',
 }
 
+// Kategoria zadania (segregacja widgetu "Do zrobienia" — filtr CRM/Budowa/Finanse).
+// WYPROWADZANA z zaczepów zadania (GET /api/tasks), nie przechowywana w bazie:
+// BUDOWA = ruleKey BUDOWA_* / constructionTaskId / investmentId;
+// FINANSE = type PLATNOSC / paymentId (raty, kaucje); reszta = CRM.
+export type TaskCategory = 'CRM' | 'BUDOWA' | 'FINANSE'
+
+export const TASK_CATEGORY_LABELS: Record<TaskCategory, string> = {
+  CRM: 'CRM',
+  BUDOWA: 'Budowa',
+  FINANSE: 'Finanse',
+}
+
+export const TASK_CATEGORY_CHIP_COLORS: Record<TaskCategory, string> = {
+  CRM: 'bg-blue-100 text-blue-700',
+  BUDOWA: 'bg-amber-100 text-amber-800',
+  FINANSE: 'bg-green-100 text-green-700',
+}
+
 // Reservation types
 export type ReservationType = 'MIEKKA' | 'REZERWACJA'
 

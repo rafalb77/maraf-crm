@@ -3,6 +3,20 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { computeBucket, computeTaskScore, maybeGenerateTasks } from '@/lib/tasks'
+import type { TaskCategory } from '@/lib/types'
+
+/** Kategoria do segregacji widgetu (CRM/Budowa/Finanse) — z zaczepów zadania. */
+function taskCategory(t: {
+  ruleKey: string | null
+  constructionTaskId: string | null
+  investmentId: string | null
+  paymentId: string | null
+  type: string
+}): TaskCategory {
+  if (t.ruleKey?.startsWith('BUDOWA_') || t.constructionTaskId || t.investmentId) return 'BUDOWA'
+  if (t.type === 'PLATNOSC' || t.paymentId) return 'FINANSE'
+  return 'CRM'
+}
 
 export const dynamic = 'force-dynamic'
 
@@ -48,6 +62,7 @@ export async function GET() {
       ...t,
       score: computeTaskScore(t, now),
       bucket: computeBucket(t.dueAt, now),
+      category: taskCategory(t),
     }))
     .sort((a, b) => b.score - a.score)
 
