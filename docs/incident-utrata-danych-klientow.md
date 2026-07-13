@@ -13,10 +13,19 @@ klientów, `--apply`). Skrypt grupuje duplikaty po `imię|nazwisko|email`, wybie
 „keepera" **po liczbie powiązań** (umowy/aktywności/lokale…), przepina powiązania
 i **kasuje duplikaty** (`tx.client.delete`).
 
-**BŁĄD**: skrypt przenosił tylko POWIĄZANIA, a NIE pola skalarne (phone, phone2,
-adres, pesel, nip, …). Jeśli keeper (bogatszy w powiązania) miał pusty telefon, a
-kasowany duplikat go miał — **telefon ginął bezpowrotnie** przy `delete`. Gdy
-keeper był ubogi we wszystkie dane, klient zostawał „bez żadnych danych".
+**BŁĄD #1 (utrata telefonu — Kopacka, Syguła)**: skrypt przenosił tylko
+POWIĄZANIA, a NIE pola skalarne (phone, phone2, adres, pesel, nip, …). Jeśli keeper
+(bogatszy w powiązania) miał pusty telefon, a kasowany duplikat go miał — **telefon
+ginął bezpowrotnie** przy `delete`.
+
+**BŁĄD #2 (cały rekord — Soszyński) — wykryty adwersaryjnie 2026-07-13**: klucz
+grupy to `imię|nazwisko|email`. Gdy email jest PUSTY, redukuje się do
+`imię|nazwisko` — a to za słaby identyfikator: **dwie RÓŻNE osoby o tym samym
+nazwisku bez maila (homonimy) trafiały do jednej grupy i jedna była kasowana w
+całości**. Stąd „Soszyński bez żadnych danych" — to nie był jego duplikat, tylko
+inna osoba scalona z homonimem i skasowana. (Fix scalania pól z Błędu #1 tego NIE
+naprawiał — keeper to inna osoba; przenoszenie jej telefonu na obcego byłoby wręcz
+szkodliwe.)
 
 Dlaczego pasuje do objawów:
 - **konkretni klienci** — tylko ci, którzy mieli duplikaty scalane przez skrypt;
@@ -38,16 +47,26 @@ Dlaczego pasuje do objawów:
 - **Edycja klienta** (formularz + PUT) — MOŻE wyzerować telefon, ale tylko gdy
   użytkownik ręcznie wyczyści pole (świadome działanie); nie tłumaczy nawrotu.
 
-## Naprawa kodu (2026-07-12)
+## Naprawa kodu
 
-`scripts/dedupe-clients.js`: przed `delete` każdego duplikatu **uzupełniamy PUSTE
-pola keepera** wartościami z duplikatu (`scalarFill`, pola: email/phone/phone2/
-pesel/nip/idNumber/fatherName/motherName/address/city/zipCode/source/notes/ownerId).
-Nigdy nie nadpisujemy pola niepustego. Wartości kopiowane 1:1 (pola szyfrowane =
-ciphertext, ten sam klucz → dalej odczytywalne). Raport (dry-run) i `--apply`
-pokazują `→ scali: <pola>` / `MERGE …`, żeby operator widział zachowywane dane.
-Zweryfikowane lokalnie: keeper bez telefonu + duplikat z telefonem → po scaleniu
-keeper ma telefon, duplikat skasowany, powiązania przepięte.
+`scripts/dedupe-clients.js` — trzy zabezpieczenia (zweryfikowane lokalnie):
+
+1. **Scalanie pól (2026-07-12, na Błąd #1)**: przed `delete` każdego duplikatu
+   **uzupełniamy PUSTE pola keepera** wartościami z duplikatu (`scalarFill`:
+   email/phone/phone2/pesel/nip/idNumber/fatherName/motherName/address/city/
+   zipCode/source/notes/ownerId). Nigdy nie nadpisujemy pola niepustego. Wartości
+   kopiowane 1:1 (szyfrowane = ciphertext, ten sam klucz). `isEmpty` trimuje białe
+   znaki (placeholder " " nie blokuje scalenia).
+2. **Tylko rekordy z e-mailem (2026-07-13, na Błąd #2)**: rekordy z pustym mailem
+   NIE są deduplikowane (skippedNoEmail w raporcie) — eliminuje kasowanie
+   homonimów. Bez wspólnego silnego identyfikatora skrypt niczego nie usuwa.
+3. **Snapshot do AuditLog przed delete**: pełny rekord kasowanego duplikatu ląduje
+   w AuditLog (action=DELETE, userEmail='script:dedupe-clients') → każde przyszłe
+   usunięcie jest ODWRACALNE i widoczne, kto/kiedy odpalił skrypt.
+
+Test lokalny: (a) dwie różne osoby o tym samym nazwisku bez maila → obie
+nietknięte; (b) prawdziwy duplikat po e-mailu, keeper bez telefonu + dup z
+telefonem → keeper dostaje telefon, dup skasowany + snapshot w AuditLog.
 
 ## Odtworzenie UTRACONYCH danych (do zrobienia — wymaga backupu)
 

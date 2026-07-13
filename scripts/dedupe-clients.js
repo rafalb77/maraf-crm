@@ -1,9 +1,11 @@
 // Scalanie zduplikowanych klientów (np. po wielokrotnym imporcie).
 //
-// Grupuje klientów po kluczu: imię|nazwisko|email (lowercase). W każdej grupie
-// >1 zostawia JEDNEGO ("keeper" — z największą liczbą powiązań, remis: najstarszy),
-// SCALA brakujące pola kontaktowe/osobowe z duplikatów na keepera, przepina
-// wszystkie powiązania i kasuje duplikaty.
+// Grupuje klientów po kluczu: imię|nazwisko|email (lowercase) — TYLKO gdy email
+// NIEPUSTY (rekordy bez maila NIE są deduplikowane: imię+nazwisko to za słaby
+// klucz, homonimy zostałyby scalone/skasowane). W każdej grupie >1 zostawia
+// JEDNEGO ("keeper" — z największą liczbą powiązań, remis: najstarszy), SCALA
+// brakujące pola kontaktowe/osobowe z duplikatów na keepera, loguje snapshot
+// kasowanego rekordu do AuditLog, przepina powiązania i kasuje duplikaty.
 //
 // ⚠️ SCALANIE PÓL (dodane 2026-07-12 po incydencie utraty danych): keeper
 // wybierany jest po LICZBIE POWIĄZAŃ, nie po kompletności danych — więc keeper
@@ -41,7 +43,7 @@ const MERGE_FIELDS = [
   'source', 'notes', 'ownerId',
 ]
 
-const isEmpty = (v) => v === null || v === undefined || v === ''
+const isEmpty = (v) => v === null || v === undefined || String(v).trim() === ''
 
 /** Zwraca { pole: wartość } z pól duplikatu, którymi uzupełnić PUSTE pola keepera. */
 function scalarFill(keeper, dup) {
@@ -101,9 +103,17 @@ async function main() {
       orderBy: { createdAt: 'asc' },
     })
 
-    // Grupowanie
+    // Grupowanie — TYLKO rekordy z NIEPUSTYM e-mailem.
+    // ⚠️ KRYTYCZNE (2026-07-13, po incydencie „Soszyński bez danych"): klucz
+    // imię|nazwisko|email przy pustym mailu redukuje się do imię|nazwisko —
+    // a to za słaby identyfikator: DWIE RÓŻNE OSOBY o tym samym nazwisku bez
+    // maila (homonimy) trafiały do jednej grupy i jedna była KASOWANA w całości.
+    // Bez wspólnego silnego identyfikatora NIE wolno automatycznie kasować.
+    // Takie rekordy zostawiamy nietknięte (ewentualna ręczna weryfikacja).
     const groups = new Map()
+    let skippedNoEmail = 0
     for (const c of clients) {
+      if (norm(c.email) === '') { skippedNoEmail++; continue }
       const key = `${norm(c.firstName)}|${norm(c.lastName)}|${norm(c.email)}`
       if (!groups.has(key)) groups.set(key, [])
       groups.get(key).push(c)
@@ -111,9 +121,10 @@ async function main() {
 
     const dupGroups = [...groups.entries()].filter(([, arr]) => arr.length > 1)
     console.log(`Klientów łącznie: ${clients.length}`)
-    console.log(`Grup z duplikatami: ${dupGroups.length}`)
+    console.log(`Pominięto (brak e-maila, NIE deduplikowane): ${skippedNoEmail}`)
+    console.log(`Grup z duplikatami (po e-mailu): ${dupGroups.length}`)
     if (dupGroups.length === 0) {
-      console.log('Brak duplikatów — nic do zrobienia.')
+      console.log('Brak duplikatów z e-mailem — nic do zrobienia.')
       return
     }
 
@@ -147,6 +158,19 @@ async function main() {
               Object.assign(keeper.c, fill) // keeper w pamięci też uzupełniony (kolejne dups)
               console.log(`    MERGE ${Object.keys(fill).join(', ')} ← ${d.c.id}`)
             }
+            // Pełny snapshot kasowanego rekordu do AuditLog — ODWRACALNOŚĆ.
+            // (skrypt używa bazowego klienta, więc pola szyfrowane zapisują się
+            // jako ciphertext — i tak w pełni odtwarzalne tym samym kluczem)
+            await tx.auditLog.create({
+              data: {
+                action: 'DELETE',
+                entity: 'Client',
+                entityId: d.c.id,
+                userEmail: 'script:dedupe-clients',
+                path: 'scripts/dedupe-clients.js',
+                metadata: JSON.stringify({ mergedIntoKeeper: keeper.c.id, deleted: d.c }).slice(0, 4000),
+              },
+            })
             await relink(tx, d.c.id, keeper.c.id)
             await tx.client.delete({ where: { id: d.c.id } })
           }
