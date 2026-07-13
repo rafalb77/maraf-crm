@@ -72,8 +72,16 @@ export default async function FakturyListPage({
       const ids = await vendorIdsWithoutFolder()
       filters.push({ vendorId: { in: ids.length ? ids : ['__none__'] } })
     } else if ((FOLDERS as readonly string[]).includes(searchParams.folder)) {
-      const ids = await vendorIdsForFolder(searchParams.folder as Folder)
-      filters.push({ vendorId: { in: ids.length ? ids : ['__none__'] } })
+      const folder = searchParams.folder as Folder
+      const ids = await vendorIdsForFolder(folder)
+      const or: any[] = [{ vendorId: { in: ids.length ? ids : ['__none__'] } }]
+      // Foldery pokrywajace sie z reczna kategoria per faktura (Staffa/Stale/Inne):
+      // pokazuj TEZ faktury tak SKATEGORYZOWANE, niezaleznie od kontrahenta —
+      // reczny tag traktujemy jak przynaleznosc do tej grupy kosztowej.
+      if ((PURCHASE_INVOICE_CATEGORIES as readonly string[]).includes(folder)) {
+        or.push({ category: folder })
+      }
+      filters.push({ OR: or })
     }
   }
   if (searchParams.status) filters.push({ status: searchParams.status })
