@@ -5,13 +5,25 @@ import { VENDOR_CATEGORY_LABELS, type VendorCategory } from '@/lib/types'
 import { getActiveCompany } from '@/lib/finanse-company'
 import { VendorTermsCell } from '@/components/finanse/VendorTermsCell'
 
-export default async function KontrahenciPage() {
+type SearchParams = { q?: string; sort?: string }
+
+// Klucze sortowania: kolumna-kierunek. Liczby (faktur/do zaplaty) sortowane
+// w JS, bo obejmuja tez FV z etykieta podwykonawcy (nie sa w DB wprost).
+const SORT_KEYS = new Set(['name-asc', 'name-desc', 'nip-asc', 'nip-desc', 'count-asc', 'count-desc', 'unpaid-asc', 'unpaid-desc'])
+const DEFAULT_SORT = 'name-asc'
+
+export default async function KontrahenciPage({ searchParams }: { searchParams: SearchParams }) {
   const company = getActiveCompany()
+  const q = (searchParams.q || '').trim()
+  const sort = searchParams.sort && SORT_KEYS.has(searchParams.sort) ? searchParams.sort : DEFAULT_SORT
+
   // Kontrahenci aktywnej firmy = ci, ktorzy maja przynajmniej 1 fakture tej firmy.
   // Liczniki/sumy liczone tylko z faktur aktywnej firmy.
   const [allVendors, labeledInvoices] = await Promise.all([
     prisma.vendor.findMany({
-      orderBy: [{ isActive: 'desc' }, { name: 'asc' }],
+      where: q
+        ? { OR: [{ name: { contains: q, mode: 'insensitive' } }, { nip: { contains: q, mode: 'insensitive' } }] }
+        : undefined,
       include: {
         _count: { select: { invoices: { where: { company } } } },
         invoices: {
@@ -48,84 +60,133 @@ export default async function KontrahenciPage() {
     const rows = (labeledByName.get(v.name.trim().toUpperCase()) || []).filter((r) => r.ownerId !== v.id)
     return { count: rows.length, unpaid: rows.reduce((s, r) => s + r.unpaidLeft, 0) }
   }
-  const vendors = allVendors.filter((v) => v._count.invoices > 0 || labeledFor(v).count > 0)
+
+  const rows = allVendors
+    .map((v) => {
+      const labeled = labeledFor(v)
+      const ownUnpaid = v.invoices.reduce((s, i) => {
+        const paid = i.payments.reduce((p, x) => p + x.amount, 0)
+        return s + Math.max(0, i.amountGross - paid)
+      }, 0)
+      return {
+        vendor: v,
+        labeledCount: labeled.count,
+        invoiceCount: v._count.invoices + labeled.count,
+        unpaid: ownUnpaid + labeled.unpaid,
+      }
+    })
+    .filter((r) => r.invoiceCount > 0)
+
+  const [col, dir] = sort.split('-') as [string, 'asc' | 'desc']
+  const mul = dir === 'desc' ? -1 : 1
+  rows.sort((a, b) => {
+    switch (col) {
+      case 'nip': return mul * (a.vendor.nip || '').localeCompare(b.vendor.nip || '')
+      case 'count': return mul * (a.invoiceCount - b.invoiceCount)
+      case 'unpaid': return mul * (a.unpaid - b.unpaid)
+      default: return mul * a.vendor.name.localeCompare(b.vendor.name, 'pl', { sensitivity: 'base' })
+    }
+  })
+
+  const qs = (overrides: Partial<SearchParams>) => {
+    const merged = { q: q || undefined, sort: sort !== DEFAULT_SORT ? sort : undefined, ...overrides }
+    const params = new URLSearchParams()
+    for (const [k, v] of Object.entries(merged)) if (v) params.set(k, v)
+    const s = params.toString()
+    return s ? `?${s}` : ''
+  }
 
   return (
     <div className="p-8">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Kontrahenci</h1>
-        <p className="text-gray-500 text-sm mt-1">{vendors.length} kontrahentów</p>
+      <div className="mb-6 flex items-end justify-between flex-wrap gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Kontrahenci</h1>
+          <p className="text-gray-500 text-sm mt-1">
+            {rows.length} kontrahentów{q && <> (filtr: „{q}")</>}
+          </p>
+        </div>
+        <form method="get" className="flex gap-2 items-center">
+          {sort !== DEFAULT_SORT && <input type="hidden" name="sort" value={sort} />}
+          <input
+            name="q"
+            defaultValue={q}
+            placeholder="Szukaj: nazwa lub NIP..."
+            className="px-3 py-2 border border-gray-300 rounded-lg text-sm w-64"
+          />
+          {q && (
+            <Link href={`/finanse/kontrahenci${qs({ q: undefined })}`} className="text-sm text-gray-500 hover:text-gray-700">
+              wyczyść
+            </Link>
+          )}
+          <button type="submit" className="bg-gray-900 hover:bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-medium">
+            Szukaj
+          </button>
+        </form>
       </div>
 
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-gray-50 border-b border-gray-200 text-left">
             <tr>
-              <th className="px-4 py-3 font-medium text-gray-700">Nazwa</th>
+              <SortTh label="Nazwa" colKey="name" sort={sort} qs={qs} />
               <th className="px-4 py-3 font-medium text-gray-700">Kategoria</th>
-              <th className="px-4 py-3 font-medium text-gray-700">NIP</th>
+              <SortTh label="NIP" colKey="nip" sort={sort} qs={qs} />
               <th className="px-4 py-3 font-medium text-gray-700" title="Warunki z umowy: % kaucji gwarancyjnej, po ilu miesiącach zwrot, % kosztów budowy. Prefilują fakturę i naliczają się z KSeF. Można ustawić osobno per budowa.">
                 Warunki umowne (kaucja / zwrot / KB)
               </th>
-              <th className="px-4 py-3 font-medium text-gray-700 text-right">Faktur</th>
-              <th className="px-4 py-3 font-medium text-gray-700 text-right">Do zapłaty</th>
+              <SortTh label="Faktur" colKey="count" sort={sort} qs={qs} align="right" />
+              <SortTh label="Do zapłaty" colKey="unpaid" sort={sort} qs={qs} align="right" />
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {vendors.length === 0 && (
+            {rows.length === 0 && (
               <tr>
                 <td colSpan={6} className="px-4 py-12 text-center text-gray-400">
-                  Brak kontrahentów. Dodaj pierwszego importując xlsx z{' '}
-                  <Link href="/finanse/import" className="text-blue-600 hover:underline">tej strony</Link>.
+                  {q ? <>Brak kontrahentów pasujących do „{q}".</> : (
+                    <>Brak kontrahentów. Dodaj pierwszego importując xlsx z{' '}
+                    <Link href="/finanse/import" className="text-blue-600 hover:underline">tej strony</Link>.</>
+                  )}
                 </td>
               </tr>
             )}
-            {vendors.map((v) => {
-              const labeled = labeledFor(v)
-              const unpaid = v.invoices.reduce((s, i) => {
-                const paid = i.payments.reduce((p, x) => p + x.amount, 0)
-                return s + Math.max(0, i.amountGross - paid)
-              }, 0) + labeled.unpaid
-              const invoiceCount = v._count.invoices + labeled.count
-              return (
-                <tr key={v.id} className={!v.isActive ? 'opacity-50' : ''}>
-                  <td className="px-4 py-2.5">
-                    <Link
-                      href={`/finanse/kontrahenci/${v.id}`}
-                      className="font-medium text-gray-900 hover:text-blue-600"
-                      title="Karta kontrahenta — warunki umowne i statystyki"
-                    >
-                      {v.name}
-                    </Link>
-                    {!v.isActive && <span className="ml-2 text-xs text-gray-400">(nieaktywny)</span>}
-                  </td>
-                  <td className="px-4 py-2.5 text-gray-600">
-                    {VENDOR_CATEGORY_LABELS[v.category as VendorCategory] || v.category}
-                  </td>
-                  <td className="px-4 py-2.5 text-gray-500 text-xs font-mono">{v.nip || '—'}</td>
-                  <td className="px-4 py-2.5">
-                    <VendorTermsCell
-                      vendorId={v.id}
-                      terms={v.terms}
-                      legacyDepositPct={v.defaultDepositPct}
-                      legacyKbPct={v.defaultBuildingCostsPct}
-                    />
-                  </td>
-                  <td className="px-4 py-2.5 text-right tabular-nums text-gray-700">
-                    <Link
-                      href={`/finanse/faktury?vendor=${v.id}`}
-                      className="hover:text-blue-600"
-                      title={labeled.count > 0 ? `Faktury kontrahenta (w tym ${labeled.count} jako podwykonawca z importu Excela)` : 'Faktury kontrahenta'}
-                    >
-                      {invoiceCount}
-                    </Link>
-                  </td>
-                  <td className="px-4 py-2.5 text-right tabular-nums font-medium text-gray-900">
-                    {unpaid > 0.01 ? fmtMoney(unpaid) : '—'}
-                  </td>
-                </tr>
-              )
-            })}
+            {rows.map(({ vendor: v, labeledCount, invoiceCount, unpaid }) => (
+              <tr key={v.id} className={!v.isActive ? 'opacity-50' : ''}>
+                <td className="px-4 py-2.5">
+                  <Link
+                    href={`/finanse/kontrahenci/${v.id}`}
+                    className="font-medium text-gray-900 hover:text-blue-600"
+                    title="Karta kontrahenta — warunki umowne i statystyki"
+                  >
+                    {v.name}
+                  </Link>
+                  {!v.isActive && <span className="ml-2 text-xs text-gray-400">(nieaktywny)</span>}
+                </td>
+                <td className="px-4 py-2.5 text-gray-600">
+                  {VENDOR_CATEGORY_LABELS[v.category as VendorCategory] || v.category}
+                </td>
+                <td className="px-4 py-2.5 text-gray-500 text-xs font-mono">{v.nip || '—'}</td>
+                <td className="px-4 py-2.5">
+                  <VendorTermsCell
+                    vendorId={v.id}
+                    terms={v.terms}
+                    legacyDepositPct={v.defaultDepositPct}
+                    legacyKbPct={v.defaultBuildingCostsPct}
+                  />
+                </td>
+                <td className="px-4 py-2.5 text-right tabular-nums text-gray-700">
+                  <Link
+                    href={`/finanse/faktury?vendor=${v.id}`}
+                    className="hover:text-blue-600"
+                    title={labeledCount > 0 ? `Faktury kontrahenta (w tym ${labeledCount} jako podwykonawca z importu Excela)` : 'Faktury kontrahenta'}
+                  >
+                    {invoiceCount}
+                  </Link>
+                </td>
+                <td className="px-4 py-2.5 text-right tabular-nums font-medium text-gray-900">
+                  {unpaid > 0.01 ? fmtMoney(unpaid) : '—'}
+                </td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>
@@ -135,5 +196,32 @@ export default async function KontrahenciPage() {
         Obecnie kontrahenci pojawiają się automatycznie przy imporcie xlsx.
       </p>
     </div>
+  )
+}
+
+// Naglowek sortowalny — link togglujacy kierunek (server component).
+function SortTh({
+  label, colKey, sort, qs, align = 'left',
+}: {
+  label: string
+  colKey: string
+  sort: string
+  qs: (o: { sort?: string }) => string
+  align?: 'left' | 'right'
+}) {
+  const [curCol, curDir] = sort.split('-')
+  const active = curCol === colKey
+  const nextDir = active && curDir === 'asc' ? 'desc' : 'asc'
+  const arrow = active ? (curDir === 'asc' ? ' ↑' : ' ↓') : ' ↕'
+  return (
+    <th className={`px-4 py-3 font-medium ${align === 'right' ? 'text-right' : 'text-left'}`}>
+      <Link
+        href={`/finanse/kontrahenci${qs({ sort: `${colKey}-${nextDir}` })}`}
+        className={`inline-flex items-center gap-0.5 hover:text-blue-600 ${active ? 'text-blue-700' : 'text-gray-700'}`}
+        title={`Sortuj po: ${label}`}
+      >
+        {label}<span className={`text-xs ${active ? '' : 'text-gray-300'}`}>{arrow}</span>
+      </Link>
+    </th>
   )
 }
