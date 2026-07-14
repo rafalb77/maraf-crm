@@ -34,7 +34,7 @@ export default async function HarmonogramPage({
     prisma.constructionStage.findMany({
       where: { investmentId: investment.id },
       orderBy: { order: 'asc' },
-      select: { id: true, name: true, status: true, order: true, plannedStart: true, plannedEnd: true, notes: true },
+      select: { id: true, name: true, status: true, order: true, plannedStart: true, plannedEnd: true, notes: true, budgetNet: true },
     }),
     prisma.constructionTask.findMany({
       where: { investmentId: investment.id },
@@ -96,6 +96,7 @@ export default async function HarmonogramPage({
     plannedStart: toISODate(s.plannedStart),
     plannedEnd: toISODate(s.plannedEnd),
     notes: s.notes,
+    budgetNet: s.budgetNet,
   }))
   const serializedTasks = tasks.map((t) => ({
     id: t.id,

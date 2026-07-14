@@ -72,6 +72,7 @@ export type StageEditData = {
   plannedEnd?: Date | null
   status?: string
   order?: number
+  budgetNet?: number | null
 }
 
 export function buildStageEdit(body: any): { data?: StageEditData; error?: string } {
@@ -97,6 +98,15 @@ export function buildStageEdit(body: any): { data?: StageEditData; error?: strin
     const o = Number(body.order)
     if (!Number.isFinite(o)) return { error: 'Nieprawidłowa kolejność' }
     data.order = Math.round(o)
+  }
+  if (body.budgetNet !== undefined) {
+    if (body.budgetNet === null || body.budgetNet === '') {
+      data.budgetNet = null
+    } else {
+      const b = Number(body.budgetNet)
+      if (!Number.isFinite(b) || b < 0) return { error: 'Budżet musi być liczbą ≥ 0' }
+      data.budgetNet = Math.round(b * 100) / 100
+    }
   }
   if (Object.keys(data).length === 0) return { error: 'Brak pól do zmiany' }
   return { data }

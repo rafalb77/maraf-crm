@@ -15,6 +15,7 @@ type Stage = {
   plannedStart: string | null
   plannedEnd: string | null
   notes?: string | null
+  budgetNet?: number | null
 }
 type Task = {
   id: string
@@ -234,6 +235,59 @@ export function HarmonogramView({
   )
 }
 
+// Budżet netto etapu — mianownik alertów kosztowych na /budowa/koszty.
+// Zapis na blur (żeby nie PATCH-ować przy każdym znaku). PATCH /api/budowa/stages/[id].
+function StageBudgetRow({ stage }: { stage: Stage }) {
+  const [val, setVal] = useState(stage.budgetNet != null ? String(stage.budgetNet) : '')
+  const [state, setState] = useState<SaveState>('idle')
+
+  async function save() {
+    const trimmed = val.trim().replace(/\s/g, '').replace(',', '.')
+    const num = trimmed === '' ? null : Number(trimmed)
+    if (num !== null && (!Number.isFinite(num) || num < 0)) {
+      setState('error')
+      return
+    }
+    const current = stage.budgetNet ?? null
+    if (num === current) return // brak zmiany
+    setState('saving')
+    try {
+      const res = await fetch(`/api/budowa/stages/${stage.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ budgetNet: num }),
+      })
+      if (!res.ok) throw new Error()
+      stage.budgetNet = num // aktualizuj lokalnie, żeby kolejny blur nie zapisywał ponownie
+      setState('saved')
+      setTimeout(() => setState('idle'), 1500)
+    } catch {
+      setState('error')
+    }
+  }
+
+  return (
+    <div className="px-5 py-2.5 flex items-center gap-2 bg-gray-50/60">
+      <span className="text-xs text-gray-500">Budżet etapu (netto):</span>
+      <input
+        type="text"
+        inputMode="numeric"
+        className="w-32 rounded-lg border border-gray-300 px-2 py-1 text-sm text-right tabular-nums"
+        placeholder="np. 850000"
+        value={val}
+        onChange={(e) => setVal(e.target.value)}
+        onBlur={save}
+        onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
+      />
+      <span className="text-xs text-gray-400">zł</span>
+      {state === 'saving' && <span className="text-xs text-amber-600">zapis…</span>}
+      {state === 'saved' && <span className="text-xs text-green-600">✓ zapisano</span>}
+      {state === 'error' && <span className="text-xs text-red-600">✕ podaj liczbę ≥ 0</span>}
+      <span className="text-xs text-gray-400 ml-auto">alerty przekroczeń w „Koszty budowy"</span>
+    </div>
+  )
+}
+
 function AddTaskForm({
   stages,
   subcontractors,
@@ -425,6 +479,7 @@ function StageBlock({
 
       {open && (
         <div className="divide-y divide-gray-100">
+          {stage.id !== '_orphan' && <StageBudgetRow stage={stage} />}
           {stage.notes && (
             <div className="px-5 py-3 text-xs text-gray-500 whitespace-pre-wrap bg-amber-50/40">
               {stage.notes}
