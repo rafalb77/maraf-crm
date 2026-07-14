@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import { SubcontractorActions } from '@/components/przeroby/SubcontractorActions'
+import { VendorBridge } from '@/components/budowa/VendorBridge'
 
 export default async function PodwykonawcaPage({
   params,
@@ -20,6 +21,13 @@ export default async function PodwykonawcaPage({
     },
   })
   if (!sub) notFound()
+
+  // Kontrahenci do mostka (Etap 3): aktywni + bieżący gdyby był nieaktywny
+  const bridgeVendors = await prisma.vendor.findMany({
+    where: { isActive: true },
+    select: { id: true, name: true, nip: true },
+    orderBy: { name: 'asc' },
+  })
 
   function fmtDate(d: Date) {
     return d.toLocaleDateString('pl-PL', { day: '2-digit', month: '2-digit', year: '2-digit' })
@@ -57,6 +65,15 @@ export default async function PodwykonawcaPage({
             contractCount={sub.contracts.length}
           />
         </div>
+      </div>
+
+      <div className="mb-5">
+        <VendorBridge
+          subcontractorId={sub.id}
+          subNip={sub.nip}
+          vendorId={sub.vendorId}
+          vendors={bridgeVendors}
+        />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">

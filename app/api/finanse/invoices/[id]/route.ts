@@ -25,7 +25,16 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   // Pola-klasyfikacje (kategoria kosztowa, notatka) sa edytowalne ZAWSZE —
   // to tagi zarzadcze, nie dane finansowe wymagajace ponownej akceptacji.
   // Bramka statusu (poza adminem) dotyczy tylko pol finansowych/tozsamosci FV.
-  const CLASSIFICATION_FIELDS = new Set(['category', 'notes'])
+  const CLASSIFICATION_FIELDS = new Set([
+    'category',
+    'notes',
+    // Tagi modułu Budowa (Etap 3) — klasyfikacja zarządcza, nie dane finansowe;
+    // edytowalne zawsze (także na FV zatwierdzonej/opłaconej — tagowanie nie zmienia kwot).
+    'investmentId',
+    'constructionStageId',
+    'constructionTaskId',
+    'protocolId',
+  ])
   const touchesGuarded = Object.keys(body).some((k) => !CLASSIFICATION_FIELDS.has(k))
   if (!adminUser && touchesGuarded && !editableStatuses.includes(inv.status)) {
     return NextResponse.json({
@@ -61,6 +70,48 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   if (body.buildingCosts !== undefined) data.buildingCosts = isFinite(Number(body.buildingCosts)) ? Number(body.buildingCosts) : null
   if (body.electricity !== undefined) data.electricity = isFinite(Number(body.electricity)) ? Number(body.electricity) : null
   if (body.notes !== undefined) data.notes = body.notes ? String(body.notes).trim() : null
+
+  // Tagi modułu Budowa (Etap 3). Walidujemy istnienie + spójność (etap/zadanie należą
+  // do wskazanej inwestycji). Wyczyszczenie inwestycji zeruje etap/zadanie/protokół.
+  if (body.investmentId !== undefined) {
+    if (!body.investmentId) {
+      data.investmentId = null
+      data.constructionStageId = null
+      data.constructionTaskId = null
+    } else {
+      const exists = await prisma.investment.findUnique({ where: { id: body.investmentId }, select: { id: true } })
+      if (!exists) return NextResponse.json({ error: 'Nieznana inwestycja' }, { status: 400 })
+      data.investmentId = body.investmentId
+    }
+  }
+  const effInvestmentId = data.investmentId !== undefined ? data.investmentId : inv.investmentId
+  if (body.constructionStageId !== undefined) {
+    if (!body.constructionStageId) {
+      data.constructionStageId = null
+    } else {
+      const stage = await prisma.constructionStage.findFirst({
+        where: { id: body.constructionStageId, investmentId: effInvestmentId || undefined },
+        select: { id: true },
+      })
+      if (!stage) return NextResponse.json({ error: 'Etap nie należy do wskazanej inwestycji' }, { status: 400 })
+      data.constructionStageId = stage.id
+    }
+  }
+  if (body.constructionTaskId !== undefined) {
+    if (!body.constructionTaskId) {
+      data.constructionTaskId = null
+    } else {
+      const task = await prisma.constructionTask.findFirst({
+        where: { id: body.constructionTaskId, investmentId: effInvestmentId || undefined },
+        select: { id: true },
+      })
+      if (!task) return NextResponse.json({ error: 'Zadanie nie należy do wskazanej inwestycji' }, { status: 400 })
+      data.constructionTaskId = task.id
+    }
+  }
+  if (body.protocolId !== undefined) {
+    data.protocolId = body.protocolId ? String(body.protocolId) : null
+  }
 
   // Audit log: zmiana wartosci na fakturze zatwierdzonej tworzy approval typu EDITED
   // — informacja dla approvera ze faktura zostala zmieniona po jego decyzji.

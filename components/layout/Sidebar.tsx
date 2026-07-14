@@ -174,6 +174,8 @@ const WORKSPACES: Workspace[] = [
           { href: '/budowa', label: 'Pulpit budowy', icon: ICONS.dashboard },
           { href: '/budowa/harmonogram', label: 'Harmonogram', icon: ICONS.calendar },
           { href: '/budowa/dziennik', label: 'Dziennik budowy', icon: ICONS.cases },
+          { href: '/budowa/wykonawcy', label: 'Wykonawcy', icon: ICONS.contractors },
+          { href: '/budowa/koszty', label: 'Koszty budowy', icon: ICONS.wsFin },
           { href: '/budowa/przeglad', label: 'Widok prezesa', icon: ICONS.clients },
         ],
       },

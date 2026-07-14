@@ -46,6 +46,24 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
   if ('active' in body) data.active = !!body.active
 
+  // Most do Finansów (Etap 3): powiązanie z kontrahentem kosztowym (Vendor).
+  // @unique na vendorId → jeden Vendor tylko dla jednego wykonawcy.
+  if ('vendorId' in body) {
+    if (!body.vendorId) {
+      data.vendorId = null
+    } else {
+      const vendor = await prisma.vendor.findUnique({
+        where: { id: String(body.vendorId) },
+        select: { id: true, subcontractor: { select: { id: true } } },
+      })
+      if (!vendor) return NextResponse.json({ error: 'Nieznany kontrahent' }, { status: 400 })
+      if (vendor.subcontractor && vendor.subcontractor.id !== id) {
+        return NextResponse.json({ error: 'Ten kontrahent jest już powiązany z innym wykonawcą' }, { status: 409 })
+      }
+      data.vendorId = vendor.id
+    }
+  }
+
   const updated = await prisma.subcontractor.update({ where: { id }, data })
   return NextResponse.json(updated)
 }

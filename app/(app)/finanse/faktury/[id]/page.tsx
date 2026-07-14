@@ -25,6 +25,7 @@ import { AddPaymentForm } from '@/components/finanse/AddPaymentForm'
 import { DeletePaymentButton } from '@/components/finanse/DeletePaymentButton'
 import { DepositForm } from '@/components/finanse/DepositForm'
 import { CategoryPicker } from '@/components/finanse/CategoryPicker'
+import { InvoiceBudowaTag } from '@/components/finanse/InvoiceBudowaTag'
 import { EditInvoiceForm } from '@/components/finanse/EditInvoiceForm'
 
 export default async function InvoiceDetailsPage({ params }: { params: { id: string } }) {
@@ -44,13 +45,27 @@ export default async function InvoiceDetailsPage({ params }: { params: { id: str
 
   // Lista kontrahentów do formularza edycji (zmiana vendora przy błędach importu).
   // Dokładamy bieżącego vendora gdyby był nieaktywny — by select pokazał aktualny wybór.
-  const [activeVendors, vendorTerms] = await Promise.all([
+  const [activeVendors, vendorTerms, budowaInvestments, budowaStages, budowaTasks] = await Promise.all([
     prisma.vendor.findMany({
       where: { isActive: true },
       select: { id: true, name: true },
       orderBy: { name: 'asc' },
     }),
     getEffectiveTerms(inv.vendorId),
+    prisma.investment.findMany({
+      where: { active: true },
+      select: { id: true, name: true },
+      orderBy: { createdAt: 'asc' },
+    }),
+    prisma.constructionStage.findMany({
+      select: { id: true, investmentId: true, name: true },
+      orderBy: { order: 'asc' },
+    }),
+    prisma.constructionTask.findMany({
+      where: { isMilestone: false },
+      select: { id: true, investmentId: true, stageId: true, number: true, name: true },
+      orderBy: { orderIndex: 'asc' },
+    }),
   ])
   const vendors = activeVendors.some((v) => v.id === inv.vendorId)
     ? activeVendors
@@ -118,9 +133,20 @@ export default async function InvoiceDetailsPage({ params }: { params: { id: str
         isAdmin={userIsAdmin}
       />
 
-      {/* Kategoria kosztowa + edycja faktury */}
+      {/* Kategoria kosztowa + przypisanie do budowy + edycja faktury */}
       <div className="mt-6 space-y-4">
         <CategoryPicker invoiceId={inv.id} category={inv.category} />
+        {budowaInvestments.length > 0 && (
+          <InvoiceBudowaTag
+            invoiceId={inv.id}
+            investmentId={inv.investmentId}
+            stageId={inv.constructionStageId}
+            taskId={inv.constructionTaskId}
+            investments={budowaInvestments}
+            stages={budowaStages}
+            tasks={budowaTasks}
+          />
+        )}
         <EditInvoiceForm
           invoiceId={inv.id}
           vendorId={inv.vendorId}

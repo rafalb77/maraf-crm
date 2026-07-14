@@ -723,6 +723,12 @@ model Subcontractor {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  // Most do Finansów (Etap 3): powiązanie z kontrahentem kosztowym. Dzięki niemu karta
+  // wykonawcy pokazuje jego faktury i alert "nieopłacona FV". Dopasowanie ręczne w UI
+  // (podpowiedź po NIP). @unique — jeden Vendor ↔ jeden Subcontractor.
+  vendorId  String?  @unique
+  vendor    Vendor?  @relation(fields: [vendorId], references: [id], onDelete: SetNull)
+
   contracts SubContract[]
   protocols Protocol[]
   constructionTasks ConstructionTask[] // moduł Budowa (Etap 2)
@@ -946,6 +952,7 @@ model Protocol {
   subcontractor Subcontractor  @relation(fields: [subcontractorId], references: [id], onDelete: Cascade)
   contract      SubContract    @relation(fields: [contractId], references: [id], onDelete: Cascade)
   items         ProtocolItem[]
+  invoices      PurchaseInvoice[] // Etap 3: opcjonalny link FV↔protokół (most z Finansów)
 }
 
 // Pozycja w protokole — odnosi się do pozycji umownej (ContractWorkItem).
@@ -1027,6 +1034,7 @@ model Vendor {
 
   invoices PurchaseInvoice[]
   terms    VendorTerms[]
+  subcontractor Subcontractor? // most do modułu Budowa (Etap 3)
 }
 
 // Warunki umowne kontrahenta (z umowy podwykonawczej): kaucja gwarancyjna
@@ -1102,8 +1110,13 @@ model PurchaseInvoice {
   buildingCosts     Float?
   buildingCostsPct  Float? // % kosztów budowy (analogicznie do depositPct)
   electricity       Float?
-  // Pola powiązań przyszłościowych (Faza 2)
-  investmentId      String? // przyszłość: powiązanie z inwestycją
+  // Most do modułu Budowa (Etap 3) — tagowanie kosztu do inwestycji/etapu/zadania.
+  // FV NIE jest dublowana; te FK to tylko klasyfikacja (Marta przypisuje w szczegółach FV
+  // albo hurtowo w /budowa/koszty). protocolId = opcjonalny link FV↔protokół przerobowy.
+  investmentId        String?
+  constructionStageId String?
+  constructionTaskId  String?
+  protocolId          String?
   saldeoId          String? // ID faktury w Saldeo (po integracji w Fazie 2)
   // Cross-company: gdy ten koszt powstał z faktury przychodowej innej firmy grupy
   // (np. Maraf wystawił FV dla MD → tu koszt w MD). ID źródłowej SalesInvoice.
@@ -1128,6 +1141,10 @@ model PurchaseInvoice {
   payments    PurchaseInvoicePayment[]
   approvals   PurchaseInvoiceApproval[]
   attachments PurchaseInvoiceAttachment[]
+  investment        Investment?        @relation(fields: [investmentId], references: [id], onDelete: SetNull)
+  constructionStage ConstructionStage? @relation(fields: [constructionStageId], references: [id], onDelete: SetNull)
+  constructionTask  ConstructionTask?  @relation(fields: [constructionTaskId], references: [id], onDelete: SetNull)
+  protocol          Protocol?          @relation(fields: [protocolId], references: [id], onDelete: SetNull)
 
   @@unique([vendorId, number])
   @@index([status, dueDate])
@@ -1136,6 +1153,8 @@ model PurchaseInvoice {
   @@index([company, status])
   @@index([depositReturnDate])
   @@index([category])
+  @@index([investmentId])
+  @@index([constructionStageId])
 }
 
 // Bookkeeping płatności — 1 faktura = N płatności (wspiera częściowe).
@@ -1500,6 +1519,7 @@ model Investment {
   stages   ConstructionStage[]
   tasks    ConstructionTask[]
   reminderTasks Task[]
+  invoices PurchaseInvoice[] // Etap 3: koszty przypisane do inwestycji (most z Finansów)
 }
 
 // Etap budowy (Etap 2) — grupa zadań na Gancie (zwijalna). Daty planowane opcjonalne —
@@ -1521,6 +1541,7 @@ model ConstructionStage {
 
   investment Investment         @relation(fields: [investmentId], references: [id], onDelete: Cascade)
   tasks      ConstructionTask[]
+  invoices   PurchaseInvoice[] // Etap 3: koszty przypisane do etapu (mianownik alertu budżetu)
 
   @@unique([investmentId, name])
 }
@@ -1565,6 +1586,7 @@ model ConstructionTask {
   successors    TaskDependency[]   @relation("DepPredecessor")
   reminderTasks Task[]
   reportUpdates SiteReportTaskUpdate[]
+  invoices      PurchaseInvoice[] // Etap 3: koszty przypisane do konkretnego zadania (opcjonalne)
 
   @@index([investmentId, status])
   @@index([stageId])
