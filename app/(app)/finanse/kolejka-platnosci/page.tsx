@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
 import { fmtDate, fmtMoney, isOverdue } from '@/lib/finanse-format'
 import { getActiveCompany } from '@/lib/finanse-company'
+import { COMPANY_LABELS } from '@/lib/types'
 
 const RANGE_DAYS = 30
 
@@ -44,6 +45,42 @@ export default async function KolejkaPlatnosciPage() {
   const totalRemaining = sortedGroups.reduce((s, g) => s + g.sum, 0)
   const overdueCount = invoices.filter((i) => isOverdue(i.dueDate, i.status)).length
 
+  // Gdy kolejka pusta — wyjasnij, GDZIE sa niezaplacone faktury tej firmy:
+  //  - niezatwierdzone (WPROWADZONA/DO_ZATWIERDZENIA/ODRZUCONA) nie trafiaja
+  //    do kolejki, dopoki nie zostana zatwierdzone,
+  //  - zatwierdzone z terminem dalej niz 30 dni sa poza horyzontem.
+  const emptyHints: { label: string; count: number; sum: number; href: string }[] = []
+  if (sortedGroups.length === 0) {
+    const [unapproved, approvedLater] = await Promise.all([
+      prisma.purchaseInvoice.aggregate({
+        where: { company, status: { in: ['WPROWADZONA', 'DO_ZATWIERDZENIA', 'ODRZUCONA'] } },
+        _count: true,
+        _sum: { amountGross: true },
+      }),
+      prisma.purchaseInvoice.aggregate({
+        where: { company, status: { in: ['ZATWIERDZONA', 'CZESCIOWO_OPLACONA', 'ZAPLANOWANA'] }, dueDate: { gt: horizon } },
+        _count: true,
+        _sum: { amountGross: true },
+      }),
+    ])
+    if (unapproved._count > 0) {
+      emptyHints.push({
+        label: `${unapproved._count} niezatwierdzonych (wymagają zatwierdzenia, by trafić do kolejki)`,
+        count: unapproved._count,
+        sum: unapproved._sum.amountGross || 0,
+        href: '/finanse/faktury?status=WPROWADZONA',
+      })
+    }
+    if (approvedLater._count > 0) {
+      emptyHints.push({
+        label: `${approvedLater._count} zatwierdzonych z terminem dalej niż ${RANGE_DAYS} dni`,
+        count: approvedLater._count,
+        sum: approvedLater._sum.amountGross || 0,
+        href: '/finanse/faktury?status=ZATWIERDZONA',
+      })
+    }
+  }
+
   return (
     <div className="p-8 max-w-6xl">
       <div className="mb-6">
@@ -55,8 +92,31 @@ export default async function KolejkaPlatnosciPage() {
       </div>
 
       {sortedGroups.length === 0 && (
-        <div className="bg-white rounded-xl border border-gray-200 p-12 text-center text-gray-400">
-          Brak faktur do zapłaty w najbliższych {RANGE_DAYS} dniach.
+        <div className="bg-white rounded-xl border border-gray-200 p-8">
+          <p className="text-gray-500 text-center">
+            Brak <strong>zatwierdzonych</strong> faktur do zapłaty w najbliższych {RANGE_DAYS} dniach
+            {' '}dla firmy <strong>{COMPANY_LABELS[company]}</strong>.
+          </p>
+          {emptyHints.length > 0 ? (
+            <div className="mt-5 pt-5 border-t border-gray-100 max-w-lg mx-auto space-y-2">
+              <p className="text-sm text-gray-600">Niezapłacone faktury tej firmy są tutaj:</p>
+              {emptyHints.map((h) => (
+                <Link
+                  key={h.href}
+                  href={h.href}
+                  className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg border border-gray-200 hover:bg-gray-50 text-sm"
+                >
+                  <span className="text-gray-700">{h.label}</span>
+                  <span className="tabular-nums font-medium text-gray-900 whitespace-nowrap">{fmtMoney(h.sum)} →</span>
+                </Link>
+              ))}
+              <p className="text-xs text-gray-400 pt-1">
+                Do kolejki płatności trafiają tylko faktury <strong>zatwierdzone</strong> (workflow: Wprowadzona → Do zatwierdzenia → Zatwierdzona → płatność).
+              </p>
+            </div>
+          ) : (
+            <p className="text-sm text-gray-400 text-center mt-2">Brak niezapłaconych faktur w tej firmie.</p>
+          )}
         </div>
       )}
 
