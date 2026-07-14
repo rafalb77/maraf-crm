@@ -16,31 +16,22 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   const inv = await prisma.purchaseInvoice.findUnique({ where: { id: params.id } })
   if (!inv) return NextResponse.json({ error: 'Faktura nie istnieje' }, { status: 404 })
 
-  const editableStatuses = ['WPROWADZONA', 'DO_ZATWIERDZENIA', 'ODRZUCONA']
-  const adminUser = isAdmin(session.user.email)
-
   let body: any
   try { body = await req.json() } catch { return NextResponse.json({ error: 'Nieprawidłowy JSON' }, { status: 400 }) }
 
-  // Pola-klasyfikacje (kategoria kosztowa, notatka) sa edytowalne ZAWSZE —
-  // to tagi zarzadcze, nie dane finansowe wymagajace ponownej akceptacji.
-  // Bramka statusu (poza adminem) dotyczy tylko pol finansowych/tozsamosci FV.
+  // Kazdy uzytkownik z dostepem do modulu Finanse moze edytowac fakture — Marta
+  // jest operatorem FV i poprawia m.in. bledy importu z Excela (takze na
+  // fakturach juz zatwierdzonych/oplaconych). Zmiana DANYCH FINANSOWYCH faktury
+  // "zablokowanej" (zatwierdzona/oplacona) jest logowana (EDITED) dla sladu
+  // audytowego; klasyfikacje (kategoria/notatka/tagi Budowy) nie sa logowane.
   const CLASSIFICATION_FIELDS = new Set([
     'category',
     'notes',
-    // Tagi modułu Budowa (Etap 3) — klasyfikacja zarządcza, nie dane finansowe;
-    // edytowalne zawsze (także na FV zatwierdzonej/opłaconej — tagowanie nie zmienia kwot).
     'investmentId',
     'constructionStageId',
     'constructionTaskId',
     'protocolId',
   ])
-  const touchesGuarded = Object.keys(body).some((k) => !CLASSIFICATION_FIELDS.has(k))
-  if (!adminUser && touchesGuarded && !editableStatuses.includes(inv.status)) {
-    return NextResponse.json({
-      error: `Faktura w statusie ${inv.status} nie moze byc edytowana. Cofnij do edycji przez akcje "Resetuj".`,
-    }, { status: 400 })
-  }
 
   const data: any = {}
   if (body.number !== undefined) data.number = String(body.number).trim()
@@ -133,14 +124,18 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     throw e
   }
 
-  if (inv.status === 'ZATWIERDZONA') {
+  // Slad audytowy: zmiana danych finansowych faktury w statusie zablokowanym
+  // (zatwierdzona / zaplanowana / oplacona / czesciowo oplacona) — kto i kiedy.
+  const LOCKED_STATUSES = new Set(['ZATWIERDZONA', 'ZAPLANOWANA', 'OPLACONA', 'CZESCIOWO_OPLACONA'])
+  const financialChanged = Object.keys(data).some((k) => !CLASSIFICATION_FIELDS.has(k))
+  if (financialChanged && LOCKED_STATUSES.has(inv.status)) {
     await prisma.purchaseInvoiceApproval.create({
       data: {
         invoiceId: params.id,
         action: 'EDITED',
         userId: session.user.id || null,
         userEmail: session.user.email || null,
-        comment: 'Edycja faktury po zatwierdzeniu (admin override)',
+        comment: `Edycja danych faktury w statusie ${inv.status}`,
       },
     })
   }
