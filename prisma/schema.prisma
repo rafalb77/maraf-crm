@@ -50,6 +50,9 @@ model User {
 
   // CRM — opiekun klienta
   ownedClients               Client[]                    @relation("ClientOwner")
+
+  // Moduł Rozliczenia powiernicze — importer wyciągów ING
+  importedBankStatements     BankStatement[]             @relation("BankStatementImporter")
 }
 
 // status: ZAPYTANIE | OFERTA | REZERWACJA | UMOWA | ODBIOR
@@ -513,6 +516,14 @@ model Contract {
   valueNet        Float?
   valueGross      Float?
   notes           String?
+  // Rozliczenia powiernicze — indywidualny numer rachunku nabywcy w OMRP (ING nadaje
+  // każdemu nabywcy własny subrachunek powierniczy). Wypełniony → dopasowanie wpłat z
+  // wyciągu jest pewne (po numerze docelowego rachunku). Patrz lib/bank-reconcile.ts.
+  escrowSubaccount String?
+  // Rodzaj odsetek za opóźnienie stosowany do rat tej umowy.
+  // USTAWOWE_ZA_OPOZNIENIE (domyślne, art. 481 KC) | UMOWNE (własna stawka) | USTAWOWE_KAPITALOWE
+  interestType    String    @default("USTAWOWE_ZA_OPOZNIENIE")
+  interestCustomRate Float? // roczna stawka % gdy interestType=UMOWNE
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
@@ -524,6 +535,8 @@ model Contract {
   payments        ContractPayment[]
   stages          ContractStage[]
   tasks           Task[]
+  bankTransactions BankTransaction[]
+  paymentInterests PaymentInterest[]
 }
 
 // Etapy dealu. Jeden Contract = jeden deal; `Contract.type` = BIEŻĄCY etap.
@@ -576,6 +589,10 @@ model ContractPayment {
 
   escrowDeposit EscrowDeposit? // back-relation (1:1, link tworzony przy odhaczeniu)
   tasks         Task[]
+  // Rozliczenia powiernicze: wpłaty z wyciągu dopasowane do tej raty (zwykle 1, ale
+  // niedopłata rozłożona na kilka przelewów → wiele) + naliczone odsetki za opóźnienie.
+  bankTransactions BankTransaction[]
+  interest      PaymentInterest?
 
   @@index([contractId])
   @@index([status])
@@ -1441,6 +1458,7 @@ model EscrowAccount {
 
   deposits EscrowDeposit[]
   releases EscrowRelease[]
+  statements BankStatement[]
 
   @@index([company])
 }
@@ -1462,7 +1480,12 @@ model EscrowDeposit {
   // (lub cofnięcie odhaczenia) kasuje powiązany deposit. source = z modułu Sprzedaż.
   contractPaymentId String?          @unique
   contractPayment   ContractPayment? @relation(fields: [contractPaymentId], references: [id], onDelete: Cascade)
-  source         String   @default("MANUAL") // MANUAL | SALES (auto z harmonogramu)
+  // Rozliczenia powiernicze: twardy link do pozycji wyciągu bankowego, z której
+  // powstał deposit (source=BANK). onDelete SetNull → skasowanie transakcji nie
+  // kasuje depositu (historia pozostaje), ale zrywa link.
+  bankTransactionId String?          @unique
+  bankTransaction   BankTransaction? @relation(fields: [bankTransactionId], references: [id], onDelete: SetNull)
+  source         String   @default("MANUAL") // MANUAL | SALES (auto z harmonogramu) | BANK (z wyciągu ING)
   note           String?
   createdAt      DateTime @default(now())
 
@@ -1726,4 +1749,106 @@ model ConstructionRisk {
   task       ConstructionTask? @relation(fields: [taskId], references: [id], onDelete: SetNull)
 
   @@index([investmentId, status])
+}
+
+// =====================================================================
+// MODUŁ: ROZLICZENIA WPŁAT Z RACHUNKÓW POWIERNICZYCH (ING Bank Śląski)
+// patrz docs/rozliczenia-powiernicze-rozpoczecie.md
+// Kontrola wpłat nabywców z harmonogramu umowy deweloperskiej (ContractPayment)
+// przeciwko realnym wpływom z wyciągu bankowego. Import MT940 / CSV / camt.053.
+// =====================================================================
+
+// Zaimportowany wyciąg / plik z bankowości elektronicznej ING Banku Śląskiego.
+// Idempotencja po fileHash (sha256) — ten sam plik nie zaimportuje się dwa razy.
+// format: MT940 | CSV | CAMT053
+model BankStatement {
+  id              String    @id @default(cuid())
+  company         String    @default("MARAF_DEVELOPMENT")
+  escrowAccountId String?
+  escrowAccount   EscrowAccount? @relation(fields: [escrowAccountId], references: [id], onDelete: SetNull)
+  format          String
+  fileName        String
+  fileHash        String    @unique
+  accountNumber   String?   // IBAN wyciągu (znormalizowany, bez spacji)
+  statementNumber String?
+  periodFrom      DateTime?
+  periodTo        DateTime?
+  openingBalance  Float?
+  closingBalance  Float?
+  currency        String    @default("PLN")
+  txCount         Int       @default(0)
+  matchedCount    Int       @default(0) // ile pozycji dopasowano przy imporcie (auto)
+  importedById    String?
+  importedBy      User?     @relation("BankStatementImporter", fields: [importedById], references: [id], onDelete: SetNull)
+  createdAt       DateTime  @default(now())
+
+  transactions    BankTransaction[]
+
+  @@index([company])
+  @@index([escrowAccountId])
+  @@index([periodTo])
+}
+
+// Pojedyncze księgowanie z wyciągu. side CREDIT = wpływ (wpłata nabywcy),
+// DEBIT = obciążenie (np. uwolnienie/opłata). amount zawsze dodatnia; kierunek w side.
+// matchStatus: UNMATCHED | SUGGESTED | MATCHED | IGNORED
+// Dopasowanie do raty (contractPaymentId=MATCHED) tworzy EscrowDeposit + ewentualne odsetki.
+model BankTransaction {
+  id                String    @id @default(cuid())
+  statementId       String
+  statement         BankStatement @relation(fields: [statementId], references: [id], onDelete: Cascade)
+  bookingDate       DateTime
+  valueDate         DateTime?
+  side              String    // CREDIT | DEBIT
+  amount            Float
+  currency          String    @default("PLN")
+  counterpartyName  String?
+  counterpartyIban  String?
+  title             String?
+  bankRef           String?
+  balanceAfter      Float?
+  dedupeKey         String    // hash pozycji w obrębie wyciągu (idempotencja re-importu)
+  matchStatus       String    @default("UNMATCHED")
+  matchScore        Float?
+  matchReason       String?
+  contractPaymentId String?
+  contractPayment   ContractPayment? @relation(fields: [contractPaymentId], references: [id], onDelete: SetNull)
+  contractId        String?
+  contract          Contract? @relation(fields: [contractId], references: [id], onDelete: SetNull)
+  escrowDeposit     EscrowDeposit?   // 1:1 back-relation (deposit.source=BANK)
+  createdAt         DateTime  @default(now())
+
+  @@unique([statementId, dedupeKey])
+  @@index([statementId])
+  @@index([matchStatus])
+  @@index([contractPaymentId])
+  @@index([contractId])
+}
+
+// Rejestr odsetek za opóźnienie w płatności raty nabywcy. Powstaje gdy dopasowana
+// wpłata wpłynęła po terminie (paidDate > dueDate). Liczone metodą OKRESOWĄ (stawka
+// zmienna w czasie wg decyzji RPP) — breakdown trzyma rozbicie na okresy. lib/interest.ts.
+// type: USTAWOWE_ZA_OPOZNIENIE | UMOWNE | USTAWOWE_KAPITALOWE
+// status: NALICZONE | UMORZONE | ZAPLACONE
+model PaymentInterest {
+  id                String    @id @default(cuid())
+  contractPaymentId String    @unique
+  contractPayment   ContractPayment @relation(fields: [contractPaymentId], references: [id], onDelete: Cascade)
+  contractId        String
+  contract          Contract  @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  principal         Float     // kwota od której liczono odsetki
+  dueDate           DateTime
+  paidDate          DateTime
+  daysLate          Int
+  type              String    @default("USTAWOWE_ZA_OPOZNIENIE")
+  ratePctSnapshot   Float?    // dominująca stawka (info); dokładne liczenie w breakdown
+  amount            Float
+  breakdown         Json?     // [{from,to,days,ratePct,amount}]
+  status            String    @default("NALICZONE")
+  note              String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([contractId])
+  @@index([status])
 }

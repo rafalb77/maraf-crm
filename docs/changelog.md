@@ -4,6 +4,19 @@ Krótkie wpisy „co i **dlaczego**". Bez listy wszystkich commitów — od tego
 
 ---
 
+## 2026-07-14
+
+### Moduł Rozliczenia powiernicze (`/finanse/powiernicze`) — kontrola wpłat z wyciągu ING wobec harmonogramu
+**Powód**: deweloper (MD) musi kontrolować, czy nabywcy wpłacają raty z harmonogramu umowy deweloperskiej na rachunek powierniczy zgodnie z terminami — ręczne porównywanie wyciągu ING z harmonogramem jest żmudne i podatne na błędy. Fundament (`EscrowAccount/Deposit`, `ContractPayment`) istniał z etapu 2 Finansowania; brakowało importu wyciągu, dopasowania, odsetek i alertów.
+**Implementacja**:
+- **Import wyciągu ING** — 3 formaty (MT940 / CSV / camt.053), auto-detekcja, `lib/bank-import/`. **Specyfika ING zweryfikowana z oficjalnych dokumentów banku** (nie zgadywana): MT940 używa kodu `S`+3 cyfry (nie SWIFT `N`), dwóch linii `:86:` na transakcję, podpól tyldowych (`~32`=nazwa, `~38`=IBAN), technicznej pozycji `S940` 0,00 do pominięcia; CSV Moje ING (CP1250, `;`, przecinek dziesiętny, kolumny mapowane po nazwach nagłówków — odporne na warianty); camt.053 v02+v08. Idempotencja po sha256 pliku + `dedupeKey` pozycji.
+- **Auto-dopasowanie** (`lib/bank-reconcile.ts`) — scoring: subrachunek OMRP (decydujący) → nr umowy w tytule → nazwisko → kwota → nr lokalu. `MATCHED`/`SUGGESTED`/`UNMATCHED`. **Nigdy auto-MATCHED przy niejednoznaczności** (dwóch bliskich kandydatów) ani przy samej kwocie. Człowiek zatwierdza księgowanie (można hurtowo).
+- **Odsetki za opóźnienie METODĄ OKRESOWĄ** (`lib/interest.ts`) — stawka ustawowa zmienia się z decyzjami RPP (art. 481 KC = stopa ref. NBP + 5,5 p.p.), więc opóźnienie przez kilka okresów rozbijane na segmenty (`breakdown`). Tabela stawek 2020–2026 zweryfikowana researchem z kontrolą krzyżową (stan aktualny 9,25% od 2026-03-05). **AKTUALIZOWAĆ tabelę przy zmianach stopy NBP.**
+- **Rejestr wpłat + rejestr odsetek + alerty** (zaległe raty z narosłymi odsetkami, niedopasowane wpływy, niedopłaty, sugestie, nadchodzące terminy).
+- **Zakres świadomie ograniczony**: nie ruszam współdzielonej strony `/sales/[id]` (pole `Contract.escrowSubaccount` jest w schemacie, ale UI do jego wpisania to osobny temat); dekodowanie MT940 CP852 do dostrojenia na realnym pliku.
+- **Weryfikacja**: testy jednostkowe parserów/odsetek/dopasowania + E2E na lokalnej bazie (import→reconcile→apply→deposit+odsetki→unapply). Zero błędów TS w całym projekcie.
+- **WYMAGA na produkcji `prisma db push --accept-data-loss` + rebuild** (3 nowe tabele + kolumny; flaga bezpieczna — dotyczy pustego unikalnego indeksu). Szczegóły: `docs/rozliczenia-powiernicze-decyzje.md`.
+
 ## 2026-07-12
 
 ### 🔴 Incydent + fix: dedupe klientów gubił dane kontaktowe (telefon/adres)
