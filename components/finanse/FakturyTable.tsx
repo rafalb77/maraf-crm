@@ -38,6 +38,8 @@ export type FakturaRow = {
 type Totals = { net: number; vat: number; gross: number; remaining: number; count: number; onPage: number }
 
 const PAID_STATUSES = new Set(['OPLACONA', 'ANULOWANA'])
+// Statusy, ktore mozna zbiorczo zatwierdzic (-> ZATWIERDZONA, do kolejki platnosci).
+const APPROVABLE_STATUSES = new Set(['WPROWADZONA', 'DO_ZATWIERDZENIA', 'ODRZUCONA'])
 
 // Definicja kolumn tabeli — kolejnosc = kolejnosc <td> w wierszu.
 // defaultW: startowa szerokosc px (user moze zmienic przeciagajac krawedz
@@ -74,9 +76,31 @@ export function FakturyTable({ rows, totals, currentSort, sortOptions }: Props) 
   // Szerokosci kolumn — start z defaultow (SSR = klient, bez hydration mismatch);
   // zapisane przez usera szerokosci doczytywane po mount z localStorage.
   const [widths, setWidths] = useState<Record<string, number>>(DEFAULT_WIDTHS)
+  const [approving, setApproving] = useState(false)
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
+
+  // Zbiorcze zatwierdzenie zaznaczonych faktur (-> ZATWIERDZONA => kolejka platnosci).
+  async function bulkApprove(ids: string[]) {
+    if (!ids.length || approving) return
+    setApproving(true)
+    try {
+      const r = await fetch('/api/finanse/invoices/bulk-approve', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ ids }),
+      })
+      const data = await r.json().catch(() => ({}))
+      if (!r.ok) { alert(data.error || 'Błąd zatwierdzania'); return }
+      setSelected(new Set())
+      router.refresh()
+    } catch (e: any) {
+      alert(e.message || 'Błąd sieci')
+    } finally {
+      setApproving(false)
+    }
+  }
 
   useEffect(() => {
     try {
@@ -162,6 +186,7 @@ export function FakturyTable({ rows, totals, currentSort, sortOptions }: Props) 
   const selGross = selectedRows.reduce((s, r) => s + r.amountGross, 0)
   const selVat = selectedRows.reduce((s, r) => s + r.amountVat, 0)
   const selNet = selectedRows.reduce((s, r) => s + r.amountNet, 0)
+  const approvableIds = selectedRows.filter((r) => APPROVABLE_STATUSES.has(r.status)).map((r) => r.id)
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
@@ -171,10 +196,20 @@ export function FakturyTable({ rows, totals, currentSort, sortOptions }: Props) 
           <span className="text-sm font-medium text-blue-900">
             Zaznaczono {selected.size} {selected.size === 1 ? 'fakturę' : 'faktur'}
           </span>
-          <div className="flex items-center gap-6 text-sm">
+          <div className="flex items-center gap-4 text-sm flex-wrap">
             <span className="text-blue-900">Netto: <strong className="tabular-nums">{fmtMoney(selNet)}</strong></span>
             <span className="text-blue-900">VAT: <strong className="tabular-nums">{fmtMoney(selVat)}</strong></span>
             <span className="text-blue-900 text-base">Do przelewu (brutto): <strong className="tabular-nums">{fmtMoney(selGross)}</strong></span>
+            {approvableIds.length > 0 && (
+              <button
+                onClick={() => bulkApprove(approvableIds)}
+                disabled={approving}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-50"
+                title="Zmienia status na Zatwierdzona — faktury trafią do kolejki płatności"
+              >
+                {approving ? 'Zatwierdzam…' : `✓ Zatwierdź zaznaczone (${approvableIds.length})`}
+              </button>
+            )}
             <button onClick={() => setSelected(new Set())} className="text-blue-600 hover:text-blue-800 text-xs">wyczyść</button>
           </div>
         </div>
