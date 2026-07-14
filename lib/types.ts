@@ -195,6 +195,40 @@ export const TASK_BUCKET_LABELS: Record<TaskBucket, string> = {
 // WYPROWADZANA z zaczepów zadania (GET /api/tasks), nie przechowywana w bazie:
 // BUDOWA = ruleKey BUDOWA_* / constructionTaskId / investmentId;
 // FINANSE = type PLATNOSC / paymentId (raty, kaucje); reszta = CRM.
+// Rejestr ryzyk budowy (Etap 4)
+export type ConstructionRiskKind = 'RYZYKO' | 'BLOKER'
+export type ConstructionRiskSeverity = 'NISKIE' | 'SREDNIE' | 'WYSOKIE' | 'KRYTYCZNE'
+export type ConstructionRiskStatus = 'OTWARTE' | 'MONITOROWANE' | 'ZAZEGNANE' | 'ZMATERIALIZOWANE'
+
+export const RISK_KIND_LABELS: Record<ConstructionRiskKind, string> = {
+  RYZYKO: 'Ryzyko',
+  BLOKER: 'Bloker',
+}
+export const RISK_SEVERITY_LABELS: Record<ConstructionRiskSeverity, string> = {
+  NISKIE: 'Niskie',
+  SREDNIE: 'Średnie',
+  WYSOKIE: 'Wysokie',
+  KRYTYCZNE: 'Krytyczne',
+}
+export const RISK_SEVERITY_COLORS: Record<ConstructionRiskSeverity, string> = {
+  NISKIE: 'bg-gray-100 text-gray-600',
+  SREDNIE: 'bg-yellow-100 text-yellow-800',
+  WYSOKIE: 'bg-orange-100 text-orange-700',
+  KRYTYCZNE: 'bg-red-100 text-red-700',
+}
+export const RISK_STATUS_LABELS: Record<ConstructionRiskStatus, string> = {
+  OTWARTE: 'Otwarte',
+  MONITOROWANE: 'Monitorowane',
+  ZAZEGNANE: 'Zażegnane',
+  ZMATERIALIZOWANE: 'Zmaterializowane',
+}
+export const RISK_STATUS_COLORS: Record<ConstructionRiskStatus, string> = {
+  OTWARTE: 'bg-red-100 text-red-700',
+  MONITOROWANE: 'bg-amber-100 text-amber-700',
+  ZAZEGNANE: 'bg-green-100 text-green-700',
+  ZMATERIALIZOWANE: 'bg-gray-200 text-gray-700',
+}
+
 export type TaskCategory = 'CRM' | 'BUDOWA' | 'FINANSE'
 
 export const TASK_CATEGORY_LABELS: Record<TaskCategory, string> = {

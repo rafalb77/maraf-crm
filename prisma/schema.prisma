@@ -1520,6 +1520,7 @@ model Investment {
   tasks    ConstructionTask[]
   reminderTasks Task[]
   invoices PurchaseInvoice[] // Etap 3: koszty przypisane do inwestycji (most z Finansów)
+  risks    ConstructionRisk[] // Etap 4: rejestr ryzyk/blokerów
 }
 
 // Etap budowy (Etap 2) — grupa zadań na Gancie (zwijalna). Daty planowane opcjonalne —
@@ -1587,6 +1588,7 @@ model ConstructionTask {
   reminderTasks Task[]
   reportUpdates SiteReportTaskUpdate[]
   invoices      PurchaseInvoice[] // Etap 3: koszty przypisane do konkretnego zadania (opcjonalne)
+  risks         ConstructionRisk[] // Etap 4: ryzyka powiązane z zadaniem
 
   @@index([investmentId, status])
   @@index([stageId])
@@ -1697,4 +1699,31 @@ model ConstructionComment {
   photo      SitePhoto?  @relation(fields: [photoId], references: [id], onDelete: SetNull)
 
   @@index([investmentId, createdAt])
+}
+
+// Rejestr ryzyk i blokerów (Etap 4 — decyzja Rafała nr 7 "mały rejestr ryzyk").
+// Świadomie SLIM: bez ownerEmail/dueDate/rozbudowanego workflow (krytyka anty-przerost).
+// kind: RYZYKO | BLOKER ; severity: NISKIE | SREDNIE | WYSOKIE | KRYTYCZNE
+// status: OTWARTE | MONITOROWANE | ZAZEGNANE | ZMATERIALIZOWANE
+model ConstructionRisk {
+  id           String    @id @default(cuid())
+  investmentId String
+  taskId       String?   // opcjonalne powiązanie z zadaniem harmonogramu
+  kind         String    @default("RYZYKO")
+  title        String
+  description  String?
+  severity     String    @default("SREDNIE")
+  status       String    @default("OTWARTE")
+  impactDays   Int?      // szacowany wpływ na termin (dni) — opcjonalny
+  mitigation   String?   // co robimy, żeby nie strzeliło
+  createdById  String?   // skalar bez FK (wzorzec AuditLog)
+  createdByEmail String?
+  resolvedAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  investment Investment        @relation(fields: [investmentId], references: [id], onDelete: Cascade)
+  task       ConstructionTask? @relation(fields: [taskId], references: [id], onDelete: SetNull)
+
+  @@index([investmentId, status])
 }

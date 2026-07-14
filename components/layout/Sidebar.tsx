@@ -176,6 +176,7 @@ const WORKSPACES: Workspace[] = [
           { href: '/budowa/dziennik', label: 'Dziennik budowy', icon: ICONS.cases },
           { href: '/budowa/wykonawcy', label: 'Wykonawcy', icon: ICONS.contractors },
           { href: '/budowa/koszty', label: 'Koszty budowy', icon: ICONS.wsFin },
+          { href: '/budowa/ryzyka', label: 'Ryzyka i blokery', icon: ICONS.service },
           { href: '/budowa/przeglad', label: 'Widok prezesa', icon: ICONS.clients },
         ],
       },
