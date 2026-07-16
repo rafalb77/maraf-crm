@@ -2,7 +2,16 @@
 const nextConfig = {
   output: 'standalone',
   images: {
-    domains: ['localhost'],
+    // Optymalizacja next/image WYŁĄCZONA celowo. W trybie standalone (Docker/
+    // Coolify) optymalizator wymaga natywnego `sharp` w node_modules — jego brak
+    // powodował flood błędów "'sharp' is required ... in standalone mode" i 500 na
+    // każdej stronie z logo (sidebar + /auth/signin), przez co healthcheck Coolify
+    // uznawał deploy za nieudany. Wszystkie dynamiczne obrazy (galerie lokali,
+    // rzuty, zdjęcia inwestycji) i tak już renderowały się z `unoptimized`; jedyne
+    // optymalizowane były drobne, cache'owane PNG-i logo — optymalizacja nic tam
+    // nie dawała. Globalny `unoptimized` = brak zależności od sharp, zero obciążenia
+    // CPU/RAM VPS-a, i znika deprecacja `images.domains`.
+    unoptimized: true,
   },
   experimental: {
     serverComponentsExternalPackages: ['@prisma/client', 'prisma', 'dxf-parser'],
