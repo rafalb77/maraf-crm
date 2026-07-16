@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { isAdmin } from '@/lib/auth-utils'
-import { PURCHASE_INVOICE_CATEGORIES, type PurchaseInvoiceCategory } from '@/lib/types'
+import { PURCHASE_INVOICE_CATEGORIES, PURCHASE_INVOICE_STATUS_LABELS, type PurchaseInvoiceCategory, type PurchaseInvoiceStatus } from '@/lib/types'
 
 // PATCH /api/finanse/invoices/[id]
 // Edycja faktury. Edycja faktury w statusie ZATWIERDZONA/OPLACONA wymaga
@@ -43,6 +43,14 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       data.category = body.category
     } else {
       return NextResponse.json({ error: `Nieprawidłowa kategoria: ${body.category}` }, { status: 400 })
+    }
+  }
+  // Reczna zmiana statusu (StatusPicker w szczegolach FV). Waliduj wg slownika.
+  if (body.status !== undefined && body.status) {
+    if (PURCHASE_INVOICE_STATUS_LABELS[body.status as PurchaseInvoiceStatus]) {
+      data.status = body.status
+    } else {
+      return NextResponse.json({ error: `Nieprawidłowy status: ${body.status}` }, { status: 400 })
     }
   }
   if (body.subVendor !== undefined) data.subVendor = body.subVendor ? String(body.subVendor).trim() : null
@@ -124,10 +132,23 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     throw e
   }
 
-  // Slad audytowy: zmiana danych finansowych faktury w statusie zablokowanym
+  // Slad audytowy zmiany statusu (reczna, przez StatusPicker).
+  if (data.status && data.status !== inv.status) {
+    await prisma.purchaseInvoiceApproval.create({
+      data: {
+        invoiceId: params.id,
+        action: 'EDITED',
+        userId: session.user.id || null,
+        userEmail: session.user.email || null,
+        comment: `Zmiana statusu: ${PURCHASE_INVOICE_STATUS_LABELS[inv.status as PurchaseInvoiceStatus] || inv.status} → ${PURCHASE_INVOICE_STATUS_LABELS[data.status as PurchaseInvoiceStatus] || data.status}`,
+      },
+    })
+  }
+  // Slad audytowy: zmiana DANYCH FINANSOWYCH faktury w statusie zablokowanym
   // (zatwierdzona / zaplanowana / oplacona / czesciowo oplacona) — kto i kiedy.
+  // Status ma wlasny wpis wyzej, wiec go tu pomijamy.
   const LOCKED_STATUSES = new Set(['ZATWIERDZONA', 'ZAPLANOWANA', 'OPLACONA', 'CZESCIOWO_OPLACONA'])
-  const financialChanged = Object.keys(data).some((k) => !CLASSIFICATION_FIELDS.has(k))
+  const financialChanged = Object.keys(data).some((k) => !CLASSIFICATION_FIELDS.has(k) && k !== 'status')
   if (financialChanged && LOCKED_STATUSES.has(inv.status)) {
     await prisma.purchaseInvoiceApproval.create({
       data: {

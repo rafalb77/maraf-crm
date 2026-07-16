@@ -12,6 +12,7 @@ type Props = {
 // Mapa akcji per status. Workflow uproszczony — Marta sama zatwierdza,
 // faktury wpadaja od razu jako ZATWIERDZONA. Akcje glownie do cofania pomylek.
 const ACTIONS_BY_STATUS: Record<string, ('APPROVE' | 'REJECT' | 'RESET' | 'CANCEL')[]> = {
+  POBRANA: ['APPROVE', 'REJECT', 'CANCEL'], // pobrana z KSeF — jak wprowadzona
   WPROWADZONA: ['APPROVE', 'REJECT', 'CANCEL'],
   DO_ZATWIERDZENIA: ['APPROVE', 'REJECT', 'CANCEL'], // legacy, gdy faktury miały starszy status
   ZATWIERDZONA: ['REJECT', 'RESET', 'CANCEL'],
@@ -36,8 +37,11 @@ export function InvoiceActions({ invoiceId, status, canApprove, isAdmin }: Props
   const [comment, setComment] = useState('')
   const [error, setError] = useState<string | null>(null)
 
+  // Zatwierdzanie/odrzucanie/cofanie — dla kazdego z dostepem do Finansow (Marta
+  // sama zatwierdza faktury; API /transition tez tego nie ogranicza do adminow).
+  // Tylko ANULUJ fakture zostaje akcja admina.
+  void canApprove
   const availableActions = (ACTIONS_BY_STATUS[status] || []).filter((a) => {
-    if ((a === 'APPROVE' || a === 'REJECT') && !canApprove) return false
     if (a === 'CANCEL' && !isAdmin) return false
     return true
   })

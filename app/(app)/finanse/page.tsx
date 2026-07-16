@@ -30,14 +30,14 @@ export default async function FinanseHomePage() {
     prisma.purchaseInvoice.count({
       where: {
         company,
-        status: { in: ['ZATWIERDZONA', 'WPROWADZONA', 'DO_ZATWIERDZENIA', 'CZESCIOWO_OPLACONA', 'ZAPLANOWANA'] },
+        status: { in: ['POBRANA', 'ZATWIERDZONA', 'WPROWADZONA', 'DO_ZATWIERDZENIA', 'CZESCIOWO_OPLACONA', 'ZAPLANOWANA'] },
         dueDate: { lt: today },
       },
     }),
     prisma.purchaseInvoice.aggregate({
       where: {
         company,
-        status: { in: ['ZATWIERDZONA', 'WPROWADZONA', 'DO_ZATWIERDZENIA', 'CZESCIOWO_OPLACONA', 'ZAPLANOWANA'] },
+        status: { in: ['POBRANA', 'ZATWIERDZONA', 'WPROWADZONA', 'DO_ZATWIERDZENIA', 'CZESCIOWO_OPLACONA', 'ZAPLANOWANA'] },
         dueDate: { lt: today },
       },
       _sum: { amountGross: true },

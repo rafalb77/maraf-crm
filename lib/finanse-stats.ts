@@ -64,7 +64,7 @@ export async function getPulseData(company: Company): Promise<PulseData> {
       _sum: { amountGross: true },
     }),
     prisma.purchaseInvoice.aggregate({
-      where: { company, status: { in: ['ZATWIERDZONA', 'CZESCIOWO_OPLACONA', 'ZAPLANOWANA', 'WPROWADZONA'] } },
+      where: { company, status: { in: ['POBRANA', 'ZATWIERDZONA', 'CZESCIOWO_OPLACONA', 'ZAPLANOWANA', 'WPROWADZONA'] } },
       _sum: { amountGross: true },
     }),
   ])
@@ -195,7 +195,7 @@ export async function getAgingBuckets(company: Company): Promise<AgingBuckets> {
       select: { amountGross: true, deposit: true, buildingCosts: true, dueDate: true, payments: { select: { amount: true } } },
     }),
     prisma.purchaseInvoice.findMany({
-      where: { company, status: { in: ['ZATWIERDZONA', 'CZESCIOWO_OPLACONA', 'ZAPLANOWANA', 'WPROWADZONA'] } },
+      where: { company, status: { in: ['POBRANA', 'ZATWIERDZONA', 'CZESCIOWO_OPLACONA', 'ZAPLANOWANA', 'WPROWADZONA'] } },
       select: { amountGross: true, deposit: true, buildingCosts: true, electricity: true, dueDate: true, payments: { select: { amount: true } } },
     }),
   ])
@@ -230,7 +230,7 @@ export async function getAgingBuckets(company: Company): Promise<AgingBuckets> {
 
 export type TopVendorRow = { id: string; name: string; total: number; unpaid: number; count: number }
 
-const UNPAID_STATUSES = new Set(['ZATWIERDZONA', 'CZESCIOWO_OPLACONA', 'ZAPLANOWANA', 'WPROWADZONA', 'DO_ZATWIERDZENIA'])
+const UNPAID_STATUSES = new Set(['POBRANA', 'ZATWIERDZONA', 'CZESCIOWO_OPLACONA', 'ZAPLANOWANA', 'WPROWADZONA', 'DO_ZATWIERDZENIA'])
 
 // Grupowanie po FAKTYCZNYM wykonawcy: subVendor || vendor.name.
 // Import z Excela trzymal parasole (STAFFA) jako vendora, a wykonawce
@@ -435,7 +435,7 @@ export type PipelineData = {
 
 export async function getInvoicePipeline(company: Company): Promise<PipelineData> {
   const invoices = await prisma.purchaseInvoice.findMany({
-    where: { company, status: { in: ['WPROWADZONA', 'DO_ZATWIERDZENIA'] } },
+    where: { company, status: { in: ['POBRANA', 'WPROWADZONA', 'DO_ZATWIERDZENIA'] } },
     select: { amountGross: true, createdAt: true, dueDate: true, status: true },
   })
   const today = new Date(); today.setHours(0, 0, 0, 0)

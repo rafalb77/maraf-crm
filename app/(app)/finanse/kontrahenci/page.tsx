@@ -50,7 +50,7 @@ export default async function KontrahenciPage({ searchParams }: { searchParams: 
       select: { subVendor: true, vendorId: true, status: true, amountGross: true, payments: { select: { amount: true } } },
     }),
   ])
-  const UNPAID = new Set(['ZATWIERDZONA', 'CZESCIOWO_OPLACONA', 'ZAPLANOWANA', 'WPROWADZONA', 'DO_ZATWIERDZENIA'])
+  const UNPAID = new Set(['POBRANA', 'ZATWIERDZONA', 'CZESCIOWO_OPLACONA', 'ZAPLANOWANA', 'WPROWADZONA', 'DO_ZATWIERDZENIA'])
   const labeledByName = new Map<string, { ownerId: string; unpaidLeft: number }[]>()
   for (const i of labeledInvoices) {
     const key = i.subVendor!.trim().toUpperCase()

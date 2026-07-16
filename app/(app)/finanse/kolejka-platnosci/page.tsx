@@ -199,7 +199,7 @@ export default async function KolejkaPlatnosciPage({ searchParams }: { searchPar
   const emptyHints: { label: string; sum: number; href: string }[] = []
   if (invoices.length === 0 && !hasFilters) {
     const [unapproved, approvedLater] = await Promise.all([
-      prisma.purchaseInvoice.aggregate({ where: { company, status: { in: ['WPROWADZONA', 'DO_ZATWIERDZENIA', 'ODRZUCONA'] } }, _count: true, _sum: { amountGross: true } }),
+      prisma.purchaseInvoice.aggregate({ where: { company, status: { in: ['POBRANA', 'WPROWADZONA', 'DO_ZATWIERDZENIA', 'ODRZUCONA'] } }, _count: true, _sum: { amountGross: true } }),
       prisma.purchaseInvoice.aggregate({ where: { company, status: { in: PAYABLE_STATUSES }, dueDate: { gt: horizonDate || today } }, _count: true, _sum: { amountGross: true } }),
     ])
     if (unapproved._count > 0) emptyHints.push({ label: `${unapproved._count} niezatwierdzonych (wymagają zatwierdzenia, by trafić do kolejki)`, sum: unapproved._sum.amountGross || 0, href: '/finanse/faktury?status=WPROWADZONA' })

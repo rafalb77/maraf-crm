@@ -28,8 +28,8 @@ import { isAdmin } from '@/lib/auth-utils'
 // "do zatwierdzenia". Nowe faktury wpadaja od razu jako ZATWIERDZONA. Akcje
 // zostaja dla cofania/anulowania jesli pomylka.
 const TRANSITIONS: Record<string, { from: string[]; to: string; requirePerm?: string; requireAdmin?: boolean; requireComment?: boolean }> = {
-  APPROVE: { from: ['WPROWADZONA', 'DO_ZATWIERDZENIA', 'ODRZUCONA'], to: 'ZATWIERDZONA' },
-  REJECT: { from: ['WPROWADZONA', 'DO_ZATWIERDZENIA', 'ZATWIERDZONA'], to: 'ODRZUCONA', requireComment: true },
+  APPROVE: { from: ['POBRANA', 'WPROWADZONA', 'DO_ZATWIERDZENIA', 'ODRZUCONA'], to: 'ZATWIERDZONA' },
+  REJECT: { from: ['POBRANA', 'WPROWADZONA', 'DO_ZATWIERDZENIA', 'ZATWIERDZONA'], to: 'ODRZUCONA', requireComment: true },
   RESET: { from: ['DO_ZATWIERDZENIA', 'ZATWIERDZONA', 'ODRZUCONA'], to: 'WPROWADZONA' },
   CANCEL: { from: ['WPROWADZONA', 'DO_ZATWIERDZENIA', 'ZATWIERDZONA', 'ZAPLANOWANA', 'CZESCIOWO_OPLACONA', 'ODRZUCONA'], to: 'ANULOWANA', requireAdmin: true },
 }

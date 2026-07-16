@@ -25,6 +25,7 @@ import { AddPaymentForm } from '@/components/finanse/AddPaymentForm'
 import { DeletePaymentButton } from '@/components/finanse/DeletePaymentButton'
 import { DepositForm } from '@/components/finanse/DepositForm'
 import { CategoryPicker } from '@/components/finanse/CategoryPicker'
+import { StatusPicker } from '@/components/finanse/StatusPicker'
 import { InvoiceBudowaTag } from '@/components/finanse/InvoiceBudowaTag'
 import { EditInvoiceForm } from '@/components/finanse/EditInvoiceForm'
 
@@ -105,8 +106,9 @@ export default async function InvoiceDetailsPage({ params }: { params: { id: str
                 </span>
               )}
             </h1>
-            <p className="text-sm text-gray-500 font-mono mt-1 flex items-center gap-2">
-              FV {inv.number}
+            <p className="mt-1 flex items-center gap-2 flex-wrap">
+              <span className="text-xs text-gray-400 font-sans">FV</span>
+              <span className="text-xl font-bold text-gray-800 font-mono tracking-tight">{inv.number}</span>
               {inv.ksefNumber && (
                 <span
                   className="text-[11px] bg-sky-100 text-sky-700 px-1.5 py-0.5 rounded font-sans font-medium"
@@ -133,9 +135,12 @@ export default async function InvoiceDetailsPage({ params }: { params: { id: str
         isAdmin={userIsAdmin}
       />
 
-      {/* Kategoria kosztowa + przypisanie do budowy + edycja faktury */}
+      {/* Kategoria kosztowa + status + przypisanie do budowy + edycja faktury */}
       <div className="mt-6 space-y-4">
-        <CategoryPicker invoiceId={inv.id} category={inv.category} />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <CategoryPicker invoiceId={inv.id} category={inv.category} />
+          <StatusPicker invoiceId={inv.id} status={inv.status} />
+        </div>
         {budowaInvestments.length > 0 && (
           <InvoiceBudowaTag
             invoiceId={inv.id}

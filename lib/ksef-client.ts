@@ -566,6 +566,12 @@ export const KSEF_PAYMENT_REF = 'Opłacona wg KSeF'
  * Zwraca laczna kwote `paidTotal` — wlasciwa delta (ile dotworzyc) liczona jest
  * przy uzgadnianiu wzgledem juz istniejacych platnosci z KSeF.
  */
+/** Czy kontrahent to ING Leasing (platnosc automatyczna — polecenie zaplaty).
+ *  Faktury z KSeF od tego dostawcy oznaczamy jako oplacone. */
+export function isIngLeasing(name: string | null | undefined): boolean {
+  return /ing\s*leas/i.test(name || '')
+}
+
 export function ksefPaymentOutcome(
   parsed: ParsedKsefInvoice,
   notPaidStatus: string,
@@ -678,15 +684,14 @@ export async function syncCompanyFromKsef(
 
   try {
     // 0. MIGRACJA STATUSU (jednorazowa, idempotentna): faktury zakupowe pobrane
-    // z KSeF starym kodem dostawaly status ZATWIERDZONA. Decyzja: faktury z KSeF
-    // maja byc WPROWADZONA (do przejrzenia), nie wygladac na zatwierdzone.
-    // Migrujemy tylko faktury POCHODZACE z KSeF (znacznik jak w reconcile),
-    // ktore NIE zostaly recznie zatwierdzone (brak wpisu APPROVE w historii)
-    // i NIE maja platnosci. Po migracji 0 wierszy pasuje (idempotentne).
+    // z KSeF maja miec status POBRANA (do przejrzenia), a nie ZATWIERDZONA
+    // (stary kod) ani WPROWADZONA (WPROWADZONA = wpis reczny). Migrujemy tylko
+    // faktury POCHODZACE z KSeF (znacznik jak w reconcile), ktore NIE zostaly
+    // recznie zatwierdzone (brak APPROVE) i NIE maja platnosci. Idempotentne.
     await prisma.purchaseInvoice.updateMany({
       where: {
         company,
-        status: 'ZATWIERDZONA',
+        status: { in: ['ZATWIERDZONA', 'WPROWADZONA'] },
         ksefNumber: { not: null },
         createdById: null,
         importSheet: null,
@@ -695,7 +700,7 @@ export async function syncCompanyFromKsef(
         payments: { none: {} },
         approvals: { none: { action: { in: ['APPROVE', 'APPROVED'] } } },
       },
-      data: { status: 'WPROWADZONA' },
+      data: { status: 'POBRANA' },
     })
 
     // 1. SALES (Subject1) — faktury wystawione przez nas
@@ -819,7 +824,12 @@ export async function syncCompanyFromKsef(
         })
         continue
       }
-      const out = ksefPaymentOutcome(parsed, 'WPROWADZONA')
+      // Nowa faktura z KSeF: domyslnie POBRANA (pobrana automatycznie).
+      // ING Leasing = platnosc automatyczna (polecenie zaplaty) -> OPLACONA.
+      let out = ksefPaymentOutcome(parsed, 'POBRANA')
+      if (out.status !== 'OPLACONA' && out.status !== 'CZESCIOWO_OPLACONA' && parsed.amountGross > 0 && isIngLeasing(vendor!.name)) {
+        out = { status: 'OPLACONA', paidTotal: parsed.amountGross, paidAt: parsed.paidDate || parsed.dueDate || parsed.issueDate }
+      }
       // Warunki umowne kontrahenta (kaucja %, okres zwrotu, KB %) — naliczane
       // automatycznie przy FV z KSeF, gdy user skonfigurowal warunki w
       // /finanse/kontrahenci. Tylko dodatnie kwoty (korekty pomijamy).

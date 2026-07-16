@@ -377,7 +377,8 @@ export const VENDOR_CATEGORY_LABELS: Record<VendorCategory, string> = {
 }
 
 export type PurchaseInvoiceStatus =
-  | 'WPROWADZONA'
+  | 'POBRANA'            // pobrana automatycznie z KSeF (odpowiednik WPROWADZONA dla e-faktur)
+  | 'WPROWADZONA'        // wprowadzona ręcznie
   | 'DO_ZATWIERDZENIA'
   | 'ZATWIERDZONA'
   | 'ZAPLANOWANA'
@@ -387,6 +388,7 @@ export type PurchaseInvoiceStatus =
   | 'ANULOWANA'
 
 export const PURCHASE_INVOICE_STATUS_LABELS: Record<PurchaseInvoiceStatus, string> = {
+  POBRANA: 'Pobrana',
   WPROWADZONA: 'Wprowadzona',
   DO_ZATWIERDZENIA: 'Do zatwierdzenia',
   ZATWIERDZONA: 'Zatwierdzona',
@@ -398,6 +400,7 @@ export const PURCHASE_INVOICE_STATUS_LABELS: Record<PurchaseInvoiceStatus, strin
 }
 
 export const PURCHASE_INVOICE_STATUS_COLORS: Record<PurchaseInvoiceStatus, string> = {
+  POBRANA: 'bg-cyan-100 text-cyan-700',
   WPROWADZONA: 'bg-gray-100 text-gray-700',
   DO_ZATWIERDZENIA: 'bg-amber-100 text-amber-700',
   ZATWIERDZONA: 'bg-blue-100 text-blue-700',
@@ -407,6 +410,10 @@ export const PURCHASE_INVOICE_STATUS_COLORS: Record<PurchaseInvoiceStatus, strin
   ODRZUCONA: 'bg-red-100 text-red-700',
   ANULOWANA: 'bg-gray-200 text-gray-500',
 }
+
+// Statusy "przed zatwierdzeniem" (faktura jeszcze nie w kolejce platnosci):
+// pobrana z KSeF lub wprowadzona recznie, do zatwierdzenia, odrzucona.
+export const PRE_APPROVAL_STATUSES: PurchaseInvoiceStatus[] = ['POBRANA', 'WPROWADZONA', 'DO_ZATWIERDZENIA', 'ODRZUCONA']
 
 // Ręczna kategoria kosztowa faktury (pole PurchaseInvoice.category) —
 // przypisywana per faktura w szczegółach, niezależna od folderów vendorowych

@@ -7,7 +7,7 @@ import { prisma } from '@/lib/prisma'
 // Zbiorcze zatwierdzenie faktur (WPROWADZONA/DO_ZATWIERDZENIA/ODRZUCONA ->
 // ZATWIERDZONA), zeby trafily do kolejki platnosci. Kazde przejscie logowane
 // (APPROVE). Faktury w innym statusie sa pomijane i raportowane.
-const APPROVABLE = new Set(['WPROWADZONA', 'DO_ZATWIERDZENIA', 'ODRZUCONA'])
+const APPROVABLE = new Set(['POBRANA', 'WPROWADZONA', 'DO_ZATWIERDZENIA', 'ODRZUCONA'])
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions)

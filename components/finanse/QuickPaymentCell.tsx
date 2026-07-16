@@ -5,7 +5,7 @@ import { fmtMoney } from '@/lib/finanse-format'
 
 // Statusy, w ktorych API pozwala dodac platnosc (lustro payableStatuses
 // w /api/finanse/invoices/[id]/payments). Dla sales blokada tylko ANULOWANA.
-const PURCHASE_PAYABLE = new Set(['WPROWADZONA', 'DO_ZATWIERDZENIA', 'ZATWIERDZONA', 'ZAPLANOWANA', 'CZESCIOWO_OPLACONA'])
+const PURCHASE_PAYABLE = new Set(['POBRANA', 'WPROWADZONA', 'DO_ZATWIERDZENIA', 'ZATWIERDZONA', 'ZAPLANOWANA', 'CZESCIOWO_OPLACONA'])
 
 type Props = {
   invoiceId: string

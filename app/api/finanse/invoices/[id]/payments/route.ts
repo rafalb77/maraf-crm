@@ -31,7 +31,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   if (!inv) return NextResponse.json({ error: 'Faktura nie istnieje' }, { status: 404 })
 
   // Mozna placic tylko zatwierdzona / czesciowo / wprowadzona (np. przy migracji)
-  const payableStatuses = ['WPROWADZONA', 'DO_ZATWIERDZENIA', 'ZATWIERDZONA', 'ZAPLANOWANA', 'CZESCIOWO_OPLACONA']
+  const payableStatuses = ['POBRANA', 'WPROWADZONA', 'DO_ZATWIERDZENIA', 'ZATWIERDZONA', 'ZAPLANOWANA', 'CZESCIOWO_OPLACONA']
   if (!payableStatuses.includes(inv.status)) {
     return NextResponse.json({
       error: `Nie mozna dodac platnosci do faktury w statusie ${inv.status}`,

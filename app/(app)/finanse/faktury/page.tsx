@@ -104,7 +104,7 @@ export default async function FakturyListPage({
   if (searchParams.overdue === '1') {
     filters.push({
       dueDate: { lt: today },
-      status: { in: ['ZATWIERDZONA', 'WPROWADZONA', 'DO_ZATWIERDZENIA', 'CZESCIOWO_OPLACONA', 'ZAPLANOWANA'] },
+      status: { in: ['POBRANA', 'ZATWIERDZONA', 'WPROWADZONA', 'DO_ZATWIERDZENIA', 'CZESCIOWO_OPLACONA', 'ZAPLANOWANA'] },
     })
   }
   if (searchParams.from) filters.push({ issueDate: { gte: new Date(searchParams.from) } })

@@ -7,7 +7,7 @@ import { getActiveCompany } from '@/lib/finanse-company'
 import { VendorTermsCell } from '@/components/finanse/VendorTermsCell'
 
 const dayMs = 86400000
-const UNPAID_STATUSES = new Set(['ZATWIERDZONA', 'CZESCIOWO_OPLACONA', 'ZAPLANOWANA', 'WPROWADZONA', 'DO_ZATWIERDZENIA'])
+const UNPAID_STATUSES = new Set(['POBRANA', 'ZATWIERDZONA', 'CZESCIOWO_OPLACONA', 'ZAPLANOWANA', 'WPROWADZONA', 'DO_ZATWIERDZENIA'])
 
 // Karta kontrahenta: dane, warunki umowne (kaucja/zwrot/KB, netto-brutto)
 // i statystyki wspolpracy liczone z faktur aktywnej firmy.

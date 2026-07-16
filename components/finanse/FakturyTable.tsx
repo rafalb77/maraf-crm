@@ -39,7 +39,7 @@ type Totals = { net: number; vat: number; gross: number; remaining: number; coun
 
 const PAID_STATUSES = new Set(['OPLACONA', 'ANULOWANA'])
 // Statusy, ktore mozna zbiorczo zatwierdzic (-> ZATWIERDZONA, do kolejki platnosci).
-const APPROVABLE_STATUSES = new Set(['WPROWADZONA', 'DO_ZATWIERDZENIA', 'ODRZUCONA'])
+const APPROVABLE_STATUSES = new Set(['POBRANA', 'WPROWADZONA', 'DO_ZATWIERDZENIA', 'ODRZUCONA'])
 
 // Definicja kolumn tabeli — kolejnosc = kolejnosc <td> w wierszu.
 // defaultW: startowa szerokosc px (user moze zmienic przeciagajac krawedz
