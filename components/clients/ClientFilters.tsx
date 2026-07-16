@@ -28,12 +28,12 @@ export function ClientFilters() {
         placeholder="Szukaj klienta..."
         defaultValue={sp.get('search') || ''}
         onChange={(e) => update('search', e.target.value)}
-        className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        className="w-full sm:w-auto px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
       />
       <select
         value={sp.get('status') || ''}
         onChange={(e) => update('status', e.target.value)}
-        className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+        className="w-full sm:w-auto px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
       >
         {STATUSES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
       </select>

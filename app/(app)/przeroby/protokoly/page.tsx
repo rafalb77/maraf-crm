@@ -16,8 +16,8 @@ export default async function ProtokolyPage() {
   }
 
   return (
-    <div className="p-8">
-      <div className="mb-6 flex items-center justify-between">
+    <div className="p-4 sm:p-6 lg:p-8">
+      <div className="mb-6 flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Protokoły przerobowe</h1>
           <p className="text-gray-500 text-sm mt-1">
@@ -48,7 +48,8 @@ export default async function ProtokolyPage() {
         </div>
       ) : (
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[980px] lg:min-w-0 text-sm">
             <thead className="bg-gray-50 text-xs text-gray-500 uppercase tracking-wider">
               <tr>
                 <th className="text-left px-5 py-3 font-medium">Okres</th>
@@ -97,6 +98,7 @@ export default async function ProtokolyPage() {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
     </div>

@@ -103,7 +103,7 @@ export default async function KontrahenciPage({ searchParams }: { searchParams: 
   }
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-6 lg:p-8">
       <div className="mb-6 flex items-end justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Kontrahenci</h1>
@@ -132,7 +132,8 @@ export default async function KontrahenciPage({ searchParams }: { searchParams: 
       </div>
 
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto">
+        <table className="w-full text-sm min-w-[900px] lg:min-w-0">
           <thead className="bg-gray-50 border-b border-gray-200 text-left">
             <tr>
               <SortTh label="Nazwa" colKey="name" sort={sort} qs={qs} />
@@ -196,6 +197,7 @@ export default async function KontrahenciPage({ searchParams }: { searchParams: 
             ))}
           </tbody>
         </table>
+        </div>
       </div>
 
       <p className="text-xs text-gray-400 mt-4">

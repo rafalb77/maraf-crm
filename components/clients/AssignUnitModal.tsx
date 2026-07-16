@@ -34,7 +34,7 @@ export function AssignUnitModal({ clientId, availableUnits }: { clientId: string
 
       {open && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-4 sm:p-6 max-h-[90dvh] overflow-y-auto">
             <h3 className="font-semibold text-gray-900 mb-1">Miękka rezerwacja lokalu</h3>
             <p className="text-xs text-gray-500 mb-4">Rezerwacja wygaśnie automatycznie po 7 dniach, o ile nie zostanie podpisana umowa.</p>
 

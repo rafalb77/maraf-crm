@@ -13,7 +13,7 @@ export default function FinanseLayout({ children }: { children: React.ReactNode 
   return (
     <div>
       <div
-        className="sticky top-0 z-20 border-b px-8 py-3 flex items-center justify-between"
+        className="sticky top-0 z-20 border-b px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between flex-wrap gap-3"
         style={{
           backgroundColor: isMD ? '#faf5ff' : '#ffffff',
           borderColor: isMD ? '#e9d5ff' : '#e5e7eb',

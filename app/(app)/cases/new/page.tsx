@@ -17,7 +17,7 @@ export default async function NewCasePage({
   ])
 
   return (
-    <div className="p-8 max-w-3xl">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-3xl">
       <div className="flex items-center gap-2 text-sm text-gray-500 mb-1">
         <Link href="/cases" className="hover:text-blue-600">
           Sprawy

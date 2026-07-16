@@ -32,7 +32,7 @@ export default async function DziennikPage({
     select: { id: true, name: true },
   })
   if (!investment) {
-    return <div className="p-8 text-gray-500">Brak aktywnej inwestycji.</div>
+    return <div className="p-4 sm:p-6 lg:p-8 text-gray-500">Brak aktywnej inwestycji.</div>
   }
 
   const tabCls = (active: boolean) =>
@@ -63,10 +63,10 @@ export default async function DziennikPage({
       select: { id: true, url: true, caption: true, takenAt: true, reportId: true },
     })
     return (
-      <div className="p-8">
+      <div className="p-4 sm:p-6 lg:p-8">
         {header}
         {photos.length === 0 ? (
-          <div className="bg-white rounded-xl border border-gray-200 p-8 text-center text-gray-500">
+          <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 lg:p-8 text-center text-gray-500">
             Brak zdjęć — pierwsze pojawią się po raporcie kierownika z <code>/checkin</code>.
           </div>
         ) : (
@@ -115,10 +115,10 @@ export default async function DziennikPage({
   const subName = new Map(subs.map((s) => [s.id, s.name]))
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-6 lg:p-8">
       {header}
       {reports.length === 0 ? (
-        <div className="bg-white rounded-xl border border-gray-200 p-8 text-center text-gray-500">
+        <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 lg:p-8 text-center text-gray-500">
           Brak raportów. Kierownik budowy raportuje z telefonu przez <code>/checkin</code>.
         </div>
       ) : (

@@ -174,7 +174,8 @@ export function UnitImageGallery({
                   </div>
                 )}
 
-                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center gap-1.5 opacity-0 group-hover:opacity-100">
+                {/* Na dotyku (<lg) przyciski widoczne od razu — hover nie dziala na ekranach dotykowych */}
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center gap-1.5 opacity-100 lg:opacity-0 lg:group-hover:opacity-100">
                   {!img.isPrimary && (
                     <button
                       type="button"

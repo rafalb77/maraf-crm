@@ -77,8 +77,8 @@ export default async function ReservationsPage() {
   const criticalCount = soft.filter((u) => hoursLeft(u.reservationExpiresAt) <= 24).length
 
   return (
-    <div className="p-8">
-      <div className="mb-6 flex items-start justify-between gap-4">
+    <div className="p-4 sm:p-6 lg:p-8">
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-[30px] font-bold text-gray-900" style={{ letterSpacing: '-0.02em' }}>Rezerwacje</h1>
           <p className="text-gray-500 text-sm mt-1.5 max-w-2xl">
@@ -104,7 +104,7 @@ export default async function ReservationsPage() {
       )}
 
       {/* Statystyki na górze — klikalne, przewijają do sekcji */}
-      <div className="grid grid-cols-3 gap-3 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
         <StatCard href="#soft" icon={<Clock className="w-5 h-5 text-blue-600" />} label="Miękkie" value={soft.length} accent="blue" />
         <StatCard href="#hard" icon={<Lock className="w-5 h-5 text-purple-600" />} label="Twarde (umowa)" value={hard.length} accent="purple" />
         <StatCard href="#unavailable" icon={<Ban className="w-5 h-5 text-gray-600" />} label="Wyłączone ze sprzedaży" value={unavailableUnits.length} accent="gray" />
@@ -120,57 +120,102 @@ export default async function ReservationsPage() {
         {soft.length === 0 ? (
           <p className="text-sm text-gray-400 italic">Brak miękkich rezerwacji.</p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b" style={{ borderColor: 'var(--border-soft)' }}>
-                  <Th>Lokal</Th>
-                  <Th>Klient</Th>
-                  <Th>Kontakt</Th>
-                  <Th>Wygasa</Th>
-                  <Th>Pozostało</Th>
-                  <Th right>Akcje</Th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {soft.map((u) => {
-                  const h = hoursLeft(u.reservationExpiresAt)
-                  return (
-                    <tr key={u.id} className="hover:bg-gray-50">
-                      <td className="px-2 py-2">
-                        <Link href={`/units/${u.id}`} className="font-medium text-blue-600 hover:text-blue-700">{u.number}</Link>
-                      </td>
-                      <td className="px-2 py-2 text-gray-700">
-                        {u.reservedBy ? (
-                          <Link href={`/clients/${u.reservedBy.id}`} className="hover:text-blue-700">
-                            {u.reservedBy.firstName} {u.reservedBy.lastName}
-                          </Link>
-                        ) : '—'}
-                      </td>
-                      <td className="px-2 py-2 text-xs text-gray-500">
-                        {u.reservedBy?.phone ? <div>{u.reservedBy.phone}</div> : null}
-                        {u.reservedBy?.email ? <div>{u.reservedBy.email}</div> : null}
-                        {!u.reservedBy?.phone && !u.reservedBy?.email ? '—' : null}
-                      </td>
-                      <td className="px-2 py-2 text-gray-700">{fmtDateTime(u.reservationExpiresAt)}</td>
-                      <td className="px-2 py-2">
-                        <span className={`inline-flex px-2 py-0.5 rounded text-xs font-semibold border ${expiryBadge(h)}`}>{expiryLabel(h)}</span>
-                      </td>
-                      <td className="px-2 py-2 text-right">
-                        <div className="flex flex-wrap gap-1.5 justify-end">
-                          {u.reservedBy && <PromoteReservationButton clientId={u.reservedBy.id} variant="compact" />}
-                          <ExtendButton unitId={u.id} defaultDays={7} />
-                          <SwapButton unitId={u.id} unitNumber={u.number} unitType={u.type} />
-                          <MuteAlertsButton unitId={u.id} muted={u.reservationAlertsMuted} />
-                          <ReleaseButton unitId={u.id} unitNumber={u.number} />
-                        </div>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
+          <>
+            {/* Mobile (<md): karty — z tej sekcji korzysta handlowiec z telefonu w terenie
+                (dzwoni do klienta, przedłuża/zwalnia rezerwację). Cała karta -> szczegóły lokalu;
+                klient/telefon/akcje mają własne cele klikalne (relative z-10) nad overlay-Linkiem. */}
+            <ul className="md:hidden divide-y divide-gray-100">
+              {soft.map((u) => {
+                const h = hoursLeft(u.reservationExpiresAt)
+                return (
+                  <li key={u.id} className="relative py-3.5 first:pt-0 last:pb-0">
+                    <Link href={`/units/${u.id}`} prefetch={false} className="absolute inset-0" aria-label={`Lokal ${u.number}`} />
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="font-medium text-gray-900">{u.number}</span>
+                      <span className={`inline-flex px-2 py-0.5 rounded text-xs font-semibold border flex-shrink-0 ${expiryBadge(h)}`}>{expiryLabel(h)}</span>
+                    </div>
+                    <p className="mt-1 text-sm text-gray-700 truncate">
+                      {u.reservedBy ? (
+                        <Link href={`/clients/${u.reservedBy.id}`} prefetch={false} className="relative z-10 hover:text-blue-700">
+                          {u.reservedBy.firstName} {u.reservedBy.lastName}
+                        </Link>
+                      ) : '—'}
+                    </p>
+                    <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500">
+                      {u.reservedBy?.phone ? (
+                        <a href={`tel:${u.reservedBy.phone.replace(/\s/g, '')}`} className="relative z-10 text-blue-600 font-medium">
+                          {u.reservedBy.phone}
+                        </a>
+                      ) : u.reservedBy?.email ? (
+                        <span className="truncate">{u.reservedBy.email}</span>
+                      ) : null}
+                      <span>Wygasa {fmtDateTime(u.reservationExpiresAt)}</span>
+                    </div>
+                    <div className="relative z-10 mt-2.5 flex flex-wrap gap-1.5">
+                      {u.reservedBy && <PromoteReservationButton clientId={u.reservedBy.id} variant="compact" />}
+                      <ExtendButton unitId={u.id} defaultDays={7} />
+                      <SwapButton unitId={u.id} unitNumber={u.number} unitType={u.type} />
+                      <MuteAlertsButton unitId={u.id} muted={u.reservationAlertsMuted} />
+                      <ReleaseButton unitId={u.id} unitNumber={u.number} />
+                    </div>
+                  </li>
+                )
+              })}
+            </ul>
+
+            {/* Tablet/desktop (md+): pełna tabela */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full min-w-[620px] lg:min-w-0 text-sm">
+                <thead>
+                  <tr className="border-b" style={{ borderColor: 'var(--border-soft)' }}>
+                    <Th>Lokal</Th>
+                    <Th>Klient</Th>
+                    <Th>Kontakt</Th>
+                    <Th>Wygasa</Th>
+                    <Th>Pozostało</Th>
+                    <Th right>Akcje</Th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {soft.map((u) => {
+                    const h = hoursLeft(u.reservationExpiresAt)
+                    return (
+                      <tr key={u.id} className="hover:bg-gray-50">
+                        <td className="px-2 py-2">
+                          <Link href={`/units/${u.id}`} className="font-medium text-blue-600 hover:text-blue-700">{u.number}</Link>
+                        </td>
+                        <td className="px-2 py-2 text-gray-700">
+                          {u.reservedBy ? (
+                            <Link href={`/clients/${u.reservedBy.id}`} className="hover:text-blue-700">
+                              {u.reservedBy.firstName} {u.reservedBy.lastName}
+                            </Link>
+                          ) : '—'}
+                        </td>
+                        <td className="px-2 py-2 text-xs text-gray-500">
+                          {u.reservedBy?.phone ? <div>{u.reservedBy.phone}</div> : null}
+                          {u.reservedBy?.email ? <div>{u.reservedBy.email}</div> : null}
+                          {!u.reservedBy?.phone && !u.reservedBy?.email ? '—' : null}
+                        </td>
+                        <td className="px-2 py-2 text-gray-700">{fmtDateTime(u.reservationExpiresAt)}</td>
+                        <td className="px-2 py-2">
+                          <span className={`inline-flex px-2 py-0.5 rounded text-xs font-semibold border ${expiryBadge(h)}`}>{expiryLabel(h)}</span>
+                        </td>
+                        <td className="px-2 py-2 text-right">
+                          <div className="flex flex-wrap gap-1.5 justify-end">
+                            {u.reservedBy && <PromoteReservationButton clientId={u.reservedBy.id} variant="compact" />}
+                            <ExtendButton unitId={u.id} defaultDays={7} />
+                            <SwapButton unitId={u.id} unitNumber={u.number} unitType={u.type} />
+                            <MuteAlertsButton unitId={u.id} muted={u.reservationAlertsMuted} />
+                            <ReleaseButton unitId={u.id} unitNumber={u.number} />
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </Section>
 
@@ -185,7 +230,7 @@ export default async function ReservationsPage() {
           <p className="text-sm text-gray-400 italic">Brak twardych rezerwacji.</p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full min-w-[560px] lg:min-w-0 text-sm">
               <thead>
                 <tr className="border-b" style={{ borderColor: 'var(--border-soft)' }}>
                   <Th>Lokal</Th>
@@ -236,7 +281,7 @@ export default async function ReservationsPage() {
           <p className="text-sm text-gray-400 italic">Wszystkie lokale są w sprzedaży.</p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full min-w-[600px] lg:min-w-0 text-sm">
               <thead>
                 <tr className="border-b" style={{ borderColor: 'var(--border-soft)' }}>
                   <Th>Lokal</Th>

@@ -88,7 +88,7 @@ export function ExtendButton({ unitId, defaultDays = 7 }: { unitId: string; defa
       </button>
       {open && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => !busy && setOpen(false)}>
-          <div className="bg-white rounded-xl shadow-xl max-w-sm w-full p-6" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-xl shadow-xl max-w-sm w-full p-6 max-h-[90dvh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-lg font-semibold text-gray-900 mb-2">Przedłuż rezerwację</h3>
             <p className="text-sm text-gray-600 mb-4">Nowa data wygaśnięcia liczona od <strong>teraz</strong> (nie od poprzedniej daty).</p>
             <label className="block text-xs text-gray-600 mb-1">Liczba dni</label>
@@ -167,7 +167,7 @@ export function SwapButton({ unitId, unitNumber, unitType }: { unitId: string; u
       </button>
       {open && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => !busy && setOpen(false)}>
-          <div className="bg-white rounded-xl shadow-xl max-w-lg w-full p-6" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-xl shadow-xl max-w-lg w-full p-6 max-h-[90dvh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-lg font-semibold text-gray-900 mb-1">Zamień lokal {unitNumber}</h3>
             <p className="text-sm text-gray-600 mb-4">
               Obecny lokal wróci do „Wolny", a wybrany przejmie rezerwację (ten sam klient i data wygaśnięcia).
@@ -242,7 +242,7 @@ export function ReleaseButton({ unitId, unitNumber }: { unitId: string; unitNumb
       </button>
       {confirm && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => !busy && setConfirm(false)}>
-          <div className="bg-white rounded-xl shadow-xl max-w-sm w-full p-6" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-xl shadow-xl max-w-sm w-full p-6 max-h-[90dvh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-lg font-semibold text-gray-900 mb-2">Zwolnić rezerwację?</h3>
             <p className="text-sm text-gray-700">Lokal <strong>{unitNumber}</strong> wróci do statusu „Wolny", powiązanie z klientem zostanie usunięte. Tej operacji nie można cofnąć.</p>
             <div className="flex justify-end gap-2 mt-5">

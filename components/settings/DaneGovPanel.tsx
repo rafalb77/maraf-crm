@@ -117,8 +117,8 @@ export function DaneGovPanel() {
         {snapshots.length > 0 && (
           <div className="mt-4 pt-4 border-t border-gray-100">
             <p className="text-sm font-medium text-gray-700 mb-2">Ostatnie snapshoty ({snapshots.length})</p>
-            <div className="max-h-48 overflow-y-auto border border-gray-100 rounded-lg">
-              <table className="w-full text-xs">
+            <div className="max-h-48 overflow-auto border border-gray-100 rounded-lg">
+              <table className="w-full min-w-[480px] lg:min-w-0 text-xs">
                 <thead className="bg-gray-50 text-gray-500 sticky top-0">
                   <tr>
                     <th className="text-left px-3 py-1.5 font-medium">Data</th>

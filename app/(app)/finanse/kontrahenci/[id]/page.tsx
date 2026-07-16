@@ -113,7 +113,7 @@ export default async function KontrahentPage({ params }: { params: { id: string 
   const maxMonth = Math.max(1, ...months.map((m) => m.sum))
 
   return (
-    <div className="p-8 max-w-5xl">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-5xl">
       <div className="mb-6">
         <Link href="/finanse/kontrahenci" className="text-sm text-gray-500 hover:text-gray-700">← Wszyscy kontrahenci</Link>
         <div className="flex items-start justify-between mt-2 gap-4 flex-wrap">

@@ -74,15 +74,15 @@ export default async function SalesPage({
   const avgPpsm = ppsm.length ? ppsm.reduce((a, b) => a + b, 0) / ppsm.length : 0
 
   return (
-    <div className="p-8">
-      <div className="flex items-start justify-between gap-4 mb-6">
+    <div className="p-4 sm:p-6 lg:p-8">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between mb-6">
         <div>
           <h1 className="text-[30px] font-bold text-gray-900" style={{ letterSpacing: '-0.02em' }}>Sprzedaż</h1>
           <p className="text-sm mt-1.5" style={{ color: 'var(--text-muted)' }}>
             Umowy i transakcje · {contracts.length} {contracts.length === 1 ? 'umowa' : 'umów'}
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <Link
             href="/sales/import"
             className="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"

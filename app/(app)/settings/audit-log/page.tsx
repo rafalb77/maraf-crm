@@ -76,7 +76,7 @@ export default async function AuditLogPage({
   const totalPages = Math.ceil(total / perPage)
 
   return (
-    <div className="p-8 max-w-7xl">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-7xl">
       <div className="mb-2 text-sm">
         <Link href="/settings" className="text-gray-500 hover:text-gray-700">
           ← Ustawienia
@@ -155,66 +155,69 @@ export default async function AuditLogPage({
         </div>
       ) : (
         <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="text-xs text-gray-500 uppercase tracking-wider bg-gray-50/60">
-              <tr>
-                <th className="text-left px-4 py-2 font-medium">Czas</th>
-                <th className="text-left px-2 py-2 font-medium">Akcja</th>
-                <th className="text-left px-2 py-2 font-medium">Użytkownik</th>
-                <th className="text-left px-2 py-2 font-medium">Encja</th>
-                <th className="text-left px-2 py-2 font-medium">IP</th>
-                <th className="text-left px-3 py-2 font-medium">Szczegóły</th>
-              </tr>
-            </thead>
-            <tbody>
-              {logs.map((l) => (
-                <tr key={l.id} className="border-t border-gray-100 hover:bg-gray-50/50">
-                  <td className="px-4 py-2 text-gray-600 tabular-nums whitespace-nowrap">
-                    {fmtDateTime(l.createdAt)}
-                  </td>
-                  <td className="px-2 py-2">
-                    <span
-                      className={`inline-block px-2 py-0.5 text-xs font-medium rounded ${
-                        ACTION_COLORS[l.action] || 'bg-gray-100 text-gray-600'
-                      }`}
-                    >
-                      {ACTION_LABELS[l.action] || l.action}
-                    </span>
-                  </td>
-                  <td className="px-2 py-2 text-gray-700">{l.userEmail || '—'}</td>
-                  <td className="px-2 py-2 text-xs text-gray-600">
-                    {l.entity ? (
-                      <>
-                        {l.entity}
-                        {l.entityId && (
-                          <span className="text-gray-400"> · {l.entityId.slice(0, 8)}…</span>
-                        )}
-                      </>
-                    ) : (
-                      '—'
-                    )}
-                  </td>
-                  <td className="px-2 py-2 text-xs text-gray-500 font-mono">{l.ip || '—'}</td>
-                  <td className="px-3 py-2 text-xs text-gray-500 max-w-md truncate">
-                    {l.metadata ? (
-                      <code className="text-[10px]" title={l.metadata}>
-                        {l.metadata.slice(0, 80)}
-                        {l.metadata.length > 80 ? '…' : ''}
-                      </code>
-                    ) : (
-                      <span className="text-gray-300">{l.path}</span>
-                    )}
-                  </td>
+          {/* Tabela back-office: scroll poziomy zamiast zgniatania kolumn na wąskich ekranach */}
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[760px] lg:min-w-0 text-sm">
+              <thead className="text-xs text-gray-500 uppercase tracking-wider bg-gray-50/60">
+                <tr>
+                  <th className="text-left px-4 py-2 font-medium">Czas</th>
+                  <th className="text-left px-2 py-2 font-medium">Akcja</th>
+                  <th className="text-left px-2 py-2 font-medium">Użytkownik</th>
+                  <th className="text-left px-2 py-2 font-medium">Encja</th>
+                  <th className="text-left px-2 py-2 font-medium">IP</th>
+                  <th className="text-left px-3 py-2 font-medium">Szczegóły</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {logs.map((l) => (
+                  <tr key={l.id} className="border-t border-gray-100 hover:bg-gray-50/50">
+                    <td className="px-4 py-2 text-gray-600 tabular-nums whitespace-nowrap">
+                      {fmtDateTime(l.createdAt)}
+                    </td>
+                    <td className="px-2 py-2">
+                      <span
+                        className={`inline-block px-2 py-0.5 text-xs font-medium rounded ${
+                          ACTION_COLORS[l.action] || 'bg-gray-100 text-gray-600'
+                        }`}
+                      >
+                        {ACTION_LABELS[l.action] || l.action}
+                      </span>
+                    </td>
+                    <td className="px-2 py-2 text-gray-700">{l.userEmail || '—'}</td>
+                    <td className="px-2 py-2 text-xs text-gray-600">
+                      {l.entity ? (
+                        <>
+                          {l.entity}
+                          {l.entityId && (
+                            <span className="text-gray-400"> · {l.entityId.slice(0, 8)}…</span>
+                          )}
+                        </>
+                      ) : (
+                        '—'
+                      )}
+                    </td>
+                    <td className="px-2 py-2 text-xs text-gray-500 font-mono">{l.ip || '—'}</td>
+                    <td className="px-3 py-2 text-xs text-gray-500 max-w-md truncate">
+                      {l.metadata ? (
+                        <code className="text-[10px]" title={l.metadata}>
+                          {l.metadata.slice(0, 80)}
+                          {l.metadata.length > 80 ? '…' : ''}
+                        </code>
+                      ) : (
+                        <span className="text-gray-300">{l.path}</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
       {/* Paginacja */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between mt-4 text-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3 mt-4 text-sm">
           <span className="text-gray-500">
             Strona {page} z {totalPages}
           </span>

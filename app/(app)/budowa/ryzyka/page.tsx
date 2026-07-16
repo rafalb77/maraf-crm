@@ -13,7 +13,7 @@ export default async function RyzykaPage() {
     orderBy: { createdAt: 'asc' },
     select: { id: true, name: true },
   })
-  if (!investment) return <div className="p-8 text-gray-500">Brak aktywnej inwestycji.</div>
+  if (!investment) return <div className="p-4 sm:p-6 lg:p-8 text-gray-500">Brak aktywnej inwestycji.</div>
 
   const [risks, tasks] = await Promise.all([
     prisma.constructionRisk.findMany({
@@ -43,7 +43,7 @@ export default async function RyzykaPage() {
   }))
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-6 lg:p-8">
       <h1 className="text-2xl font-bold mb-6">Ryzyka i blokery — {investment.name}</h1>
       <RyzykaView risks={serialized} tasks={tasks} />
     </div>

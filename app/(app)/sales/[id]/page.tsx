@@ -95,8 +95,8 @@ export default async function ContractDetailPage({ params }: { params: { id: str
   }))
 
   return (
-    <div className="p-8 max-w-6xl">
-      <div className="flex items-start justify-between mb-6">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-6xl">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between mb-6">
         <div>
           <div className="flex items-center gap-2 text-sm text-gray-500 mb-1">
             <Link href="/sales" className="hover:text-blue-600">Sprzedaż</Link>
@@ -113,7 +113,7 @@ export default async function ContractDetailPage({ params }: { params: { id: str
             {CONTRACT_TYPE_LABELS[contract.type as ContractType]} · {contract.investmentName}
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {contract.type === 'REZERWACYJNA' && (
             <>
               <Link
@@ -252,8 +252,8 @@ function Panel({ title, children }: { title: string; children: React.ReactNode }
 
 function Row({ label, value, children }: { label: string; value?: string; children?: React.ReactNode }) {
   return (
-    <div className="flex gap-2">
-      <span className="text-gray-400 w-48 flex-shrink-0">{label}</span>
+    <div className="flex flex-col gap-0.5 sm:flex-row sm:gap-2">
+      <span className="text-gray-400 sm:w-48 sm:flex-shrink-0">{label}</span>
       <span className="text-gray-900 font-medium">{children || value}</span>
     </div>
   )

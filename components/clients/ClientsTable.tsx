@@ -1,4 +1,5 @@
 'use client'
+import Link from 'next/link'
 import { formatDateTime } from '@/lib/utils'
 import { CLIENT_STATUS_LABELS, CLIENT_STATUS_COLORS, type ClientStatus } from '@/lib/types'
 import { ClickableRow } from '@/components/ui/ClickableRow'
@@ -37,7 +38,57 @@ export function ClientsTable({ rows }: { rows: ClientRow[] }) {
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-      <table className="w-full text-sm">
+      {/* Mobile (<md): lista kart zamiast tabeli. Cała karta klika w szczegóły
+          (Link absolute inset-0), telefon jest osobnym linkiem tel: z relative z-10.
+          Wzorzec referencyjny dla pozostałych list CRM. */}
+      <ul className="md:hidden divide-y divide-gray-100">
+        {sorted.length === 0 ? (
+          <li className="px-4 py-12 text-center text-gray-400 text-sm">
+            Brak klientów spełniających kryteria
+          </li>
+        ) : (
+          sorted.map((client) => (
+            <li key={client.id} className="relative px-4 py-3">
+              <Link
+                href={`/clients/${client.id}`}
+                prefetch={false}
+                className="absolute inset-0"
+                aria-label={`${client.firstName} ${client.lastName}`}
+              />
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-medium text-sm flex-shrink-0">
+                  {client.firstName[0]}{client.lastName[0]}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium text-gray-900 truncate">
+                    {client.firstName} {client.lastName}
+                  </p>
+                  {client.source && <p className="text-xs text-gray-400 truncate">{client.source}</p>}
+                </div>
+                <span className={`px-2 py-0.5 rounded text-xs font-medium flex-shrink-0 ${CLIENT_STATUS_COLORS[client.status as ClientStatus]}`}>
+                  {CLIENT_STATUS_LABELS[client.status as ClientStatus]}
+                </span>
+              </div>
+              <div className="mt-2 flex items-center justify-between gap-2 text-xs text-gray-500">
+                {client.phone ? (
+                  <a href={`tel:${client.phone.replace(/\s/g, '')}`} className="relative z-10 text-blue-600 font-medium py-1">
+                    {client.phone}
+                  </a>
+                ) : (
+                  <span className="truncate">{client.email || '—'}</span>
+                )}
+                <span className="text-gray-400 flex-shrink-0">
+                  {client.unitNumbers.length > 0 && `${client.unitNumbers.join(', ')} · `}
+                  {formatDateTime(new Date(client.updatedAt))}
+                </span>
+              </div>
+            </li>
+          ))
+        )}
+      </ul>
+
+      {/* Desktop/tablet (md+): pełna sortowalna tabela */}
+      <table className="w-full text-sm hidden md:table">
         <thead>
           <tr className="border-b border-gray-100 bg-gray-50">
             <SortHeader label="Klient" colKey="klient" activeKey={sortKey} dir={sortDir} onSort={onSort} className={TH} />

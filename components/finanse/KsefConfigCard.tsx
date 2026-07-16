@@ -85,7 +85,7 @@ export function KsefConfigCard(p: Props) {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 mb-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
         <div>
           <label className="text-xs text-gray-500 uppercase font-semibold mb-1 block">NIP</label>
           <input value={nip} onChange={(e) => setNip(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono" />
@@ -97,7 +97,7 @@ export function KsefConfigCard(p: Props) {
             <option value="TEST">Test</option>
           </select>
         </div>
-        <div className="col-span-2">
+        <div className="md:col-span-2">
           <label className="text-xs text-gray-500 uppercase font-semibold mb-1 block">Token KSeF</label>
           {p.hasToken && !editingToken ? (
             <div className="flex items-center gap-2">
@@ -144,7 +144,7 @@ export function KsefConfigCard(p: Props) {
       {msg && <p className="text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg p-2 mb-3">{msg}</p>}
       {error && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-2 mb-3">{error}</p>}
 
-      <div className="flex gap-2 pt-3 border-t border-gray-100">
+      <div className="flex flex-wrap gap-2 pt-3 border-t border-gray-100">
         <button onClick={save} disabled={saving} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50">
           {saving ? 'Zapisuję...' : 'Zapisz konfigurację'}
         </button>

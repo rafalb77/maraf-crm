@@ -42,8 +42,8 @@ export default async function PrzychodyPage({ searchParams }: { searchParams: Se
   const hasFilters = !!(searchParams.status || searchParams.q || searchParams.year)
 
   return (
-    <div className="p-8">
-      <div className="flex items-center justify-between mb-6">
+    <div className="p-4 sm:p-6 lg:p-8">
+      <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Faktury przychodowe</h1>
           <p className="text-gray-500 text-sm mt-1">{invoices.length} faktur{hasFilters ? ' (po filtrach)' : ''}</p>
@@ -67,7 +67,7 @@ export default async function PrzychodyPage({ searchParams }: { searchParams: Se
 
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full text-sm min-w-[1080px] lg:min-w-0">
             <thead className="bg-gray-50 border-b border-gray-200 text-left">
               <tr>
                 <th className="px-3 py-3 font-medium text-gray-700">Odbiorca</th>

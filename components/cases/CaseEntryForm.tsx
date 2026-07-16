@@ -99,7 +99,7 @@ export function CaseEntryForm({ caseId }: { caseId: string }) {
         ))}
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <div>
           <label className="block text-xs font-medium text-gray-600 mb-1">Kanał</label>
           <select
@@ -153,11 +153,11 @@ export function CaseEntryForm({ caseId }: { caseId: string }) {
 
       {error && <p className="text-red-500 text-sm">{error}</p>}
 
-      <div className="flex gap-2">
+      <div className="flex flex-col sm:flex-row gap-2">
         <button
           type="submit"
           disabled={loading}
-          className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white px-4 py-2 rounded-lg text-sm font-medium"
+          className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white px-4 py-2 rounded-lg text-sm font-medium"
         >
           {loading ? 'Zapisywanie...' : 'Zapisz wpis'}
         </button>
@@ -167,7 +167,7 @@ export function CaseEntryForm({ caseId }: { caseId: string }) {
             setOpen(false)
             setError(null)
           }}
-          className="px-4 py-2 border border-gray-200 rounded-lg text-sm hover:bg-white transition-colors"
+          className="w-full sm:w-auto px-4 py-2 border border-gray-200 rounded-lg text-sm hover:bg-white transition-colors"
         >
           Anuluj
         </button>

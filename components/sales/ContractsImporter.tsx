@@ -114,11 +114,11 @@ export function ContractsImporter() {
         <>
           {/* Upload */}
           <div className="bg-white border border-gray-200 rounded-xl p-5">
-            <label className="flex items-center gap-3 cursor-pointer">
+            <label className="flex items-center gap-3 flex-wrap cursor-pointer">
               <span className="bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2">
                 <Upload className="w-4 h-4" /> Wybierz plik .xlsx
               </span>
-              <span className="text-sm text-gray-500">{file?.name || 'nie wybrano'}</span>
+              <span className="text-sm text-gray-500 truncate max-w-full">{file?.name || 'nie wybrano'}</span>
               <input
                 type="file"
                 accept=".xlsx,.xls"
@@ -171,7 +171,7 @@ export function ContractsImporter() {
 
               {diff.rows.length > 0 && (
                 <div className="overflow-x-auto border border-gray-100 rounded-lg">
-                  <table className="w-full text-sm">
+                  <table className="w-full text-sm min-w-[640px] lg:min-w-0">
                     <thead className="bg-gray-50 text-xs text-gray-500">
                       <tr>
                         <th className="text-left px-3 py-2 font-medium">Nr</th>

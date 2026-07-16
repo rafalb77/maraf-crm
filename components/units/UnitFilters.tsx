@@ -54,26 +54,26 @@ export function UnitFilters({ floors, rooms }: { floors: number[]; rooms: number
         placeholder="Szukaj po numerze..."
         defaultValue={sp.get('search') || ''}
         onChange={(e) => update('search', e.target.value)}
-        className={input}
+        className={`${input} w-full sm:w-auto`}
       />
       <select
         value={sp.get('type') || ''}
         onChange={(e) => update('type', e.target.value)}
-        className={select}
+        className={`${select} w-full sm:w-auto`}
       >
         {TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
       </select>
       <select
         value={sp.get('status') || ''}
         onChange={(e) => update('status', e.target.value)}
-        className={select}
+        className={`${select} w-full sm:w-auto`}
       >
         {STATUSES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
       </select>
       <select
         value={sp.get('rooms') || ''}
         onChange={(e) => update('rooms', e.target.value)}
-        className={select}
+        className={`${select} w-full sm:w-auto`}
       >
         <option value="">Wszystkie pokoje</option>
         {rooms.map((r) => (
@@ -83,7 +83,7 @@ export function UnitFilters({ floors, rooms }: { floors: number[]; rooms: number
       <select
         value={sp.get('floor') || ''}
         onChange={(e) => update('floor', e.target.value)}
-        className={select}
+        className={`${select} w-full sm:w-auto`}
       >
         <option value="">Wszystkie piętra</option>
         {floors.map((f) => (
@@ -96,7 +96,7 @@ export function UnitFilters({ floors, rooms }: { floors: number[]; rooms: number
         placeholder="Pow. od (m²)"
         defaultValue={sp.get('areaMin') || ''}
         onChange={(e) => update('areaMin', e.target.value)}
-        className={`${input} w-32`}
+        className={`${input} w-full sm:w-32`}
       />
       <input
         type="number"
@@ -104,7 +104,7 @@ export function UnitFilters({ floors, rooms }: { floors: number[]; rooms: number
         placeholder="Pow. do (m²)"
         defaultValue={sp.get('areaMax') || ''}
         onChange={(e) => update('areaMax', e.target.value)}
-        className={`${input} w-32`}
+        className={`${input} w-full sm:w-32`}
       />
       <input
         type="number"
@@ -112,7 +112,7 @@ export function UnitFilters({ floors, rooms }: { floors: number[]; rooms: number
         placeholder="Cena brutto od"
         defaultValue={sp.get('priceMin') || ''}
         onChange={(e) => update('priceMin', e.target.value)}
-        className={`${input} w-40`}
+        className={`${input} w-full sm:w-40`}
       />
       <input
         type="number"
@@ -120,7 +120,7 @@ export function UnitFilters({ floors, rooms }: { floors: number[]; rooms: number
         placeholder="Cena brutto do"
         defaultValue={sp.get('priceMax') || ''}
         onChange={(e) => update('priceMax', e.target.value)}
-        className={`${input} w-40`}
+        className={`${input} w-full sm:w-40`}
       />
     </div>
   )

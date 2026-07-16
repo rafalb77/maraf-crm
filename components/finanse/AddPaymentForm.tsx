@@ -55,7 +55,7 @@ export function AddPaymentForm({ invoiceId, remaining }: { invoiceId: string; re
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-4">
       <h3 className="font-medium text-gray-900 mb-3">Nowa płatność</h3>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <div>
           <label className="text-xs text-gray-500 uppercase font-semibold mb-1 block">Kwota (zł)</label>
           <input
@@ -84,7 +84,7 @@ export function AddPaymentForm({ invoiceId, remaining }: { invoiceId: string; re
             placeholder="np. FV/000299/26"
           />
         </div>
-        <div className="col-span-2">
+        <div className="md:col-span-2">
           <label className="text-xs text-gray-500 uppercase font-semibold mb-1 block">Notatka (opcjonalnie)</label>
           <input
             value={notes}

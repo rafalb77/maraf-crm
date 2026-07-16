@@ -19,7 +19,7 @@ export function CreateCostButton({ invoiceId, recipientCompany, linkedPurchaseIn
 
   if (linkedPurchaseInvoiceId) {
     return (
-      <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-sm text-green-900 flex items-center justify-between">
+      <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-sm text-green-900 flex items-center justify-between flex-wrap gap-2">
         <span>✓ Utworzono koszt u odbiorcy ({COMPANY_LABELS[recipientCompany as Company] || recipientCompany}).</span>
         <Link href={`/finanse/faktury/${linkedPurchaseInvoiceId}`} className="text-blue-600 hover:underline font-medium">Zobacz koszt →</Link>
       </div>

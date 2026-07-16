@@ -267,7 +267,7 @@ function StageBudgetRow({ stage }: { stage: Stage }) {
   }
 
   return (
-    <div className="px-5 py-2.5 flex items-center gap-2 bg-gray-50/60">
+    <div className="px-5 py-2.5 flex flex-wrap items-center gap-2 bg-gray-50/60">
       <span className="text-xs text-gray-500">Budżet etapu (netto):</span>
       <input
         type="text"
@@ -465,7 +465,7 @@ function StageBlock({
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="w-full flex items-center justify-between gap-3 px-5 py-3 bg-gray-50 border-b border-gray-200 text-left"
+        className="w-full flex flex-wrap items-center justify-between gap-3 px-5 py-3 bg-gray-50 border-b border-gray-200 text-left"
       >
         <span className="flex items-center gap-2 font-semibold">
           <span className="text-gray-400">{open ? '▼' : '▶'}</span>

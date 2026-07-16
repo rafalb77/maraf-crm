@@ -113,7 +113,7 @@ export function ContractAttachments({
               <button
                 type="button"
                 onClick={() => remove(a.id, a.filename)}
-                className="text-xs text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100 transition-opacity"
+                className="text-xs text-red-500 hover:text-red-700 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
                 title="Usuń załącznik"
               >
                 Usuń

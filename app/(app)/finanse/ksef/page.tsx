@@ -10,7 +10,7 @@ export default async function KsefPage() {
   const session = await getServerSession(authOptions)
   if (!isAdmin(session?.user?.email)) {
     return (
-      <div className="p-8">
+      <div className="p-4 sm:p-6 lg:p-8">
         <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-red-900">
           Konfiguracja KSeF dostępna tylko dla administratora.
         </div>
@@ -39,7 +39,7 @@ export default async function KsefPage() {
   }
 
   return (
-    <div className="p-8 max-w-4xl">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-4xl">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Konfiguracja KSeF</h1>
         <p className="text-gray-500 text-sm mt-1">

@@ -137,10 +137,10 @@ export function CalendarView({ calendarConnected }: { calendarConnected: boolean
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
       {/* Calendar */}
-      <div className="lg:col-span-2 bg-white rounded-xl border border-gray-200 p-5">
-        <div className="flex items-center justify-between mb-4 gap-2 flex-wrap">
+      <div className="lg:col-span-2 bg-white rounded-xl border border-gray-200 p-4 sm:p-5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-2 flex-wrap mb-4">
           <h2 className="font-semibold text-gray-900 capitalize">{title}</h2>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             {/* Przełącznik widoków */}
             <div className="inline-flex rounded-lg border border-gray-200 p-0.5">
               {(['day', 'week', 'month'] as CalView[]).map((v) => (
@@ -209,7 +209,7 @@ export function CalendarView({ calendarConnected }: { calendarConnected: boolean
       {/* Side panel */}
       <div className="space-y-4">
         {calendarConnected && (
-          <div className="bg-white rounded-xl border border-gray-200 p-5">
+          <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5">
             <div className="flex items-center justify-between mb-3">
               <h3 className="font-semibold text-gray-900 text-sm">
                 {panelDay ? format(panelDay, 'd MMMM', { locale: pl }) : 'Zdarzenia'}
@@ -236,7 +236,7 @@ export function CalendarView({ calendarConnected }: { calendarConnected: boolean
                   placeholder="Opis (opcjonalnie)"
                   className="w-full text-sm px-2 py-1.5 border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
                 />
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <input
                     type="datetime-local"
                     value={newEvent.start}
@@ -254,13 +254,13 @@ export function CalendarView({ calendarConnected }: { calendarConnected: boolean
                   <button
                     onClick={createEvent}
                     disabled={saving || !newEvent.summary || !newEvent.start || !newEvent.end}
-                    className="text-xs bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700 disabled:opacity-50"
+                    className="flex-1 sm:flex-none text-xs bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700 disabled:opacity-50"
                   >
                     {saving ? '...' : 'Dodaj'}
                   </button>
                   <button
                     onClick={() => setShowNewEvent(false)}
-                    className="text-xs text-gray-500 px-3 py-1.5 rounded hover:bg-gray-100"
+                    className="flex-1 sm:flex-none text-xs text-gray-500 px-3 py-1.5 rounded hover:bg-gray-100"
                   >
                     Anuluj
                   </button>
@@ -294,7 +294,7 @@ export function CalendarView({ calendarConnected }: { calendarConnected: boolean
         )}
 
         {!calendarConnected && (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-5 text-sm text-yellow-800">
+          <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 sm:p-5 text-sm text-yellow-800">
             <p className="font-medium mb-2">Nie połączono z Google Calendar</p>
             <p className="text-xs text-yellow-700">
               Aby korzystać z kalendarza, skonfiguruj integrację w Ustawieniach i kliknij „Połącz z Google
@@ -344,7 +344,7 @@ function MonthGrid({
           <button
             key={day.toString()}
             onClick={() => onSelectDay(day)}
-            className={`min-h-[60px] p-1 rounded-lg text-left transition-colors ${
+            className={`min-h-[44px] md:min-h-[60px] p-1 rounded-lg text-left transition-colors ${
               !isCurrentMonth ? 'opacity-30' : ''
             } ${isSelected ? 'bg-blue-50 border border-blue-200' : 'hover:bg-gray-50'}`}
           >
@@ -355,7 +355,15 @@ function MonthGrid({
             >
               {format(day, 'd')}
             </span>
-            <div className="mt-0.5 space-y-0.5">
+            {/* Mobile: kropki zamiast tytułów — za wąsko na tekst poniżej md */}
+            {dayEvents.length > 0 && (
+              <div className="flex md:hidden items-center gap-0.5 mt-1">
+                {dayEvents.slice(0, 4).map((e) => (
+                  <span key={e.id} className="w-1.5 h-1.5 rounded-full bg-blue-600" />
+                ))}
+              </div>
+            )}
+            <div className="hidden md:block mt-0.5 space-y-0.5">
               {dayEvents.slice(0, 2).map((e) => (
                 <div key={e.id} className="text-xs bg-blue-100 text-blue-700 rounded px-1 truncate">
                   {e.summary}
@@ -392,7 +400,10 @@ function WeekGrid({
   const days = eachDayOfInterval({ start: weekStart, end: weekEnd })
 
   return (
-    <div className="grid grid-cols-7 gap-px">
+    // Poziomy scroll poniżej lg — 7 kolumn z pełnymi godzinami nie mieści się bez zgniatania.
+    // Od lg wraca oryginalne minmax(0,1fr) (lg:min-w-0), bo tam siatka i tak ma dość miejsca.
+    <div className="overflow-x-auto -mx-1 px-1">
+    <div className="grid grid-cols-7 gap-px min-w-[700px] lg:min-w-0">
       {days.map((day) => {
         const dayEvents = eventsForDay(day)
         const isToday = isSameDay(day, new Date())
@@ -437,6 +448,7 @@ function WeekGrid({
           </button>
         )
       })}
+    </div>
     </div>
   )
 }

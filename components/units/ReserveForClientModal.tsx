@@ -49,7 +49,7 @@ export function ReserveForClientModal({ unitId, unitNumber, clients }: {
       </button>
       {open && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => !busy && setOpen(false)}>
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 max-h-[90dvh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-lg font-semibold text-gray-900 mb-1">Zarezerwuj lokal {unitNumber}</h3>
             <p className="text-sm text-gray-600 mb-4">Rezerwacja miękka — wygaśnie automatycznie po 7 dniach, o ile nie zostanie podpisana umowa.</p>
 

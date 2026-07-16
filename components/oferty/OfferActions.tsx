@@ -182,7 +182,7 @@ export function OfferActions({ id, number, status, clientEmail, hasClient, hasUn
 function ConfirmDialog({ title, body, confirmLabel, busy, onConfirm, onCancel }: any) {
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => !busy && onCancel()}>
-      <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-white rounded-xl shadow-xl max-w-md w-full max-h-[90dvh] overflow-y-auto p-6" onClick={(e) => e.stopPropagation()}>
         <h2 className="text-lg font-semibold text-gray-900 mb-2">{title}</h2>
         <p className="text-sm text-gray-700 mb-4">{body}</p>
         <div className="flex justify-end gap-2">
@@ -233,7 +233,7 @@ function EmailDialog({
 
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => !busy && onClose()}>
-      <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full p-6" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90dvh] overflow-y-auto p-6" onClick={(e) => e.stopPropagation()}>
         <h2 className="text-lg font-semibold text-gray-900 mb-3">Wyślij ofertę mailem</h2>
         <div className="space-y-3">
           <div>
@@ -294,7 +294,7 @@ function ConvertDialog({
 
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => !busy && onClose()}>
-      <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-white rounded-xl shadow-xl max-w-md w-full max-h-[90dvh] overflow-y-auto p-6" onClick={(e) => e.stopPropagation()}>
         <h2 className="text-lg font-semibold text-gray-900 mb-2">Utworzyć umowę rezerwacyjną?</h2>
         <p className="text-sm text-gray-700 mb-3">
           System utworzy nową umowę typu <strong>REZERWACYJNA</strong> z klientem i lokalami z oferty {number}.

@@ -19,10 +19,10 @@ export default async function WykonawcyPage() {
     orderBy: { createdAt: 'asc' },
     select: { id: true, name: true },
   })
-  if (!investment) return <div className="p-8 text-gray-500">Brak aktywnej inwestycji.</div>
+  if (!investment) return <div className="p-4 sm:p-6 lg:p-8 text-gray-500">Brak aktywnej inwestycji.</div>
 
   const data = await loadBudowaCostData(investment.id)
-  if (!data) return <div className="p-8 text-gray-500">Brak danych.</div>
+  if (!data) return <div className="p-4 sm:p-6 lg:p-8 text-gray-500">Brak danych.</div>
 
   const now = new Date()
   const contractors = contractorContexts(data, now)
@@ -36,7 +36,7 @@ export default async function WykonawcyPage() {
   const active = contractors
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-6 lg:p-8">
       <h1 className="text-2xl font-bold mb-6">Wykonawcy — {investment.name}</h1>
 
       {active.length === 0 ? (

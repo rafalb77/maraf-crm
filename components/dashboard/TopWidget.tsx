@@ -107,13 +107,13 @@ export function TopWidget() {
       <GreetingHeader greeting={data.greeting} />
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-4">
         <div
-          className="lg:col-span-8 bg-white rounded-xl border border-gray-200 p-5 v2-card-in"
+          className="lg:col-span-8 bg-white rounded-xl border border-gray-200 p-4 sm:p-5 v2-card-in"
           style={{ animationDelay: '0s' }}
         >
           {data.news ? <NewsCard news={data.news} /> : <NewsPlaceholder />}
         </div>
         <div
-          className="lg:col-span-4 bg-white rounded-xl border border-gray-200 p-5 v2-card-in flex flex-col"
+          className="lg:col-span-4 bg-white rounded-xl border border-gray-200 p-4 sm:p-5 v2-card-in flex flex-col"
           style={{ animationDelay: '.06s' }}
         >
           {data.weather ? <WeatherCard weather={data.weather} /> : <WeatherPlaceholder />}

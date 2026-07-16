@@ -72,7 +72,7 @@ export function HarmonogramImport() {
 
   if (phase === 'done') {
     return (
-      <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
+      <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 lg:p-8 text-center">
         <div className="text-5xl mb-3">✅</div>
         <p className="text-lg font-semibold mb-2">Harmonogram zaimportowany</p>
         <p className="text-gray-500 mb-6">{result}</p>
@@ -131,8 +131,8 @@ export function HarmonogramImport() {
             </div>
           )}
 
-          <div className="max-h-80 overflow-y-auto border border-gray-100 rounded-lg">
-            <table className="w-full text-sm">
+          <div className="max-h-80 overflow-auto border border-gray-100 rounded-lg">
+            <table className="w-full min-w-[640px] lg:min-w-0 text-sm">
               <thead className="bg-gray-50 sticky top-0">
                 <tr className="text-left text-gray-500">
                   <th className="px-3 py-2 font-medium">Nr</th>
@@ -169,7 +169,7 @@ export function HarmonogramImport() {
             </table>
           </div>
 
-          <div className="flex items-center gap-3 mt-5">
+          <div className="flex flex-wrap items-center gap-3 mt-5">
             <button
               onClick={doCommit}
               disabled={phase === 'committing'}

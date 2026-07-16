@@ -60,7 +60,7 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
   ].filter(Boolean).join(' · ')
 
   return (
-    <div className="p-8 max-w-6xl">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-6xl">
       {/* Powrót do listy */}
       <Link
         href="/clients"
@@ -79,7 +79,10 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
           {(client.firstName[0] || '') + (client.lastName[0] || '')}
         </div>
         <div className="flex-1 min-w-[200px]">
-          <div className="flex items-center gap-3 flex-wrap">
+          {/* flex-col na mobile: status-changer zawsze zaczyna nowy wiersz od lewej krawędzi,
+              dzięki czemu jego dropdown (absolute left-0) nigdy nie ucieka poza ekran 375px
+              gdy imię+nazwisko jest krótkie i badge zmieściłby się w tej samej linii. */}
+          <div className="flex flex-col items-start gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
             <h1 className="text-2xl font-bold text-gray-900" style={{ letterSpacing: '-0.01em' }}>
               {client.firstName} {client.lastName}
             </h1>
@@ -87,7 +90,7 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
           </div>
           {heroMeta && <p className="text-[13px] mt-1" style={{ color: 'var(--text-muted)' }}>{heroMeta}</p>}
         </div>
-        <div className="flex gap-2.5">
+        <div className="flex flex-wrap gap-2.5">
           <Link
             href="/oferty/nowa"
             className="px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors"
@@ -107,7 +110,7 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
         {/* Lewa (szeroka): historia działań + notatki */}
         <div className="lg:col-span-2 space-y-4">
           {/* Activity feed */}
-          <div className="bg-white rounded-xl border border-gray-200 p-5 v2-card-in" style={{ animationDelay: '.06s' }}>
+          <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5 v2-card-in" style={{ animationDelay: '.06s' }}>
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-semibold text-gray-900">Historia działań</h2>
             </div>
@@ -145,7 +148,7 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
 
           {/* Notes */}
           {client.notes && (
-            <div className="bg-white rounded-xl border border-gray-200 p-5 v2-card-in" style={{ animationDelay: '.12s' }}>
+            <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5 v2-card-in" style={{ animationDelay: '.12s' }}>
               <h2 className="font-semibold text-gray-900 mb-3.5">Notatki</h2>
               <div
                 className="px-3.5 py-3 rounded-[10px] text-[13px] text-gray-600 leading-relaxed whitespace-pre-wrap"
@@ -160,7 +163,7 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
         {/* Prawa (wąska): dane osobowe + lokale + umowy + serwis */}
         <div className="lg:col-span-1 space-y-4">
           {/* Personal data */}
-          <div className="bg-white rounded-xl border border-gray-200 p-5 v2-card-in" style={{ animationDelay: '.09s' }}>
+          <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5 v2-card-in" style={{ animationDelay: '.09s' }}>
             <h2 className="font-semibold text-gray-900 mb-3.5">Dane osobowe</h2>
             <div className="space-y-3">
               <div className="flex flex-col gap-0.5">
@@ -180,7 +183,7 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
           </div>
 
           {/* Assigned units */}
-          <div className="bg-white rounded-xl border border-gray-200 p-5 v2-card-in" style={{ animationDelay: '.15s' }}>
+          <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5 v2-card-in" style={{ animationDelay: '.15s' }}>
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-semibold text-gray-900">Przypisane lokale</h2>
               <AssignUnitModal clientId={client.id} availableUnits={availableUnits} />
@@ -243,7 +246,7 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
           </div>
 
           {/* Contracts */}
-          <div className="bg-white rounded-xl border border-gray-200 p-5 v2-card-in" style={{ animationDelay: '.21s' }}>
+          <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5 v2-card-in" style={{ animationDelay: '.21s' }}>
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-semibold text-gray-900">Umowy</h2>
               <Link href={`/sales/new?clientId=${client.id}`}
@@ -275,7 +278,7 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
           </div>
 
           {/* Service requests */}
-          <div className="bg-white rounded-xl border border-gray-200 p-5 v2-card-in" style={{ animationDelay: '.27s' }}>
+          <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5 v2-card-in" style={{ animationDelay: '.27s' }}>
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-semibold text-gray-900">Serwis / Usterki</h2>
               <Link href={`/service/new?clientId=${client.id}`}

@@ -215,7 +215,7 @@ export function OfferCalculator({
       {/* Header — dane oferty */}
       <div className="bg-white rounded-xl border border-gray-200 p-5">
         <h2 className="font-semibold text-gray-900 mb-3">Dane oferty</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <div>
             <label className="block text-xs text-gray-600 mb-1">Tytuł oferty</label>
             <input
@@ -243,9 +243,9 @@ export function OfferCalculator({
 
       {/* Pozycje */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <div className="px-5 py-3 flex items-center justify-between border-b border-gray-100">
+        <div className="px-5 py-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-gray-100">
           <h2 className="font-semibold text-gray-900">Pozycje oferty ({items.length})</h2>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <button
               onClick={() => { setCustomOpen(false); setPickerOpen(!pickerOpen) }}
               className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded-lg text-sm font-medium"
@@ -265,15 +265,15 @@ export function OfferCalculator({
 
         {pickerOpen && (
           <div className="px-5 py-3 bg-gray-50/60 border-b border-gray-100">
-            <div className="flex gap-2 mb-3">
+            <div className="flex flex-col gap-2 sm:flex-row mb-3">
               <input
                 type="search"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Szukaj numeru..."
-                className={inputCls + ' flex-1'}
+                className={inputCls + ' w-full sm:flex-1'}
               />
-              <select value={filterType} onChange={(e) => setFilterType(e.target.value)} className={inputCls + ' bg-white'}>
+              <select value={filterType} onChange={(e) => setFilterType(e.target.value)} className={inputCls + ' w-full sm:w-auto bg-white'}>
                 <option value="">Wszystkie typy</option>
                 {Object.entries(TYPE_LABELS).map(([v, l]) => (
                   <option key={v} value={v}>{l}</option>
@@ -288,9 +288,9 @@ export function OfferCalculator({
                   <button
                     key={u.id}
                     onClick={() => addUnit(u)}
-                    className="w-full flex items-center justify-between gap-3 px-3 py-2 bg-white border border-gray-200 rounded hover:border-blue-300 hover:bg-blue-50/30 text-left text-sm"
+                    className="w-full flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-3 px-3 py-2 bg-white border border-gray-200 rounded hover:border-blue-300 hover:bg-blue-50/30 text-left text-sm"
                   >
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 flex-wrap">
                       <span className={`inline-block px-2 py-0.5 text-[10px] uppercase rounded ${TYPE_BADGE[u.type] || 'bg-gray-100'}`}>
                         {TYPE_LABELS[u.type] || u.type}
                       </span>
@@ -308,12 +308,12 @@ export function OfferCalculator({
         )}
 
         {items.length === 0 ? (
-          <div className="p-8 text-center text-gray-400 text-sm">
+          <div className="p-4 sm:p-6 lg:p-8 text-center text-gray-400 text-sm">
             Brak pozycji. Kliknij <strong>+ Dodaj lokal</strong> żeby zacząć.
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full min-w-[900px] lg:min-w-0 text-sm">
               <thead className="text-xs text-gray-500 bg-gray-50/60">
                 <tr>
                   <th className="text-left px-3 py-2 font-medium">Typ</th>
@@ -406,7 +406,7 @@ export function OfferCalculator({
       {/* Sumy + zapis */}
       <div className="bg-white rounded-xl border border-gray-200 p-5">
         <h2 className="font-semibold text-gray-900 mb-4">Podsumowanie</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="space-y-2">
             <SummaryRow label="Suma netto przed rabatem" value={`${fmt(sums.subtotalNet)} zł`} />
             <SummaryRow label="Suma brutto przed rabatem" value={`${fmt(sums.subtotalGross)} zł`} />
@@ -446,11 +446,11 @@ export function OfferCalculator({
 
         {error && <p className="text-sm text-red-600 mt-3">{error}</p>}
 
-        <div className="flex items-center gap-3 mt-4 pt-4 border-t border-gray-100">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center mt-4 pt-4 border-t border-gray-100">
           <button
             onClick={save}
             disabled={saving || items.length === 0}
-            className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white px-5 py-2 rounded-lg text-sm font-medium"
+            className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white px-5 py-2 rounded-lg text-sm font-medium w-full sm:w-auto"
           >
             {saving ? 'Zapisuję...' : isEdit ? '💾 Zapisz zmiany' : '💾 Zapisz ofertę'}
           </button>
@@ -500,8 +500,8 @@ function CustomItemForm({
   return (
     <div className="px-5 py-4 bg-gray-50/60 border-b border-gray-100">
       <p className="text-sm font-medium text-gray-700 mb-3">Niestandardowa pozycja</p>
-      <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
-        <div className="md:col-span-2">
+      <div className="grid grid-cols-1 lg:grid-cols-6 gap-3">
+        <div className="lg:col-span-2">
           <label className="block text-xs text-gray-600 mb-1">Opis pozycji</label>
           <input
             value={label}
@@ -563,7 +563,7 @@ function CustomItemForm({
         </div>
       </div>
 
-      <div className="mt-3 flex items-center justify-between">
+      <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="text-xs text-gray-600">
           {priceNet > 0 && (
             <>

@@ -16,9 +16,9 @@ export default async function BudowaPage() {
 
   if (!investment) {
     return (
-      <div className="p-8">
+      <div className="p-4 sm:p-6 lg:p-8">
         <h1 className="text-2xl font-bold mb-6">Budowa</h1>
-        <div className="bg-white rounded-xl border border-gray-200 p-8 text-center text-gray-500">
+        <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 lg:p-8 text-center text-gray-500">
           Brak aktywnej inwestycji. Uruchom seed (<code>npm run db:seed</code>) albo dodaj
           inwestycję w bazie — edycja w UI dojdzie w kolejnych etapach.
         </div>
@@ -75,7 +75,7 @@ export default async function BudowaPage() {
   ).length
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-6 lg:p-8">
       {/* Nagłówek inwestycji */}
       <div className="flex flex-wrap items-center gap-3 mb-6">
         <h1 className="text-2xl font-bold">{investment.name}</h1>

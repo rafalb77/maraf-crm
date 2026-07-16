@@ -133,7 +133,7 @@ export function ComparisonTable({
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-gray-50/50">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-gray-50/50 flex-wrap gap-2">
         <p className="text-xs text-gray-500">
           Akceptacja po stronie Inwestora (kolumna „AKCEPTACJA") warunkuje przejście pozycji do protokołu.
         </p>
@@ -145,7 +145,7 @@ export function ComparisonTable({
         </button>
       </div>
       <div className="overflow-x-auto">
-        <table className="w-full text-sm">
+        <table className="w-full min-w-[1120px] lg:min-w-0 text-sm">
           <thead className="bg-gray-50 text-xs text-gray-500 uppercase tracking-wider">
             <tr>
               <th className="text-left px-3 py-3 font-medium w-10">Lp.</th>
@@ -817,7 +817,7 @@ function AddItemModal({
       className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
       onClick={() => !busy && onClose()}
     >
-      <div className="bg-white rounded-xl shadow-xl p-6 max-w-lg w-full" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-white rounded-xl shadow-xl p-6 max-w-lg w-full max-h-[90dvh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <h3 className="font-semibold text-gray-900 text-lg mb-1">Dodaj pozycję obmiaru</h3>
         <p className="text-xs text-gray-500 mb-4">
           Pozycja zostanie dodana z trybem „dodana ręcznie". Zostanie zachowana przy reimporcie kierownika.
@@ -851,7 +851,7 @@ function AddItemModal({
               <option value="kg">kg</option>
             </select>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-medium text-gray-700 mb-1">Maraf — wartość (opc.)</label>
               <input

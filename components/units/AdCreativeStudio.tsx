@@ -189,7 +189,7 @@ export function AdCreativeStudio({
   return (
     <div className="space-y-5">
       {/* Kontrolki */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-5">
+      <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 space-y-5">
         {/* Headline (haslo) */}
         <div>
           <p className="text-sm font-medium text-gray-700 mb-2">Hasło reklamowe (najważniejszy element kreacji)</p>
@@ -263,8 +263,8 @@ export function AdCreativeStudio({
           <p className="text-sm font-medium text-gray-700 mb-2">Zdjęcie tła — osobno dla każdego formatu</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {FORMATS.map((f) => (
-              <div key={f} className="flex items-center gap-2">
-                <span className="text-xs text-gray-500 w-36 flex-shrink-0">{AD_FORMAT_DIMENSIONS[f].label}</span>
+              <div key={f} className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
+                <span className="text-xs text-gray-500 w-full sm:w-36 flex-shrink-0">{AD_FORMAT_DIMENSIONS[f].label}</span>
                 <select
                   value={bgByFormat[f] || ''}
                   onChange={(e) => setBgByFormat((prev) => ({ ...prev, [f]: e.target.value }))}
@@ -285,7 +285,7 @@ export function AdCreativeStudio({
         </div>
 
         {/* Zapis ustawien per lokal */}
-        <div className="flex items-center gap-3 pt-2 border-t border-gray-100">
+        <div className="flex items-center gap-3 pt-2 border-t border-gray-100 flex-wrap">
           <button
             type="button"
             onClick={saveSettings}
@@ -303,7 +303,7 @@ export function AdCreativeStudio({
       </div>
 
       {/* Podglad — zakladki formatow */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
+      <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6">
         <div className="flex flex-wrap gap-2 mb-4">
           {FORMATS.map((f) => (
             <button
@@ -355,8 +355,8 @@ export function AdCreativeStudio({
       </div>
 
       {/* Pobieranie */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
-        <div className="flex items-center justify-between gap-4 mb-3">
+      <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
           <p className="text-sm font-medium text-gray-700">Pobierz kreacje (PNG)</p>
           <a
             href={buildZipUrl()}
@@ -385,8 +385,8 @@ export function AdCreativeStudio({
       </div>
 
       {/* Teksty reklamowe AI — faza 1c */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
-        <div className="flex items-start justify-between gap-4 mb-3">
+      <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6">
+        <div className="flex flex-wrap items-start justify-between gap-4 mb-3">
           <div>
             <p className="text-sm font-medium text-gray-700">Teksty reklamowe (AI)</p>
             <p className="text-xs text-gray-400 mt-0.5">
@@ -409,7 +409,7 @@ export function AdCreativeStudio({
           <div className="space-y-3">
             {copyVariants.map((v, i) => (
               <div key={i} className="border border-gray-200 rounded-lg p-4">
-                <div className="flex items-center justify-between mb-2">
+                <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
                   <span className="inline-block bg-blue-50 text-blue-700 text-[11px] font-semibold px-2 py-0.5 rounded">
                     {v.angle}
                   </span>

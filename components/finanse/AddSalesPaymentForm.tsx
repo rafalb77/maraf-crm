@@ -31,7 +31,7 @@ export function AddSalesPaymentForm({ invoiceId, remaining }: { invoiceId: strin
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-4">
       <h3 className="font-medium text-gray-900 mb-3">Nowa wpłata</h3>
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         <div>
           <label className="text-xs text-gray-500 uppercase font-semibold mb-1 block">Kwota (zł)</label>
           <input value={amount} onChange={(e) => setAmount(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm tabular-nums" />

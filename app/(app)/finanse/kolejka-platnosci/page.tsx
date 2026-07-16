@@ -207,7 +207,7 @@ export default async function KolejkaPlatnosciPage({ searchParams }: { searchPar
   }
 
   return (
-    <div className="p-8 max-w-6xl">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-6xl">
       <div className="mb-4">
         <h1 className="text-2xl font-bold text-gray-900">Kolejka płatności</h1>
         <p className="text-gray-500 text-sm mt-1">
@@ -262,7 +262,7 @@ export default async function KolejkaPlatnosciPage({ searchParams }: { searchPar
 
       {/* Baner zaległości */}
       {overdueRows.length > 0 && !overdueOnly && (
-        <Link href={`/finanse/kolejka-platnosci${qs({ overdue: '1' })}`} className="flex items-center justify-between gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3 mb-4 hover:bg-red-100 transition-colors">
+        <Link href={`/finanse/kolejka-platnosci${qs({ overdue: '1' })}`} className="flex items-center justify-between gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3 mb-4 hover:bg-red-100 transition-colors flex-wrap">
           <span className="text-sm text-red-700 font-medium">⚠ {overdueRows.length} {overdueRows.length === 1 ? 'faktura' : 'faktur'} po terminie — łącznie {fmtMoney(overdueSum)}</span>
           <span className="text-sm text-red-700">Pokaż tylko po terminie →</span>
         </Link>
@@ -285,7 +285,7 @@ export default async function KolejkaPlatnosciPage({ searchParams }: { searchPar
                 <div className="mt-5 pt-5 border-t border-gray-100 max-w-lg mx-auto space-y-2">
                   <p className="text-sm text-gray-600">Niezapłacone faktury tej firmy są tutaj:</p>
                   {emptyHints.map((h) => (
-                    <Link key={h.href} href={h.href} className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg border border-gray-200 hover:bg-gray-50 text-sm">
+                    <Link key={h.href} href={h.href} className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg border border-gray-200 hover:bg-gray-50 text-sm flex-wrap">
                       <span className="text-gray-700">{h.label}</span>
                       <span className="tabular-nums font-medium text-gray-900 whitespace-nowrap">{fmtMoney(h.sum)} →</span>
                     </Link>
@@ -306,7 +306,7 @@ export default async function KolejkaPlatnosciPage({ searchParams }: { searchPar
           <div key={sec.key} className="v2-card-in">
             {sec.label && (
               <div
-                className={`flex items-baseline justify-between gap-3 border rounded-t-xl px-4 py-2.5 ${sec.tone === 'red' ? 'bg-red-50' : ''}`}
+                className={`flex items-baseline justify-between gap-3 border rounded-t-xl px-4 py-2.5 flex-wrap ${sec.tone === 'red' ? 'bg-red-50' : ''}`}
                 style={sec.tone === 'red' ? { borderColor: '#fecaca' } : { background: 'var(--surface-alt)', borderColor: 'var(--border)' }}
               >
                 <span className={`font-semibold ${sec.tone === 'red' ? 'text-red-700' : 'text-gray-900'}`}>
@@ -321,35 +321,39 @@ export default async function KolejkaPlatnosciPage({ searchParams }: { searchPar
               className={`bg-white border rounded-b-xl overflow-hidden ${sec.label ? 'border-t-0' : 'rounded-t-xl'}`}
               style={{ borderColor: 'var(--border)' }}
             >
-              {sec.rows.map((inv, idx) => {
-                const rem = remaining(inv)
-                const sumPaid = inv.amountGross - rem
-                const overdue = isOverdue(inv.dueDate, inv.status)
-                return (
-                  <div
-                    key={inv.id}
-                    className={`grid grid-cols-[1fr_auto_auto_auto] gap-5 items-center px-4 py-2.5 hover:bg-gray-50 transition-colors ${idx > 0 ? 'border-t' : ''} ${overdue ? 'border-l-2 border-l-red-500' : ''}`}
-                    style={idx > 0 ? { borderColor: 'var(--border-soft)' } : undefined}
-                  >
-                    <span className="min-w-0">
-                      {inv.subVendor && <span className="font-medium text-gray-900 mr-2">{inv.subVendor}</span>}
-                      {!inv.subVendor && group !== 'vendor' && <span className="text-gray-500 mr-2">{inv.vendor.name}</span>}
-                      <Link href={`/finanse/faktury/${inv.id}`} className="text-blue-600 hover:underline font-mono text-xs">{inv.number}</Link>
-                    </span>
-                    <span className={`tabular-nums text-sm whitespace-nowrap text-right ${overdue ? 'text-red-700 font-semibold' : 'text-gray-700'}`}>
-                      <span className="block">termin: {fmtDate(inv.dueDate)}{overdue && ' ⚠'}</span>
-                      {inv.dueDate && <span className={`block text-[11px] ${overdue ? 'text-red-500' : 'text-gray-400'}`}>{fmtDaysFromNow(inv.dueDate)}</span>}
-                    </span>
-                    <span className="text-right tabular-nums">
-                      {sumPaid > 0.01 && <span className="block text-xs text-gray-400">zapł. {fmtMoney(sumPaid)}</span>}
-                      <span className="block font-semibold text-gray-900">{fmtMoney(rem)}</span>
-                    </span>
-                    <Link href={`/finanse/faktury/${inv.id}`} className="text-xs text-blue-600 font-medium whitespace-nowrap px-2 py-1.5 rounded-md">
-                      Oznacz opłacone →
-                    </Link>
-                  </div>
-                )
-              })}
+              {/* Wiersz to CSS grid (nie tabela) — na wąskich ekranach zamiast
+                  zgniatania kolumn wymuszamy min-w i przewijamy poziomo. */}
+              <div className="overflow-x-auto">
+                {sec.rows.map((inv, idx) => {
+                  const rem = remaining(inv)
+                  const sumPaid = inv.amountGross - rem
+                  const overdue = isOverdue(inv.dueDate, inv.status)
+                  return (
+                    <div
+                      key={inv.id}
+                      className={`grid grid-cols-[1fr_auto_auto_auto] gap-5 items-center px-4 py-2.5 min-w-[680px] hover:bg-gray-50 transition-colors ${idx > 0 ? 'border-t' : ''} ${overdue ? 'border-l-2 border-l-red-500' : ''}`}
+                      style={idx > 0 ? { borderColor: 'var(--border-soft)' } : undefined}
+                    >
+                      <span className="min-w-0">
+                        {inv.subVendor && <span className="font-medium text-gray-900 mr-2">{inv.subVendor}</span>}
+                        {!inv.subVendor && group !== 'vendor' && <span className="text-gray-500 mr-2">{inv.vendor.name}</span>}
+                        <Link href={`/finanse/faktury/${inv.id}`} className="text-blue-600 hover:underline font-mono text-xs">{inv.number}</Link>
+                      </span>
+                      <span className={`tabular-nums text-sm whitespace-nowrap text-right ${overdue ? 'text-red-700 font-semibold' : 'text-gray-700'}`}>
+                        <span className="block">termin: {fmtDate(inv.dueDate)}{overdue && ' ⚠'}</span>
+                        {inv.dueDate && <span className={`block text-[11px] ${overdue ? 'text-red-500' : 'text-gray-400'}`}>{fmtDaysFromNow(inv.dueDate)}</span>}
+                      </span>
+                      <span className="text-right tabular-nums">
+                        {sumPaid > 0.01 && <span className="block text-xs text-gray-400">zapł. {fmtMoney(sumPaid)}</span>}
+                        <span className="block font-semibold text-gray-900">{fmtMoney(rem)}</span>
+                      </span>
+                      <Link href={`/finanse/faktury/${inv.id}`} className="text-xs text-blue-600 font-medium whitespace-nowrap px-2 py-1.5 rounded-md">
+                        Oznacz opłacone →
+                      </Link>
+                    </div>
+                  )
+                })}
+              </div>
             </div>
           </div>
         ))}

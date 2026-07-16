@@ -57,22 +57,24 @@ export function ClientOwnerChanger({
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute left-0 top-full mt-1 bg-white rounded-xl shadow-lg border border-gray-200 py-1 z-50 min-w-[180px] max-h-64 overflow-y-auto">
+          <div className="absolute left-0 top-full mt-1 bg-white rounded-xl shadow-lg border border-gray-200 py-1 z-50 min-w-[180px] max-w-[calc(100vw-2rem)] max-h-64 overflow-y-auto">
             <button
               onClick={() => change(null)}
-              className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center justify-between ${!ownerId ? 'font-semibold' : 'text-gray-500'}`}
+              className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center justify-between gap-2 ${!ownerId ? 'font-semibold' : 'text-gray-500'}`}
             >
-              <span>Nieprzypisany</span>
-              {!ownerId && <span className="text-blue-500">✓</span>}
+              <span className="truncate min-w-0">Nieprzypisany</span>
+              {!ownerId && <span className="text-blue-500 flex-shrink-0">✓</span>}
             </button>
             {users.map((u) => (
               <button
                 key={u.id}
                 onClick={() => change(u.id)}
-                className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center justify-between ${u.id === ownerId ? 'font-semibold' : ''}`}
+                className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center justify-between gap-2 ${u.id === ownerId ? 'font-semibold' : ''}`}
               >
-                <span>{label(u)}</span>
-                {u.id === ownerId && <span className="text-blue-500">✓</span>}
+                {/* truncate+min-w-0 — label bywa emailem handlowca, na wąskim ekranie
+                    nie może rozepchać dropdownu (który ma sztywny max-w-[calc(100vw-2rem)]) */}
+                <span className="truncate min-w-0">{label(u)}</span>
+                {u.id === ownerId && <span className="text-blue-500 flex-shrink-0">✓</span>}
               </button>
             ))}
           </div>

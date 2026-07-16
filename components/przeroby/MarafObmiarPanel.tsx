@@ -70,7 +70,7 @@ export function MarafObmiarPanel({ items }: { items: MarafWorkItemLite[] }) {
 
   return (
     <details className="mt-6 bg-white rounded-xl border border-gray-200 overflow-hidden">
-      <summary className="px-5 py-3 cursor-pointer font-semibold text-gray-900 hover:bg-gray-50 select-none flex items-center justify-between gap-3">
+      <summary className="px-5 py-3 cursor-pointer font-semibold text-gray-900 hover:bg-gray-50 select-none flex items-center justify-between gap-3 flex-wrap">
         <span>
           Podgląd obmiaru Maraf — konstrukcja żelbetowa
           <span className="text-xs font-normal text-gray-500 ml-2">
@@ -91,14 +91,14 @@ export function MarafObmiarPanel({ items }: { items: MarafWorkItemLite[] }) {
           const catV = rows.reduce((s, r) => s + r.volumeM3, 0)
           return (
             <div key={cat}>
-              <div className="px-5 py-2 bg-gray-50/60 flex items-center justify-between">
+              <div className="px-5 py-2 bg-gray-50/60 flex items-center justify-between flex-wrap gap-1">
                 <h4 className="text-xs font-semibold text-gray-900 uppercase tracking-wide">{cat}</h4>
                 <span className="text-xs text-gray-500 tabular-nums">
                   {fmt(catA)} m² · {fmt(catV)} m³
                 </span>
               </div>
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+                <table className="w-full min-w-[480px] lg:min-w-0 text-sm">
                   <thead className="text-xs text-gray-500">
                     <tr className="border-t border-gray-100">
                       <th className="text-left px-5 py-1.5 font-medium">Rodzaj elementu</th>

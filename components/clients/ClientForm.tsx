@@ -75,10 +75,10 @@ export function ClientForm({ client }: { client?: Client }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} autoComplete="off" className="bg-white rounded-xl border border-gray-200 p-6 space-y-6">
+    <form onSubmit={handleSubmit} autoComplete="off" className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 space-y-6">
       <section>
         <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">Dane podstawowe</h3>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <FormField label="Imię *" required>
             <input value={form.firstName} onChange={(e) => set('firstName', e.target.value)} required autoComplete="off" className={inputCls} placeholder="Jan" />
           </FormField>
@@ -98,14 +98,14 @@ export function ClientForm({ client }: { client?: Client }) {
 
       <section>
         <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">Kontakt</h3>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <FormField label="Telefon">
             <input type="tel" value={form.phone} onChange={(e) => set('phone', e.target.value)} autoComplete="off" className={inputCls} placeholder="+48 600 000 000" />
           </FormField>
           <FormField label="Telefon 2">
             <input type="tel" value={form.phone2} onChange={(e) => set('phone2', e.target.value)} autoComplete="off" className={inputCls} />
           </FormField>
-          <FormField label="Email" cls="col-span-2">
+          <FormField label="Email" cls="md:col-span-2">
             <input type="email" value={form.email} onChange={(e) => set('email', e.target.value)} autoComplete="off" className={inputCls} placeholder="jan@kowalski.pl" />
           </FormField>
         </div>
@@ -113,7 +113,7 @@ export function ClientForm({ client }: { client?: Client }) {
 
       <section>
         <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">Dane do umowy</h3>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <FormField label="PESEL">
             <input value={form.pesel} onChange={(e) => set('pesel', e.target.value)} autoComplete="off" className={inputCls} maxLength={11} />
           </FormField>
@@ -129,7 +129,7 @@ export function ClientForm({ client }: { client?: Client }) {
           <FormField label="Imię matki">
             <input value={form.motherName} onChange={(e) => set('motherName', e.target.value)} autoComplete="off" className={inputCls} />
           </FormField>
-          <FormField label="Adres" cls="col-span-2">
+          <FormField label="Adres" cls="md:col-span-2">
             <input value={form.address} onChange={(e) => set('address', e.target.value)} autoComplete="off" className={inputCls} placeholder="ul. Przykładowa 1/2" />
           </FormField>
           <FormField label="Kod pocztowy">
@@ -149,13 +149,13 @@ export function ClientForm({ client }: { client?: Client }) {
 
       {error && <p className="text-red-500 text-sm">{error}</p>}
 
-      <div className="flex gap-3 pt-2">
+      <div className="flex flex-col gap-3 pt-2 sm:flex-row">
         <button type="submit" disabled={loading}
-          className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white px-6 py-2 rounded-lg text-sm font-medium transition-colors">
+          className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white px-6 py-2.5 sm:py-2 rounded-lg text-sm font-medium transition-colors">
           {loading ? 'Zapisywanie...' : client ? 'Zapisz zmiany' : 'Dodaj klienta'}
         </button>
         <button type="button" onClick={() => router.back()}
-          className="px-6 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors">
+          className="w-full sm:w-auto px-6 py-2.5 sm:py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors">
           Anuluj
         </button>
       </div>

@@ -157,7 +157,7 @@ export function SettingsForm() {
 
       {/* SMTP */}
       <div className="bg-white rounded-xl border border-gray-200 p-6">
-        <div className="flex items-start justify-between mb-4">
+        <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
           <div>
             <h2 className="font-semibold text-gray-900">Serwer poczty (SMTP)</h2>
             <p className="text-xs text-gray-500 mt-1">Konfiguracja używana przy wysyłce mailingu i powiadomień.</p>
@@ -168,8 +168,8 @@ export function SettingsForm() {
           </button>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div className="col-span-2 sm:col-span-1">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="sm:col-span-1">
             <label className="block text-sm font-medium text-gray-700 mb-1">Host SMTP</label>
             <input value={settings.smtpHost}
               onChange={(e) => setSettings({ ...settings, smtpHost: e.target.value })}
@@ -190,13 +190,13 @@ export function SettingsForm() {
               <option value="false">STARTTLS (port 587)</option>
             </select>
           </div>
-          <div className="col-span-2">
+          <div className="sm:col-span-2">
             <label className="block text-sm font-medium text-gray-700 mb-1">Login (pełny adres email)</label>
             <input value={settings.smtpUser}
               onChange={(e) => setSettings({ ...settings, smtpUser: e.target.value })}
               className={inputCls} placeholder="biuro@novastaffa.pl" />
           </div>
-          <div className="col-span-2">
+          <div className="sm:col-span-2">
             <label className="block text-sm font-medium text-gray-700 mb-1">Hasło</label>
             <div className="relative">
               <input type={showPass ? 'text' : 'password'} value={settings.smtpPass}
@@ -208,19 +208,19 @@ export function SettingsForm() {
               </button>
             </div>
           </div>
-          <div className="col-span-2 sm:col-span-1">
+          <div className="sm:col-span-1">
             <label className="block text-sm font-medium text-gray-700 mb-1">Adres nadawcy (From)</label>
             <input value={settings.smtpFrom}
               onChange={(e) => setSettings({ ...settings, smtpFrom: e.target.value })}
               className={inputCls} placeholder="biuro@novastaffa.pl" />
           </div>
-          <div className="col-span-2 sm:col-span-1">
+          <div className="sm:col-span-1">
             <label className="block text-sm font-medium text-gray-700 mb-1">Nazwa nadawcy</label>
             <input value={settings.smtpFromName}
               onChange={(e) => setSettings({ ...settings, smtpFromName: e.target.value })}
               className={inputCls} placeholder="Nova Staffa" />
           </div>
-          <div className="col-span-2">
+          <div className="sm:col-span-2">
             <label className="flex items-start gap-2 text-sm text-gray-700 cursor-pointer">
               <input type="checkbox"
                 checked={settings.smtpAllowSelfSigned === 'true'}

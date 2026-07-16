@@ -29,10 +29,10 @@ export default async function KosztyPage() {
     orderBy: { createdAt: 'asc' },
     select: { id: true, name: true },
   })
-  if (!investment) return <div className="p-8 text-gray-500">Brak aktywnej inwestycji.</div>
+  if (!investment) return <div className="p-4 sm:p-6 lg:p-8 text-gray-500">Brak aktywnej inwestycji.</div>
 
   const data = await loadBudowaCostData(investment.id)
-  if (!data) return <div className="p-8 text-gray-500">Brak danych kosztowych.</div>
+  if (!data) return <div className="p-4 sm:p-6 lg:p-8 text-gray-500">Brak danych kosztowych.</div>
 
   const now = new Date()
   const budgets = stageBudgets(data)
@@ -61,7 +61,7 @@ export default async function KosztyPage() {
   const vendorNames = Array.from(new Set(assigned.map((i) => i.vendorName))).sort()
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-6 lg:p-8">
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <h1 className="text-2xl font-bold">Koszty budowy — {investment.name}</h1>
         <span className="text-sm text-gray-500">obie firmy (Maraf + MD)</span>

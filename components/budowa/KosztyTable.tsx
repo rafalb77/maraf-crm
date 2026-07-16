@@ -156,7 +156,7 @@ export function KosztyTable({
         <p className="text-sm text-gray-400 py-6 text-center">Brak faktur dla wybranych filtrów.</p>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full min-w-[760px] lg:min-w-0 text-sm">
             <thead className="text-xs text-gray-500 uppercase tracking-wider">
               <tr className="border-b border-gray-200">
                 <th className="text-left py-2 font-medium">FV</th>

@@ -16,8 +16,8 @@ export function DeleteClientButton({ id, name }: { id: string; name: string }) {
 
   if (confirming) {
     return (
-      <div className="flex gap-2">
-        <span className="text-sm text-gray-500 self-center">Usuń {name}?</span>
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-sm text-gray-500">Usuń {name}?</span>
         <button onClick={handleDelete} disabled={loading}
           className="px-3 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 disabled:opacity-50">
           {loading ? '...' : 'Tak, usuń'}

@@ -50,7 +50,7 @@ export function RejestrWplat({ refreshKey }: { refreshKey: number }) {
 
       <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full min-w-[820px] lg:min-w-0 text-sm">
             <thead className="text-left text-xs text-gray-500 bg-gray-50 border-b border-gray-200">
               <tr>
                 <th className="py-2 px-3">Data</th>

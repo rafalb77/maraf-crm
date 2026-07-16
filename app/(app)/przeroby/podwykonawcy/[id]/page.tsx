@@ -34,13 +34,13 @@ export default async function PodwykonawcaPage({
   }
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-6 lg:p-8">
       <div className="mb-2 text-sm">
         <Link href="/przeroby/podwykonawcy" className="text-gray-500 hover:text-gray-700">
           ← Podwykonawcy
         </Link>
       </div>
-      <div className="mb-6 flex items-start justify-between gap-4">
+      <div className="mb-6 flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">{sub.name}</h1>
           {sub.nip && <p className="text-gray-500 text-sm mt-1">NIP {sub.nip}</p>}
@@ -99,7 +99,8 @@ export default async function PodwykonawcaPage({
           {sub.protocols.length === 0 ? (
             <p className="text-sm text-gray-400">Brak protokołów.</p>
           ) : (
-            <table className="w-full text-sm">
+            <div className="overflow-x-auto">
+            <table className="w-full min-w-[480px] lg:min-w-0 text-sm">
               <thead className="text-xs text-gray-500 uppercase tracking-wider">
                 <tr>
                   <th className="text-left py-2 font-medium">Okres</th>
@@ -125,6 +126,7 @@ export default async function PodwykonawcaPage({
                 ))}
               </tbody>
             </table>
+            </div>
           )}
         </div>
       </div>

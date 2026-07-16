@@ -87,7 +87,7 @@ export function RyzykaView({ risks: initial, tasks }: { risks: Risk[]; tasks: Ta
       </div>
 
       {risks.length === 0 ? (
-        <div className="bg-white rounded-xl border border-gray-200 p-8 text-center text-gray-500">
+        <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 lg:p-8 text-center text-gray-500">
           Brak zarejestrowanych ryzyk. Dodaj pierwsze, gdy coś zagraża harmonogramowi albo budżetowi.
         </div>
       ) : (

@@ -194,8 +194,8 @@ export default async function FakturyListPage({
   })
 
   return (
-    <div className="p-8">
-      <div className="flex items-center justify-between mb-6">
+    <div className="p-4 sm:p-6 lg:p-8">
+      <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Faktury zakupowe</h1>
           <p className="text-gray-500 text-sm mt-1">
@@ -203,7 +203,7 @@ export default async function FakturyListPage({
             {hasFilters && ' (po filtrach)'}
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <Link
             href="/finanse/import"
             className="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium"
@@ -298,7 +298,7 @@ export default async function FakturyListPage({
 
       {/* Komponent zakładki folderu — server */}
       {totalPages > 1 && (
-        <div className="mt-4 flex items-center justify-between text-sm">
+        <div className="mt-4 flex items-center justify-between text-sm flex-wrap gap-2">
           <p className="text-gray-500">Strona {page} z {totalPages} • {total} faktur</p>
           <div className="flex gap-2">
             {page > 1 && (

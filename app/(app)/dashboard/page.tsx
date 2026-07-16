@@ -82,7 +82,7 @@ export default async function DashboardPage() {
   const fmtM2 = (n: number) => `${Math.round(n).toLocaleString('pl-PL')} m²`
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-6 lg:p-8">
       {/* Top widget: powitanie + news dnia (per user.interests) + pogoda */}
       <TopWidget />
 
@@ -92,7 +92,7 @@ export default async function DashboardPage() {
       {/* Bento: hero „Sprzedaż łącznie" (navy + złota poświata) + KPI 2×2 */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-4">
         <div
-          className="lg:col-span-7 v2-card-in relative overflow-hidden rounded-[24px] p-6 flex flex-col justify-center"
+          className="lg:col-span-7 v2-card-in relative overflow-hidden rounded-[24px] p-4 sm:p-6 flex flex-col justify-center"
           style={{
             background:
               'radial-gradient(620px 320px at 108% 130%, rgba(201,163,122,.30), transparent 62%), linear-gradient(150deg, #2C3E54 0%, #1F2D3F 55%, #161E2B 100%)',
@@ -105,8 +105,8 @@ export default async function DashboardPage() {
           </div>
           <div className="mt-1.5 flex items-baseline gap-x-3 gap-y-1 flex-wrap">
             <span
-              className="font-bold tabular-nums"
-              style={{ fontSize: 30, letterSpacing: '-0.02em', color: '#F2E8D6', lineHeight: 1.15 }}
+              className="font-bold tabular-nums min-w-0 break-words text-[22px] sm:text-[30px]"
+              style={{ letterSpacing: '-0.02em', color: '#F2E8D6', lineHeight: 1.15 }}
             >
               {formatCurrency(revenue)}
             </span>
@@ -136,7 +136,7 @@ export default async function DashboardPage() {
 
           {/* Mieszkania (MIESZKALNY): wartość sprzedanych, sztuki i % PUM po powierzchni */}
           <div
-            className="mt-3.5 pt-3 grid grid-cols-3 gap-4 max-w-[560px]"
+            className="mt-3.5 pt-3 grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4 max-w-[560px]"
             style={{ borderTop: '1px solid rgba(242,232,214,.12)' }}
           >
             <div>
@@ -212,7 +212,7 @@ export default async function DashboardPage() {
 
       {/* Dolny rząd bento: Status lokali (4) + Lejek (3) + Ostatnie działania (5), usterki pod spodem */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-        <div className="lg:col-span-4 bg-white rounded-xl border border-gray-200 p-6 v2-card-in" style={{ animationDelay: '.24s' }}>
+        <div className="lg:col-span-4 bg-white rounded-xl border border-gray-200 p-4 sm:p-6 v2-card-in" style={{ animationDelay: '.24s' }}>
           <h2 className="font-semibold text-gray-900 mb-4">Status lokali</h2>
           <div className="grid grid-cols-1 gap-3">
             {[
@@ -241,7 +241,7 @@ export default async function DashboardPage() {
           </div>
         </div>
 
-        <div className="lg:col-span-3 bg-white rounded-xl border border-gray-200 p-6 v2-card-in" style={{ animationDelay: '.3s' }}>
+        <div className="lg:col-span-3 bg-white rounded-xl border border-gray-200 p-4 sm:p-6 v2-card-in" style={{ animationDelay: '.3s' }}>
           <h2 className="font-semibold text-gray-900 mb-4">Lejek sprzedaży</h2>
           <div className="space-y-2">
             {(['ZAPYTANIE', 'OFERTA', 'REZERWACJA', 'UMOWA', 'ODBIOR'] as const).map((status) => {
@@ -259,7 +259,7 @@ export default async function DashboardPage() {
         </div>
 
         {/* Recent Activities */}
-        <div className="lg:col-span-5 bg-white rounded-xl border border-gray-200 p-6 v2-card-in" style={{ animationDelay: '.36s' }}>
+        <div className="lg:col-span-5 bg-white rounded-xl border border-gray-200 p-4 sm:p-6 v2-card-in" style={{ animationDelay: '.36s' }}>
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-semibold text-gray-900">Ostatnie działania</h2>
           </div>
@@ -286,7 +286,7 @@ export default async function DashboardPage() {
         </div>
 
         {/* Open service requests */}
-        <div className="lg:col-span-12 bg-white rounded-xl border border-gray-200 p-6 v2-card-in" style={{ animationDelay: '.42s' }}>
+        <div className="lg:col-span-12 bg-white rounded-xl border border-gray-200 p-4 sm:p-6 v2-card-in" style={{ animationDelay: '.42s' }}>
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-semibold text-gray-900">Otwarte usterki</h2>
             <Link href="/service" className="text-sm text-blue-600 hover:text-blue-700">Zobacz wszystkie</Link>

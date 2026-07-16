@@ -230,7 +230,7 @@ export function ContractUnitsEditor({
                   <X className="w-4 h-4" />
                 </button>
               </div>
-              <div className="flex items-center justify-between gap-2 mt-2">
+              <div className="flex flex-col gap-2 mt-2 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-1.5">
                   <span className="text-xs text-gray-500">Rabat</span>
                   <input
@@ -254,7 +254,7 @@ export function ContractUnitsEditor({
                     ))}
                   </div>
                 </div>
-                <span className="text-sm font-medium text-gray-900">{formatCurrency(finalGrossOf(r))}</span>
+                <span className="text-sm font-medium text-gray-900 text-right">{formatCurrency(finalGrossOf(r))}</span>
               </div>
             </div>
           ))}

@@ -41,9 +41,9 @@ export default async function CaseDetailPage({ params }: { params: { id: string 
   const dState = deadlineState(item.deadline, item.status)
 
   return (
-    <div className="p-8 max-w-5xl">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-5xl">
       {/* Nagłówek */}
-      <div className="flex items-start justify-between mb-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between mb-6">
         <div>
           <div className="flex items-center gap-2 text-sm text-gray-500 mb-1">
             <Link href="/cases" className="hover:text-blue-600">
@@ -52,7 +52,7 @@ export default async function CaseDetailPage({ params }: { params: { id: string 
             <span>/</span>
             <span className="font-mono text-xs">{item.number}</span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <h1 className="text-xl font-bold text-gray-900">{item.title}</h1>
             <span className={`px-2 py-0.5 rounded text-[11px] font-medium ${CASE_TYPE_COLORS[item.type as CaseType]}`}>
               {CASE_TYPE_LABELS[item.type as CaseType]}
@@ -60,7 +60,9 @@ export default async function CaseDetailPage({ params }: { params: { id: string 
           </div>
           <p className="text-gray-500 text-sm mt-1">Utworzono: {formatDateTime(item.createdAt)}</p>
         </div>
-        <div className="flex gap-2">
+        {/* justify-end: na mobile ten blok jest rozciągnięty na pełną szerokość (flex-col wyżej),
+            więc bez justify-end dropdown CaseStatusChanger (absolute right-0) uciekałby poza lewą krawędź ekranu */}
+        <div className="flex flex-wrap justify-end gap-2">
           <CaseStatusChanger caseId={item.id} currentStatus={item.status as CaseStatus} />
           <DeleteCaseButton id={item.id} />
         </div>
@@ -156,7 +158,7 @@ export default async function CaseDetailPage({ params }: { params: { id: string 
                         {!isLast && <div className="w-px flex-1 bg-gray-100 mt-1" />}
                       </div>
                       <div className="flex-1 pb-5 min-w-0">
-                        <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
                           <span className="text-xs font-medium text-gray-500">
                             {CASE_DIRECTION_LABELS[dir]} · {CASE_CHANNEL_LABELS[e.channel as CaseChannel]}
                           </span>

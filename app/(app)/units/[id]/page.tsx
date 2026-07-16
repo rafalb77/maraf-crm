@@ -36,8 +36,8 @@ export default async function UnitDetailPage({ params }: { params: { id: string 
     : []
 
   return (
-    <div className="p-8 max-w-5xl">
-      <div className="flex items-start justify-between mb-6">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-5xl">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between mb-6">
         <div>
           <div className="flex items-center gap-2 text-sm text-gray-500 mb-1">
             <Link href="/units" className="hover:text-blue-600">Lokale</Link>
@@ -52,7 +52,7 @@ export default async function UnitDetailPage({ params }: { params: { id: string 
           </div>
           <p className="text-gray-500 text-sm mt-1">{UNIT_TYPE_LABELS[unit.type as UnitType]}</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           {unit.status === 'WOLNY' && (
             <ReserveForClientModal unitId={unit.id} unitNumber={unit.number} clients={clientsForReserve} />
           )}
@@ -80,9 +80,9 @@ export default async function UnitDetailPage({ params }: { params: { id: string 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* Main info */}
         <div className="lg:col-span-2 space-y-5">
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
+          <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6">
             <h2 className="font-semibold text-gray-900 mb-4">Dane lokalu</h2>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Field label="Numer" value={unit.number} />
               <Field label="Typ" value={UNIT_TYPE_LABELS[unit.type as UnitType]} />
               <Field label="Powierzchnia" value={formatArea(unit.area)} />
@@ -109,7 +109,7 @@ export default async function UnitDetailPage({ params }: { params: { id: string 
           </div>
 
           {/* Karta lokalu (PDF) */}
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
+          <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6">
             <h2 className="font-semibold text-gray-900 mb-4">Karta lokalu (PDF)</h2>
             {unit.floorPlanUrl ? (
               <div className="space-y-3">
@@ -132,8 +132,8 @@ export default async function UnitDetailPage({ params }: { params: { id: string 
                       </a>
                     </div>
                     <iframe src={unit.floorPlanUrl} title="Podgląd karty PDF"
-                      className="w-full rounded-lg border border-gray-100 bg-gray-50"
-                      style={{ aspectRatio: '4 / 3', minHeight: 480 }} />
+                      className="w-full rounded-lg border border-gray-100 bg-gray-50 min-h-[280px] sm:min-h-[480px]"
+                      style={{ aspectRatio: '4 / 3' }} />
                   </>
                 ) : (
                   <div className="relative rounded-lg overflow-hidden border border-gray-100" style={{ height: 300 }}>
@@ -148,13 +148,13 @@ export default async function UnitDetailPage({ params }: { params: { id: string 
           </div>
 
           {/* Galeria zdjec / wizualizacji — uzywana do generowania kreacji Meta Ads */}
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
+          <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6">
             <h2 className="font-semibold text-gray-900 mb-4">Zdjecia i wizualizacje</h2>
             <UnitImageGallery unitId={unit.id} initialImages={unit.images} />
           </div>
 
           {/* Service requests */}
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
+          <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-semibold text-gray-900">Historia usterek</h2>
             </div>
@@ -185,7 +185,7 @@ export default async function UnitDetailPage({ params }: { params: { id: string 
 
         {/* Assigned clients */}
         <div className="space-y-5">
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
+          <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6">
             <h2 className="font-semibold text-gray-900 mb-4">Przypisani klienci</h2>
             {unit.clientUnits.length === 0 ? (
               <p className="text-gray-400 text-sm">Brak przypisanych klientów</p>

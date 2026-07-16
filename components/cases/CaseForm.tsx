@@ -124,7 +124,7 @@ export function CaseForm({
       </div>
 
       {/* Strony */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Klient</label>
           <select
@@ -151,7 +151,7 @@ export function CaseForm({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Lokal</label>
           <select
@@ -185,7 +185,7 @@ export function CaseForm({
       </div>
 
       {/* Terminy */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Data wpływu</label>
           <input
@@ -225,18 +225,18 @@ export function CaseForm({
 
       {error && <p className="text-red-500 text-sm">{error}</p>}
 
-      <div className="flex gap-3 pt-2">
+      <div className="flex flex-col sm:flex-row gap-3 pt-2">
         <button
           type="submit"
           disabled={loading}
-          className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white px-6 py-2 rounded-lg text-sm font-medium transition-colors"
+          className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white px-6 py-2 rounded-lg text-sm font-medium transition-colors"
         >
           {loading ? 'Zapisywanie...' : 'Utwórz sprawę'}
         </button>
         <button
           type="button"
           onClick={() => router.back()}
-          className="px-6 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
+          className="w-full sm:w-auto px-6 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
         >
           Anuluj
         </button>

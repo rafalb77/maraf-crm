@@ -3,7 +3,7 @@ import Link from 'next/link'
 
 export default function NewUnitPage() {
   return (
-    <div className="p-8 max-w-2xl">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-2xl">
       <div className="mb-6">
         <div className="flex items-center gap-2 text-sm text-gray-500 mb-1">
           <Link href="/units" className="hover:text-blue-600">Lokale</Link>

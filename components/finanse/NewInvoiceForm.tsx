@@ -122,7 +122,7 @@ export function NewInvoiceForm({ vendors, company }: { vendors: Vendor[]; compan
           className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono"
         />
       </Row>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Row label="Data wystawienia">
           <input
             type="date"
@@ -141,7 +141,7 @@ export function NewInvoiceForm({ vendors, company }: { vendors: Vendor[]; compan
         </Row>
       </div>
 
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Row label="VAT %">
           <select
             value={vatRate}
@@ -188,7 +188,7 @@ export function NewInvoiceForm({ vendors, company }: { vendors: Vendor[]; compan
         Automatycznie licz netto/VAT z brutto i stawki
       </label>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <Row label="Kaucja % (opc.)">
           <input value={depositPct} onChange={(e) => setDepositPct(e.target.value)} placeholder="np. 5" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm tabular-nums" />
         </Row>

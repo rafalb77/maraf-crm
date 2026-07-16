@@ -105,13 +105,13 @@ export default async function UnitsPage({
   const statsByStatus = Object.fromEntries(allByStatus.map((s) => [s.status, s._count])) as Record<string, number>
 
   return (
-    <div className="p-8">
-      <div className="flex items-center justify-between mb-6">
+    <div className="p-4 sm:p-6 lg:p-8">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Lokale</h1>
           <p className="text-gray-500 text-sm mt-1">{units.length} lokali</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <Link
             href="/units/import"
             className="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"

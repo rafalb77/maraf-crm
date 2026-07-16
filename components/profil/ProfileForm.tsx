@@ -106,11 +106,11 @@ export function ProfileForm({ initial }: { initial: ProfileUser }) {
           preferredName={preferredName || initial.preferredName}
           size={64}
         />
-        <div>
-          <p className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
+        <div className="min-w-0 flex-1">
+          <p className="text-lg font-semibold truncate" style={{ color: 'var(--text-primary)' }}>
             {preferredName.trim() || initial.name || initial.email}
           </p>
-          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+          <p className="text-sm truncate" style={{ color: 'var(--text-muted)' }}>
             {initial.email}
           </p>
         </div>
@@ -245,8 +245,9 @@ export function ProfileForm({ initial }: { initial: ProfileUser }) {
         </p>
       </Section>
 
-      {/* Save bar */}
-      <div className="flex items-center gap-3 sticky bottom-0 -mx-8 px-8 py-4 border-t backdrop-blur"
+      {/* Save bar — ujemny margines znosi padding strony (p-4/p-6/p-8), więc pasek
+          sięga do prawdziwej krawędzi; MUSI być w sync z paddingiem app/(app)/profil/page.tsx */}
+      <div className="flex items-center gap-3 flex-wrap sticky bottom-0 -mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8 py-4 border-t backdrop-blur"
            style={{
              background: 'color-mix(in srgb, var(--background) 90%, transparent)',
              borderColor: 'var(--border)',

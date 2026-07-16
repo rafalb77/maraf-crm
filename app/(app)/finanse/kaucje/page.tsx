@@ -23,7 +23,7 @@ export default async function KaucjePage() {
   const overdue = active.filter((i) => i.depositReturnDate && new Date(i.depositReturnDate) < today)
 
   return (
-    <div className="p-8 max-w-5xl">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-5xl">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Kaucje gwarancyjne</h1>
         <p className="text-gray-500 text-sm mt-1">
@@ -43,43 +43,45 @@ export default async function KaucjePage() {
           <div className="bg-gray-50 border-b border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700">
             Zatrzymane (do zwrotu)
           </div>
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b border-gray-200 text-left text-xs text-gray-500">
-              <tr>
-                <th className="px-4 py-2">Kontrahent</th>
-                <th className="px-4 py-2">Nr FV</th>
-                <th className="px-4 py-2 text-right">Kwota kaucji</th>
-                <th className="px-4 py-2">Termin zwrotu</th>
-                <th className="px-4 py-2"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {active.map((inv) => {
-                const isOverdue = inv.depositReturnDate && new Date(inv.depositReturnDate) < today
-                return (
-                  <tr key={inv.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-2.5">
-                      <div className="font-medium text-gray-900">{inv.subVendor || inv.vendor.name}</div>
-                      {inv.subVendor && <div className="text-xs text-gray-400">{inv.vendor.name}</div>}
-                    </td>
-                    <td className="px-4 py-2.5">
-                      <Link href={`/finanse/faktury/${inv.id}`} className="text-blue-600 hover:underline font-mono text-xs">{inv.number}</Link>
-                    </td>
-                    <td className="px-4 py-2.5 text-right tabular-nums font-semibold text-gray-900">
-                      {fmtMoney(inv.deposit)}
-                      {inv.depositPct ? <span className="text-xs text-gray-400 ml-1">({inv.depositPct}%)</span> : null}
-                    </td>
-                    <td className={`px-4 py-2.5 tabular-nums ${isOverdue ? 'text-red-600 font-semibold' : 'text-gray-700'}`}>
-                      {fmtDate(inv.depositReturnDate)}{isOverdue && ' ⚠'}
-                    </td>
-                    <td className="px-4 py-2.5 text-right">
-                      <MarkDepositReturnedButton invoiceId={inv.id} />
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm min-w-[680px] lg:min-w-0">
+              <thead className="bg-gray-50 border-b border-gray-200 text-left text-xs text-gray-500">
+                <tr>
+                  <th className="px-4 py-2">Kontrahent</th>
+                  <th className="px-4 py-2">Nr FV</th>
+                  <th className="px-4 py-2 text-right">Kwota kaucji</th>
+                  <th className="px-4 py-2">Termin zwrotu</th>
+                  <th className="px-4 py-2"></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {active.map((inv) => {
+                  const isOverdue = inv.depositReturnDate && new Date(inv.depositReturnDate) < today
+                  return (
+                    <tr key={inv.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-2.5">
+                        <div className="font-medium text-gray-900">{inv.subVendor || inv.vendor.name}</div>
+                        {inv.subVendor && <div className="text-xs text-gray-400">{inv.vendor.name}</div>}
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <Link href={`/finanse/faktury/${inv.id}`} className="text-blue-600 hover:underline font-mono text-xs">{inv.number}</Link>
+                      </td>
+                      <td className="px-4 py-2.5 text-right tabular-nums font-semibold text-gray-900">
+                        {fmtMoney(inv.deposit)}
+                        {inv.depositPct ? <span className="text-xs text-gray-400 ml-1">({inv.depositPct}%)</span> : null}
+                      </td>
+                      <td className={`px-4 py-2.5 tabular-nums ${isOverdue ? 'text-red-600 font-semibold' : 'text-gray-700'}`}>
+                        {fmtDate(inv.depositReturnDate)}{isOverdue && ' ⚠'}
+                      </td>
+                      <td className="px-4 py-2.5 text-right">
+                        <MarkDepositReturnedButton invoiceId={inv.id} />
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
@@ -88,20 +90,22 @@ export default async function KaucjePage() {
           <div className="bg-gray-50 border-b border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700">
             Zwrócone ({returned.length})
           </div>
-          <table className="w-full text-sm">
-            <tbody className="divide-y divide-gray-100">
-              {returned.map((inv) => (
-                <tr key={inv.id} className="text-gray-500">
-                  <td className="px-4 py-2.5">{inv.subVendor || inv.vendor.name}</td>
-                  <td className="px-4 py-2.5">
-                    <Link href={`/finanse/faktury/${inv.id}`} className="text-blue-600 hover:underline font-mono text-xs">{inv.number}</Link>
-                  </td>
-                  <td className="px-4 py-2.5 text-right tabular-nums">{fmtMoney(inv.deposit)}</td>
-                  <td className="px-4 py-2.5 text-green-700 text-xs">✓ zwrócona {fmtDate(inv.depositReturnedAt)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm min-w-[620px] lg:min-w-0">
+              <tbody className="divide-y divide-gray-100">
+                {returned.map((inv) => (
+                  <tr key={inv.id} className="text-gray-500">
+                    <td className="px-4 py-2.5">{inv.subVendor || inv.vendor.name}</td>
+                    <td className="px-4 py-2.5">
+                      <Link href={`/finanse/faktury/${inv.id}`} className="text-blue-600 hover:underline font-mono text-xs">{inv.number}</Link>
+                    </td>
+                    <td className="px-4 py-2.5 text-right tabular-nums">{fmtMoney(inv.deposit)}</td>
+                    <td className="px-4 py-2.5 text-green-700 text-xs">✓ zwrócona {fmtDate(inv.depositReturnedAt)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>

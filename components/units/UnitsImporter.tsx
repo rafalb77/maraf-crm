@@ -149,7 +149,7 @@ export function UnitsImporter() {
     const a = committed.applied
     return (
       <div className="space-y-4">
-        <div className="bg-green-50 border border-green-200 rounded-xl p-6">
+        <div className="bg-green-50 border border-green-200 rounded-xl p-4 sm:p-6">
           <div className="flex items-start gap-3">
             <CheckCircle2 className="w-6 h-6 text-green-600 flex-shrink-0 mt-0.5" />
             <div>
@@ -192,7 +192,7 @@ export function UnitsImporter() {
   return (
     <div className="space-y-5">
       {/* Upload box */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
+      <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6">
         <div className="flex items-start justify-between gap-4 mb-4">
           <div>
             <h2 className="font-semibold text-gray-900 flex items-center gap-2">
@@ -216,7 +216,7 @@ export function UnitsImporter() {
 
         {!file ? (
           <label className="block">
-            <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:bg-gray-50 cursor-pointer transition-colors">
+            <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 sm:p-6 lg:p-8 text-center hover:bg-gray-50 cursor-pointer transition-colors">
               <Upload className="w-10 h-10 text-gray-400 mx-auto mb-2" />
               <p className="text-sm font-medium text-gray-900">Kliknij, aby wybrać plik</p>
               <p className="text-xs text-gray-500 mt-1">.xlsx — eksport z CRM</p>
@@ -235,7 +235,7 @@ export function UnitsImporter() {
         ) : (
           <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 flex items-center gap-3 text-sm">
             <FileSpreadsheet className="w-4 h-4 text-gray-500 flex-shrink-0" />
-            <span className="font-medium text-gray-900 truncate">{file.name}</span>
+            <span className="font-medium text-gray-900 truncate min-w-0 flex-1">{file.name}</span>
             <span className="text-gray-500 flex-shrink-0">{(file.size / 1024).toFixed(1)} KB</span>
           </div>
         )}
@@ -263,7 +263,7 @@ export function UnitsImporter() {
 
       {/* Loading */}
       {previewLoading && (
-        <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
+        <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 lg:p-8 text-center">
           <Loader2 className="w-8 h-8 text-blue-600 animate-spin mx-auto mb-2" />
           <p className="text-sm text-gray-600">Analizuję plik…</p>
         </div>
@@ -284,7 +284,7 @@ export function UnitsImporter() {
       {diff && !previewLoading && (
         <>
           {/* Summary */}
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
+          <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6">
             <h2 className="font-semibold text-gray-900 mb-4">Podsumowanie zmian</h2>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <Stat label="Nowe" value={diff.newRows.length} accent="green" />
@@ -455,7 +455,7 @@ export function UnitsImporter() {
 
           {/* Action buttons */}
           {diff.newRows.length + diff.updateRows.length + diff.deleteRows.filter((d) => !d.isProtected).length > 0 ? (
-            <div className="bg-white rounded-xl border border-gray-200 p-4 flex items-center gap-3 sticky bottom-4 shadow-sm">
+            <div className="bg-white rounded-xl border border-gray-200 p-4 flex flex-wrap items-center gap-3 sticky bottom-4 shadow-sm">
               <button
                 onClick={() => setConfirmOpen(true)}
                 disabled={committing}
@@ -486,7 +486,7 @@ export function UnitsImporter() {
       {/* Confirmation modal */}
       {confirmOpen && diff && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setConfirmOpen(false)}>
-          <div className="bg-white rounded-xl shadow-xl p-6 max-w-md w-full" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-xl shadow-xl p-6 max-w-md w-full max-h-[90dvh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <h3 className="font-semibold text-gray-900 text-lg mb-2">Czy na pewno?</h3>
             <p className="text-sm text-gray-600 mb-4">
               Zmiany zostaną zapisane do bazy danych. Tej operacji <strong>nie można cofnąć</strong>.
@@ -558,7 +558,7 @@ function Section({
   children: React.ReactNode
 }) {
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-5">
+    <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5">
       <div className="flex items-center gap-2 mb-3">
         {icon}
         <h3 className="font-semibold text-gray-900">{title}</h3>

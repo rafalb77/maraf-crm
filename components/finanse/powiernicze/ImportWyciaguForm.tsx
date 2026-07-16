@@ -151,7 +151,7 @@ export function ImportWyciaguForm({ onImported }: { onImported: () => void }) {
           <div>
             <h3 className="text-sm font-medium text-gray-700 mb-2">Pozycje (pierwsze {Math.min(preview.preview.length, 200)})</h3>
             <div className="overflow-x-auto">
-              <table className="w-full text-xs">
+              <table className="w-full min-w-[640px] lg:min-w-0 text-xs">
                 <thead className="text-left text-gray-500 border-b border-gray-200">
                   <tr>
                     <th className="py-1 px-2">Data</th>

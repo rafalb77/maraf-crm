@@ -30,12 +30,12 @@ export default async function OfferPage({ params }: { params: Promise<{ id: stri
   if (!offer) notFound()
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-6 lg:p-8">
       <div className="mb-2 text-sm">
         <Link href="/oferty" className="text-gray-500 hover:text-gray-700">← Oferty</Link>
       </div>
 
-      <div className="mb-6 flex items-start justify-between gap-4">
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">
             {offer.title || `Oferta ${offer.number}`}
@@ -73,7 +73,7 @@ export default async function OfferPage({ params }: { params: Promise<{ id: stri
           <h2 className="font-semibold text-gray-900">Pozycje oferty ({offer.items.length})</h2>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full min-w-[960px] lg:min-w-0 text-sm">
             <thead className="text-xs text-gray-500 bg-gray-50/60">
               <tr>
                 <th className="text-left px-3 py-2 font-medium">Lp.</th>

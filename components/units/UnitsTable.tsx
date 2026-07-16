@@ -160,7 +160,7 @@ export function UnitsTable({ units }: { units: UnitRow[] }) {
   return (
     <div>
       {/* Toolbar */}
-      <div className="flex items-center justify-end gap-2 mb-3 relative">
+      <div className="flex items-center justify-end gap-2 mb-3 relative flex-wrap">
         <button
           type="button"
           onClick={exportXlsx}
@@ -211,7 +211,44 @@ export function UnitsTable({ units }: { units: UnitRow[] }) {
         )}
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 overflow-x-auto">
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        {/* Mobile (<md): karty zamiast tabeli — wzorzec z ClientsTable.tsx. Karta pokazuje tylko
+            kluczowe pola (numer, status, typ/piętro/metraż, cena); pełna konfigurowalna tabela zostaje na md+. */}
+        <ul className="md:hidden divide-y divide-gray-100">
+          {sorted.length === 0 ? (
+            <li className="px-4 py-12 text-center text-gray-400 text-sm">
+              Brak lokali spełniających kryteria
+            </li>
+          ) : (
+            sorted.map((unit) => (
+              <li key={unit.id} className="relative px-4 py-3">
+                <Link
+                  href={`/units/${unit.id}`}
+                  prefetch={false}
+                  className="absolute inset-0"
+                  aria-label={unit.number}
+                />
+                <div className="flex items-center justify-between gap-3">
+                  <p className="font-semibold text-gray-900 truncate">{unit.number}</p>
+                  <span className={`px-2 py-0.5 rounded text-xs font-medium flex-shrink-0 ${UNIT_STATUS_COLORS[unit.status as UnitStatus]}`}>
+                    {UNIT_STATUS_LABELS[unit.status as UnitStatus]}
+                  </span>
+                </div>
+                <div className="mt-1 flex items-center justify-between gap-2 text-xs text-gray-500">
+                  <span className="truncate">
+                    {UNIT_TYPE_LABELS[unit.type as UnitType]}
+                    {unit.floor !== null ? ` · ${floorLabel(unit.floor)}` : ''}
+                    {unit.area > 0 ? ` · ${formatArea(unit.area)}` : ''}
+                  </span>
+                  <span className="font-medium text-gray-900 flex-shrink-0">{formatCurrency(unit.priceGross)}</span>
+                </div>
+              </li>
+            ))
+          )}
+        </ul>
+
+        {/* Desktop/tablet (md+): pełna tabela z konfigurowalnymi kolumnami */}
+        <div className="hidden md:block overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-gray-100 bg-gray-50">
@@ -269,6 +306,7 @@ export function UnitsTable({ units }: { units: UnitRow[] }) {
             </tfoot>
           )}
         </table>
+        </div>
       </div>
     </div>
   )

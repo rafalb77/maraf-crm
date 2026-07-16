@@ -57,8 +57,8 @@ export default async function CasesPage({
   const open = cases.filter((c) => !CASE_CLOSED_STATUSES.includes(c.status as CaseStatus)).length
 
   return (
-    <div className="p-8">
-      <div className="flex items-center justify-between mb-6">
+    <div className="p-4 sm:p-6 lg:p-8">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Sprawy</h1>
           <p className="text-gray-500 text-sm mt-1">
@@ -67,7 +67,7 @@ export default async function CasesPage({
         </div>
         <Link
           href="/cases/new"
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+          className="w-full sm:w-auto justify-center bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -77,7 +77,7 @@ export default async function CasesPage({
       </div>
 
       {/* Wyszukiwarka (GET — działa bez JS, przeszukuje też treść korespondencji i OCR skanów) */}
-      <form method="GET" action="/cases" className="mb-4 flex gap-2">
+      <form method="GET" action="/cases" className="mb-4 flex flex-col sm:flex-row gap-2">
         {type && <input type="hidden" name="type" value={type} />}
         {status && <input type="hidden" name="status" value={status} />}
         <input
@@ -85,13 +85,13 @@ export default async function CasesPage({
           name="q"
           defaultValue={q}
           placeholder="Szukaj: sygnatura, tytuł, treść pism, skany (OCR)..."
-          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="flex-1 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
-        <button type="submit" className="px-4 py-2 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-700">
+        <button type="submit" className="w-full sm:w-auto px-4 py-2 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-700">
           Szukaj
         </button>
         {(q || type || status) && (
-          <Link href="/cases" className="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50">
+          <Link href="/cases" className="w-full sm:w-auto text-center px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50">
             Wyczyść
           </Link>
         )}
@@ -120,7 +120,7 @@ export default async function CasesPage({
               <Link
                 key={c.id}
                 href={`/cases/${c.id}`}
-                className="flex items-start gap-4 bg-white rounded-xl border border-gray-200 p-4 hover:border-blue-200 hover:shadow-sm transition-all"
+                className="flex flex-col sm:flex-row sm:items-start gap-3 sm:gap-4 bg-white rounded-xl border border-gray-200 p-4 hover:border-blue-200 hover:shadow-sm transition-all"
               >
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">

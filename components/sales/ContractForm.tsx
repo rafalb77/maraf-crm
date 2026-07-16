@@ -278,26 +278,26 @@ export function ContractForm({
           </label>
           <div className="border border-gray-200 rounded-lg divide-y divide-gray-100">
             {selectedUnits.map((u) => (
-              <div key={u.id} className="flex items-center justify-between gap-3 p-2">
+              <div key={u.id} className="flex flex-col gap-2 p-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-gray-900">{u.number}</p>
                   <p className="text-xs text-gray-500">{UNIT_TYPE_LABELS[u.type as UnitType]} · cennik {formatCurrency(u.priceGross)}</p>
                 </div>
-                <div className="flex items-center gap-1 flex-shrink-0">
+                <div className="flex items-center gap-1 sm:flex-shrink-0">
                   <input
                     type="number"
                     step="0.01"
                     min={0}
                     value={unitPrices[u.id] ?? ''}
                     onChange={(e) => setUnitPrices((p) => ({ ...p, [u.id]: e.target.value }))}
-                    className="w-36 px-2 py-1 border border-gray-300 rounded text-sm text-right text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="flex-1 sm:flex-none sm:w-36 px-2 py-1 border border-gray-300 rounded text-sm text-right text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
-                  <span className="text-xs text-gray-500">zł brutto</span>
+                  <span className="text-xs text-gray-500 flex-shrink-0">zł brutto</span>
                 </div>
               </div>
             ))}
           </div>
-          <div className="flex justify-between items-center mt-2 text-sm">
+          <div className="flex flex-col gap-1 mt-2 text-sm sm:flex-row sm:items-center sm:justify-between sm:gap-2">
             <span className="text-gray-600">Wartość brutto: <strong className="text-gray-900">{formatCurrency(totalGross)}</strong></span>
             <span className="text-gray-600">Opłata rezerwacyjna (1%): <strong className="text-gray-900">{formatCurrency(reservationFeePreview)}</strong></span>
           </div>

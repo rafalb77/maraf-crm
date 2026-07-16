@@ -180,9 +180,9 @@ export function MailComposer({ clients }: { clients: Client[] }) {
           </div>
 
           <div>
-            <div className="flex items-center justify-between mb-1">
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
               <label className="block text-sm font-medium text-gray-700">Treść</label>
-              <div className="flex gap-1.5 text-xs">
+              <div className="flex flex-wrap items-center gap-1.5 text-xs">
                 <span className="text-gray-500">Wstaw zmienną:</span>
                 {['imie', 'nazwisko', 'firma'].map((v) => (
                   <button
@@ -274,7 +274,7 @@ export function MailComposer({ clients }: { clients: Client[] }) {
             </div>
           )}
 
-          <div className="flex items-center justify-between pt-2">
+          <div className="flex flex-col gap-3 pt-2 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-xs text-gray-500">
               {selectedIds.length === 0
                 ? 'Wybierz odbiorców z lewej kolumny'
@@ -283,7 +283,7 @@ export function MailComposer({ clients }: { clients: Client[] }) {
             <button
               onClick={handleSend}
               disabled={sending || selectedIds.length === 0 || !subject || isMessageEmpty(message)}
-              className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white px-6 py-2 rounded-lg text-sm font-medium transition-colors"
+              className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white px-6 py-2 rounded-lg text-sm font-medium transition-colors"
             >
               {sending ? 'Wysyłanie...' : 'Wyślij'}
             </button>

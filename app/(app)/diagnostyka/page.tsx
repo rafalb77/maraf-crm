@@ -127,7 +127,7 @@ export default function DiagnostykaPage() {
   }
 
   return (
-    <div className="p-8 max-w-3xl">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-3xl">
       <h1 className="text-2xl font-bold text-gray-900">Diagnostyka wydajności</h1>
       <p className="text-gray-500 text-sm mt-1 mb-6">
         Test sprawdza, gdzie jest wolno: w <strong>łączu internetowym</strong>, na <strong>serwerze/bazie</strong>,
@@ -215,7 +215,7 @@ export default function DiagnostykaPage() {
 
           <details className="mt-4 text-sm">
             <summary className="cursor-pointer text-gray-500">Szczegółowe pomiary</summary>
-            <div className="mt-2 grid grid-cols-2 gap-4">
+            <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
               <SampleList title="Ping (round-trip ms)" samples={result.ping.map((s) => s.roundTripMs)} />
               <SampleList title="Faktura (round-trip ms)" samples={result.db.map((s) => s.roundTripMs)} />
             </div>

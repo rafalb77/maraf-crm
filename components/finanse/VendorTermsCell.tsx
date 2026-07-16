@@ -152,7 +152,7 @@ export function VendorTermsCell({ vendorId, terms, legacyDepositPct, legacyKbPct
   }
 
   return (
-    <div className="text-xs bg-white border border-gray-300 rounded-lg p-3 min-w-[430px] shadow-sm">
+    <div className="text-xs bg-white border border-gray-300 rounded-lg p-3 w-full sm:min-w-[430px] shadow-sm">
       <p className="font-semibold text-gray-900 mb-2">Warunki umowne (kaucja / zwrot / koszty budowy)</p>
       <div className="space-y-2">
         {rows.map((row, idx) => (

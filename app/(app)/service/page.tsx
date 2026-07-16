@@ -30,14 +30,14 @@ export default async function ServicePage({
   const open = requests.filter((r) => r.status !== 'ZAKONCZONE').length
 
   return (
-    <div className="p-8">
-      <div className="flex items-center justify-between mb-6">
+    <div className="p-4 sm:p-6 lg:p-8">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Serwis / Usterki</h1>
           <p className="text-gray-500 text-sm mt-1">{open} otwartych · {requests.length} łącznie</p>
         </div>
         <Link href="/service/new"
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2">
+          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2 w-full sm:w-auto">
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
           </svg>
@@ -49,7 +49,7 @@ export default async function ServicePage({
 
       <div className="space-y-2">
         {requests.length === 0 ? (
-          <div className="bg-white rounded-xl border border-gray-200 p-12 text-center text-gray-400">
+          <div className="bg-white rounded-xl border border-gray-200 p-8 sm:p-12 text-center text-gray-400">
             Brak zgłoszeń serwisowych
           </div>
         ) : (
@@ -58,8 +58,8 @@ export default async function ServicePage({
               className="flex items-start gap-4 bg-white rounded-xl border border-gray-200 p-4 hover:border-blue-200 hover:shadow-sm transition-all">
               <div className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${priorityDot(r.priority)}`} />
               <div className="flex-1 min-w-0">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
+                <div className="flex flex-wrap items-start justify-between gap-2 sm:gap-4">
+                  <div className="min-w-0">
                     <p className="font-medium text-gray-900">{r.title}</p>
                     <p className="text-sm text-gray-500 mt-0.5">
                       {r.client.firstName} {r.client.lastName}
@@ -78,8 +78,10 @@ export default async function ServicePage({
                     </span>
                   </div>
                 </div>
+                {/* Data zgłoszenia na mobile pod treścią (na desktopie osobna kolumna po prawej, patrz niżej) */}
+                <p className="text-xs text-gray-400 mt-2 sm:hidden">{formatDateTime(r.createdAt)}</p>
               </div>
-              <span className="text-xs text-gray-400 flex-shrink-0">{formatDateTime(r.createdAt)}</span>
+              <span className="hidden sm:block text-xs text-gray-400 flex-shrink-0">{formatDateTime(r.createdAt)}</span>
             </Link>
           ))
         )}

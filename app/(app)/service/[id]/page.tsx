@@ -19,8 +19,8 @@ export default async function ServiceDetailPage({ params }: { params: { id: stri
   if (!request) notFound()
 
   return (
-    <div className="p-8 max-w-2xl">
-      <div className="flex items-start justify-between mb-6">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-2xl">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between mb-6">
         <div>
           <div className="flex items-center gap-2 text-sm text-gray-500 mb-1">
             <Link href="/service" className="hover:text-blue-600">Serwis</Link>
@@ -30,13 +30,13 @@ export default async function ServiceDetailPage({ params }: { params: { id: stri
           <h1 className="text-xl font-bold text-gray-900">{request.title}</h1>
           <p className="text-gray-500 text-sm mt-1">Zgłoszono: {formatDateTime(request.createdAt)}</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <ServiceStatusChanger requestId={request.id} currentStatus={request.status as ServiceStatus} />
           <DeleteServiceButton id={request.id} />
         </div>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-5">
+      <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 space-y-5">
         <div className="grid grid-cols-2 gap-4">
           <div>
             <p className="text-xs text-gray-500 mb-1">Status</p>

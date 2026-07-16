@@ -50,7 +50,7 @@ export function ContractPaymentsPanel({
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 p-5">
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between gap-2 flex-wrap mb-4">
         <h2 className="font-semibold text-gray-900">Harmonogram wpłat</h2>
         <button
           onClick={() => setShowAdd((v) => !v)}
@@ -143,7 +143,7 @@ function PaymentRow({
 
   return (
     <div className={`py-3 ${isOverdue ? 'bg-rose-50/50 -mx-2 px-2 rounded' : ''}`}>
-      <div className="flex items-center gap-3">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-sm font-medium text-gray-900">{payment.title || TYPE_LABELS[payment.type] || 'Rata'}</span>
@@ -168,21 +168,23 @@ function PaymentRow({
             {payment.note && <span className="text-gray-400"> • {payment.note}</span>}
           </div>
         </div>
-        <div className="text-right shrink-0">
-          <div className="text-sm font-semibold text-gray-900 tabular-nums">
-            {formatCurrency(isPaid && payment.paidAmount != null ? payment.paidAmount : payment.plannedAmount)}
+        <div className="flex items-center justify-between gap-3">
+          <div className="text-right shrink-0">
+            <div className="text-sm font-semibold text-gray-900 tabular-nums">
+              {formatCurrency(isPaid && payment.paidAmount != null ? payment.paidAmount : payment.plannedAmount)}
+            </div>
+            {isPaid && payment.paidAmount != null && Math.abs(payment.paidAmount - payment.plannedAmount) > 0.01 && (
+              <div className="text-[10px] text-gray-400 tabular-nums">plan: {formatCurrency(payment.plannedAmount)}</div>
+            )}
           </div>
-          {isPaid && payment.paidAmount != null && Math.abs(payment.paidAmount - payment.plannedAmount) > 0.01 && (
-            <div className="text-[10px] text-gray-400 tabular-nums">plan: {formatCurrency(payment.plannedAmount)}</div>
-          )}
-        </div>
-        <div className="flex items-center gap-1 shrink-0">
-          {isPaid ? (
-            <button onClick={unpay} disabled={busy} className="text-xs text-amber-600 hover:text-amber-800 px-2 py-1 disabled:opacity-50">Cofnij</button>
-          ) : (
-            <button onClick={() => setPayOpen((v) => !v)} disabled={busy} className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white rounded px-2.5 py-1 disabled:opacity-50">Odhacz</button>
-          )}
-          <button onClick={del} disabled={busy} className="text-rose-400 hover:text-rose-600 px-1.5">×</button>
+          <div className="flex items-center gap-1 shrink-0">
+            {isPaid ? (
+              <button onClick={unpay} disabled={busy} className="text-xs text-amber-600 hover:text-amber-800 px-2 py-1 disabled:opacity-50">Cofnij</button>
+            ) : (
+              <button onClick={() => setPayOpen((v) => !v)} disabled={busy} className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white rounded px-2.5 py-1 disabled:opacity-50">Odhacz</button>
+            )}
+            <button onClick={del} disabled={busy} className="text-rose-400 hover:text-rose-600 px-1.5">×</button>
+          </div>
         </div>
       </div>
 
@@ -237,7 +239,7 @@ function PayForm({
 
   return (
     <div className="mt-2 bg-emerald-50/60 border border-emerald-200 rounded-lg p-3">
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
         <label className="block">
           <span className="block text-[11px] text-gray-600 mb-0.5">Data wpłaty</span>
           <input type="date" value={paidDate} onChange={(e) => setPaidDate(e.target.value)} className="w-full text-sm border border-gray-300 rounded px-2 py-1" />
@@ -313,8 +315,8 @@ function AddPaymentRow({
 
   return (
     <div className="bg-blue-50/60 border border-blue-200 rounded-lg p-3 mb-4">
-      <div className="grid grid-cols-2 gap-2">
-        <label className="block col-span-2">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        <label className="block sm:col-span-2">
           <span className="block text-[11px] text-gray-600 mb-0.5">Nazwa raty (opcjonalna)</span>
           <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="np. I rata, Transza po stanie surowym" className="w-full text-sm border border-gray-300 rounded px-2 py-1" />
         </label>
@@ -335,11 +337,11 @@ function AddPaymentRow({
           <span className="block text-[11px] text-gray-600 mb-0.5">Termin (opcjonalny)</span>
           <input type="date" value={plannedDate} onChange={(e) => setPlannedDate(e.target.value)} className="w-full text-sm border border-gray-300 rounded px-2 py-1" />
         </label>
-        <label className="flex items-center gap-2 mt-5">
+        <label className="flex items-center gap-2 sm:mt-5">
           <input type="checkbox" checked={toEscrow} onChange={(e) => setToEscrow(e.target.checked)} className="rounded" />
           <span className="text-xs text-gray-700">Wpłata na rachunek powierniczy</span>
         </label>
-        <label className="block col-span-2">
+        <label className="block sm:col-span-2">
           <span className="block text-[11px] text-gray-600 mb-0.5">Notatka (opcjonalna)</span>
           <input value={note} onChange={(e) => setNote(e.target.value)} className="w-full text-sm border border-gray-300 rounded px-2 py-1" />
         </label>

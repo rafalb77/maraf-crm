@@ -27,8 +27,8 @@ export default async function ContractPreviewPage({ params }: { params: { id: st
   }
 
   return (
-    <div className="p-8 max-w-5xl">
-      <div className="mb-6 flex items-start justify-between gap-4">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-5xl">
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <Link href={`/sales/${contract.id}`} className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 mb-3">
             <ArrowLeft className="w-4 h-4" />
@@ -58,7 +58,7 @@ export default async function ContractPreviewPage({ params }: { params: { id: st
           <p className="mt-1 text-red-800">{error}</p>
         </div>
       ) : (
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-10">
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 sm:p-6 lg:p-10">
           <style>{`
             .contract-preview { color:#1f2937; font-size:14px; line-height:1.6; }
             .contract-preview p { margin:0 0 10px; text-align:justify; }
@@ -69,7 +69,11 @@ export default async function ContractPreviewPage({ params }: { params: { id: st
             .contract-preview td,.contract-preview th { border:1px solid #d1d5db; padding:6px 8px; vertical-align:top; }
             .contract-preview ul,.contract-preview ol { margin:0 0 10px 22px; }
           `}</style>
-          <div className="contract-preview" dangerouslySetInnerHTML={{ __html: html || '' }} />
+          {/* Treść dokumentu (z tabelami) zostaje w układzie desktopowym — na wąskim
+              ekranie scrolluje się poziomo zamiast zgniatać kolumny do nieczytelności. */}
+          <div className="overflow-x-auto">
+            <div className="contract-preview min-w-[560px]" dangerouslySetInnerHTML={{ __html: html || '' }} />
+          </div>
         </div>
       )}
     </div>

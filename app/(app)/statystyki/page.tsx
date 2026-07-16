@@ -23,7 +23,7 @@ export default async function StatystykiPage() {
   const revenue12m = velocity.reduce((s, m) => s + m.revenue, 0)
 
   return (
-    <div className="p-8 space-y-6">
+    <div className="p-4 sm:p-6 lg:p-8 space-y-6">
       <div>
         <div className="v2-eyebrow mb-1.5">Inwestycja Nova Staffa · analityka</div>
         <h1 className="text-[30px] font-bold text-gray-900" style={{ letterSpacing: '-0.02em' }}>
@@ -39,7 +39,7 @@ export default async function StatystykiPage() {
 
       {/* Lejek konwersji */}
       <section className="bg-white rounded-xl border border-gray-200 p-6 v2-card-in" style={{ animationDelay: '.12s' }}>
-        <div className="flex items-baseline justify-between mb-5">
+        <div className="flex items-baseline justify-between flex-wrap gap-3 mb-5">
           <h2 className="font-semibold text-gray-900">Lejek konwersji</h2>
           <span className="text-xs text-gray-400">{totalClients} klientów łącznie</span>
         </div>
@@ -90,7 +90,7 @@ export default async function StatystykiPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Leady do odgrzania */}
         <section className="bg-white rounded-xl border border-gray-200 p-6 v2-card-in" style={{ animationDelay: '.42s' }}>
-          <div className="flex items-baseline justify-between mb-1">
+          <div className="flex items-baseline justify-between flex-wrap gap-3 mb-1">
             <h2 className="font-semibold text-gray-900">Leady do odgrzania</h2>
             <span className="text-xs text-gray-400">brak kontaktu ≥ {STALE_LEAD_DAYS} dni</span>
           </div>
@@ -128,7 +128,7 @@ export default async function StatystykiPage() {
 // =====================================================================
 function MomentumTiles({ m }: { m: Momentum }) {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
       <MomentumTile title="Nowe leady" sub={m.monthLabel} d={m.leads} color="#2563eb" delay={0} />
       <MomentumTile title="Podpisane umowy" sub={m.monthLabel} d={m.signed} color="#16a34a" delay={0.06} />
       <MomentumTile title="Przychód" sub={m.monthLabel} d={m.revenue} color="#c9a37a" money delay={0.1} />
@@ -219,9 +219,9 @@ function LeadSourceRanking({ rows }: { rows: LeadSourceRow[] }) {
   return (
     <div className="mt-4 border-t border-gray-100 pt-3 space-y-1.5">
       {rows.map((r) => (
-        <div key={r.source} className="flex items-center justify-between text-sm">
-          <span className="text-gray-600 truncate">{r.source}</span>
-          <span className="text-gray-400 text-xs">
+        <div key={r.source} className="flex items-center justify-between gap-2 text-sm">
+          <span className="text-gray-600 truncate min-w-0">{r.source}</span>
+          <span className="text-gray-400 text-xs flex-shrink-0">
             <span className="font-medium text-gray-700">{r.converted}</span>/{r.total} ·{' '}
             <span className={pctClass(r.conversion)}>{Math.round(r.conversion * 100)}%</span>
           </span>
@@ -246,15 +246,15 @@ function CycleView({ cycle }: { cycle: CycleStats }) {
   }
   return (
     <div>
-      <div className="flex items-baseline gap-2 mb-4">
+      <div className="flex items-baseline flex-wrap gap-2 mb-4">
         <span className="text-4xl font-bold text-gray-900">{cycle.overallMedianDays}</span>
         <span className="text-gray-500 text-sm">dni (mediana) · próbka {cycle.sampleSize} umów</span>
       </div>
       <div className="border-t border-gray-100 pt-3 space-y-1.5">
         {cycle.bySource.map((s) => (
-          <div key={s.source} className="flex items-center justify-between text-sm">
-            <span className="text-gray-600 truncate">{s.source}</span>
-            <span className="text-gray-400 text-xs">
+          <div key={s.source} className="flex items-center justify-between gap-2 text-sm">
+            <span className="text-gray-600 truncate min-w-0">{s.source}</span>
+            <span className="text-gray-400 text-xs flex-shrink-0">
               <span className="font-medium text-gray-700">{s.medianDays} dni</span> · {s.count} umów
             </span>
           </div>
@@ -330,7 +330,7 @@ function StaleLeadsView({ leads }: { leads: StaleLead[] }) {
 function PipelineView({ p }: { p: Pipeline }) {
   return (
     <div>
-      <div className="flex items-baseline gap-2 mb-4">
+      <div className="flex items-baseline flex-wrap gap-2 mb-4">
         <span className="text-4xl font-bold text-gray-900">{fmtPln(p.weightedForecast)}</span>
         <span className="text-gray-500 text-sm">ważona prognoza</span>
       </div>

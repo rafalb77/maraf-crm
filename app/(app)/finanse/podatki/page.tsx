@@ -39,7 +39,7 @@ export default async function PodatkiPage({ searchParams }: { searchParams: { ye
   const years = [now.getFullYear(), now.getFullYear() - 1, now.getFullYear() - 2]
 
   return (
-    <div className="p-8 max-w-4xl">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-4xl">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Podatki (orientacyjnie)</h1>
         <p className="text-gray-500 text-sm mt-1">CIT {(CIT_RATE * 100).toFixed(0)}% + VAT do zapłaty, narastająco za rok. Bez faktur zaliczkowych.</p>
@@ -96,7 +96,7 @@ export default async function PodatkiPage({ searchParams }: { searchParams: { ye
 function Line({ label, value, bold, big, accent }: { label: string; value: string; bold?: boolean; big?: boolean; accent?: 'red' | 'green' }) {
   const color = accent === 'red' ? 'text-red-600' : accent === 'green' ? 'text-green-700' : 'text-gray-900'
   return (
-    <div className="flex items-baseline justify-between">
+    <div className="flex items-baseline justify-between flex-wrap gap-x-3">
       <span className="text-gray-600">{label}</span>
       <span className={`tabular-nums ${big ? 'text-xl font-bold' : bold ? 'font-semibold' : ''} ${color}`}>{value}</span>
     </div>

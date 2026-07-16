@@ -131,7 +131,7 @@ export default async function FinanseHomePage() {
   const maxVendorSum = topVendors[0]?.sum || 1
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-6 lg:p-8">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Finanse</h1>
         <p className="text-gray-500 text-sm mt-1">
@@ -169,7 +169,7 @@ export default async function FinanseHomePage() {
           href="/finanse/kaucje"
           className="block bg-white rounded-xl border border-gray-200 hover:border-gray-300 p-5 mb-6 transition-colors"
         >
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-2">
             <div>
               <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-1">Kaucje gwarancyjne (zatrzymane)</p>
               <p className="text-2xl font-bold text-gray-900 tabular-nums">{fmtMoney(depositActive._sum.deposit || 0)}</p>

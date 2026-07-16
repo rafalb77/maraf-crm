@@ -16,7 +16,7 @@ export function DeleteCaseButton({ id }: { id: string }) {
 
   if (confirming) {
     return (
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         <button
           onClick={handleDelete}
           disabled={loading}

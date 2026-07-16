@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic'
 
 export default function HarmonogramImportPage() {
   return (
-    <div className="p-8 max-w-3xl">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-3xl">
       <div className="mb-6">
         <Link href="/budowa/harmonogram" prefetch={false} className="text-sm text-gray-500 underline">
           ← Wróć do harmonogramu

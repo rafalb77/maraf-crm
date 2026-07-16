@@ -278,9 +278,9 @@ export function PrzedmiarKonradUploader({ onClose }: { onClose: () => void }) {
                 <div key={f.floor} className="border border-gray-200 rounded-lg overflow-hidden">
                   <button
                     onClick={() => toggleFloor(f.floor)}
-                    className="w-full px-4 py-2.5 bg-white hover:bg-gray-50 flex items-center justify-between text-left"
+                    className="w-full px-4 py-2.5 bg-white hover:bg-gray-50 flex items-center justify-between text-left flex-wrap gap-y-1"
                   >
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 flex-wrap">
                       <span className="text-gray-400 text-xs">{expanded ? '▼' : '▶'}</span>
                       <span className="font-medium text-gray-900">{f.floorLabel}</span>
                       {!f.fromXlsx && (
@@ -307,7 +307,8 @@ export function PrzedmiarKonradUploader({ onClose }: { onClose: () => void }) {
                   </button>
                   {expanded && (
                     <div className="border-t border-gray-100 bg-gray-50">
-                      <table className="w-full text-xs">
+                      <div className="overflow-x-auto">
+                      <table className="w-full min-w-[440px] lg:min-w-0 text-xs">
                         <thead>
                           <tr className="text-left text-gray-500 uppercase tracking-wide">
                             <th className="px-3 py-2 font-medium">Pozycja</th>
@@ -353,6 +354,7 @@ export function PrzedmiarKonradUploader({ onClose }: { onClose: () => void }) {
                           })}
                         </tbody>
                       </table>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -384,7 +386,7 @@ export function PrzedmiarKonradUploader({ onClose }: { onClose: () => void }) {
       {/* Confirmation modal */}
       {confirmOpen && diff && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4" onClick={() => setConfirmOpen(false)}>
-          <div className="bg-white rounded-xl shadow-xl p-6 max-w-md w-full" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-xl shadow-xl p-6 max-w-md w-full max-h-[90dvh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <h3 className="font-semibold text-gray-900 text-lg mb-2">Czy na pewno?</h3>
             <p className="text-sm text-gray-600 mb-4">
               Zostanie utworzonych <strong>{diff.totalItemsInPlan} pozycji</strong> w {diff.floors.length} kondygnacjach.

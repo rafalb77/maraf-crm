@@ -216,8 +216,8 @@ export function UnitForm({ unit }: { unit?: Unit }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-gray-200 p-6 space-y-5">
-      <div className="grid grid-cols-2 gap-4">
+    <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 space-y-5">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Numer lokalu *</label>
           <input value={form.number} onChange={(e) => setForm({ ...form, number: e.target.value })}
@@ -304,7 +304,7 @@ export function UnitForm({ unit }: { unit?: Unit }) {
       {perSqm && (
         <div className="bg-blue-50 border border-blue-100 rounded-lg p-4">
           <p className="text-xs uppercase font-semibold text-blue-700 mb-2">Cena lokalu (powierzchnia × cena za m²)</p>
-          <div className="grid grid-cols-2 gap-4 text-sm">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
             <div>
               <span className="text-gray-500">Łącznie netto:</span>{' '}
               <span className="font-semibold text-gray-900">
@@ -385,7 +385,7 @@ export function UnitForm({ unit }: { unit?: Unit }) {
           {form.promoActive && (
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 space-y-3">
               <p className="text-xs font-medium text-amber-900">Ceny promocyjne</p>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {perSqm ? (
                   <>
                     <div>
@@ -425,13 +425,13 @@ export function UnitForm({ unit }: { unit?: Unit }) {
 
       {error && <p className="text-red-500 text-sm">{error}</p>}
 
-      <div className="flex gap-3 pt-2">
+      <div className="flex flex-col sm:flex-row gap-3 pt-2">
         <button type="submit" disabled={loading}
-          className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white px-6 py-2 rounded-lg text-sm font-medium transition-colors">
+          className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white px-6 py-2 rounded-lg text-sm font-medium transition-colors">
           {loading ? 'Zapisywanie...' : unit ? 'Zapisz zmiany' : 'Dodaj lokal'}
         </button>
         <button type="button" onClick={() => router.back()}
-          className="px-6 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors">
+          className="w-full sm:w-auto px-6 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors">
           Anuluj
         </button>
       </div>

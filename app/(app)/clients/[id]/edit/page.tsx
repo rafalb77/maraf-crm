@@ -8,9 +8,9 @@ export default async function EditClientPage({ params }: { params: { id: string 
   if (!client) notFound()
 
   return (
-    <div className="p-8 max-w-2xl">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-2xl">
       <div className="mb-6">
-        <div className="flex items-center gap-2 text-sm text-gray-500 mb-1">
+        <div className="flex flex-wrap items-center gap-2 text-sm text-gray-500 mb-1">
           <Link href="/clients" className="hover:text-blue-600">Klienci</Link>
           <span>/</span>
           <Link href={`/clients/${client.id}`} className="hover:text-blue-600">{client.firstName} {client.lastName}</Link>

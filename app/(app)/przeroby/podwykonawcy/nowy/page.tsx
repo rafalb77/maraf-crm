@@ -38,7 +38,7 @@ export default function NowyPodwykonawcaPage() {
   }
 
   return (
-    <div className="p-8 max-w-3xl">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-3xl">
       <div className="mb-2 text-sm">
         <Link href="/przeroby/podwykonawcy" className="text-gray-500 hover:text-gray-700">
           ← Podwykonawcy
@@ -48,8 +48,8 @@ export default function NowyPodwykonawcaPage() {
 
       <form onSubmit={save} className="bg-white rounded-xl border border-gray-200 p-6 space-y-5">
         <Section title="Dane firmy">
-          <div className="grid grid-cols-2 gap-4">
-            <Field label="Nazwa firmy *" className="col-span-2">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Field label="Nazwa firmy *" className="md:col-span-2">
               <input value={form.name} onChange={(e) => set('name', e.target.value)} required className={inputCls} />
             </Field>
             <Field label="NIP">
@@ -58,7 +58,7 @@ export default function NowyPodwykonawcaPage() {
             <Field label="REGON">
               <input value={form.regon} onChange={(e) => set('regon', e.target.value)} className={inputCls} />
             </Field>
-            <Field label="Adres" className="col-span-2">
+            <Field label="Adres" className="md:col-span-2">
               <input value={form.address} onChange={(e) => set('address', e.target.value)} className={inputCls} placeholder="ul. Budowlana 12" />
             </Field>
             <Field label="Miejscowość">
@@ -71,14 +71,14 @@ export default function NowyPodwykonawcaPage() {
         </Section>
 
         <Section title="Kontakt">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Field label="Osoba kontaktowa">
               <input value={form.contactName} onChange={(e) => set('contactName', e.target.value)} className={inputCls} />
             </Field>
             <Field label="Telefon">
               <input value={form.phone} onChange={(e) => set('phone', e.target.value)} className={inputCls} />
             </Field>
-            <Field label="Email" className="col-span-2">
+            <Field label="Email" className="md:col-span-2">
               <input type="email" value={form.email} onChange={(e) => set('email', e.target.value)} className={inputCls} />
             </Field>
           </div>
@@ -95,7 +95,7 @@ export default function NowyPodwykonawcaPage() {
 
         {error && <p className="text-sm text-red-600">{error}</p>}
 
-        <div className="flex gap-3 pt-2 border-t border-gray-100">
+        <div className="flex flex-wrap gap-3 pt-2 border-t border-gray-100">
           <button
             type="submit"
             disabled={saving || !form.name.trim()}

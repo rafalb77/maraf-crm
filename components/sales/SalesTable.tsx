@@ -1,4 +1,5 @@
 'use client'
+import Link from 'next/link'
 import { formatDate, formatCurrency } from '@/lib/utils'
 import {
   CONTRACT_TYPE_LABELS, CONTRACT_STATUS_LABELS, CONTRACT_STATUS_COLORS,
@@ -53,7 +54,62 @@ export function SalesTable({ rows }: { rows: ContractRow[] }) {
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-      <table className="w-full">
+      {/* Mobile (<md): karty zamiast tabeli — wzorzec ClientsTable.tsx. Cała karta
+          klika w szczegóły umowy (Link absolute inset-0). */}
+      <ul className="md:hidden divide-y divide-gray-100">
+        {sorted.length === 0 ? (
+          <li className="px-4 py-12 text-center text-gray-400 text-sm">Brak umów</li>
+        ) : (
+          sorted.map((c) => {
+            const badge = TYPE_BADGE[c.type as ContractType]
+            return (
+              <li key={c.id} className="relative px-4 py-3">
+                <Link
+                  href={`/sales/${c.id}`}
+                  prefetch={false}
+                  className="absolute inset-0"
+                  aria-label={`${c.clientName} — ${c.number}`}
+                />
+                <div className="flex items-center gap-2.5">
+                  <div
+                    className="w-9 h-9 rounded-full flex items-center justify-center text-[11px] font-bold flex-shrink-0"
+                    style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
+                  >
+                    {initials(c.clientName)}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium text-gray-900 truncate">{c.clientName}</p>
+                    <p className="text-[11px] font-mono truncate" style={{ color: 'var(--text-muted)' }}>{c.number}</p>
+                  </div>
+                  <span className={`px-2 py-0.5 rounded text-xs font-medium flex-shrink-0 ${CONTRACT_STATUS_COLORS[c.status as ContractStatus]}`}>
+                    {CONTRACT_STATUS_LABELS[c.status as ContractStatus]}
+                  </span>
+                </div>
+                <div className="mt-2 flex items-center gap-2 flex-wrap">
+                  <span
+                    className="inline-block px-2 py-0.5 rounded text-[11px] font-medium border"
+                    style={badge ? { background: badge.bg, color: badge.fg, borderColor: badge.border } : undefined}
+                  >
+                    {CONTRACT_TYPE_LABELS[c.type as ContractType]}
+                  </span>
+                  <span className="text-xs truncate" style={{ color: 'var(--text-secondary)' }}>{c.unitLabel}</span>
+                </div>
+                <div className="mt-1.5 flex items-center justify-between gap-2 text-xs">
+                  <span className="tabular-nums text-gray-900 font-medium">
+                    {c.amountGross != null ? formatCurrency(c.amountGross) : '—'}
+                  </span>
+                  <span className="tabular-nums flex-shrink-0" style={{ color: 'var(--text-muted)' }}>
+                    {c.signedAt ? formatDate(new Date(c.signedAt)) : '—'}
+                  </span>
+                </div>
+              </li>
+            )
+          })
+        )}
+      </ul>
+
+      {/* Desktop/tablet (md+): pełna sortowalna tabela */}
+      <table className="w-full hidden md:table">
         <thead className="text-xs uppercase" style={{ background: 'var(--surface-alt)', color: 'var(--text-muted)' }}>
           <tr>
             <SortHeader label="Klient" colKey="klient" activeKey={sortKey} dir={sortDir} onSort={onSort} className={TH} />

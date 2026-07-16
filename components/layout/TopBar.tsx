@@ -2,11 +2,12 @@
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { signOut } from 'next-auth/react'
-import { User, LogOut, ChevronDown } from 'lucide-react'
+import { User, LogOut, ChevronDown, Menu } from 'lucide-react'
 import { ThemeToggle } from './ThemeToggle'
 import { CommandPalette } from './CommandPalette'
 import { Avatar } from '@/components/profil/Avatar'
 import { useRipple } from '@/lib/ripple'
+import { useMobileNav } from './MobileNavContext'
 
 export function TopBar({
   userName,
@@ -18,6 +19,7 @@ export function TopBar({
   const [open, setOpen] = useState(false)
   const wrapRef = useRef<HTMLDivElement | null>(null)
   const ripple = useRipple()
+  const { setOpen: setMobileNavOpen } = useMobileNav()
 
   // Close on click outside
   useEffect(() => {
@@ -46,7 +48,19 @@ export function TopBar({
         borderColor: 'color-mix(in srgb, var(--border) 55%, transparent)',
       }}
     >
-      <CommandPalette />
+      <div className="flex items-center gap-2 min-w-0">
+        {/* Hamburger — otwiera drawer sidebara, tylko mobile/tablet (<lg) */}
+        <button
+          type="button"
+          onClick={() => setMobileNavOpen(true)}
+          onPointerDown={ripple}
+          className="lg:hidden -ml-1 p-2 rounded-lg hover:bg-black/5 dark:hover:bg-white/10 transition-colors flex-shrink-0"
+          aria-label="Otwórz menu"
+        >
+          <Menu className="w-5 h-5" style={{ color: 'var(--text-secondary)' }} />
+        </button>
+        <CommandPalette />
+      </div>
 
       <div className="flex items-center gap-3">
       <ThemeToggle />

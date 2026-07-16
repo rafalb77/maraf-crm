@@ -75,7 +75,7 @@ export function SubcontractorActions({ id, name, active, protocolCount, contract
           onClick={() => !busy && setConfirmOpen(false)}
         >
           <div
-            className="bg-white rounded-xl shadow-xl max-w-md w-full p-6"
+            className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 max-h-[90dvh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <h2 className="text-lg font-semibold text-gray-900 mb-2">Usunąć podwykonawcę?</h2>

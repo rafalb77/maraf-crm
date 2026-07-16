@@ -27,7 +27,7 @@ export default async function HarmonogramPage({
     select: { id: true, name: true, plannedEndDate: true },
   })
   if (!investment) {
-    return <div className="p-8 text-gray-500">Brak aktywnej inwestycji.</div>
+    return <div className="p-4 sm:p-6 lg:p-8 text-gray-500">Brak aktywnej inwestycji.</div>
   }
 
   const [stages, tasks, subs] = await Promise.all([
@@ -66,11 +66,11 @@ export default async function HarmonogramPage({
 
   if (isEmpty) {
     return (
-      <div className="p-8">
+      <div className="p-4 sm:p-6 lg:p-8">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-bold">Harmonogram — {investment.name}</h1>
         </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-10 text-center">
+        <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 lg:p-10 text-center">
           <p className="text-gray-600 mb-4">
             Harmonogram jest pusty. Zaimportuj plik Excel z terminami robót — potem wygodnie
             poprawisz daty w tabeli.
@@ -120,10 +120,10 @@ export default async function HarmonogramPage({
     }`
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-6 lg:p-8">
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <h1 className="text-2xl font-bold">Harmonogram — {investment.name}</h1>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Link href="/budowa/harmonogram" prefetch={false} className={tabCls(widok === 'gantt')}>
             Gantt
           </Link>

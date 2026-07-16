@@ -120,7 +120,7 @@ export function ImportFinanseForm() {
         <div className="bg-white border border-gray-200 rounded-xl p-6 space-y-4">
           <h2 className="font-semibold text-gray-900">Podgląd importu</h2>
 
-          <div className="grid grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <Stat label="Nowych faktur" value={preview.newInvoicesCount} accent="blue" />
             <Stat label="Duplikatów (pomijamy)" value={preview.duplicatesCount} accent="gray" />
             <Stat label="Pominiętych wierszy" value={preview.skippedCount} accent="amber" />
@@ -129,26 +129,28 @@ export function ImportFinanseForm() {
 
           <div>
             <h3 className="text-sm font-medium text-gray-700 mb-2">Per zakładka</h3>
-            <table className="w-full text-sm">
-              <thead className="text-left text-xs text-gray-500 border-b border-gray-200">
-                <tr>
-                  <th className="py-1 px-2">Zakładka</th>
-                  <th className="py-1 px-2 text-right">Faktur</th>
-                  <th className="py-1 px-2 text-right">Płatności</th>
-                  <th className="py-1 px-2 text-right">Pominięto</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {Object.entries(preview.perSheetCounts).map(([sheet, c]) => (
-                  <tr key={sheet}>
-                    <td className="py-1.5 px-2 font-mono text-xs">{sheet}</td>
-                    <td className="py-1.5 px-2 text-right tabular-nums">{c.invoices}</td>
-                    <td className="py-1.5 px-2 text-right tabular-nums">{c.payments}</td>
-                    <td className="py-1.5 px-2 text-right tabular-nums text-gray-500">{c.skipped}</td>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm min-w-[420px] lg:min-w-0">
+                <thead className="text-left text-xs text-gray-500 border-b border-gray-200">
+                  <tr>
+                    <th className="py-1 px-2">Zakładka</th>
+                    <th className="py-1 px-2 text-right">Faktur</th>
+                    <th className="py-1 px-2 text-right">Płatności</th>
+                    <th className="py-1 px-2 text-right">Pominięto</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {Object.entries(preview.perSheetCounts).map(([sheet, c]) => (
+                    <tr key={sheet}>
+                      <td className="py-1.5 px-2 font-mono text-xs">{sheet}</td>
+                      <td className="py-1.5 px-2 text-right tabular-nums">{c.invoices}</td>
+                      <td className="py-1.5 px-2 text-right tabular-nums">{c.payments}</td>
+                      <td className="py-1.5 px-2 text-right tabular-nums text-gray-500">{c.skipped}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
 
           {preview.newVendors.length > 0 && (
@@ -167,32 +169,34 @@ export function ImportFinanseForm() {
           {preview.sampleNewInvoices.length > 0 && (
             <div>
               <h3 className="text-sm font-medium text-gray-700 mb-2">Przykładowe faktury (pierwsze 10 z {preview.newInvoicesCount})</h3>
-              <table className="w-full text-xs">
-                <thead className="text-left text-gray-500 border-b border-gray-200">
-                  <tr>
-                    <th className="py-1 px-2">Vendor / Sub</th>
-                    <th className="py-1 px-2">Nr FV</th>
-                    <th className="py-1 px-2">Wystawiona</th>
-                    <th className="py-1 px-2 text-right">Brutto</th>
-                    <th className="py-1 px-2">Status</th>
-                    <th className="py-1 px-2 text-right">Płat.</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {preview.sampleNewInvoices.map((inv, i) => (
-                    <tr key={i}>
-                      <td className="py-1 px-2">
-                        {inv.vendor}{inv.subVendor && <span className="text-gray-500"> / {inv.subVendor}</span>}
-                      </td>
-                      <td className="py-1 px-2 font-mono">{inv.number}</td>
-                      <td className="py-1 px-2 tabular-nums">{new Date(inv.issueDate).toLocaleDateString('pl-PL')}</td>
-                      <td className="py-1 px-2 text-right tabular-nums">{fmtMoney(inv.amountGross)}</td>
-                      <td className="py-1 px-2 text-gray-600">{inv.status}</td>
-                      <td className="py-1 px-2 text-right tabular-nums">{inv.paymentsCount}</td>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs min-w-[640px] lg:min-w-0">
+                  <thead className="text-left text-gray-500 border-b border-gray-200">
+                    <tr>
+                      <th className="py-1 px-2">Vendor / Sub</th>
+                      <th className="py-1 px-2">Nr FV</th>
+                      <th className="py-1 px-2">Wystawiona</th>
+                      <th className="py-1 px-2 text-right">Brutto</th>
+                      <th className="py-1 px-2">Status</th>
+                      <th className="py-1 px-2 text-right">Płat.</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {preview.sampleNewInvoices.map((inv, i) => (
+                      <tr key={i}>
+                        <td className="py-1 px-2">
+                          {inv.vendor}{inv.subVendor && <span className="text-gray-500"> / {inv.subVendor}</span>}
+                        </td>
+                        <td className="py-1 px-2 font-mono">{inv.number}</td>
+                        <td className="py-1 px-2 tabular-nums">{new Date(inv.issueDate).toLocaleDateString('pl-PL')}</td>
+                        <td className="py-1 px-2 text-right tabular-nums">{fmtMoney(inv.amountGross)}</td>
+                        <td className="py-1 px-2 text-gray-600">{inv.status}</td>
+                        <td className="py-1 px-2 text-right tabular-nums">{inv.paymentsCount}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
 

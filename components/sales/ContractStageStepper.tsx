@@ -78,7 +78,7 @@ export function ContractStageStepper({
 
   return (
     <div>
-      <div className="flex items-stretch gap-2">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-stretch">
         {CONTRACT_STAGE_ORDER.map((stage, idx) => {
           const row = stages.find((s) => s.stage === stage)
           const isCurrent = idx === currentIdx
@@ -126,12 +126,12 @@ export function ContractStageStepper({
       {error && <p className="text-sm text-red-600 mt-2">{error}</p>}
 
       {(next || prev) && (
-        <div className="mt-3 flex items-center gap-2">
+        <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
           {next && (
             <button
               onClick={advance}
               disabled={busy}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white rounded-lg text-sm font-medium flex items-center gap-2"
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white rounded-lg text-sm font-medium flex items-center justify-center gap-2 w-full sm:w-auto"
             >
               {busy ? 'Przechodzę...' : `Przejdź do etapu: ${CONTRACT_TYPE_LABELS[next]}`}
               <span aria-hidden>→</span>
@@ -141,7 +141,7 @@ export function ContractStageStepper({
             <button
               onClick={revert}
               disabled={busy}
-              className="px-3 py-2 border border-gray-300 text-gray-600 hover:bg-gray-50 disabled:opacity-50 rounded-lg text-sm font-medium flex items-center gap-1.5"
+              className="px-3 py-2 border border-gray-300 text-gray-600 hover:bg-gray-50 disabled:opacity-50 rounded-lg text-sm font-medium flex items-center justify-center gap-1.5 w-full sm:w-auto"
               title={`Cofnij do: ${CONTRACT_TYPE_LABELS[prev]}`}
             >
               <span aria-hidden>←</span>
@@ -209,7 +209,7 @@ function StageEditDialog({
 
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => !busy && onClose()}>
-      <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 max-h-[90dvh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <h2 className="text-lg font-semibold text-gray-900 mb-1">Etap: {CONTRACT_TYPE_LABELS[stage]}</h2>
         <p className="text-xs text-gray-500 mb-4">Dane techniczne etapu — numer aktu notarialnego i daty.</p>
         <div className="space-y-3">

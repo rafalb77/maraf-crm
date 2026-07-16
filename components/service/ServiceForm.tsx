@@ -53,7 +53,7 @@ export function ServiceForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-gray-200 p-6 space-y-5">
+    <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 space-y-5">
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">Klient *</label>
         <select
@@ -98,7 +98,7 @@ export function ServiceForm({
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Priorytet</label>
           <select
@@ -112,13 +112,13 @@ export function ServiceForm({
 
       {error && <p className="text-red-500 text-sm">{error}</p>}
 
-      <div className="flex gap-3 pt-2">
+      <div className="flex flex-col sm:flex-row gap-3 pt-2">
         <button type="submit" disabled={loading}
-          className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white px-6 py-2 rounded-lg text-sm font-medium transition-colors">
+          className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white px-6 py-2 rounded-lg text-sm font-medium transition-colors w-full sm:w-auto">
           {loading ? 'Zapisywanie...' : 'Utwórz zgłoszenie'}
         </button>
         <button type="button" onClick={() => router.back()}
-          className="px-6 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors">
+          className="px-6 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors w-full sm:w-auto">
           Anuluj
         </button>
       </div>

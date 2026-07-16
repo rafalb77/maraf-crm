@@ -9,7 +9,7 @@ export const GanttLazy = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="bg-white rounded-xl border border-gray-200 p-10 text-center text-gray-400">
+      <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 lg:p-10 text-center text-gray-400">
         Ładowanie wykresu Gantta…
       </div>
     ),

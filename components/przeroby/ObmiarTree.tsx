@@ -77,13 +77,13 @@ export function ObmiarTree({ categories }: { categories: Category[] }) {
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
         <input
           type="search"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Szukaj: nazwa, kondygnacja, rodzaj..."
-          className="flex-1 max-w-md px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="flex-1 min-w-[200px] max-w-md px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
         <div className="flex gap-2 text-xs">
           <button onClick={expandAll} className="px-3 py-1.5 border border-gray-300 rounded-lg hover:bg-gray-50">
@@ -138,7 +138,7 @@ function CategoryNode({
       >
         <Chevron open={isOpen} />
         <div className="flex-1">
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center justify-between gap-4 flex-wrap">
             <h3 className="font-semibold text-gray-900">{category.name}</h3>
             <div className="flex items-center gap-4 text-sm">
               <span className="text-gray-500">{category.items.length} poz.</span>
@@ -205,9 +205,9 @@ function FloorNode({
         <span className="ml-6">
           <Chevron open={isOpen} small />
         </span>
-        <div className="flex-1 flex items-center justify-between gap-4">
+        <div className="flex-1 flex items-center justify-between gap-4 flex-wrap">
           <div className="flex-1">
-            <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center justify-between gap-4 flex-wrap">
               <span className="text-sm font-medium text-gray-700">{floor || '—'}</span>
               <div className="flex items-center gap-4 text-xs text-gray-500">
                 <span>{items.length} poz.</span>
@@ -227,7 +227,8 @@ function FloorNode({
               <div className="px-5 py-2 bg-gray-50/60 text-xs font-semibold uppercase tracking-wider text-gray-500 ml-12">
                 {t}
               </div>
-              <table className="w-full text-sm">
+              <div className="overflow-x-auto">
+              <table className="w-full min-w-[480px] lg:min-w-0 text-sm">
                 <thead className="text-xs text-gray-500">
                   <tr>
                     <th className="text-left px-5 py-1.5 pl-16 font-medium">Nazwa</th>
@@ -260,6 +261,7 @@ function FloorNode({
                   ))}
                 </tbody>
               </table>
+              </div>
             </div>
           ))}
         </div>

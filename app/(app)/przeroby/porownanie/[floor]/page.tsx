@@ -179,13 +179,13 @@ export default async function PorownaniaPage({
   const totalReady = totalAccepted
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-6 lg:p-8">
       <div className="mb-2 text-sm">
         <Link href="/przeroby/porownanie" className="text-gray-500 hover:text-gray-700">
           ← Porównania
         </Link>
       </div>
-      <div className="mb-6 flex items-center justify-between gap-4">
+      <div className="mb-6 flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">
             Porównanie obmiarów — {FLOOR_LABELS[summary.floor] || summary.floor}
@@ -204,7 +204,7 @@ export default async function PorownaniaPage({
         </Link>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <Stat label="Pozycji łącznie" value={String(computed.length)} />
         <Stat label="Auto-dopasowanie" value={`${totalAuto}/${computed.length}`} accent="blue" />
         <Stat label="Zaakceptowane przez Inwestora" value={String(totalAccepted)} accent="green" />
@@ -290,7 +290,7 @@ function FloorProgress({ items }: { items: any[] }) {
 
   return (
     <div className="mb-6 bg-white rounded-xl border border-gray-200 p-5">
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
         <h2 className="font-semibold text-gray-900 text-sm">Postęp rozliczenia tej kondygnacji</h2>
         <span className="text-sm font-medium text-gray-700 tabular-nums">
           {totalDoneAmount.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} zł
@@ -310,7 +310,7 @@ function FloorProgress({ items }: { items: any[] }) {
           }}
         />
       </div>
-      <div className="flex items-center justify-between text-xs text-gray-500">
+      <div className="flex items-center justify-between text-xs text-gray-500 flex-wrap gap-x-3 gap-y-1">
         <span>{moneyPct.toFixed(1)}% wartości</span>
         <span>
           ✓ {fullyBilled} ukończonych · ⏳ {partlyBilled} częściowych ·

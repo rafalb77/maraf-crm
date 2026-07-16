@@ -53,7 +53,7 @@ export function MarkSignedButton({ contractId }: { contractId: string }) {
           className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4"
           onClick={() => !busy && setOpen(false)}
         >
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 max-h-[90dvh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <h2 className="text-lg font-semibold text-gray-900 mb-3">Oznacz umowę jako podpisaną</h2>
             <div>
               <label className="block text-xs text-gray-600 mb-1">Data podpisania</label>

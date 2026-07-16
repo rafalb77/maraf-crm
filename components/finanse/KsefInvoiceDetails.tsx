@@ -71,7 +71,7 @@ export function KsefInvoiceDetails({ data }: { data: KsefInvoiceData }) {
           <p className="text-sm text-gray-400">Brak pozycji w danych z KSeF.</p>
         ) : (
           <div className="bg-white rounded-xl border border-gray-200 overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full text-sm min-w-[860px] lg:min-w-0">
               <thead className="bg-gray-50 border-b border-gray-200 text-left">
                 <tr>
                   <th className="px-3 py-2 font-medium text-gray-700 w-8">Lp</th>

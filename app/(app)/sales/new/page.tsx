@@ -32,7 +32,7 @@ export default async function NewContractPage({
   }
 
   return (
-    <div className="p-8 max-w-4xl">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-4xl">
       <div className="flex items-center gap-2 text-sm text-gray-500 mb-2">
         <Link href="/sales" className="hover:text-blue-600">
           Sprzedaż

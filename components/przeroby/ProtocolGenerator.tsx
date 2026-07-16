@@ -20,7 +20,7 @@ export function ProtocolGenerator({ summaryId, floor, ready, total }: Props) {
 
   return (
     <div className={`mb-6 rounded-xl border p-4 ${allReady ? 'bg-green-50 border-green-200' : 'bg-amber-50 border-amber-200'}`}>
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <p className={`text-sm font-semibold ${allReady ? 'text-green-800' : 'text-amber-800'}`}>
             {allReady
@@ -166,7 +166,7 @@ function ProtocolGeneratorForm({
         />
       </div>
 
-      <div className="lg:col-span-3 flex items-end gap-2">
+      <div className="lg:col-span-3 flex items-end gap-2 flex-wrap">
         <button
           onClick={generate}
           disabled={busy || !contractId}

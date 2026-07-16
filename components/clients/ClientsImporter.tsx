@@ -95,7 +95,7 @@ export function ClientsImporter() {
   if (committed?.applied) {
     return (
       <div className="space-y-4">
-        <div className="bg-green-50 border border-green-200 rounded-xl p-6">
+        <div className="bg-green-50 border border-green-200 rounded-xl p-4 sm:p-6">
           <div className="flex items-start gap-3">
             <CheckCircle2 className="w-6 h-6 text-green-600 flex-shrink-0 mt-0.5" />
             <div>
@@ -111,16 +111,16 @@ export function ClientsImporter() {
             <Stat label="Bez PESEL" value={committed.withoutPeselCount} accent="gray" />
           </div>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row">
           <button
             onClick={() => router.push('/clients')}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg text-sm font-medium"
+            className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg text-sm font-medium"
           >
             Przejdź do listy klientów
           </button>
           <button
             onClick={reset}
-            className="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 px-5 py-2 rounded-lg text-sm font-medium"
+            className="w-full sm:w-auto bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 px-5 py-2 rounded-lg text-sm font-medium"
           >
             Importuj kolejny plik
           </button>
@@ -133,7 +133,7 @@ export function ClientsImporter() {
   return (
     <div className="space-y-5">
       {/* Upload box */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
+      <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6">
         <div className="flex items-start justify-between gap-4 mb-4">
           <div>
             <h2 className="font-semibold text-gray-900 flex items-center gap-2">
@@ -154,7 +154,7 @@ export function ClientsImporter() {
 
         {!file ? (
           <label className="block">
-            <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:bg-gray-50 cursor-pointer transition-colors">
+            <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 sm:p-8 text-center hover:bg-gray-50 cursor-pointer transition-colors">
               <Upload className="w-10 h-10 text-gray-400 mx-auto mb-2" />
               <p className="text-sm font-medium text-gray-900">Kliknij, aby wybrać plik</p>
               <p className="text-xs text-gray-500 mt-1">.xlsx — eksport z CRM</p>
@@ -189,7 +189,7 @@ export function ClientsImporter() {
 
       {/* Loading */}
       {previewLoading && (
-        <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
+        <div className="bg-white rounded-xl border border-gray-200 p-6 sm:p-8 text-center">
           <Loader2 className="w-8 h-8 text-blue-600 animate-spin mx-auto mb-2" />
           <p className="text-sm text-gray-600">Analizuję plik…</p>
         </div>
@@ -209,7 +209,7 @@ export function ClientsImporter() {
       {/* Preview */}
       {diff && !previewLoading && (
         <>
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
+          <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6">
             <h2 className="font-semibold text-gray-900 mb-4">Podsumowanie</h2>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <Stat label="Nowi klienci" value={diff.newRows.length} accent="green" />
@@ -254,7 +254,7 @@ export function ClientsImporter() {
 
           {/* Akcje */}
           {diff.newRows.length > 0 ? (
-            <div className="bg-white rounded-xl border border-gray-200 p-4 flex items-center gap-3 sticky bottom-4 shadow-sm">
+            <div className="bg-white rounded-xl border border-gray-200 p-4 flex flex-wrap items-center gap-3 sticky bottom-4 shadow-sm">
               <button
                 onClick={() => setConfirmOpen(true)}
                 disabled={committing}
@@ -278,7 +278,7 @@ export function ClientsImporter() {
       {/* Confirmation modal */}
       {confirmOpen && diff && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setConfirmOpen(false)}>
-          <div className="bg-white rounded-xl shadow-xl p-6 max-w-md w-full" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-xl shadow-xl p-4 sm:p-6 max-w-md w-full max-h-[90dvh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <h3 className="font-semibold text-gray-900 text-lg mb-2">Potwierdź import</h3>
             <p className="text-sm text-gray-600 mb-4">
               Zostanie dodanych <strong>{diff.newRows.length}</strong> nowych klientów. Dane wrażliwe zapisane zaszyfrowane.
@@ -316,7 +316,7 @@ function Stat({ label, value, accent }: { label: string; value: number; accent: 
 
 function Section({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) {
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-5">
+    <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5">
       <div className="flex items-center gap-2 mb-3">
         {icon}
         <h3 className="font-semibold text-gray-900">{title}</h3>
@@ -327,9 +327,12 @@ function Section({ icon, title, children }: { icon: React.ReactNode; title: stri
 }
 
 function Table({ head, rows }: { head: string[]; rows: string[][] }) {
+  // Szerokość min. skalowana liczbą kolumn — na wąskim ekranie tabela scrolluje
+  // się poziomo zamiast zgniatać komórki (7 kolumn dla "Nowi klienci" vs 3 dla "Pominięci").
+  const minWidth = Math.max(head.length * 110, 420)
   return (
     <div className="overflow-x-auto">
-      <table className="w-full text-sm">
+      <table className="w-full text-sm" style={{ minWidth: `${minWidth}px` }}>
         <thead>
           <tr className="text-left text-xs uppercase tracking-wide text-gray-500 border-b border-gray-100">
             {head.map((h) => (

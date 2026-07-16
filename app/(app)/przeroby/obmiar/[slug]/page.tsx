@@ -37,13 +37,13 @@ export default async function ObmiarScopePage({
   }
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-6 lg:p-8">
       <div className="mb-2 text-sm">
         <Link href="/przeroby/obmiar" className="text-gray-500 hover:text-gray-700">
           ← Obmiary
         </Link>
       </div>
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-6 flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">{scope.name}</h1>
           <p className="text-gray-500 text-sm mt-1">
@@ -58,7 +58,7 @@ export default async function ObmiarScopePage({
         </Link>
       </div>
 
-      <div className="grid grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         <Stat label="Pozycji obmiaru" value={totalItems.toString()} />
         <Stat label="Objętość żelbetu" value={`${totalVolume.toFixed(2)} m³`} />
         <Stat label="Powierzchnia płyt" value={`${totalArea.toFixed(2)} m²`} />

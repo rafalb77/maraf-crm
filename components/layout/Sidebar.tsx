@@ -7,6 +7,7 @@ import { LogoFullOnDark, LogoIcon } from './Logo'
 import { isAdmin } from '@/lib/auth-utils'
 import { getRequiredPermission } from '@/lib/permissions'
 import { useRipple } from '@/lib/ripple'
+import { useMobileNav } from './MobileNavContext'
 
 type NavItem = { href: string; label: string; icon: React.ReactNode }
 type NavSection = { label?: string; items: NavItem[] }
@@ -291,6 +292,7 @@ export function Sidebar({
 } = {}) {
   const pathname = usePathname()
   const router = useRouter()
+  const { open: mobileOpen } = useMobileNav()
   const { data: session, status } = useSession()
   const userIsAdmin = isAdmin(session?.user?.email)
   const userPermissions = (session?.user as any)?.permissions as string[] | undefined
@@ -363,7 +365,9 @@ export function Sidebar({
 
   return (
     <aside
-      className="fixed left-0 top-0 h-full flex flex-col z-30 transition-[width] duration-200 ease-out"
+      className={`fixed left-0 top-0 h-dvh flex flex-col z-40 lg:z-30 transition-[width,transform] duration-200 ease-out -translate-x-full lg:translate-x-0 ${
+        mobileOpen ? 'translate-x-0' : ''
+      }`}
       style={{ background: SB.bg, borderRight: '1px solid rgba(242,232,214,.08)', width: collapsed ? 80 : 256 }}
     >
       {/* Logo — klik prowadzi na stronę główną (Pulpit). 64px — spójnie z TopBarem. */}
@@ -465,7 +469,8 @@ export function Sidebar({
             onClick={onToggleCollapse}
             title={collapsed ? 'Rozwiń panel' : 'Zwiń panel'}
             aria-label={collapsed ? 'Rozwiń panel' : 'Zwiń panel'}
-            className={itemBase + ' w-full' + (collapsed ? ' justify-center' : '')}
+            /* Zwijanie to funkcja desktopowa — na mobile (drawer) ukryte, żeby panel nie wpadł w tryb 80px */
+            className={itemBase + ' w-full hidden lg:flex' + (collapsed ? ' justify-center' : '')}
             style={{ color: SB.muted }}
             onMouseEnter={(e) => {
               e.currentTarget.style.backgroundColor = SB.hoverBg

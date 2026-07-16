@@ -20,7 +20,8 @@ export function DeleteEntryButton({ caseId, entryId }: { caseId: string; entryId
     <button
       onClick={handleDelete}
       disabled={loading}
-      className="text-xs text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-50"
+      // Na dotyku nie ma :hover, więc poniżej sm przycisk jest zawsze widoczny (inaczej niedostępny na telefonie)
+      className="text-xs text-red-500 hover:text-red-700 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity disabled:opacity-50"
       title="Usuń wpis"
     >
       {loading ? '...' : 'Usuń'}

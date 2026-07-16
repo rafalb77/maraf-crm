@@ -62,7 +62,7 @@ export function NewSalesInvoiceForm({ company }: { company: string }) {
         <input value={number} onChange={(e) => setNumber(e.target.value)} placeholder="np. FV/12/2026" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono" />
       </Row>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Row label="Odbiorca (firma)">
           <input value={recipientName} onChange={(e) => setRecipientName(e.target.value)} placeholder="np. Janpol sp. z o.o." className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" />
         </Row>
@@ -74,7 +74,7 @@ export function NewSalesInvoiceForm({ company }: { company: string }) {
         </Row>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Row label="Data wystawienia">
           <input type="date" value={issueDate} onChange={(e) => setIssueDate(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" />
         </Row>
@@ -83,7 +83,7 @@ export function NewSalesInvoiceForm({ company }: { company: string }) {
         </Row>
       </div>
 
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Row label="VAT %">
           <select value={vatRate} onChange={(e) => setVatRate(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
             <option value="23">23%</option><option value="8">8%</option><option value="5">5%</option><option value="0">0%</option>
@@ -98,7 +98,7 @@ export function NewSalesInvoiceForm({ company }: { company: string }) {
         Automatycznie licz netto/VAT z brutto
       </label>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Row label="Kaucja zatrzymana (opc.)"><input value={deposit} onChange={(e) => setDeposit(e.target.value)} placeholder="zł" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm tabular-nums" /></Row>
         <Row label="Koszty budowy / KB (opc.)"><input value={kb} onChange={(e) => setKb(e.target.value)} placeholder="zł" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm tabular-nums" /></Row>
       </div>

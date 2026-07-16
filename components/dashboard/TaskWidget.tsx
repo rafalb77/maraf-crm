@@ -230,7 +230,7 @@ export function TaskWidget() {
   const todayPct = todayTotal > 0 ? Math.round((stats.doneToday / todayTotal) * 100) : 100
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-6 mb-4 v2-card-in" style={{ animationDelay: '.06s' }}>
+    <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 mb-4 v2-card-in" style={{ animationDelay: '.06s' }}>
       <div className="flex items-center gap-3 mb-4 flex-wrap">
         <h2 className="font-semibold text-gray-900">Do zrobienia</h2>
         {stats.overdueCount > 0 && (
@@ -451,7 +451,7 @@ function TaskRow({
   }
 
   return (
-    <div className="group flex items-start gap-3 py-2.5 relative">
+    <div className="group flex items-start gap-2 sm:gap-3 py-2.5 relative">
       <button
         onClick={onComplete}
         title="Oznacz jako zrobione"
@@ -502,7 +502,8 @@ function TaskRow({
         {(t.bucket === 'NADCHODZACE' || t.bucket === 'POZNIEJ') && (t.dueAt ? fmtShort(t.dueAt) : 'bez terminu')}
       </span>
 
-      <div className="flex items-center gap-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+      {/* Na dotyku (poniżej lg) akcje są zawsze widoczne — hover nie działa niezawodnie na telefonie/tablecie */}
+      <div className="flex items-center gap-1 flex-shrink-0 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
         {t.client?.phone && (
           <a
             href={`tel:${t.client.phone.replace(/\s+/g, '')}`}

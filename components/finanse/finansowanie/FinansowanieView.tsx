@@ -72,14 +72,14 @@ export function FinansowanieView({
   }
 
   return (
-    <div className="p-8 max-w-6xl">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-6xl">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Finansowanie inwestycji</h1>
         <p className="text-gray-500 text-sm mt-1">Kredyty, rachunki powiernicze, zwroty VAT — Maraf Development</p>
       </div>
 
       {/* Taby */}
-      <div className="flex gap-1 mb-6 border-b border-gray-200">
+      <div className="flex gap-1 mb-6 border-b border-gray-200 flex-wrap">
         <TabBtn active={tab === 'loans'} onClick={() => setTab('loans')}>
           Kredyty <Badge>{loans.length}</Badge>
         </TabBtn>
@@ -136,7 +136,7 @@ function LoansTab({ loansByType }: { loansByType: Record<string, LoanRow[]> }) {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="text-sm text-gray-500">
           Suma limitów:{' '}
           <strong className="text-gray-900 tabular-nums">
@@ -518,7 +518,7 @@ function EscrowTab({ escrows }: { escrows: EscrowRow[] }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="text-sm text-gray-500 space-x-4">
           <span>W escrow: <strong className="text-gray-900 tabular-nums">{fmtMoney(totalBalance)}</strong></span>
           <span>Uwolnione łącznie: <strong className="text-gray-900 tabular-nums">{fmtMoney(totalReleased)}</strong></span>
@@ -878,7 +878,7 @@ function VatTab({ refunds, vatLoans }: { refunds: RefundRow[]; vatLoans: { id: s
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="text-sm text-gray-500 space-x-4">
           <span>YTD: <strong className="text-gray-900 tabular-nums">{fmtMoney(totalYTD)}</strong></span>
           <span>Na spłatę kredytu VAT: <strong className="text-gray-900 tabular-nums">{fmtMoney(totalAppliedToLoan)}</strong></span>
@@ -931,38 +931,40 @@ function VatTab({ refunds, vatLoans }: { refunds: RefundRow[]; vatLoans: { id: s
 
       {refunds.length > 0 && (
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b border-gray-200 text-left text-xs text-gray-500">
-              <tr>
-                <th className="px-4 py-2">Data</th>
-                <th className="px-4 py-2">Okres</th>
-                <th className="px-4 py-2 text-right">Kwota</th>
-                <th className="px-4 py-2">Przeznaczenie</th>
-                <th className="px-4 py-2">Notatka</th>
-                <th className="px-4 py-2"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {refunds.map((r) => (
-                <tr key={r.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-2 text-gray-700 tabular-nums">{r.date.slice(0, 10)}</td>
-                  <td className="px-4 py-2 text-gray-600 text-xs">{r.periodLabel || '—'}</td>
-                  <td className="px-4 py-2 text-right tabular-nums font-semibold text-gray-900">{fmtMoney(r.amount)}</td>
-                  <td className="px-4 py-2 text-xs">
-                    {r.appliedToLoan ? (
-                      <span className="bg-purple-50 text-purple-700 rounded px-2 py-0.5">Spłata: {r.appliedToLoan.name}</span>
-                    ) : (
-                      <span className="text-gray-500">Na konto operacyjne</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-2 text-xs text-gray-500">{r.note || '—'}</td>
-                  <td className="px-4 py-2 text-right">
-                    <button onClick={() => del(r.id)} className="text-rose-500 hover:text-rose-700 text-sm">×</button>
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[720px] lg:min-w-0 text-sm">
+              <thead className="bg-gray-50 border-b border-gray-200 text-left text-xs text-gray-500">
+                <tr>
+                  <th className="px-4 py-2">Data</th>
+                  <th className="px-4 py-2">Okres</th>
+                  <th className="px-4 py-2 text-right">Kwota</th>
+                  <th className="px-4 py-2">Przeznaczenie</th>
+                  <th className="px-4 py-2">Notatka</th>
+                  <th className="px-4 py-2"></th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {refunds.map((r) => (
+                  <tr key={r.id} className="hover:bg-gray-50">
+                    <td className="px-4 py-2 text-gray-700 tabular-nums">{r.date.slice(0, 10)}</td>
+                    <td className="px-4 py-2 text-gray-600 text-xs">{r.periodLabel || '—'}</td>
+                    <td className="px-4 py-2 text-right tabular-nums font-semibold text-gray-900">{fmtMoney(r.amount)}</td>
+                    <td className="px-4 py-2 text-xs">
+                      {r.appliedToLoan ? (
+                        <span className="bg-purple-50 text-purple-700 rounded px-2 py-0.5">Spłata: {r.appliedToLoan.name}</span>
+                      ) : (
+                        <span className="text-gray-500">Na konto operacyjne</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-2 text-xs text-gray-500">{r.note || '—'}</td>
+                    <td className="px-4 py-2 text-right">
+                      <button onClick={() => del(r.id)} className="text-rose-500 hover:text-rose-700 text-sm">×</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>

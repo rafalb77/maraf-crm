@@ -32,13 +32,13 @@ export default async function SettingsPage({
   })
 
   return (
-    <div className="p-8 max-w-5xl">
-      <div className="mb-6 flex items-start justify-between gap-4">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-5xl">
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Ustawienia</h1>
           <p className="text-gray-500 text-sm mt-1">Konfiguracja integracji i parametrów systemu</p>
         </div>
-        <div className="flex items-center gap-4 flex-shrink-0">
+        <div className="flex flex-wrap items-center gap-4 sm:flex-shrink-0">
           <a
             href="/settings/dane-gov"
             className="text-sm text-blue-600 hover:text-blue-700 underline whitespace-nowrap"
@@ -66,7 +66,7 @@ export default async function SettingsPage({
 
         {/* Google Calendar */}
         <div className="bg-white rounded-xl border border-gray-200 p-6">
-          <div className="flex items-start justify-between mb-4">
+          <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
             <div>
               <h2 className="font-semibold text-gray-900">Google Calendar</h2>
               <p className="text-sm text-gray-500 mt-1">Synchronizacja wydarzeń z kalendarzem Google</p>

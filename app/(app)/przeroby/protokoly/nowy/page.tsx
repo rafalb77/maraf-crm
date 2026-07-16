@@ -2,7 +2,7 @@ import Link from 'next/link'
 
 export default function NowyProtokolPage() {
   return (
-    <div className="p-8 max-w-2xl">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-2xl">
       <h1 className="text-2xl font-bold text-gray-900 mb-3">Nowy protokół</h1>
       <div className="bg-amber-50 border border-amber-200 rounded-xl p-5 text-sm text-amber-900">
         <p className="font-medium mb-2">Tworzenie nowych protokołów — w przygotowaniu</p>

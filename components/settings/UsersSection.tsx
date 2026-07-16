@@ -151,7 +151,7 @@ export function UsersSection({ currentUserEmail }: { currentUserEmail: string })
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 p-6">
-      <div className="flex items-start justify-between mb-4">
+      <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
         <div>
           <h2 className="font-semibold text-gray-900">Użytkownicy i uprawnienia</h2>
           <p className="text-sm text-gray-500 mt-1">
@@ -223,7 +223,7 @@ export function UsersSection({ currentUserEmail }: { currentUserEmail: string })
       {showAdd && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => !adding && setShowAdd(false)}>
           <div
-            className="bg-white rounded-xl shadow-xl p-6 max-w-md w-full"
+            className="bg-white rounded-xl shadow-xl p-6 max-w-md w-full max-h-[90dvh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-start justify-between mb-4">

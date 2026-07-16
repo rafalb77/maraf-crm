@@ -4,6 +4,20 @@ Krótkie wpisy „co i **dlaczego**". Bez listy wszystkich commitów — od tego
 
 ---
 
+## 2026-07-16
+
+### Responsywność — mobile dla CRM, tablet dla back-office
+**Powód**: system (mimo redesignu „Oprawa v2") był desktop-only. Sidebar `fixed` (256px, lub 80px zwinięty) zabierał na telefonie prawie cały ekran, główne listy to szerokie tabele bez `overflow`. Decyzja Rafała: **moduły CRM priorytetowo pełne mobile** (handlowiec w terenie: Klienci, Lokale, Rezerwacje, Kalendarz...), **back-office (Przeroby/Finanse/Budowa/Settings) znośny na tablecie**, logowanie pełne mobile.
+**Implementacja** (na kodzie po v2):
+- **Drawer w AppShell** — na `<lg` sidebar staje się wysuwanym panelem (hamburger w TopBar, backdrop `z-30`, aside `z-40 lg:z-30`, `-translate-x-full lg:translate-x-0`; zamykanie po nawigacji/Escape/kliknięciu tła). Stan w `components/layout/MobileNavContext.tsx`. **Zwijanie do 80px pozostaje funkcją desktopową** — `AppShell` wymusza `effectiveCollapsed = isDesktop && collapsed` (matchMedia 1024px), więc drawer na mobile jest ZAWSZE pełny (inaczej zapamiętany „zwinięty" z desktopu blokował panel na 80px bez przełącznika, ukrytego na mobile). Treść `ml-0 lg:ml-[var(--sb-w)]`, `h-screen`→`h-dvh`.
+- **Karty zamiast tabel na mobile** — główne listy CRM (Klienci, Lokale, Oferty, Sprzedaż, Rezerwacje miękkie) mają podwójny render: `<ul className="md:hidden">` (karty; cała karta = `Link absolute inset-0`, `tel:` z `relative z-10`) + `<table className="hidden md:table">`. Wzorzec referencyjny: `components/clients/ClientsTable.tsx`. Sortowanie tylko w wariancie tabelarycznym.
+- **Tabele podrzędne/back-office** — `overflow-x-auto` + `min-w-[...]` **zawsze z `lg:min-w-0`** (na desktopie tabela wraca do naturalnej szerokości = stan sprzed zmiany; poziomy scroll tylko poniżej `lg`). Bez `lg:min-w-0` duże `min-w` (>~1000px) dawały scroll poziomy na wąskich laptopach = regres desktopu.
+- **Pułapka `col-span` w siatkach mobilnych** — `grid-cols-2` → `grid-cols-1 md:grid-cols-2` wymaga też prefiksowania **span**ów dzieci: gołe `col-span-2` wymusza 2 realne kolumny CSS Grid **nawet przy `grid-cols-1`** (liczba kolumn = największy span któregokolwiek dziecka), przez co pola nie stackują się na mobile. Zawsze `md:col-span-2` (albo `sm:col-span-2` wg breakpointu siatki).
+- **Konwencja breakpointów** — default=telefon (375px), `md:`=tablet (768px), `lg:`=desktop (1024px+). Żelazne: (1) desktop `lg+` IDENTYCZNY jak przed zmianą — refaktor tylko DODAJE prefiksy; (2) **zero nowych klas kolorów** spoza tych z override w `globals.css` (dark mode); sidebar ma własną paletę poza motywem.
+- **Weryfikacja**: `tsc` + `next build` (121 stron) + wieloagentowy przegląd diffu (5 soczewek + adwersaryjna weryfikacja) — wyłapał m.in. systemowy błąd `col-span` i `min-w` bez `lg:min-w-0`, naprawione. Wpis wzorca w `docs/architektura.md` §6.
+
+---
+
 ## 2026-07-14
 
 ### Moduł Rozliczenia powiernicze (`/finanse/powiernicze`) — kontrola wpłat z wyciągu ING wobec harmonogramu

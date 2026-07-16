@@ -82,10 +82,10 @@ export default async function InvoiceDetailsPage({ params }: { params: { id: str
   const ksef = (inv.ksefData as unknown as KsefInvoiceData | null) || null
 
   return (
-    <div className="p-8 max-w-5xl">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-5xl">
       <div className="mb-6">
         <Link href="/finanse/faktury" className="text-sm text-gray-500 hover:text-gray-700">← Wszystkie faktury</Link>
-        <div className="flex items-start justify-between mt-2 gap-4">
+        <div className="flex items-start justify-between mt-2 gap-4 flex-wrap">
           <div>
             {/* Gdy jest podkontrahent (Janpol/PATRIMEX pod STAFFA) — to ON jest
                 glownym, czytelnym tytulem; parasol (STAFFA) maly nad nim. */}
@@ -238,32 +238,34 @@ export default async function InvoiceDetailsPage({ params }: { params: { id: str
 
         {inv.payments.length > 0 && (
           <div className="bg-white rounded-xl border border-gray-200 overflow-hidden mb-4">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 border-b border-gray-200 text-left">
-                <tr>
-                  <th className="px-4 py-2 font-medium text-gray-700">Data</th>
-                  <th className="px-4 py-2 font-medium text-gray-700 text-right">Kwota</th>
-                  <th className="px-4 py-2 font-medium text-gray-700">Bank</th>
-                  <th className="px-4 py-2 font-medium text-gray-700">Tytuł</th>
-                  <th className="px-4 py-2 font-medium text-gray-700">Notatka</th>
-                  <th className="px-4 py-2"></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {inv.payments.map((p) => (
-                  <tr key={p.id}>
-                    <td className="px-4 py-2 text-gray-700 tabular-nums">{fmtDate(p.paidAt)}</td>
-                    <td className="px-4 py-2 text-right tabular-nums font-medium">{fmtMoney(p.amount)}</td>
-                    <td className="px-4 py-2 text-gray-600">{p.bankAccount || '—'}</td>
-                    <td className="px-4 py-2 text-gray-600 text-xs">{p.reference || '—'}</td>
-                    <td className="px-4 py-2 text-gray-500 text-xs">{p.notes || '—'}</td>
-                    <td className="px-4 py-2 text-right">
-                      <DeletePaymentButton invoiceId={inv.id} paymentId={p.id} />
-                    </td>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm min-w-[760px] lg:min-w-0">
+                <thead className="bg-gray-50 border-b border-gray-200 text-left">
+                  <tr>
+                    <th className="px-4 py-2 font-medium text-gray-700">Data</th>
+                    <th className="px-4 py-2 font-medium text-gray-700 text-right">Kwota</th>
+                    <th className="px-4 py-2 font-medium text-gray-700">Bank</th>
+                    <th className="px-4 py-2 font-medium text-gray-700">Tytuł</th>
+                    <th className="px-4 py-2 font-medium text-gray-700">Notatka</th>
+                    <th className="px-4 py-2"></th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {inv.payments.map((p) => (
+                    <tr key={p.id}>
+                      <td className="px-4 py-2 text-gray-700 tabular-nums">{fmtDate(p.paidAt)}</td>
+                      <td className="px-4 py-2 text-right tabular-nums font-medium">{fmtMoney(p.amount)}</td>
+                      <td className="px-4 py-2 text-gray-600">{p.bankAccount || '—'}</td>
+                      <td className="px-4 py-2 text-gray-600 text-xs">{p.reference || '—'}</td>
+                      <td className="px-4 py-2 text-gray-500 text-xs">{p.notes || '—'}</td>
+                      <td className="px-4 py-2 text-right">
+                        <DeletePaymentButton invoiceId={inv.id} paymentId={p.id} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 
@@ -282,7 +284,7 @@ export default async function InvoiceDetailsPage({ params }: { params: { id: str
           <ol className="space-y-2">
             {inv.approvals.map((a) => (
               <li key={a.id} className="bg-white border border-gray-200 rounded-lg p-3 text-sm">
-                <div className="flex items-baseline justify-between">
+                <div className="flex items-baseline justify-between flex-wrap gap-x-3">
                   <div>
                     <span className="font-medium text-gray-900">{INVOICE_APPROVAL_ACTION_LABELS[a.action] || a.action}</span>
                     {a.userEmail && <span className="text-gray-500 ml-2">— {a.userEmail}</span>}
