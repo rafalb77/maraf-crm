@@ -1,6 +1,15 @@
 # Zmiany responsywności — 2026-07-16 (deploy help)
 
-Dokument opisuje **wszystkie** zmiany wprowadzone na urządzeniu „stacjonarnym" w ostatnich 24h i wypchnięte na produkcję. Powstał, bo na **drugim komputerze** zmiany w module Finanse nie chcą przejść przez deploy — najpewniej przez konflikt z tym commitem.
+> ## ✅ SPRAWA ROZWIĄZANA (2026-07-16, po napisaniu dokumentu)
+> Deploy padał **NIE przez responsywność ani konflikt scalania**. Prawdziwą przyczyną był
+> `next/image` + brak sharp w obrazie standalone — naprawione w commicie **`166f4a9`**
+> (`Fix deploy: next/image unoptimized (sharp niepotrzebny w standalone)` — `images.unoptimized`
+> w `next.config.js`). Zmiany Finansów z drugiego komputera (`2f70585`) scaliły się z responsywnością
+> bez problemu. **Sekcje §3 i §6 (diagnostyka deployu / instrukcja scalania) są już nieaktualne** —
+> zostają jako ogólna ściąga na przyszłe konflikty. Reszta dokumentu (opis zmian per-plik + diffy)
+> pozostaje aktualnym opisem commita `5161664`.
+
+Dokument opisuje **wszystkie** zmiany wprowadzone na urządzeniu „stacjonarnym" w ostatnich 24h i wypchnięte na produkcję. Powstał, bo na **drugim komputerze** zmiany w module Finanse nie chciały przejść przez deploy — pierwotne podejrzenie padło na konflikt z tym commitem (patrz adnotacja wyżej — podejrzenie się nie potwierdziło).
 
 ---
 
