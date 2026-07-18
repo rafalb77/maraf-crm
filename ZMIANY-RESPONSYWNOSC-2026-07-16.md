@@ -1,13 +1,23 @@
 # Zmiany responsywności — 2026-07-16 (deploy help)
 
-> ## ✅ SPRAWA ROZWIĄZANA (2026-07-16, po napisaniu dokumentu)
-> Deploy padał **NIE przez responsywność ani konflikt scalania**. Prawdziwą przyczyną był
-> `next/image` + brak sharp w obrazie standalone — naprawione w commicie **`166f4a9`**
-> (`Fix deploy: next/image unoptimized (sharp niepotrzebny w standalone)` — `images.unoptimized`
-> w `next.config.js`). Zmiany Finansów z drugiego komputera (`2f70585`) scaliły się z responsywnością
-> bez problemu. **Sekcje §3 i §6 (diagnostyka deployu / instrukcja scalania) są już nieaktualne** —
-> zostają jako ogólna ściąga na przyszłe konflikty. Reszta dokumentu (opis zmian per-plik + diffy)
-> pozostaje aktualnym opisem commita `5161664`.
+> ## ✅ SPRAWA ROZWIĄZANA OSTATECZNIE (2026-07-18)
+> **Faktyczna przyczyna padających deployów NIE była w kodzie.** W Coolify (Environment
+> Variables) istniała uszkodzona zmienna `cron_secret`, której wartością była wklejona
+> **instrukcja z dokumentacji** zamiast wygenerowanego sekretu:
+> `BUDOWA_CRON_SECRET = <wynik: node -e "...">`. Coolify wstrzykuje każdą zmienną
+> środowiskową jako linię `ARG nazwa=wartość` do Dockerfile przy **każdym** buildzie —
+> wartość ze spacjami i `<>` rozwalała parser (`dockerfile parse error: ARG names can not
+> be blank`) i **każdy deploy padał w ~1 s, zanim build ruszył**, niezależnie od zawartości
+> commita. Padły kolejno: responsywność (`5161664`), Finanse (`2f70585`), fix sharp
+> (`166f4a9`) i pushe dokumentacji — produkcja stała na `0924175` z 14.07.
+> **Naprawa 2026-07-18**: usunięcie `cron_secret` (widoczna dopiero w **Developer view**
+> listy zmiennych!) + poprawna zmienna `BUDOWA_CRON_SECRET` (czysty hex). Deploy przeszedł,
+> produkcja zweryfikowana (responsywność + logo bez `/_next/image` na żywo).
+> **Fałszywe tropy po drodze** (obie hipotezy obalone): konflikt scalania z responsywnością
+> (§3/§6 — zostają jako ogólna ściąga) oraz brak sharp (błędy sharp to szum per-obrazek —
+> optymalizator i tak serwował 200 fallbackiem; fix `166f4a9` słuszny porządkowo, ale nie
+> był blokerem). Morał: **przy „failed" deployu najpierw czytaj log DEPLOYMENTU (build),
+> nie log aplikacji** — werdykt jest zawsze na końcu logu builda.
 
 Dokument opisuje **wszystkie** zmiany wprowadzone na urządzeniu „stacjonarnym" w ostatnich 24h i wypchnięte na produkcję. Powstał, bo na **drugim komputerze** zmiany w module Finanse nie chciały przejść przez deploy — pierwotne podejrzenie padło na konflikt z tym commitem (patrz adnotacja wyżej — podejrzenie się nie potwierdziło).
 

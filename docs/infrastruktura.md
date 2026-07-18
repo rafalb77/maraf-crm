@@ -139,8 +139,9 @@ Moduł `/calendar` integruje się z Google Calendar przez OAuth 2.0. Kod: `lib/g
 3. Jeśli baza niedostępna → Coolify → restart usługi PostgreSQL
 
 ### Deploy padł
-1. Coolify → Deployments → kliknij na failed deploy → wklej logi do nowej sesji Claude'a
+1. Coolify → Deployments → kliknij na failed deploy → **czytaj log DEPLOYMENTU (build), nie log aplikacji** — werdykt („dlaczego failed") jest zawsze na końcu logu builda. Wklej go do nowej sesji Claude'a.
 2. Częste przyczyny: OOM podczas `next build` (sprawdź `NODE_OPTIONS=--max-old-space-size=4096` w Dockerfile builder), brak Chromium/libów, błąd TS po zmianie schema bez `prisma generate`
+3. ⚠️ **`dockerfile parse error ... ARG names can not be blank` = uszkodzona zmienna środowiskowa w Coolify** (przerabiane 2026-07-16→18: zmienna `cron_secret` z wklejoną instrukcją z docsów zamiast wartości blokowała WSZYSTKIE deploye przez 2 dni). Coolify wstrzykuje każdą env var jako `ARG nazwa=wartość` do Dockerfile przy każdym buildzie — wartość ze spacjami / `<>` / cudzysłowami rozwala parser zanim build ruszy. Szukaj winnej zmiennej w Environment Variables przez **Developer view** (surowy edytor — w zwykłym widoku łatwo ją przeoczyć; sprawdź też Shared Variables projektu/teamu). Zasada: **do formularza zmiennych wkleja się TYLKO gotową wartość** (np. hex z `node -e "..."`), nigdy całą linię instrukcji z dokumentacji.
 
 ### Klient nie dostaje maila z ofertą
 1. Sprawdź w `/settings` → SMTP → Wyślij test maila — czy SMTP w ogóle działa
