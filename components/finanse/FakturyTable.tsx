@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react'
 import {
   PURCHASE_INVOICE_STATUS_LABELS,
   PURCHASE_INVOICE_STATUS_COLORS,
+  PURCHASE_INVOICE_CATEGORIES,
   PURCHASE_INVOICE_CATEGORY_LABELS,
   PURCHASE_INVOICE_CATEGORY_COLORS,
   COMPANY_SHORT,
@@ -313,15 +314,7 @@ export function FakturyTable({ rows, totals, currentSort, sortOptions }: Props) 
                     </span>
                   </td>
                   <td className="px-1.5 py-2 overflow-hidden">
-                    {r.category ? (
-                      <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
-                        PURCHASE_INVOICE_CATEGORY_COLORS[r.category as PurchaseInvoiceCategory] || 'bg-gray-100 text-gray-600'
-                      }`}>
-                        {PURCHASE_INVOICE_CATEGORY_LABELS[r.category as PurchaseInvoiceCategory] || r.category}
-                      </span>
-                    ) : (
-                      <span className="text-gray-300 text-xs">—</span>
-                    )}
+                    <CategoryCell invoiceId={r.id} category={r.category} />
                   </td>
                   <td className="px-1.5 py-2 overflow-hidden">
                     <CommentCell invoiceId={r.id} initial={r.notes} />
@@ -401,6 +394,70 @@ function Th({
         title="Przeciągnij aby zmienić szerokość • dwuklik = reset"
       />
     </th>
+  )
+}
+
+// Kategoria inline — klik na badge/"—" otwiera select, wybor zapisuje od razu
+// (PATCH kategorii dziala niezaleznie od statusu FV, jak w widoku szczegolow).
+function CategoryCell({ invoiceId, category }: { invoiceId: string; category: string | null }) {
+  const router = useRouter()
+  const [editing, setEditing] = useState(false)
+  const [saving, setSaving] = useState(false)
+
+  async function save(next: string) {
+    setSaving(true)
+    try {
+      const r = await fetch(`/api/finanse/invoices/${invoiceId}`, {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ category: next || null }),
+      })
+      if (r.ok) { setEditing(false); router.refresh() }
+      else {
+        const data = await r.json().catch(() => ({}))
+        alert(data.error || 'Błąd zapisu kategorii')
+      }
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (editing) {
+    return (
+      <select
+        autoFocus
+        defaultValue={category || ''}
+        disabled={saving}
+        onChange={(e) => save(e.target.value)}
+        onBlur={() => setEditing(false)}
+        onKeyDown={(e) => { if (e.key === 'Escape') setEditing(false) }}
+        className="w-full px-1 py-0.5 border border-blue-300 rounded text-xs disabled:opacity-50"
+      >
+        <option value="">— brak —</option>
+        {PURCHASE_INVOICE_CATEGORIES.map((c) => (
+          <option key={c} value={c}>{PURCHASE_INVOICE_CATEGORY_LABELS[c]}</option>
+        ))}
+      </select>
+    )
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => setEditing(true)}
+      className="block text-left"
+      title={category ? 'Kliknij aby zmienić kategorię' : 'Kliknij aby ustawić kategorię'}
+    >
+      {category ? (
+        <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
+          PURCHASE_INVOICE_CATEGORY_COLORS[category as PurchaseInvoiceCategory] || 'bg-gray-100 text-gray-600'
+        }`}>
+          {PURCHASE_INVOICE_CATEGORY_LABELS[category as PurchaseInvoiceCategory] || category}
+        </span>
+      ) : (
+        <span className="text-gray-300 text-xs hover:text-blue-500">+ ustaw</span>
+      )}
+    </button>
   )
 }
 
