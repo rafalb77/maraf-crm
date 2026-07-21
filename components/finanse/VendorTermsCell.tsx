@@ -7,7 +7,9 @@ export type TermsRow = {
   depositPct: number | null
   depositReturnMonths: number | null
   buildingCostsPct: number | null
-  calcBasis: string           // BRUTTO | NETTO — baza naliczania %
+  calcBasis?: string          // legacy: wspolna baza (fallback gdy per-pole null)
+  depositBasis?: string | null       // baza % kaucji: BRUTTO | NETTO
+  buildingCostsBasis?: string | null // baza % KB: BRUTTO | NETTO (moze byc inna niz kaucji)
   notes: string | null
 }
 
@@ -22,14 +24,21 @@ type Props = {
   prominent?: boolean
 }
 
-const emptyRow = (investment = ''): TermsRow => ({ investment, depositPct: null, depositReturnMonths: null, buildingCostsPct: null, calcBasis: 'BRUTTO', notes: null })
+const emptyRow = (investment = ''): TermsRow => ({ investment, depositPct: null, depositReturnMonths: null, buildingCostsPct: null, depositBasis: 'BRUTTO', buildingCostsBasis: 'BRUTTO', notes: null })
 
-function fmtRow(r: { depositPct: number | null; depositReturnMonths: number | null; buildingCostsPct: number | null; calcBasis?: string }): string {
+// Efektywna baza pola: per-potracenie, fallback na legacy calcBasis.
+const basisOf = (perField: string | null | undefined, legacy: string | undefined): 'NETTO' | 'BRUTTO' =>
+  (perField ?? legacy) === 'NETTO' ? 'NETTO' : 'BRUTTO'
+
+function fmtRow(r: { depositPct: number | null; depositReturnMonths: number | null; buildingCostsPct: number | null; calcBasis?: string; depositBasis?: string | null; buildingCostsBasis?: string | null }): string {
+  const depNetto = basisOf(r.depositBasis, r.calcBasis) === 'NETTO'
+  const kbNetto = basisOf(r.buildingCostsBasis, r.calcBasis) === 'NETTO'
+  const bothNetto = depNetto && kbNetto
   const parts: string[] = []
-  parts.push(r.depositPct != null ? `kaucja ${r.depositPct}%` : 'kaucja —')
+  parts.push(r.depositPct != null ? `kaucja ${r.depositPct}%${!bothNetto && depNetto ? ' od netto' : ''}` : 'kaucja —')
   if (r.depositReturnMonths != null) parts.push(`zwrot ${r.depositReturnMonths} mc`)
-  parts.push(r.buildingCostsPct != null ? `KB ${r.buildingCostsPct}%` : 'KB —')
-  if (r.calcBasis === 'NETTO') parts.push('od netto')
+  parts.push(r.buildingCostsPct != null ? `KB ${r.buildingCostsPct}%${!bothNetto && kbNetto ? ' od netto' : ''}` : 'KB —')
+  if (bothNetto) parts.push('od netto')
   return parts.join(' • ')
 }
 
@@ -53,9 +62,16 @@ export function VendorTermsCell({ vendorId, terms, legacyDepositPct, legacyKbPct
       ? fmtRow({ depositPct: legacyDepositPct, depositReturnMonths: null, buildingCostsPct: legacyKbPct })
       : null
 
+  // Normalizacja wiersza do edycji: bazy per-potracenie jawne (fallback z legacy calcBasis).
+  const normalizeRow = (r: TermsRow): TermsRow => ({
+    ...r,
+    depositBasis: basisOf(r.depositBasis, r.calcBasis),
+    buildingCostsBasis: basisOf(r.buildingCostsBasis, r.calcBasis),
+  })
+
   function openEditor() {
-    const base = defaultRow ? { ...defaultRow } : { ...emptyRow(), depositPct: legacyDepositPct, buildingCostsPct: legacyKbPct }
-    setRows([base, ...buildRows.map((r) => ({ ...r }))])
+    const base = defaultRow ? normalizeRow({ ...defaultRow }) : { ...emptyRow(), depositPct: legacyDepositPct, buildingCostsPct: legacyKbPct }
+    setRows([base, ...buildRows.map((r) => normalizeRow({ ...r }))])
     setDeleted([])
     setError(null)
     setOpen(true)
@@ -64,7 +80,7 @@ export function VendorTermsCell({ vendorId, terms, legacyDepositPct, legacyKbPct
   function setField(idx: number, field: keyof TermsRow, value: string) {
     setRows((rs) => rs.map((r, i) => {
       if (i !== idx) return r
-      if (field === 'investment' || field === 'notes' || field === 'calcBasis') return { ...r, [field]: value }
+      if (field === 'investment' || field === 'notes' || field === 'depositBasis' || field === 'buildingCostsBasis') return { ...r, [field]: value }
       const n = value.trim() === '' ? null : parseFloat(value.replace(',', '.'))
       return { ...r, [field]: n != null && isFinite(n) ? n : null }
     }))
@@ -92,7 +108,8 @@ export function VendorTermsCell({ vendorId, terms, legacyDepositPct, legacyKbPct
             depositPct: row.depositPct,
             depositReturnMonths: row.depositReturnMonths,
             buildingCostsPct: row.buildingCostsPct,
-            calcBasis: row.calcBasis === 'NETTO' ? 'NETTO' : 'BRUTTO',
+            depositBasis: row.depositBasis === 'NETTO' ? 'NETTO' : 'BRUTTO',
+            buildingCostsBasis: row.buildingCostsBasis === 'NETTO' ? 'NETTO' : 'BRUTTO',
             notes: row.notes?.trim() || null,
           }),
         })
@@ -168,6 +185,7 @@ export function VendorTermsCell({ vendorId, terms, legacyDepositPct, legacyKbPct
               />
             )}
             <label className="flex items-center gap-1">
+              <span className="text-gray-400">kaucja</span>
               <input
                 value={row.depositPct ?? ''}
                 onChange={(e) => setField(idx, 'depositPct', e.target.value)}
@@ -177,6 +195,15 @@ export function VendorTermsCell({ vendorId, terms, legacyDepositPct, legacyKbPct
               />
               <span className="text-gray-400">%</span>
             </label>
+            <select
+              value={row.depositBasis === 'NETTO' ? 'NETTO' : 'BRUTTO'}
+              onChange={(e) => setField(idx, 'depositBasis', e.target.value)}
+              className="px-1 py-1 border border-gray-300 rounded"
+              title="Baza naliczania kaucji — od wartości brutto czy netto faktury (wg umowy)"
+            >
+              <option value="BRUTTO">od brutto</option>
+              <option value="NETTO">od netto</option>
+            </select>
             <label className="flex items-center gap-1">
               <span className="text-gray-400">zwrot</span>
               <input
@@ -200,10 +227,10 @@ export function VendorTermsCell({ vendorId, terms, legacyDepositPct, legacyKbPct
               <span className="text-gray-400">%</span>
             </label>
             <select
-              value={row.calcBasis === 'NETTO' ? 'NETTO' : 'BRUTTO'}
-              onChange={(e) => setField(idx, 'calcBasis', e.target.value)}
+              value={row.buildingCostsBasis === 'NETTO' ? 'NETTO' : 'BRUTTO'}
+              onChange={(e) => setField(idx, 'buildingCostsBasis', e.target.value)}
               className="px-1 py-1 border border-gray-300 rounded"
-              title="Baza naliczania % — od wartości brutto czy netto faktury (wg umowy)"
+              title="Baza naliczania kosztów budowy — od brutto czy netto (może być inna niż kaucji)"
             >
               <option value="BRUTTO">od brutto</option>
               <option value="NETTO">od netto</option>

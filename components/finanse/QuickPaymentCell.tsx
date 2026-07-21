@@ -12,12 +12,13 @@ type Props = {
   remaining: number // pozostalo do zaplaty (po potraceniach)
   status: string
   kind: 'purchase' | 'sales' // kosztowa (płatność) vs przychodowa (wpłata)
+  buttonLabel?: string // wlasna etykieta przycisku (default "+ płatność"/"+ wpłata")
 }
 
 // Szybkie dodanie platnosci/wplaty z poziomu wiersza tabeli faktur.
 // Zwiniete: przycisk "+ płatność"/"+ wpłata". Rozwiniete: kwota (prefill
 // pozostalej) + data + zapis. Pelny formularz (tytul, notatka) — w szczegolach FV.
-export function QuickPaymentCell({ invoiceId, remaining, status, kind }: Props) {
+export function QuickPaymentCell({ invoiceId, remaining, status, kind, buttonLabel }: Props) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [amount, setAmount] = useState('')
@@ -72,7 +73,7 @@ export function QuickPaymentCell({ invoiceId, remaining, status, kind }: Props) 
         className="inline-flex items-center bg-blue-600 hover:bg-blue-700 text-white px-2.5 py-1 rounded-md text-xs font-medium whitespace-nowrap"
         title={`Dodaj ${label} (pozostało ${fmtMoney(remaining)})`}
       >
-        + {label}
+        {buttonLabel || `+ ${label}`}
       </button>
     )
   }

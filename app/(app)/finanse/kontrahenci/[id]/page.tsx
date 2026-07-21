@@ -17,7 +17,7 @@ export default async function KontrahentPage({ params }: { params: { id: string 
     where: { id: params.id },
     include: {
       terms: {
-        select: { investment: true, depositPct: true, depositReturnMonths: true, buildingCostsPct: true, calcBasis: true, notes: true },
+        select: { investment: true, depositPct: true, depositReturnMonths: true, buildingCostsPct: true, calcBasis: true, depositBasis: true, buildingCostsBasis: true, notes: true },
         orderBy: { investment: 'asc' },
       },
     },

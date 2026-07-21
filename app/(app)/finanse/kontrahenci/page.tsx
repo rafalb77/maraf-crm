@@ -37,7 +37,7 @@ export default async function KontrahenciPage({ searchParams }: { searchParams: 
           select: { amountGross: true, payments: { select: { amount: true } } },
         },
         terms: {
-          select: { investment: true, depositPct: true, depositReturnMonths: true, buildingCostsPct: true, calcBasis: true, notes: true },
+          select: { investment: true, depositPct: true, depositReturnMonths: true, buildingCostsPct: true, calcBasis: true, depositBasis: true, buildingCostsBasis: true, notes: true },
           orderBy: { investment: 'asc' },
         },
       },

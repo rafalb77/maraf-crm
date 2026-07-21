@@ -66,21 +66,23 @@ export async function POST(req: NextRequest) {
   // Pulapka Number(null)=0: null/'' to jawne "brak" (nie zero-procent).
   const numOrNull = (v: any): number | null =>
     v === null || v === undefined || v === '' ? null : isFinite(Number(v)) ? Number(v) : null
-  // Baza naliczania % z warunkow umowy: netto lub brutto (default BRUTTO).
-  const pctBase = termsBase(amountNet, amountGross, terms.calcBasis)
+  // Baza naliczania % z warunkow umowy — OSOBNO dla kaucji i KB (umowy bywaja
+  // mieszane: np. kaucja od netto, KB od brutto).
+  const depBase = termsBase(amountNet, amountGross, terms.depositBasis)
+  const kbBase = termsBase(amountNet, amountGross, terms.buildingCostsBasis)
   const depPct = body.depositPct === undefined
     ? (amountGross > 0 ? terms.depositPct : null)
     : numOrNull(body.depositPct)
   const explicitDeposit = numOrNull(body.deposit)
   const deposit = explicitDeposit !== null ? explicitDeposit
-    : depPct !== null ? Math.round(pctBase * (depPct / 100) * 100) / 100
+    : depPct !== null ? Math.round(depBase * (depPct / 100) * 100) / 100
     : null
   const kbPct = body.buildingCostsPct === undefined
     ? (amountGross > 0 ? terms.buildingCostsPct : null)
     : numOrNull(body.buildingCostsPct)
   const explicitKb = numOrNull(body.buildingCosts)
   const buildingCosts = explicitKb !== null ? explicitKb
-    : kbPct !== null ? Math.round(pctBase * (kbPct / 100) * 100) / 100
+    : kbPct !== null ? Math.round(kbBase * (kbPct / 100) * 100) / 100
     : null
 
   // Termin zwrotu kaucji z umowy: data wystawienia + N miesiecy — gdy jest

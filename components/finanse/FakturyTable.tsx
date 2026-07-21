@@ -307,11 +307,7 @@ export function FakturyTable({ rows, totals, currentSort, sortOptions }: Props) 
                     {fmtMoney(r.amountGross)}
                   </td>
                   <td className="px-1.5 py-2 overflow-hidden">
-                    <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
-                      PURCHASE_INVOICE_STATUS_COLORS[r.status as PurchaseInvoiceStatus] || 'bg-gray-100 text-gray-700'
-                    }`}>
-                      {PURCHASE_INVOICE_STATUS_LABELS[r.status as PurchaseInvoiceStatus] || r.status}
-                    </span>
+                    <StatusCell invoiceId={r.id} status={r.status} />
                   </td>
                   <td className="px-1.5 py-2 overflow-hidden">
                     <CategoryCell invoiceId={r.id} category={r.category} />
@@ -394,6 +390,71 @@ function Th({
         title="Przeciągnij aby zmienić szerokość • dwuklik = reset"
       />
     </th>
+  )
+}
+
+// Statusy do recznej zmiany z listy (pelna lista — jak StatusPicker w szczegolach).
+const ALL_STATUSES: PurchaseInvoiceStatus[] = [
+  'POBRANA', 'WPROWADZONA', 'DO_ZATWIERDZENIA', 'ZATWIERDZONA',
+  'ZAPLANOWANA', 'CZESCIOWO_OPLACONA', 'OPLACONA', 'ODRZUCONA', 'ANULOWANA',
+]
+
+// Status inline — klik na badge otwiera select, wybor zapisuje od razu
+// (PATCH {status} z audytem "Zmiana statusu: X → Y", jak StatusPicker).
+function StatusCell({ invoiceId, status }: { invoiceId: string; status: string }) {
+  const router = useRouter()
+  const [editing, setEditing] = useState(false)
+  const [saving, setSaving] = useState(false)
+
+  async function save(next: string) {
+    if (next === status) { setEditing(false); return }
+    setSaving(true)
+    try {
+      const r = await fetch(`/api/finanse/invoices/${invoiceId}`, {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ status: next }),
+      })
+      if (r.ok) { setEditing(false); router.refresh() }
+      else {
+        const data = await r.json().catch(() => ({}))
+        alert(data.error || 'Błąd zmiany statusu')
+      }
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (editing) {
+    return (
+      <select
+        autoFocus
+        defaultValue={status}
+        disabled={saving}
+        onChange={(e) => save(e.target.value)}
+        onBlur={() => setEditing(false)}
+        onKeyDown={(e) => { if (e.key === 'Escape') setEditing(false) }}
+        className="w-full px-1 py-0.5 border border-blue-300 rounded text-xs disabled:opacity-50"
+      >
+        {ALL_STATUSES.map((s) => <option key={s} value={s}>{PURCHASE_INVOICE_STATUS_LABELS[s]}</option>)}
+        {!ALL_STATUSES.includes(status as PurchaseInvoiceStatus) && <option value={status}>{status}</option>}
+      </select>
+    )
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => setEditing(true)}
+      className="block text-left"
+      title="Kliknij aby zmienić status"
+    >
+      <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
+        PURCHASE_INVOICE_STATUS_COLORS[status as PurchaseInvoiceStatus] || 'bg-gray-100 text-gray-700'
+      }`}>
+        {PURCHASE_INVOICE_STATUS_LABELS[status as PurchaseInvoiceStatus] || status}
+      </span>
+    </button>
   )
 }
 

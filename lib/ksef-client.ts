@@ -835,12 +835,14 @@ export async function syncCompanyFromKsef(
       // /finanse/kontrahenci. Tylko dodatnie kwoty (korekty pomijamy).
       const terms = await getEffectiveTerms(vendor!.id)
       const applyTerms = parsed.amountGross > 0 && (terms.depositPct != null || terms.buildingCostsPct != null)
-      const tBase = termsBase(parsed.amountNet, parsed.amountGross, terms.calcBasis)
+      // Baza % osobno dla kaucji i KB (umowy mieszane: np. kaucja netto, KB brutto).
+      const tDepBase = termsBase(parsed.amountNet, parsed.amountGross, terms.depositBasis)
+      const tKbBase = termsBase(parsed.amountNet, parsed.amountGross, terms.buildingCostsBasis)
       const tDeposit = applyTerms && terms.depositPct != null
-        ? Math.round(tBase * (terms.depositPct / 100) * 100) / 100
+        ? Math.round(tDepBase * (terms.depositPct / 100) * 100) / 100
         : null
       const tKb = applyTerms && terms.buildingCostsPct != null
-        ? Math.round(tBase * (terms.buildingCostsPct / 100) * 100) / 100
+        ? Math.round(tKbBase * (terms.buildingCostsPct / 100) * 100) / 100
         : null
       await prisma.$transaction(async (tx) => {
         const created = await tx.purchaseInvoice.create({

@@ -8,6 +8,7 @@ import {
   PURCHASE_INVOICE_CATEGORY_LABELS,
   type PurchaseInvoiceCategory,
 } from '@/lib/types'
+import { QuickPaymentCell } from '@/components/finanse/QuickPaymentCell'
 
 type SearchParams = {
   q?: string
@@ -347,9 +348,16 @@ export default async function KolejkaPlatnosciPage({ searchParams }: { searchPar
                         {sumPaid > 0.01 && <span className="block text-xs text-gray-400">zapł. {fmtMoney(sumPaid)}</span>}
                         <span className="block font-semibold text-gray-900">{fmtMoney(rem)}</span>
                       </span>
-                      <Link href={`/finanse/faktury/${inv.id}`} className="text-xs text-blue-600 font-medium whitespace-nowrap px-2 py-1.5 rounded-md">
-                        Oznacz opłacone →
-                      </Link>
+                      {/* Oplacenie bezposrednio z kolejki: prefill pozostalej kwoty
+                          + dzisiejsza data; pelna wplata -> status OPLACONA i FV
+                          znika z kolejki (czesciowa -> CZESCIOWO_OPLACONA, zostaje). */}
+                      <QuickPaymentCell
+                        invoiceId={inv.id}
+                        remaining={rem}
+                        status={inv.status}
+                        kind="purchase"
+                        buttonLabel="✓ Oznacz opłacone"
+                      />
                     </div>
                   )
                 })}

@@ -39,7 +39,11 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   const depositReturnMonthsRaw = num(body.depositReturnMonths)
   const depositReturnMonths = depositReturnMonthsRaw != null ? Math.round(depositReturnMonthsRaw) : null
   const buildingCostsPct = num(body.buildingCostsPct)
-  const calcBasis = body.calcBasis === 'NETTO' ? 'NETTO' : 'BRUTTO'
+  // Baza % OSOBNO dla kaucji i KB (umowy mieszane). Fallback na legacy
+  // body.calcBasis (starsze klienty wysylaly jedna wspolna baze).
+  const asBasis = (v: any): 'NETTO' | 'BRUTTO' => (v === 'NETTO' ? 'NETTO' : 'BRUTTO')
+  const depositBasis = asBasis(body.depositBasis ?? body.calcBasis)
+  const buildingCostsBasis = asBasis(body.buildingCostsBasis ?? body.calcBasis)
   const notes = body.notes ? String(body.notes).trim() : null
 
   if (depositPct != null && (depositPct < 0 || depositPct > 100)) {
@@ -54,8 +58,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
   const saved = await prisma.vendorTerms.upsert({
     where: { vendorId_investment: { vendorId: params.id, investment } },
-    create: { vendorId: params.id, investment, depositPct, depositReturnMonths, buildingCostsPct, calcBasis, notes },
-    update: { depositPct, depositReturnMonths, buildingCostsPct, calcBasis, notes },
+    create: { vendorId: params.id, investment, depositPct, depositReturnMonths, buildingCostsPct, depositBasis, buildingCostsBasis, notes },
+    update: { depositPct, depositReturnMonths, buildingCostsPct, depositBasis, buildingCostsBasis, notes },
   })
   return NextResponse.json(saved)
 }

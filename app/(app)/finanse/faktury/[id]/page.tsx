@@ -208,7 +208,8 @@ export default async function InvoiceDetailsPage({ params }: { params: { id: str
             depositPct: vendorTerms.depositPct,
             depositReturnMonths: vendorTerms.depositReturnMonths,
             buildingCostsPct: vendorTerms.buildingCostsPct,
-            calcBasis: vendorTerms.calcBasis,
+            depositBasis: vendorTerms.depositBasis,
+            buildingCostsBasis: vendorTerms.buildingCostsBasis,
           } : null}
         />
       </div>

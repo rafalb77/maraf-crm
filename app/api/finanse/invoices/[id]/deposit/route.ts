@@ -25,9 +25,11 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   })
   if (!inv) return NextResponse.json({ error: 'Faktura nie istnieje' }, { status: 404 })
 
-  // Warunki umowne kontrahenta — baza % (netto/brutto) + okres zwrotu kaucji.
+  // Warunki umowne kontrahenta — baza % OSOBNO dla kaucji i KB (umowy bywaja
+  // mieszane) + okres zwrotu kaucji.
   const terms = await getEffectiveTerms(inv.vendorId)
-  const pctBase = termsBase(inv.amountNet, inv.amountGross, terms.calcBasis)
+  const depBase = termsBase(inv.amountNet, inv.amountGross, terms.depositBasis)
+  const kbBase = termsBase(inv.amountNet, inv.amountGross, terms.buildingCostsBasis)
 
   const num = (v: any): number | null => {
     if (v === null || v === undefined || v === '') return null
@@ -44,8 +46,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   if (body.deposit !== undefined) {
     data.deposit = depositAmount
   } else if (pct !== null) {
-    // wyliczamy kwote z procentu — od bazy z warunkow umowy (netto/brutto)
-    data.deposit = Math.round(pctBase * (pct / 100) * 100) / 100
+    // wyliczamy kwote z procentu — od bazy kaucji z warunkow umowy (netto/brutto)
+    data.deposit = Math.round(depBase * (pct / 100) * 100) / 100
   }
 
   // Koszty budowy: analogicznie do kaucji — % LUB kwota
@@ -55,7 +57,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   if (body.buildingCosts !== undefined) {
     data.buildingCosts = kbAmount
   } else if (kbPct !== null) {
-    data.buildingCosts = Math.round(pctBase * (kbPct / 100) * 100) / 100
+    data.buildingCosts = Math.round(kbBase * (kbPct / 100) * 100) / 100
   }
 
   if (body.electricity !== undefined) data.electricity = num(body.electricity)
