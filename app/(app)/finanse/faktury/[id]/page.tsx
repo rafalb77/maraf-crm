@@ -18,7 +18,7 @@ import {
 } from '@/lib/types'
 import type { KsefInvoiceData } from '@/lib/types'
 import { fmtDate, fmtMoney, isOverdue, payableAmount } from '@/lib/finanse-format'
-import { getEffectiveTerms } from '@/lib/vendor-terms'
+import { getEffectiveTermsForInvoice } from '@/lib/vendor-terms'
 import { InvoiceActions } from '@/components/finanse/InvoiceActions'
 import { KsefInvoiceDetails } from '@/components/finanse/KsefInvoiceDetails'
 import { AddPaymentForm } from '@/components/finanse/AddPaymentForm'
@@ -52,7 +52,9 @@ export default async function InvoiceDetailsPage({ params }: { params: { id: str
       select: { id: true, name: true },
       orderBy: { name: 'asc' },
     }),
-    getEffectiveTerms(inv.vendorId),
+    // Warunki umowne: dla FV pod parasolem (STAFFA + etykieta podwykonawcy)
+    // biora sie od FAKTYCZNEGO podwykonawcy z etykiety — umowa jest z nim.
+    getEffectiveTermsForInvoice(inv.vendorId, inv.subVendor),
     prisma.investment.findMany({
       where: { active: true },
       select: { id: true, name: true },

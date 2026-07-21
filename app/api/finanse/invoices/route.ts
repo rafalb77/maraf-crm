@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { getEffectiveTerms, computeDepositReturnDate, termsBase } from '@/lib/vendor-terms'
+import { getEffectiveTermsForInvoice, computeDepositReturnDate, termsBase } from '@/lib/vendor-terms'
 
 // POST — utworzenie nowej faktury zakupowej.
 // Body: { vendorId, number, issueDate, dueDate?, vatRate, amountGross, amountNet?, amountVat?,
@@ -60,7 +60,8 @@ export async function POST(req: NextRequest) {
 
   // Warunki umowne kontrahenta (kaucja %, okres zwrotu, KB %) — fallback gdy
   // pole NIE przyszlo w body (undefined). Jawny null = user swiadomie wyczyszcz.
-  const terms = await getEffectiveTerms(vendorId)
+  // Dla FV z podwykonawca w etykiecie (parasol STAFFA) warunki od podwykonawcy.
+  const terms = await getEffectiveTermsForInvoice(vendorId, body.subVendor ? String(body.subVendor) : null)
 
   // Kaucja i KB: % auto-licza kwote z brutto, kwota nadpisuje %.
   // Pulapka Number(null)=0: null/'' to jawne "brak" (nie zero-procent).

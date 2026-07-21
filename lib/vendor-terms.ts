@@ -67,6 +67,32 @@ export async function getEffectiveTerms(vendorId: string, investment = ''): Prom
   return EMPTY
 }
 
+/**
+ * Warunki umowne dla konkretnej FAKTURY. Faktury importowane z Excela wisza
+ * pod zbiorczym wpisem (np. STAFFA) z faktycznym podwykonawca w etykiecie
+ * subVendor — umowa (kaucja/KB) jest z PODWYKONAWCA, nie z parasolem.
+ * Kolejnosc: warunki vendora o nazwie = subVendor (jesli istnieje i ma
+ * jakiekolwiek warunki) → warunki vendora faktury.
+ */
+export async function getEffectiveTermsForInvoice(
+  vendorId: string,
+  subVendor: string | null | undefined,
+  investment = '',
+): Promise<EffectiveTerms> {
+  const label = (subVendor || '').trim()
+  if (label) {
+    const sv = await prisma.vendor.findFirst({
+      where: { name: { equals: label, mode: 'insensitive' } },
+      select: { id: true },
+    })
+    if (sv && sv.id !== vendorId) {
+      const t = await getEffectiveTerms(sv.id, investment)
+      if (t.source) return t
+    }
+  }
+  return getEffectiveTerms(vendorId, investment)
+}
+
 /** Termin zwrotu kaucji = data wystawienia FV + N miesiecy (z umowy). */
 export function computeDepositReturnDate(issueDate: Date, months: number): Date {
   const d = new Date(issueDate)

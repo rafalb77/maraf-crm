@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { getEffectiveTerms, computeDepositReturnDate, termsBase } from '@/lib/vendor-terms'
+import { getEffectiveTermsForInvoice, computeDepositReturnDate, termsBase } from '@/lib/vendor-terms'
 
 // PATCH /api/finanse/invoices/[id]/deposit
 // Zapis kaucji gwarancyjnej i potracen. Dziala na kazdym statusie.
@@ -21,13 +21,14 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
   const inv = await prisma.purchaseInvoice.findUnique({
     where: { id: params.id },
-    select: { id: true, amountGross: true, amountNet: true, vendorId: true, issueDate: true, depositReturnDate: true },
+    select: { id: true, amountGross: true, amountNet: true, vendorId: true, subVendor: true, issueDate: true, depositReturnDate: true },
   })
   if (!inv) return NextResponse.json({ error: 'Faktura nie istnieje' }, { status: 404 })
 
-  // Warunki umowne kontrahenta — baza % OSOBNO dla kaucji i KB (umowy bywaja
-  // mieszane) + okres zwrotu kaucji.
-  const terms = await getEffectiveTerms(inv.vendorId)
+  // Warunki umowne — baza % OSOBNO dla kaucji i KB (umowy bywaja mieszane)
+  // + okres zwrotu kaucji. Dla FV pod parasolem (STAFFA) warunki biora sie
+  // od podwykonawcy z etykiety subVendor — umowa jest z nim.
+  const terms = await getEffectiveTermsForInvoice(inv.vendorId, inv.subVendor)
   const depBase = termsBase(inv.amountNet, inv.amountGross, terms.depositBasis)
   const kbBase = termsBase(inv.amountNet, inv.amountGross, terms.buildingCostsBasis)
 
