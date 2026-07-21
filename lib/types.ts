@@ -462,6 +462,20 @@ export const SALES_INVOICE_STATUS_COLORS: Record<SalesInvoiceStatus, string> = {
   ANULOWANA: 'bg-gray-200 text-gray-500',
 }
 
+// Kategoria przychodu: skad pochodzi faktura przychodowa.
+// TYNKI — my jako podwykonawca prac tynkarskich (rozliczenie m2 z umowy),
+// INWESTYCJA — my jako generalny wykonawca / deweloper na wlasnych budowach.
+export type SalesInvoiceCategory = 'TYNKI' | 'INWESTYCJA'
+export const SALES_INVOICE_CATEGORIES: readonly SalesInvoiceCategory[] = ['TYNKI', 'INWESTYCJA'] as const
+export const SALES_INVOICE_CATEGORY_LABELS: Record<SalesInvoiceCategory, string> = {
+  TYNKI: 'Tynki',
+  INWESTYCJA: 'Inwestycja',
+}
+export const SALES_INVOICE_CATEGORY_COLORS: Record<SalesInvoiceCategory, string> = {
+  TYNKI: 'bg-amber-100 text-amber-700',
+  INWESTYCJA: 'bg-purple-100 text-purple-700',
+}
+
 // Orientacyjna stawka CIT (mały podatnik). Zmienialna w przyszłości per firma.
 export const CIT_RATE = 0.09
 

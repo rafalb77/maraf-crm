@@ -210,6 +210,7 @@ const WORKSPACES: Workspace[] = [
           { href: '/finanse/kolejka-platnosci', label: 'Kolejka płatności', icon: ICONS.sales },
           { href: '/finanse/faktury', label: 'Faktury kosztowe', icon: ICONS.offers },
           { href: '/finanse/przychody', label: 'Faktury przychodowe', icon: ICONS.offers },
+          { href: '/finanse/tynki', label: 'Przychody z tynków', icon: ICONS.stats },
           { href: '/finanse/podatki', label: 'Podatki (CIT/VAT)', icon: ICONS.dashboard },
           { href: '/finanse/kaucje', label: 'Kaucje gwarancyjne', icon: ICONS.units },
           { href: '/finanse/finansowanie', label: 'Finansowanie inwestycji', icon: ICONS.offers },

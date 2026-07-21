@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma'
 import {
   SALES_INVOICE_STATUS_LABELS,
   SALES_INVOICE_STATUS_COLORS,
+  SALES_INVOICE_CATEGORIES,
+  SALES_INVOICE_CATEGORY_LABELS,
   COMPANY_SHORT,
   type SalesInvoiceStatus,
   type Company,
@@ -10,13 +12,18 @@ import {
 import { fmtDate, fmtMoney, isOverdue } from '@/lib/finanse-format'
 import { getActiveCompany } from '@/lib/finanse-company'
 import { QuickPaymentCell } from '@/components/finanse/QuickPaymentCell'
+import { SalesCategoryCell } from '@/components/finanse/SalesCategoryCell'
 
-type SearchParams = { status?: string; q?: string; year?: string }
+type SearchParams = { status?: string; q?: string; year?: string; category?: string }
 
 export default async function PrzychodyPage({ searchParams }: { searchParams: SearchParams }) {
   const company = getActiveCompany()
   const filters: any[] = [{ company }]
   if (searchParams.status) filters.push({ status: searchParams.status })
+  if (searchParams.category) {
+    if (searchParams.category === 'NONE') filters.push({ category: null })
+    else if ((SALES_INVOICE_CATEGORIES as readonly string[]).includes(searchParams.category)) filters.push({ category: searchParams.category })
+  }
   if (searchParams.q) {
     filters.push({ OR: [
       { number: { contains: searchParams.q, mode: 'insensitive' } },
@@ -39,7 +46,7 @@ export default async function PrzychodyPage({ searchParams }: { searchParams: Se
     prisma.salesInvoice.aggregate({ where, _sum: { amountNet: true, amountVat: true, amountGross: true } }),
   ])
 
-  const hasFilters = !!(searchParams.status || searchParams.q || searchParams.year)
+  const hasFilters = !!(searchParams.status || searchParams.q || searchParams.year || searchParams.category)
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
@@ -53,11 +60,16 @@ export default async function PrzychodyPage({ searchParams }: { searchParams: Se
         </Link>
       </div>
 
-      <form method="get" className="bg-white rounded-xl border border-gray-200 p-4 mb-4 grid grid-cols-1 md:grid-cols-4 gap-3">
+      <form method="get" className="bg-white rounded-xl border border-gray-200 p-4 mb-4 grid grid-cols-1 md:grid-cols-5 gap-3">
         <input name="q" defaultValue={searchParams.q || ''} placeholder="Nr FV lub odbiorca..." className="md:col-span-2 px-3 py-2 border border-gray-300 rounded-lg text-sm" />
         <select name="status" defaultValue={searchParams.status || ''} className="px-3 py-2 border border-gray-300 rounded-lg text-sm">
           <option value="">Wszystkie statusy</option>
           {Object.entries(SALES_INVOICE_STATUS_LABELS).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+        </select>
+        <select name="category" defaultValue={searchParams.category || ''} className="px-3 py-2 border border-gray-300 rounded-lg text-sm" title="Kategoria przychodu">
+          <option value="">Wszystkie kategorie</option>
+          {SALES_INVOICE_CATEGORIES.map((c) => <option key={c} value={c}>{SALES_INVOICE_CATEGORY_LABELS[c]}</option>)}
+          <option value="NONE">— bez kategorii —</option>
         </select>
         <div className="flex gap-2 justify-end">
           {hasFilters && <Link href="/finanse/przychody" className="px-3 py-2 text-sm text-gray-600 hover:text-gray-900">Wyczyść</Link>}
@@ -80,12 +92,13 @@ export default async function PrzychodyPage({ searchParams }: { searchParams: Se
                 <th className="px-3 py-3 font-medium text-gray-700 text-right">Wpłacono</th>
                 <th className="px-3 py-3 font-medium text-gray-700 text-right">Pozostało</th>
                 <th className="px-3 py-3 font-medium text-gray-700">Status</th>
+                <th className="px-3 py-3 font-medium text-gray-700" title="Kategoria przychodu: Tynki (podwykonawstwo) / Inwestycja (nasza budowa)">Kategoria</th>
                 <th className="px-3 py-3 font-medium text-gray-700">Wpłata</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {invoices.length === 0 && (
-                <tr><td colSpan={11} className="px-4 py-8 text-center text-gray-400">Brak faktur przychodowych.</td></tr>
+                <tr><td colSpan={12} className="px-4 py-8 text-center text-gray-400">Brak faktur przychodowych.</td></tr>
               )}
               {invoices.map((inv) => {
                 const paid = inv.payments.reduce((s, p) => s + p.amount, 0)
@@ -118,6 +131,9 @@ export default async function PrzychodyPage({ searchParams }: { searchParams: Se
                       </span>
                     </td>
                     <td className="px-3 py-2">
+                      <SalesCategoryCell invoiceId={inv.id} category={inv.category} />
+                    </td>
+                    <td className="px-3 py-2">
                       <QuickPaymentCell
                         invoiceId={inv.id}
                         remaining={Math.round(left * 100) / 100}
@@ -136,7 +152,7 @@ export default async function PrzychodyPage({ searchParams }: { searchParams: Se
                   <td className="px-3 py-3 text-right tabular-nums">{fmtMoney(sums._sum.amountNet || 0)}</td>
                   <td className="px-3 py-3 text-right tabular-nums">{fmtMoney(sums._sum.amountVat || 0)}</td>
                   <td className="px-3 py-3 text-right tabular-nums">{fmtMoney(sums._sum.amountGross || 0)}</td>
-                  <td colSpan={4}></td>
+                  <td colSpan={5}></td>
                 </tr>
               </tfoot>
             )}

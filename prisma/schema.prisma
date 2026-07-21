@@ -1261,6 +1261,16 @@ model SalesInvoice {
   buildingCosts    Float?
   isAdvance        Boolean   @default(false)
   status           String    @default("WYSTAWIONA")
+  // Kategoria przychodu: TYNKI (my jako podwykonawca tynkow) | INWESTYCJA
+  // (my jako GW/deweloper na wlasnych budowach). null = nieprzypisana.
+  category         String?
+  // Przeliczenie tynkow (tylko category=TYNKI): m2 = netto / stawka umowna,
+  // robocizna = m2 * stawka robocizny. Kwoty trzymane w DB (nie liczone w
+  // locie) — m2 mozna recznie skorygowac wg protokolu odbioru.
+  plasterRate      Float?    // stawka umowna sprzedazy zl/m2 (z umowy z GW)
+  plasterArea      Float?    // m2 (auto z netto/stawki, korygowalne recznie)
+  laborRate        Float?    // stawka robocizny zl/m2
+  laborCost        Float?    // robocizna = plasterArea * laborRate
   description      String?
   notes            String?
   // Cross-company: gdy z tej FV przychodowej utworzono koszt u odbiorcy (firma grupy).
@@ -1280,6 +1290,7 @@ model SalesInvoice {
   @@index([company, issueDate])
   @@index([status, dueDate])
   @@index([recipientCompany])
+  @@index([company, category])
 }
 
 model SalesInvoicePayment {

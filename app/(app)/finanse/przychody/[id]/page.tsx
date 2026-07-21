@@ -4,8 +4,11 @@ import { prisma } from '@/lib/prisma'
 import {
   SALES_INVOICE_STATUS_LABELS,
   SALES_INVOICE_STATUS_COLORS,
+  SALES_INVOICE_CATEGORY_LABELS,
+  SALES_INVOICE_CATEGORY_COLORS,
   COMPANY_LABELS,
   type SalesInvoiceStatus,
+  type SalesInvoiceCategory,
   type Company,
 } from '@/lib/types'
 import type { KsefInvoiceData } from '@/lib/types'
@@ -15,6 +18,7 @@ import { AddSalesPaymentForm } from '@/components/finanse/AddSalesPaymentForm'
 import { DeleteSalesPaymentButton } from '@/components/finanse/DeleteSalesPaymentButton'
 import { SalesInvoiceActions } from '@/components/finanse/SalesInvoiceActions'
 import { CreateCostButton } from '@/components/finanse/CreateCostButton'
+import { PlasterPanel } from '@/components/finanse/PlasterPanel'
 
 export default async function SalesInvoiceDetailsPage({ params }: { params: { id: string } }) {
   const inv = await prisma.salesInvoice.findUnique({
@@ -22,6 +26,14 @@ export default async function SalesInvoiceDetailsPage({ params }: { params: { id
     include: { payments: { orderBy: { paidAt: 'desc' } }, createdBy: { select: { email: true } } },
   })
   if (!inv) notFound()
+
+  // Podpowiedz stawek "z umowy": ostatnia przeliczona FV TYNKI tego samego
+  // odbiorcy (stawki sa umowne per GW, wiec poprzednia FV = najlepszy prefill).
+  const lastPlaster = await prisma.salesInvoice.findFirst({
+    where: { category: 'TYNKI', recipientName: inv.recipientName, plasterRate: { not: null }, id: { not: inv.id } },
+    orderBy: { issueDate: 'desc' },
+    select: { plasterRate: true, laborRate: true },
+  })
 
   const sumPaid = inv.payments.reduce((s, p) => s + p.amount, 0)
   const payable = Math.round((inv.amountGross - (inv.deposit || 0) - (inv.buildingCosts || 0)) * 100) / 100
@@ -39,6 +51,11 @@ export default async function SalesInvoiceDetailsPage({ params }: { params: { id
               {inv.recipientName}
               {inv.recipientCompany && <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded font-normal">{COMPANY_LABELS[inv.recipientCompany as Company] || inv.recipientCompany}</span>}
               {inv.isAdvance && <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded font-normal">zaliczkowa</span>}
+              {inv.category && (
+                <span className={`text-xs px-2 py-0.5 rounded font-medium ${SALES_INVOICE_CATEGORY_COLORS[inv.category as SalesInvoiceCategory] || 'bg-gray-100 text-gray-600'}`}>
+                  {SALES_INVOICE_CATEGORY_LABELS[inv.category as SalesInvoiceCategory] || inv.category}
+                </span>
+              )}
             </h1>
             <p className="text-sm text-gray-500 font-mono mt-1 flex items-center gap-2">
               <span>FV {inv.number} • wystawia {COMPANY_LABELS[inv.company as Company] || inv.company}</span>
@@ -69,6 +86,18 @@ export default async function SalesInvoiceDetailsPage({ params }: { params: { id
           />
         </div>
       )}
+
+      {/* Kategoria przychodu (Tynki/Inwestycja) + przeliczenie m² dla tynków */}
+      <PlasterPanel
+        invoiceId={inv.id}
+        category={inv.category}
+        amountNet={inv.amountNet}
+        plasterRate={inv.plasterRate}
+        plasterArea={inv.plasterArea}
+        laborRate={inv.laborRate}
+        laborCost={inv.laborCost}
+        suggestedRates={lastPlaster}
+      />
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
         <Field label="Data wystawienia" value={fmtDate(inv.issueDate)} />
