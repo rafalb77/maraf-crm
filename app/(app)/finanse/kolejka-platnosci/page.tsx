@@ -5,6 +5,7 @@ import { getActiveCompany } from '@/lib/finanse-company'
 import {
   COMPANY_LABELS,
   PURCHASE_INVOICE_CATEGORIES,
+  purchaseCategoriesFor,
   PURCHASE_INVOICE_CATEGORY_LABELS,
   type PurchaseInvoiceCategory,
 } from '@/lib/types'
@@ -179,7 +180,7 @@ export default async function KolejkaPlatnosciPage({ searchParams }: { searchPar
       if (!byCat.has(k)) byCat.set(k, [])
       byCat.get(k)!.push(inv)
     }
-    const order = [...PURCHASE_INVOICE_CATEGORIES, '—']
+    const order = [...purchaseCategoriesFor(company), '—']
     for (const k of order) {
       const rows = byCat.get(k)
       if (!rows || !rows.length) continue
@@ -243,7 +244,7 @@ export default async function KolejkaPlatnosciPage({ searchParams }: { searchPar
         </select>
         <select name="category" defaultValue={searchParams.category || ''} className="px-3 py-2 border border-gray-300 rounded-lg text-sm">
           <option value="">Wszystkie kategorie</option>
-          {PURCHASE_INVOICE_CATEGORIES.map((c) => <option key={c} value={c}>{PURCHASE_INVOICE_CATEGORY_LABELS[c]}</option>)}
+          {purchaseCategoriesFor(company).map((c) => <option key={c} value={c}>{PURCHASE_INVOICE_CATEGORY_LABELS[c]}</option>)}
         </select>
         <select name="horizon" defaultValue={horizonRaw} className="px-3 py-2 border border-gray-300 rounded-lg text-sm" title="Horyzont terminu płatności">
           {HORIZON_OPTIONS.map((h) => <option key={h.value} value={h.value}>termin: {h.label}</option>)}

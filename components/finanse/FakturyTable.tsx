@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react'
 import {
   PURCHASE_INVOICE_STATUS_LABELS,
   PURCHASE_INVOICE_STATUS_COLORS,
-  PURCHASE_INVOICE_CATEGORIES,
+  purchaseCategoriesFor,
   PURCHASE_INVOICE_CATEGORY_LABELS,
   PURCHASE_INVOICE_CATEGORY_COLORS,
   COMPANY_SHORT,
@@ -310,7 +310,7 @@ export function FakturyTable({ rows, totals, currentSort, sortOptions }: Props) 
                     <StatusCell invoiceId={r.id} status={r.status} />
                   </td>
                   <td className="px-1.5 py-2 overflow-hidden">
-                    <CategoryCell invoiceId={r.id} category={r.category} />
+                    <CategoryCell invoiceId={r.id} category={r.category} company={r.company} />
                   </td>
                   <td className="px-1.5 py-2 overflow-hidden">
                     <CommentCell invoiceId={r.id} initial={r.notes} />
@@ -460,7 +460,8 @@ function StatusCell({ invoiceId, status }: { invoiceId: string; status: string }
 
 // Kategoria inline — klik na badge/"—" otwiera select, wybor zapisuje od razu
 // (PATCH kategorii dziala niezaleznie od statusu FV, jak w widoku szczegolow).
-function CategoryCell({ invoiceId, category }: { invoiceId: string; category: string | null }) {
+// Zestaw kategorii zalezy od spolki faktury (Maraf: Tynki; MD: Grunwaldzka).
+function CategoryCell({ invoiceId, category, company }: { invoiceId: string; category: string | null; company: string }) {
   const router = useRouter()
   const [editing, setEditing] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -495,7 +496,7 @@ function CategoryCell({ invoiceId, category }: { invoiceId: string; category: st
         className="w-full px-1 py-0.5 border border-blue-300 rounded text-xs disabled:opacity-50"
       >
         <option value="">— brak —</option>
-        {PURCHASE_INVOICE_CATEGORIES.map((c) => (
+        {purchaseCategoriesFor(company).map((c) => (
           <option key={c} value={c}>{PURCHASE_INVOICE_CATEGORY_LABELS[c]}</option>
         ))}
       </select>

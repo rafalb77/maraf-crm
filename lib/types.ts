@@ -418,14 +418,27 @@ export const PRE_APPROVAL_STATUSES: PurchaseInvoiceStatus[] = ['POBRANA', 'WPROW
 // Ręczna kategoria kosztowa faktury (pole PurchaseInvoice.category) —
 // przypisywana per faktura w szczegółach, niezależna od folderów vendorowych
 // (lib/finanse-folders.ts). Wartości ustalone z użytkownikiem (2026-06).
-export type PurchaseInvoiceCategory = 'STAFFA' | 'STALE' | 'TYNKI' | 'INNE'
+export type PurchaseInvoiceCategory = 'STAFFA' | 'STALE' | 'TYNKI' | 'GRUNWALDZKA' | 'INNE'
 
-export const PURCHASE_INVOICE_CATEGORIES: PurchaseInvoiceCategory[] = ['STAFFA', 'STALE', 'TYNKI', 'INNE']
+// Unia wszystkich kategorii (walidacja API). Listy do UI sa per firma —
+// uzywaj purchaseCategoriesFor(company).
+export const PURCHASE_INVOICE_CATEGORIES: PurchaseInvoiceCategory[] = ['STAFFA', 'STALE', 'TYNKI', 'GRUNWALDZKA', 'INNE']
+
+// Kategorie kosztowe roznia sie miedzy spolkami: Maraf (wykonawstwo) ma
+// Tynki, Maraf Development (deweloper) ma budowe Grunwaldzka.
+export const PURCHASE_INVOICE_CATEGORIES_BY_COMPANY: Record<Company, PurchaseInvoiceCategory[]> = {
+  MARAF: ['STAFFA', 'STALE', 'TYNKI', 'INNE'],
+  MARAF_DEVELOPMENT: ['STALE', 'STAFFA', 'GRUNWALDZKA', 'INNE'],
+}
+
+export const purchaseCategoriesFor = (company: string): PurchaseInvoiceCategory[] =>
+  PURCHASE_INVOICE_CATEGORIES_BY_COMPANY[company as Company] || PURCHASE_INVOICE_CATEGORIES
 
 export const PURCHASE_INVOICE_CATEGORY_LABELS: Record<PurchaseInvoiceCategory, string> = {
   STAFFA: 'Staffa',
   STALE: 'Stałe',
   TYNKI: 'Tynki',
+  GRUNWALDZKA: 'Grunwaldzka',
   INNE: 'Inne',
 }
 
@@ -433,6 +446,7 @@ export const PURCHASE_INVOICE_CATEGORY_COLORS: Record<PurchaseInvoiceCategory, s
   STAFFA: 'bg-purple-100 text-purple-700',
   STALE: 'bg-blue-100 text-blue-700',
   TYNKI: 'bg-orange-100 text-orange-700',
+  GRUNWALDZKA: 'bg-teal-100 text-teal-700',
   INNE: 'bg-gray-100 text-gray-600',
 }
 

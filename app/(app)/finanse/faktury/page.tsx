@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import {
   PURCHASE_INVOICE_STATUS_LABELS,
   PURCHASE_INVOICE_CATEGORIES,
+  purchaseCategoriesFor,
   PURCHASE_INVOICE_CATEGORY_LABELS,
 } from '@/lib/types'
 import { getActiveCompany } from '@/lib/finanse-company'
@@ -254,7 +255,7 @@ export default async function FakturyListPage({
         </select>
         <select name="category" defaultValue={searchParams.category || ''} className="px-3 py-2 border border-gray-300 rounded-lg text-sm" title="Kategoria kosztowa (ręczna)">
           <option value="">Wszystkie kategorie</option>
-          {PURCHASE_INVOICE_CATEGORIES.map((c) => (
+          {purchaseCategoriesFor(company).map((c) => (
             <option key={c} value={c}>{PURCHASE_INVOICE_CATEGORY_LABELS[c]}</option>
           ))}
         </select>

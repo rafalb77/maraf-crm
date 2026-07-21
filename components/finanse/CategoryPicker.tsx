@@ -2,15 +2,16 @@
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import {
-  PURCHASE_INVOICE_CATEGORIES,
+  purchaseCategoriesFor,
   PURCHASE_INVOICE_CATEGORY_LABELS,
   PURCHASE_INVOICE_CATEGORY_COLORS,
   type PurchaseInvoiceCategory,
 } from '@/lib/types'
 
-// Szybkie przypisanie faktury do kategorii kosztowej (Staffa/Stałe/Tynki/Inne).
-// Klik w kafelek zapisuje od razu (PATCH); ponowny klik w aktywny — czyści.
-export function CategoryPicker({ invoiceId, category }: { invoiceId: string; category: string | null }) {
+// Szybkie przypisanie faktury do kategorii kosztowej. Zestaw kategorii
+// zalezy od spolki (Maraf: Tynki; MD: Grunwaldzka). Klik w kafelek zapisuje
+// od razu (PATCH); ponowny klik w aktywny — czyści.
+export function CategoryPicker({ invoiceId, category, company }: { invoiceId: string; category: string | null; company: string }) {
   const router = useRouter()
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -49,7 +50,7 @@ export function CategoryPicker({ invoiceId, category }: { invoiceId: string; cat
         )}
       </div>
       <div className="flex flex-wrap gap-2">
-        {PURCHASE_INVOICE_CATEGORIES.map((c) => {
+        {purchaseCategoriesFor(company).map((c) => {
           const active = category === c
           return (
             <button
