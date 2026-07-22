@@ -54,6 +54,9 @@ export default async function ContractDetailPage({ params }: { params: { id: str
     unitId: cu.unitId,
     number: cu.unit.number,
     type: cu.unit.type,
+    area: cu.unit.area,
+    building: cu.unit.building,
+    floor: cu.unit.floor,
     basePriceGross: cu.unit.priceGross,
     priceGross: cu.priceGross ?? cu.unit.priceGross,
   }))
@@ -70,13 +73,22 @@ export default async function ContractDetailPage({ params }: { params: { id: str
   const excludeUnitIds = Array.from(new Set([...currentUnitIds, ...otherActiveContractUnits.map((cu) => cu.unitId)]))
   // Lokale możliwe do dołożenia: nie sprzedane, nie wyłączone, nie twardo
   // zarezerwowane przez INNEGO klienta, nie na tej ani innej aktywnej umowie.
+  // Odpada TYLKO lokal twardo zarezerwowany przez innego (znanego) klienta —
+  // lustro walidacji w PUT /api/contracts/[id]/units. Warunek jako NULL-safe OR:
+  // Prisma `not:` nie łapie NULL-i, a NOT/AND wycinało wszystkie lokale WOLNE
+  // (reservationType=null → całe wyrażenie NULL → wiersz odrzucony).
   const availableUnits = await prisma.unit.findMany({
     where: {
       status: { notIn: ['SPRZEDANY', 'NIEDOSTEPNY'] },
-      NOT: { AND: [{ reservationType: 'REZERWACJA' }, { reservedById: { not: contract.clientId } }] },
+      OR: [
+        { reservationType: null },
+        { reservationType: { not: 'REZERWACJA' } },
+        { reservedById: null },
+        { reservedById: contract.clientId },
+      ],
       id: { notIn: excludeUnitIds },
     },
-    select: { id: true, number: true, type: true, priceGross: true },
+    select: { id: true, number: true, type: true, priceGross: true, area: true, building: true, floor: true },
     orderBy: { number: 'asc' },
   })
 
