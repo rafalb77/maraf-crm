@@ -68,8 +68,8 @@ function finalGrossOf(row: EditRow): number {
 function UnitTypeBadge({ type }: { type: string }) {
   const Icon = UNIT_TYPE_ICONS[type as UnitType] ?? Home
   return (
-    <div className="w-11 h-11 rounded-full bg-white border border-gray-200 flex items-center justify-center flex-shrink-0">
-      <Icon className="w-5 h-5 text-blue-500" />
+    <div className="w-8 h-8 rounded-full bg-white border border-gray-200 flex items-center justify-center flex-shrink-0">
+      <Icon className="w-4 h-4 text-blue-500" />
     </div>
   )
 }
@@ -262,27 +262,27 @@ export function ContractUnitsEditor({
         units.length === 0 ? (
           <p className="text-gray-400 text-sm">Brak lokali</p>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-2">
             {units.map((u) => {
               const discountGross = round2(u.basePriceGross - u.priceGross)
               const discounted = discountGross > 0.004
               const discountPct = u.basePriceGross > 0 ? (discountGross / u.basePriceGross) * 100 : 0
               return (
-                <div key={u.unitId} className="rounded-xl bg-blue-50/50 border border-gray-200 p-4">
-                  <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-                    <div className="flex items-center gap-3 sm:items-start flex-1 min-w-0">
+                <div key={u.unitId} className="rounded-lg bg-blue-50/50 border border-gray-200 p-2.5">
+                  <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+                    <div className="flex items-center gap-2.5 sm:items-start flex-1 min-w-0">
                       <UnitTypeBadge type={u.type} />
                       <div className="min-w-0">
                         <Link
                           href={`/units/${u.unitId}`}
-                          className="text-base font-semibold text-gray-900 hover:text-blue-600 break-words"
+                          className="text-sm font-semibold text-gray-900 hover:text-blue-600 break-words"
                         >
                           {u.number}
                         </Link>
-                        <p className="text-sm text-gray-500">{UNIT_TYPE_LABELS[u.type as UnitType] ?? u.type}</p>
+                        <p className="text-xs text-gray-500">{UNIT_TYPE_LABELS[u.type as UnitType] ?? u.type}</p>
                       </div>
                     </div>
-                    <dl className="sm:w-80 space-y-1 text-sm">
+                    <dl className="sm:w-72 space-y-0.5 text-xs">
                       <Detail label="Budynek">{u.building || '—'}</Detail>
                       {u.floor != null && <Detail label="Piętro">{u.floor === 0 ? 'parter' : u.floor}</Detail>}
                       <Detail label="Powierzchnia umowna">{formatArea(u.area)}</Detail>
@@ -318,14 +318,14 @@ export function ContractUnitsEditor({
           </div>
         )
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-2">
           {rows.map((r) => {
             const final = finalGrossOf(r)
             const rowDiscount = round2(r.basePriceGross - final)
             return (
-              <div key={r.unitId} className="rounded-xl bg-blue-50/50 border border-gray-200 p-3.5">
+              <div key={r.unitId} className="rounded-lg bg-blue-50/50 border border-gray-200 p-2.5">
                 <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-center gap-3 min-w-0">
+                  <div className="flex items-center gap-2.5 min-w-0">
                     <UnitTypeBadge type={r.type} />
                     <div className="min-w-0">
                       <p className="text-sm font-semibold text-gray-900 break-words">{r.number}</p>
@@ -340,7 +340,7 @@ export function ContractUnitsEditor({
                     <X className="w-4 h-4" />
                   </button>
                 </div>
-                <div className="flex flex-col gap-2 mt-2.5 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex flex-col gap-2 mt-2 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex items-center gap-1.5">
                     <span className="text-xs text-gray-500">Rabat</span>
                     <input
