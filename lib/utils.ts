@@ -14,7 +14,8 @@ export function formatCurrency(amount: number): string {
 }
 
 export function formatArea(area: number): string {
-  return `${area.toFixed(2)} m²`
+  // pl-PL jak formatCurrency: „68,30 m²", nie „68.30 m²".
+  return `${new Intl.NumberFormat('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(area)} m²`
 }
 
 export function formatDate(date: Date | string): string {
