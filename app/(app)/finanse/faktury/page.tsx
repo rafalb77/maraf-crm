@@ -8,7 +8,7 @@ import {
 } from '@/lib/types'
 import { getActiveCompany } from '@/lib/finanse-company'
 import { payableAmount } from '@/lib/finanse-format'
-import { FOLDERS, FOLDER_LABELS, vendorIdsForFolder, vendorIdsWithoutFolder, type Folder } from '@/lib/finanse-folders'
+import { FOLDERS, vendorIdsForFolder, vendorIdsWithoutFolder, type Folder } from '@/lib/finanse-folders'
 import { FakturyTable, type FakturaRow } from '@/components/finanse/FakturyTable'
 
 type SearchParams = {
@@ -87,7 +87,16 @@ export default async function FakturyListPage({
   }
   if (searchParams.status) filters.push({ status: searchParams.status })
   if (searchParams.category && (PURCHASE_INVOICE_CATEGORIES as readonly string[]).includes(searchParams.category)) {
-    filters.push({ category: searchParams.category })
+    // Zakladka kategorii: reczna kategoria FV LUB — dla FV bez recznej
+    // kategorii — dziedziczona z grupy kontrahenta (foldery z Excela:
+    // parasol STAFFA, sekcja STALE/INNE). Reczna kategoria WYGRYWA: FV od
+    // vendora STAFFA przełączona na Stałe pojawia sie tylko pod Stałe.
+    const or: any[] = [{ category: searchParams.category }]
+    if ((FOLDERS as readonly string[]).includes(searchParams.category)) {
+      const ids = await vendorIdsForFolder(searchParams.category as Folder)
+      if (ids.length) or.push({ AND: [{ category: null }, { vendorId: { in: ids } }] })
+    }
+    filters.push({ OR: or })
   }
   if (searchParams.q) {
     // Szuka tez po nazwie vendora — dzieki temu q=<oficjalna nazwa> zbiera
@@ -220,23 +229,30 @@ export default async function FakturyListPage({
         </div>
       </div>
 
-      {/* Foldery główne — taby filtrujące po vendorze */}
+      {/* Zakladki KATEGORII kosztowych (zestaw per spolka — Maraf: Tynki,
+          MD: Grunwaldzka). FV bez recznej kategorii dziedziczy zakladke z
+          grupy kontrahenta (parasol STAFFA / sekcja STALE z Excela) — patrz
+          filtr wyzej. Stare linki ?folder= dalej dzialaja (bez zakladek). */}
       <div className="flex flex-wrap gap-1 mb-4">
-        <FolderTab label="Wszystkie" href={`/finanse/faktury${qs({ folder: undefined, page: undefined })}`} active={!searchParams.folder} />
-        {FOLDERS.map((f) => (
+        <FolderTab
+          label="Wszystkie"
+          href={`/finanse/faktury${qs({ category: undefined, folder: undefined, page: undefined })}`}
+          active={!searchParams.category && !searchParams.folder}
+        />
+        {purchaseCategoriesFor(company).map((c) => (
           <FolderTab
-            key={f}
-            label={FOLDER_LABELS[f]}
-            href={`/finanse/faktury${qs({ folder: f, page: undefined })}`}
-            active={searchParams.folder === f}
+            key={c}
+            label={PURCHASE_INVOICE_CATEGORY_LABELS[c]}
+            href={`/finanse/faktury${qs({ category: c, folder: undefined, page: undefined })}`}
+            active={searchParams.category === c}
           />
         ))}
-        <FolderTab label="Pozostali" href={`/finanse/faktury${qs({ folder: 'POZOSTALI', page: undefined })}`} active={searchParams.folder === 'POZOSTALI'} />
       </div>
 
       <form method="get" className="bg-white rounded-xl border border-gray-200 p-4 mb-4 grid grid-cols-1 md:grid-cols-6 gap-3">
-        {/* Zachowaj wybrany folder gdy user zmienia inne filtry przez form */}
+        {/* Zachowaj aktywna zakladke/folder gdy user zmienia inne filtry przez form */}
         {searchParams.folder && <input type="hidden" name="folder" value={searchParams.folder} />}
+        {searchParams.category && <input type="hidden" name="category" value={searchParams.category} />}
         <input
           name="q"
           defaultValue={searchParams.q || ''}
@@ -251,12 +267,6 @@ export default async function FakturyListPage({
           <option value="">Wszystkie statusy</option>
           {Object.entries(PURCHASE_INVOICE_STATUS_LABELS).map(([k, label]) => (
             <option key={k} value={k}>{label} ({statusCounts[k] || 0})</option>
-          ))}
-        </select>
-        <select name="category" defaultValue={searchParams.category || ''} className="px-3 py-2 border border-gray-300 rounded-lg text-sm" title="Kategoria kosztowa (ręczna)">
-          <option value="">Wszystkie kategorie</option>
-          {purchaseCategoriesFor(company).map((c) => (
-            <option key={c} value={c}>{PURCHASE_INVOICE_CATEGORY_LABELS[c]}</option>
           ))}
         </select>
         <select name="sort" defaultValue={sortKey} className="md:col-span-2 px-3 py-2 border border-gray-300 rounded-lg text-sm" title="Sortowanie">
