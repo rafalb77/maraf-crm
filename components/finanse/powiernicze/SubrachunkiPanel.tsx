@@ -1,6 +1,16 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
 
+type ApplyPreview = {
+  committed: boolean
+  total: number
+  toSet: { lokal: number; unit: string; nrb: string; contract: string | null; overwrites: string | null }[]
+  same: number
+  conflicts: { lokal: number; unit: string; existing: string }[]
+  ambiguous: { lokal: number; units: string[] }[]
+  notFound: number[]
+}
+
 type Row = {
   contractId: string
   number: string
@@ -20,6 +30,7 @@ export function SubrachunkiPanel({ refreshKey }: { refreshKey: number }) {
   const [rows, setRows] = useState<Row[] | null>(null)
   const [q, setQ] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [reloadKey, setReloadKey] = useState(0)
 
   useEffect(() => {
     let alive = true
@@ -28,7 +39,7 @@ export function SubrachunkiPanel({ refreshKey }: { refreshKey: number }) {
       .then((d) => { if (alive) { Array.isArray(d) ? setRows(d) : setError(d.error || 'Błąd pobierania') } })
       .catch((e) => { if (alive) setError(e.message || 'Błąd sieci') })
     return () => { alive = false }
-  }, [refreshKey])
+  }, [refreshKey, reloadKey])
 
   const filtered = useMemo(() => {
     if (!rows) return null
@@ -56,6 +67,9 @@ export function SubrachunkiPanel({ refreshKey }: { refreshKey: number }) {
           {missing > 0 && <> Bez żadnego numeru: <strong>{missing}</strong> {missing === 1 ? 'umowa' : 'umów'} — dopasowanie działa wtedy po numerze umowy / nazwisku / kwocie.</>}
         </p>
       </div>
+
+      {/* Zbiorcze przypisanie z listy ING (Zgierz) — bez terminala */}
+      <ApplyIngSection onApplied={() => setReloadKey((k) => k + 1)} />
 
       <div className="mb-3">
         <input
@@ -113,6 +127,117 @@ export function SubrachunkiPanel({ refreshKey }: { refreshKey: number }) {
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// Zbiorcze przypisanie rachunkow wirtualnych ING (Zgierz, 59 lokali) do
+// lokali — podglad (dry-run) i zapis, bez terminala. Dane: lista ING
+// wbudowana po stronie serwera (apply-ing).
+function ApplyIngSection({ onApplied }: { onApplied: () => void }) {
+  const [open, setOpen] = useState(false)
+  const [prefix, setPrefix] = useState('')
+  const [preview, setPreview] = useState<ApplyPreview | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [done, setDone] = useState<number | null>(null)
+
+  async function run(commit: boolean) {
+    setBusy(true)
+    setError(null)
+    try {
+      const r = await fetch('/api/finanse/powiernicze/subaccounts/apply-ing', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ commit, prefix: prefix.trim() || null }),
+      })
+      const d = await r.json().catch(() => ({}))
+      if (!r.ok) { setError(d.error || 'Błąd'); return }
+      if (commit) { setDone(d.toSet.length); setPreview(null); onApplied() }
+      else { setPreview(d); setDone(null) }
+    } catch (e: any) {
+      setError(e.message || 'Błąd sieci')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  if (!open) {
+    return (
+      <div className="mb-4">
+        <button
+          onClick={() => { setOpen(true); setDone(null); run(false) }}
+          className="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-lg text-sm font-medium"
+          title="Przypisuje 59 rachunków wirtualnych ING (Zgierz dz. 43/1 i 44/6) do lokali wg końcówki numeru lokalu. Najpierw podgląd, zapis dopiero po potwierdzeniu."
+        >
+          ⚡ Przypisz rachunki ING (Zgierz) do lokali
+        </button>
+        {done != null && <span className="ml-3 text-sm text-green-700">✓ Zapisano {done} {done === 1 ? 'lokal' : 'lokali'}</span>}
+      </div>
+    )
+  }
+
+  return (
+    <div className="mb-4 bg-white border border-amber-300 rounded-xl p-4">
+      <div className="flex items-center justify-between flex-wrap gap-2 mb-2">
+        <p className="font-semibold text-gray-900 text-sm">Rachunki wirtualne ING — Zgierz (lista z załącznika, 59 lokali)</p>
+        <div className="flex items-center gap-2">
+          <input
+            value={prefix}
+            onChange={(e) => setPrefix(e.target.value)}
+            placeholder="filtr numeru lokalu (opc.)"
+            className="px-2.5 py-1.5 border border-gray-300 rounded-lg text-xs w-44"
+            title="Np. Z. — tylko lokale o numerze zaczynającym się od Z. (gdy CRM ma lokale wielu inwestycji z powtarzającymi się końcówkami)"
+          />
+          <button onClick={() => run(false)} disabled={busy} className="text-xs text-blue-600 hover:text-blue-800 disabled:opacity-50">↻ odśwież podgląd</button>
+        </div>
+      </div>
+      {error && <p className="text-sm text-red-600 mb-2">{error}</p>}
+      {busy && !preview && <p className="text-sm text-gray-400">Analizuję…</p>}
+      {preview && (
+        <div className="text-sm space-y-2">
+          <p className="text-gray-700">
+            Do zapisania: <strong className="text-green-700">{preview.toSet.length}</strong>
+            {' • '}już ustawione: <strong>{preview.same}</strong>
+            {' • '}konflikty (inny numer): <strong className={preview.conflicts.length ? 'text-red-600' : ''}>{preview.conflicts.length}</strong>
+            {' • '}niejednoznaczne: <strong className={preview.ambiguous.length ? 'text-amber-600' : ''}>{preview.ambiguous.length}</strong>
+            {' • '}bez lokalu w CRM: <strong>{preview.notFound.length}</strong>
+          </p>
+          {preview.toSet.length > 0 && (
+            <div className="max-h-48 overflow-y-auto border border-gray-100 rounded-lg">
+              <table className="w-full text-xs">
+                <tbody className="divide-y divide-gray-50">
+                  {preview.toSet.map((t) => (
+                    <tr key={t.lokal}>
+                      <td className="px-2 py-1 font-medium">{t.unit}</td>
+                      <td className="px-2 py-1 font-mono tabular-nums text-gray-600">{t.nrb}</td>
+                      <td className="px-2 py-1 text-gray-500">{t.contract || 'bez umowy'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          {preview.ambiguous.length > 0 && (
+            <p className="text-xs text-amber-700">
+              ⚠ Ta sama końcówka w wielu lokalach: {preview.ambiguous.map((a) => `${a.lokal} (${a.units.join(', ')})`).join('; ')} — zawęź filtrem albo wpisz ręcznie na karcie lokalu.
+            </p>
+          )}
+          {preview.notFound.length > 0 && (
+            <p className="text-xs text-gray-400">Pozycje z listy bez lokalu w CRM: {preview.notFound.join(', ')}</p>
+          )}
+          <div className="flex gap-2 pt-1">
+            <button
+              onClick={() => run(true)}
+              disabled={busy || preview.toSet.length === 0}
+              className="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50"
+            >
+              {busy ? 'Zapisuję…' : `Zapisz przypisania (${preview.toSet.length})`}
+            </button>
+            <button onClick={() => { setOpen(false); setPreview(null) }} className="px-3 py-2 text-sm text-gray-600 hover:text-gray-900">Zamknij</button>
           </div>
         </div>
       )}
