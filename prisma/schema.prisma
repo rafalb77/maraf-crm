@@ -534,9 +534,31 @@ model Contract {
   history         ContractHistory[]
   payments        ContractPayment[]
   stages          ContractStage[]
+  annexes         ContractAnnex[]
   tasks           Task[]
   bankTransactions BankTransaction[]
   paymentInterests PaymentInterest[]
+}
+
+// Aneks do PODPISANEJ umowy (zwykle deweloperskiej) — dokłada składnik
+// (garaż / miejsce postojowe / komórka) bez ruszania dotychczasowych lokali
+// ani ich cen. Osobny podpisany dokument: własny numer aktu i data. Nie jest
+// nowym etapem — to zmiana w ramach bieżącej umowy. Dołożone lokale są spięte
+// z aneksem przez ContractUnit.annexId; wartość umowy rośnie o valueGrossDelta.
+model ContractAnnex {
+  id              String    @id @default(cuid())
+  contractId      String
+  number          String? // numer aktu / repertorium aneksu
+  signedAt        DateTime? // data podpisania aneksu
+  notes           String?
+  valueNetDelta   Float     @default(0) // wartość netto dołożonych lokali
+  valueGrossDelta Float     @default(0) // wartość brutto dołożonych lokali
+  createdAt       DateTime  @default(now())
+
+  contract Contract       @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  units    ContractUnit[]
+
+  @@index([contractId])
 }
 
 // Etapy dealu. Jeden Contract = jeden deal; `Contract.type` = BIEŻĄCY etap.
@@ -619,9 +641,12 @@ model ContractUnit {
   // null = brak snapshotu (legacy) → generator użyje ceny bazowej z Unit.
   priceNet   Float?
   priceGross Float?
+  // Aneks, który dołożył ten składnik (null = pierwotny skład umowy).
+  annexId    String?
 
-  contract Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
-  unit     Unit     @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  contract Contract       @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  unit     Unit           @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  annex    ContractAnnex? @relation(fields: [annexId], references: [id], onDelete: SetNull)
 
   @@unique([contractId, unitId])
 }

@@ -15,6 +15,7 @@ import { ContractEmailButton } from '@/components/sales/ContractEmailButton'
 import { ContractPaymentsPanel } from '@/components/sales/ContractPaymentsPanel'
 import { ContractStageStepper } from '@/components/sales/ContractStageStepper'
 import { ContractUnitsEditor } from '@/components/sales/ContractUnitsEditor'
+import { ContractAnnexPanel } from '@/components/sales/ContractAnnexPanel'
 
 export default async function ContractDetailPage({ params }: { params: { id: string } }) {
   const contract = await prisma.contract.findUnique({
@@ -26,6 +27,10 @@ export default async function ContractDetailPage({ params }: { params: { id: str
       attachments: true,
       history: { orderBy: { createdAt: 'desc' } },
       stages: { orderBy: { createdAt: 'asc' } },
+      annexes: {
+        orderBy: { createdAt: 'asc' },
+        include: { units: { include: { unit: { select: { number: true, type: true } } } } },
+      },
       payments: {
         orderBy: [{ position: 'asc' }, { plannedDate: 'asc' }],
         include: { escrowDeposit: { select: { id: true } } },
@@ -211,6 +216,19 @@ export default async function ContractDetailPage({ params }: { params: { id: str
             units={unitsForEditor}
             availableUnits={availableUnits}
             reservationFee={contract.reservationFee}
+          />
+
+          <ContractAnnexPanel
+            contractId={contract.id}
+            status={contract.status}
+            availableUnits={availableUnits}
+            annexes={contract.annexes.map((a) => ({
+              id: a.id,
+              number: a.number,
+              signedAt: a.signedAt ? a.signedAt.toISOString() : null,
+              valueGrossDelta: a.valueGrossDelta,
+              units: a.units.map((cu) => ({ number: cu.unit.number, type: cu.unit.type, priceGross: cu.priceGross ?? 0 })),
+            }))}
           />
 
           <ContractPaymentsPanel

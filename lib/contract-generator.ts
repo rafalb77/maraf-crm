@@ -4,6 +4,7 @@ import PizZip from 'pizzip'
 import Docxtemplater from 'docxtemplater'
 import type { Contract, Client, Unit, ContractUnit, ContractClient } from '@prisma/client'
 import { amountToWordsPl, integerToWordsPl } from './numberToWordsPl'
+import { UNIT_TYPE_LABELS, type UnitType } from './types'
 import { prisma } from './prisma'
 
 type ContractWithRelations = Contract & {
@@ -172,5 +173,61 @@ export async function generateContractDocx(contract: ContractWithRelations): Pro
 
   const ctx = await buildContractContext(contract)
   doc.render(ctx)
+  return doc.getZip().generate({ type: 'nodebuffer' })
+}
+
+// ===================== ANEKS =====================
+// Luźne typy — nie zależymy od wygenerowanego typu ContractAnnex.
+type AnnexUnit = { priceGross: number | null; unit: Unit }
+type AnnexInput = { number: string | null; signedAt: Date | null; units: AnnexUnit[] }
+
+export function buildAnnexContext(
+  contract: ContractWithRelations,
+  annex: AnnexInput,
+): Record<string, unknown> {
+  const client1 = contract.client
+  const client2 = contract.contractClients.find((cc) => cc.clientId !== contract.clientId)?.client || null
+
+  const addedUnits = annex.units.map((au) => {
+    const u = au.unit
+    const gross = au.priceGross ?? u.priceGross
+    return {
+      typeLabel: (UNIT_TYPE_LABELS[u.type as UnitType] ?? u.type).toLowerCase(),
+      number: u.number,
+      areaClause: u.area > 0 ? ` o powierzchni ${fmt(u.area)} m²` : '',
+      price: fmt(gross),
+      priceWords: wordsOr(gross),
+    }
+  })
+
+  // Łączna wartość umowy po aneksie = suma snapshotów wszystkich składników.
+  const totalGross = contract.contractUnits.reduce((s, cu) => s + (cu.priceGross ?? cu.unit.priceGross), 0)
+
+  return {
+    annexNumber: annex.number || '...',
+    contractNumber: contract.number,
+    annexDate: fmtDate(annex.signedAt),
+    client1Name: `${client1.firstName} ${client1.lastName}`.toUpperCase(),
+    hasClient2: !!client2,
+    client2Name: client2 ? `${client2.firstName} ${client2.lastName}`.toUpperCase() : '',
+    addedUnits,
+    totalGross: fmt(totalGross),
+    totalGrossWords: wordsOr(totalGross),
+  }
+}
+
+export async function generateAnnexDocx(contract: ContractWithRelations, annex: AnnexInput): Promise<Buffer> {
+  const templatePath = path.join(process.cwd(), 'templates', 'aneks-deweloperska.docx')
+  if (!fs.existsSync(templatePath)) {
+    throw new Error('Brak szablonu aneksu. Uruchom: node scripts/prepare-annex-template.js')
+  }
+  const buf = fs.readFileSync(templatePath)
+  const zip = new PizZip(buf)
+  const doc = new Docxtemplater(zip, {
+    paragraphLoop: true,
+    linebreaks: true,
+    delimiters: { start: '{{', end: '}}' },
+  })
+  doc.render(buildAnnexContext(contract, annex))
   return doc.getZip().generate({ type: 'nodebuffer' })
 }
