@@ -1,27 +1,27 @@
-// Hurtowe przypisanie subrachunkow wirtualnych ING (OMRP) do umow, wg listy
+// Hurtowe przypisanie rachunkow wirtualnych ING (OMRP) do LOKALI, wg listy
 // "Poprawne Rachunki Wirtualne" (ING, przedsiewziecie Zgierz dz. 43/1 i 44/6,
 // id 0001, MRP 65 1050 1461 1000 0090 8578 0303).
 //
-// Rachunek wirtualny jest przypisany do LOKALU. W CRM subrachunek trzymamy na
-// UMOWIE (Contract.escrowSubaccount — czyta go silnik dopasowania wplat), wiec
-// skrypt idzie po sciezce: lokal z listy -> ContractUnit -> umowa -> zapis.
-// Lokal bez umowy = na razie pomijany; PO UTWORZENIU umowy wystarczy
-// uruchomic skrypt ponownie (idempotentny).
+// ING nadaje rachunek wirtualny per LOKAL — zapisujemy go w
+// Unit.escrowSubaccount (widoczny na karcie lokalu). Umowa lokalu DZIEDZICZY
+// numer automatycznie przy dopasowaniu wplat (lib/bank-reconcile.ts);
+// Contract.escrowSubaccount pozostaje recznym nadpisaniem.
 //
 // Dopasowanie numeru lokalu: koncowa liczba w Unit.number ("12", "M12",
-// "M 12" -> 12). Dry-run pokazuje KAZDE dopasowanie do przegladu.
+// "A0.001" -> 1). Idempotentny; dry-run pokazuje KAZDE dopasowanie.
 //
 // Uzycie (Coolify Terminal / lokalnie):
 //   node scripts/set-escrow-subaccounts.js               # dry-run (bez zapisu)
 //   node scripts/set-escrow-subaccounts.js --commit      # zapis
 //   node scripts/set-escrow-subaccounts.js --commit --overwrite  # nadpisz rozne istniejace
-//   node scripts/set-escrow-subaccounts.js --investment=Zgierz   # tylko umowy tej inwestycji
+//   node scripts/set-escrow-subaccounts.js --prefix=Z.   # tylko lokale o numerze zaczynajacym sie od "Z."
+//     (uzyj gdy CRM ma lokale wielu inwestycji z powtarzajacymi sie koncowkami numerow)
 
 const { PrismaClient } = require('@prisma/client')
 const prisma = new PrismaClient()
 const COMMIT = process.argv.includes('--commit')
 const OVERWRITE = process.argv.includes('--overwrite')
-const INVESTMENT = (process.argv.find((a) => a.startsWith('--investment=')) || '').split('=')[1] || null
+const PREFIX = (process.argv.find((a) => a.startsWith('--prefix=')) || '').split('=')[1] || null
 
 // lokal -> NRB (26 cyfr) — 1:1 z PDF ING.
 const SUBACCOUNTS = {
@@ -114,79 +114,73 @@ async function main() {
   }
   console.log(`Lista ING: ${Object.keys(SUBACCOUNTS).length} lokali, wszystkie NRB poprawne (mod-97).`)
 
-  const contracts = await prisma.contract.findMany({
-    where: {
-      contractUnits: { some: {} },
-      ...(INVESTMENT ? { investmentName: { contains: INVESTMENT, mode: 'insensitive' } } : {}),
-    },
+  const units = await prisma.unit.findMany({
+    where: PREFIX ? { number: { startsWith: PREFIX, mode: 'insensitive' } } : undefined,
     select: {
-      id: true, number: true, escrowSubaccount: true, investmentName: true,
-      client: { select: { firstName: true, lastName: true } },
-      contractUnits: { select: { unit: { select: { number: true } } } },
+      id: true, number: true, escrowSubaccount: true, building: true,
+      contractUnits: {
+        select: { contract: { select: { number: true, client: { select: { firstName: true, lastName: true } } } } },
+      },
     },
     orderBy: { number: 'asc' },
   })
-  if (INVESTMENT) console.log(`Filtr inwestycji: "${INVESTMENT}" -> ${contracts.length} umow.`)
+  if (PREFIX) console.log(`Filtr numeru lokalu: "${PREFIX}*" -> ${units.length} lokali.`)
 
-  // Guard: ten sam lokal (koncowka numeru) w WIELU umowach — np. rozne budynki
-  // maja lokale .001. Takich nie przypisujemy automatycznie (zawezic przez
-  // --investment= albo wpisac recznie w zakladce Subrachunki).
-  const lokalClaims = new Map()
-  for (const c of contracts) {
-    for (const n of new Set(c.contractUnits.map((cu) => unitNo(cu.unit?.number)).filter((n) => n != null && SUBACCOUNTS[n]))) {
-      if (!lokalClaims.has(n)) lokalClaims.set(n, [])
-      lokalClaims.get(n).push(c.number)
-    }
+  // Guard: ta sama koncowka numeru w WIELU lokalach (np. A0.001 i B0.001) —
+  // niejednoznaczne, pomijamy (przypisz recznie na kartach lokali).
+  const claims = new Map()
+  for (const u of units) {
+    const n = unitNo(u.number)
+    if (n == null || !SUBACCOUNTS[n]) continue
+    if (!claims.has(n)) claims.set(n, [])
+    claims.get(n).push(u)
   }
-  const dupes = [...lokalClaims.entries()].filter(([, cs]) => cs.length > 1)
+  const dupes = [...claims.entries()].filter(([, us]) => us.length > 1)
   if (dupes.length) {
-    console.log('\n⚠ Lokale wystepujace w WIELU umowach (pomijam — zawezic --investment= lub przypisac recznie):')
-    for (const [n, cs] of dupes) console.log(`  lokal ${n}: umowy ${cs.join(', ')}`)
+    console.log('\n⚠ Koncowka numeru wystepuje w WIELU lokalach (pomijam — przypisz recznie na karcie lokalu):')
+    for (const [n, us] of dupes) console.log(`  lokal ${n}: ${us.map((u) => u.number).join(', ')}`)
   }
-  const dupeSet = new Set(dupes.map(([n]) => n))
 
-  const assignedLokale = new Set()
-  let toSet = 0, same = 0, conflict = 0, multi = 0
+  let toSet = 0, same = 0, conflict = 0
+  const assigned = new Set()
 
-  console.log('\n--- Umowy z lokalami ---')
-  for (const c of contracts) {
-    const buyer = c.client ? `${c.client.firstName} ${c.client.lastName}` : '—'
-    const lokale = c.contractUnits.map((cu) => unitNo(cu.unit?.number)).filter((n) => n != null && SUBACCOUNTS[n] && !dupeSet.has(n))
-    const uniqLokale = [...new Set(lokale)]
-    if (uniqLokale.length === 0) continue
-    if (uniqLokale.length > 1) {
-      multi++
-      console.log(`  ⚠ ${c.number} (${buyer}): ${uniqLokale.length} lokale z listy (${uniqLokale.join(', ')}) — POMIJAM, przypisz recznie w zakladce Subrachunki`)
-      continue
-    }
-    const lokal = uniqLokale[0]
-    const nrb = fmtNrb(SUBACCOUNTS[lokal])
-    assignedLokale.add(lokal)
-    const existingNorm = (c.escrowSubaccount || '').replace(/[^0-9A-Za-z]/g, '')
-    if (existingNorm === SUBACCOUNTS[lokal]) {
+  console.log('\n--- Lokale ---')
+  for (const [n, us] of [...claims.entries()].sort((a, b) => a[0] - b[0])) {
+    if (us.length > 1) continue
+    const u = us[0]
+    const nrb = fmtNrb(SUBACCOUNTS[n])
+    assigned.add(n)
+    // Info o umowie/nabywcy lokalu (dziedziczenie) — pomocne w przegladzie.
+    const contracts = u.contractUnits.map((cu) => cu.contract).filter(Boolean)
+    const who = contracts.length
+      ? contracts.map((c) => `${c.number}${c.client ? ` / ${c.client.firstName} ${c.client.lastName}` : ''}`).join('; ')
+      : 'bez umowy'
+    const existingNorm = (u.escrowSubaccount || '').replace(/[^0-9A-Za-z]/g, '')
+    if (existingNorm === SUBACCOUNTS[n]) {
       same++
-      console.log(`  = lokal ${lokal} -> ${c.number} (${buyer}): juz ustawiony`)
+      console.log(`  = lokal ${u.number} (${who}): juz ustawiony`)
       continue
     }
     if (existingNorm && !OVERWRITE) {
       conflict++
-      console.log(`  ⚠ lokal ${lokal} -> ${c.number} (${buyer}): ma JUZ INNY numer (${c.escrowSubaccount}) — pomijam (uzyj --overwrite aby nadpisac)`)
+      console.log(`  ⚠ lokal ${u.number} (${who}): ma JUZ INNY numer (${u.escrowSubaccount}) — pomijam (uzyj --overwrite)`)
       continue
     }
     toSet++
-    console.log(`  + lokal ${lokal} -> ${c.number} (${buyer}): ${nrb}${existingNorm ? '  [NADPISZE]' : ''}`)
+    console.log(`  + lokal ${u.number} (${who}): ${nrb}${existingNorm ? '  [NADPISZE]' : ''}`)
     if (COMMIT) {
-      await prisma.contract.update({ where: { id: c.id }, data: { escrowSubaccount: nrb } })
+      await prisma.unit.update({ where: { id: u.id }, data: { escrowSubaccount: nrb } })
     }
   }
 
-  const withoutContract = Object.keys(SUBACCOUNTS).map(Number).filter((n) => !assignedLokale.has(n))
-  console.log(`\n--- Lokale z listy ING bez umowy w CRM (${withoutContract.length}) ---`)
-  console.log('  ' + (withoutContract.join(', ') || 'brak'))
-  console.log('  (po utworzeniu umowy dla lokalu uruchom skrypt ponownie — dopisze mu numer)')
+  const notFound = Object.keys(SUBACCOUNTS).map(Number).filter((n) => !assigned.has(n))
+  console.log(`\n--- Pozycje z listy ING bez lokalu w CRM (${notFound.length}) ---`)
+  console.log('  ' + (notFound.join(', ') || 'brak'))
+  if (notFound.length) console.log('  (dodaj lokale w CRM i uruchom skrypt ponownie — dopisze numery)')
 
-  console.log(`\n${COMMIT ? 'Zapisano' : 'Do zapisania'}: ${toSet} • juz ustawione: ${same} • konflikty: ${conflict} • wielolokalowe: ${multi}`)
+  console.log(`\n${COMMIT ? 'Zapisano' : 'Do zapisania'}: ${toSet} • juz ustawione: ${same} • konflikty: ${conflict} • niejednoznaczne: ${dupes.length}`)
   if (!COMMIT) console.log('Uruchom z --commit aby zapisac.')
+  console.log('Umowy dziedzicza numery z lokali automatycznie (dopasowanie wplat) — nic wiecej nie trzeba robic.')
 }
 
 main()

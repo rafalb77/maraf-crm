@@ -25,7 +25,9 @@ export type OpenPayment = {
   type: string
   contractId: string
   contractNumber: string
-  escrowSubaccount: string | null
+  // Subrachunki OMRP: reczny numer z umowy (nadpisanie) + numery z LOKALI
+  // umowy (rachunki wirtualne ING sa per lokal). Kazdy pasuje jako decydujacy.
+  escrowSubaccounts: string[]
   interestType: string
   interestCustomRate: number | null
   buyerNames: string[]
@@ -83,7 +85,7 @@ export async function loadOpenPayments(): Promise<OpenPayment[]> {
         include: {
           client: { select: { firstName: true, lastName: true } },
           contractClients: { include: { client: { select: { firstName: true, lastName: true } } } },
-          contractUnits: { include: { unit: { select: { number: true } } } },
+          contractUnits: { include: { unit: { select: { number: true, escrowSubaccount: true } } } },
         },
       },
     },
@@ -97,6 +99,11 @@ export async function loadOpenPayments(): Promise<OpenPayment[]> {
     const buyerNames = uniq(clients.map((cl) => `${cl.firstName} ${cl.lastName}`.trim()))
     const surnames = uniq(clients.map((cl) => cl.lastName).filter((s) => s && s.length >= 3))
     const unitNumbers = uniq(c.contractUnits.map((u) => u.unit?.number).filter(Boolean) as string[])
+    // Numer z umowy (reczne nadpisanie) + rachunki wirtualne lokali umowy.
+    const escrowSubaccounts = uniq([
+      c.escrowSubaccount,
+      ...c.contractUnits.map((u) => u.unit?.escrowSubaccount),
+    ].filter(Boolean) as string[])
     return {
       id: p.id,
       plannedAmount: p.plannedAmount,
@@ -105,7 +112,7 @@ export async function loadOpenPayments(): Promise<OpenPayment[]> {
       type: p.type,
       contractId: c.id,
       contractNumber: c.number,
-      escrowSubaccount: c.escrowSubaccount,
+      escrowSubaccounts,
       interestType: c.interestType,
       interestCustomRate: c.interestCustomRate,
       buyerNames,
@@ -127,12 +134,13 @@ export function scoreCandidate(tx: TxLite, p: OpenPayment, tolerancePct = DEFAUL
   const hayRef = normRef(`${tx.title} ${tx.bankRef} ${tx.counterpartyIban}`)
   const hayText = normText(`${tx.title} ${tx.counterpartyName}`)
 
-  // 1. Subrachunek OMRP nabywcy
-  if (p.escrowSubaccount) {
-    const sub = normRef(p.escrowSubaccount)
+  // 1. Subrachunek OMRP nabywcy (z umowy lub z lokali umowy)
+  for (const sa of p.escrowSubaccounts) {
+    const sub = normRef(sa)
     if (sub.length >= 6 && hayRef.includes(sub)) {
       score += 100
       reasons.push('subrachunek powierniczy nabywcy')
+      break
     }
   }
 

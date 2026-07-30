@@ -21,8 +21,8 @@ export async function GET() {
     return NextResponse.json({ error: 'Rozliczenia powiernicze dostępne tylko dla Maraf Development.' }, { status: 400 })
   }
 
+  // Wszystkie umowy (nie tylko z harmonogramem) — numer warto wpisac wczesniej.
   const contracts = await prisma.contract.findMany({
-    where: { payments: { some: {} } }, // tylko umowy z harmonogramem
     orderBy: { number: 'asc' },
     select: {
       id: true,
@@ -31,6 +31,7 @@ export async function GET() {
       escrowSubaccount: true,
       client: { select: { firstName: true, lastName: true } },
       contractClients: { select: { client: { select: { firstName: true, lastName: true } } } },
+      contractUnits: { select: { unit: { select: { number: true, escrowSubaccount: true } } } },
       payments: { select: { status: true, toEscrow: true } },
     },
   })
@@ -40,12 +41,18 @@ export async function GET() {
       const buyers = [c.client, ...c.contractClients.map((cc) => cc.client)]
         .filter(Boolean)
         .map((cl) => `${cl!.firstName} ${cl!.lastName}`.trim())
+      const units = c.contractUnits.map((cu) => cu.unit).filter(Boolean) as { number: string; escrowSubaccount: string | null }[]
       return {
         contractId: c.id,
         number: c.number,
         investmentName: c.investmentName,
         buyers: Array.from(new Set(buyers)),
+        // Reczny numer na umowie (nadpisanie) — edytowalny w zakladce.
         escrowSubaccount: c.escrowSubaccount,
+        // Numery dziedziczone z lokali umowy (rachunki wirtualne ING per lokal,
+        // edycja na karcie lokalu / skryptem) — dopasowanie widzi jedne i drugie.
+        unitNumbers: units.map((u) => u.number),
+        unitSubaccounts: units.map((u) => u.escrowSubaccount).filter(Boolean) as string[],
         paymentsTotal: c.payments.length,
         paymentsPaid: c.payments.filter((p) => p.status === 'OPLACONA').length,
       }

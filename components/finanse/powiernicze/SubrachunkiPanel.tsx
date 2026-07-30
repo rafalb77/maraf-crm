@@ -7,6 +7,8 @@ type Row = {
   investmentName: string
   buyers: string[]
   escrowSubaccount: string | null
+  unitNumbers: string[]
+  unitSubaccounts: string[]
   paymentsTotal: number
   paymentsPaid: number
 }
@@ -35,21 +37,23 @@ export function SubrachunkiPanel({ refreshKey }: { refreshKey: number }) {
     return rows.filter((r) =>
       r.number.toLowerCase().includes(needle) ||
       r.investmentName.toLowerCase().includes(needle) ||
-      r.buyers.some((b) => b.toLowerCase().includes(needle))
+      r.buyers.some((b) => b.toLowerCase().includes(needle)) ||
+      r.unitNumbers.some((u) => u.toLowerCase().includes(needle))
     )
   }, [rows, q])
 
-  const missing = rows ? rows.filter((r) => !r.escrowSubaccount).length : 0
+  const missing = rows ? rows.filter((r) => !r.escrowSubaccount && r.unitSubaccounts.length === 0).length : 0
 
   return (
     <div>
       <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 mb-4 text-sm text-blue-900">
-        <p className="font-medium">Indywidualne subrachunki OMRP nabywców</p>
+        <p className="font-medium">Indywidualne subrachunki OMRP (rachunki wirtualne ING)</p>
         <p className="text-blue-800 mt-1">
-          ING nadaje każdemu nabywcy własny numer subrachunku na rachunku powierniczym. Wpisany tutaj numer
-          daje <strong>pewne</strong> dopasowanie wpłat z wyciągu (nawet przy pustym tytule przelewu).
-          Format dowolny — spacje i myślniki są ignorowane przy porównaniu.
-          {missing > 0 && <> Bez numeru: <strong>{missing}</strong> {missing === 1 ? 'umowa' : 'umów'} — dopasowanie działa wtedy po numerze umowy / nazwisku / kwocie.</>}
+          Numer rachunku wirtualnego jest przypisany do <strong>lokalu</strong> (edycja na karcie lokalu lub
+          hurtowo skryptem) — umowa dziedziczy go automatycznie. Pole poniżej to ręczne <strong>nadpisanie
+          na umowie</strong> (używaj tylko w nietypowych przypadkach). Numer daje <strong>pewne</strong> dopasowanie
+          wpłat z wyciągu, nawet przy pustym tytule przelewu. Format dowolny — spacje/myślniki ignorowane.
+          {missing > 0 && <> Bez żadnego numeru: <strong>{missing}</strong> {missing === 1 ? 'umowa' : 'umów'} — dopasowanie działa wtedy po numerze umowy / nazwisku / kwocie.</>}
         </p>
       </div>
 
@@ -73,29 +77,37 @@ export function SubrachunkiPanel({ refreshKey }: { refreshKey: number }) {
                 <tr>
                   <th className="px-4 py-3 font-medium text-gray-700">Nabywca</th>
                   <th className="px-4 py-3 font-medium text-gray-700">Umowa</th>
+                  <th className="px-4 py-3 font-medium text-gray-700">Lokal</th>
                   <th className="px-4 py-3 font-medium text-gray-700">Inwestycja</th>
                   <th className="px-4 py-3 font-medium text-gray-700 text-right" title="Raty opłacone / wszystkie">Raty</th>
-                  <th className="px-4 py-3 font-medium text-gray-700 w-[340px]">Subrachunek OMRP nabywcy</th>
+                  <th className="px-4 py-3 font-medium text-gray-700 w-[340px]" title="Numer dziedziczony z lokalu; pole = ręczne nadpisanie na umowie">Subrachunek OMRP</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {filtered.length === 0 && (
-                  <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-400">
-                    {q ? 'Brak umów pasujących do wyszukiwania.' : 'Brak umów z harmonogramem płatności.'}
+                  <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400">
+                    {q ? 'Brak umów pasujących do wyszukiwania.' : 'Brak umów.'}
                   </td></tr>
                 )}
                 {filtered.map((r) => (
                   <tr key={r.contractId} className="hover:bg-gray-50">
                     <td className="px-4 py-2.5 font-medium text-gray-900">{r.buyers.join(', ') || '—'}</td>
                     <td className="px-4 py-2.5 font-mono text-xs text-gray-700">{r.number}</td>
+                    <td className="px-4 py-2.5 text-gray-700">{r.unitNumbers.join(', ') || '—'}</td>
                     <td className="px-4 py-2.5 text-gray-600">{r.investmentName}</td>
-                    <td className="px-4 py-2.5 text-right tabular-nums text-gray-600">{r.paymentsPaid}/{r.paymentsTotal}</td>
+                    <td className="px-4 py-2.5 text-right tabular-nums text-gray-600">{r.paymentsTotal > 0 ? `${r.paymentsPaid}/${r.paymentsTotal}` : '—'}</td>
                     <td className="px-4 py-2.5">
                       <SubaccountInput
                         contractId={r.contractId}
                         initial={r.escrowSubaccount}
                         onSaved={(v) => setRows((rs) => rs!.map((x) => x.contractId === r.contractId ? { ...x, escrowSubaccount: v } : x))}
                       />
+                      {!r.escrowSubaccount && r.unitSubaccounts.length > 0 && (
+                        <p className="text-[11px] text-green-700 mt-1">✓ z lokalu: <span className="font-mono tabular-nums">{r.unitSubaccounts.join(', ')}</span></p>
+                      )}
+                      {r.escrowSubaccount && r.unitSubaccounts.length > 0 && (
+                        <p className="text-[11px] text-gray-400 mt-1" title="Nadpisanie na umowie ma pierwszeństwo przy dopasowaniu (oba numery są rozpoznawane)">lokal ma: <span className="font-mono tabular-nums">{r.unitSubaccounts.join(', ')}</span></p>
+                      )}
                     </td>
                   </tr>
                 ))}

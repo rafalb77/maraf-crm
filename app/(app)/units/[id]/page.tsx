@@ -12,6 +12,7 @@ import {
 import { FloorPlanUpload } from '@/components/units/FloorPlanUpload'
 import { UnitImageGallery } from '@/components/units/UnitImageGallery'
 import { DeleteUnitButton } from '@/components/units/DeleteUnitButton'
+import { UnitEscrowSubaccount } from '@/components/units/UnitEscrowSubaccount'
 import { ReserveForClientModal } from '@/components/units/ReserveForClientModal'
 import { PromoteReservationButton } from '@/components/clients/PromoteReservationButton'
 
@@ -99,6 +100,11 @@ export default async function UnitDetailPage({ params }: { params: { id: string 
               <Field label="Cena za m² brutto" value={formatCurrency(unit.pricePerSqmGross)} />
               <Field label="Cena netto" value={formatCurrency(unit.priceNet)} />
               <Field label="Cena brutto" value={formatCurrency(unit.priceGross)} />
+              {/* Rachunek wirtualny ING per lokal — dopasowanie wplat nabywcy
+                  w Rozliczeniach powierniczych (umowa dziedziczy z lokalu). */}
+              <div className="sm:col-span-2">
+                <UnitEscrowSubaccount unitId={unit.id} initial={unit.escrowSubaccount} />
+              </div>
             </div>
             {unit.description && (
               <div className="mt-4 pt-4 border-t border-gray-100">

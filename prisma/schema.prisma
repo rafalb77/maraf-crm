@@ -117,6 +117,11 @@ model Unit {
   // Ustawiana gdy status=SPRZEDANY; zmiana statusu na inny czyści pole (API units).
   soldAt               DateTime?
   floorPlanUrl         String?
+  // Rozliczenia powiernicze — rachunek wirtualny ING (OMRP) przypisany do LOKALU
+  // (ING nadaje numery per lokal, patrz scripts/set-escrow-subaccounts.js).
+  // Dopasowanie wplat: umowa dziedziczy numer z lokali (Contract.escrowSubaccount
+  // jako reczne nadpisanie ma pierwszenstwo) — patrz lib/bank-reconcile.ts.
+  escrowSubaccount     String?
   reservationType      String?
   reservationExpiresAt DateTime?
   reservedById         String?
