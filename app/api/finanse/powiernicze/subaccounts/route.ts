@@ -21,8 +21,11 @@ export async function GET() {
     return NextResponse.json({ error: 'Rozliczenia powiernicze dostępne tylko dla Maraf Development.' }, { status: 400 })
   }
 
-  // Wszystkie umowy (nie tylko z harmonogramem) — numer warto wpisac wczesniej.
+  // Tylko umowy DEWELOPERSKIE — wplaty powiernicze dotycza tego etapu.
+  // (Nabywca ma tez rekord umowy rezerwacyjnej /R — bez filtra kazdy
+  // pojawialby sie podwojnie.) Anulowane/rozwiazane pomijamy.
   const contracts = await prisma.contract.findMany({
+    where: { type: 'DEWELOPERSKA', status: { notIn: ['ANULOWANA', 'ROZWIAZANA'] } },
     orderBy: { number: 'asc' },
     select: {
       id: true,
