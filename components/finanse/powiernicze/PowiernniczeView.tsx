@@ -6,10 +6,11 @@ import { ImportWyciaguForm } from './ImportWyciaguForm'
 import { DopasowaniePanel } from './DopasowaniePanel'
 import { RejestrWplat } from './RejestrWplat'
 import { RejestrOdsetek } from './RejestrOdsetek'
+import { SubrachunkiPanel } from './SubrachunkiPanel'
 
 export type EscrowAccountLite = { id: string; name: string; accountNumber: string | null }
 
-type Tab = 'przeglad' | 'import' | 'dopasowanie' | 'wplaty' | 'odsetki'
+type Tab = 'przeglad' | 'import' | 'dopasowanie' | 'wplaty' | 'odsetki' | 'subrachunki'
 
 type AlertsSummary = {
   counts: { critical: number; warning: number; info: number }
@@ -26,7 +27,7 @@ type AlertsSummary = {
 
 export function PowiernniczeView({ accounts }: { accounts: EscrowAccountLite[] }) {
   const initial = (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('tab')) as Tab | null
-  const [tab, setTab] = useState<Tab>(initial && ['przeglad', 'import', 'dopasowanie', 'wplaty', 'odsetki'].includes(initial) ? initial : 'przeglad')
+  const [tab, setTab] = useState<Tab>(initial && ['przeglad', 'import', 'dopasowanie', 'wplaty', 'odsetki', 'subrachunki'].includes(initial) ? initial : 'przeglad')
   const [summary, setSummary] = useState<AlertsSummary | null>(null)
   const [refreshKey, setRefreshKey] = useState(0)
 
@@ -87,6 +88,7 @@ export function PowiernniczeView({ accounts }: { accounts: EscrowAccountLite[] }
         <TabBtn active={tab === 'dopasowanie'} onClick={() => setTab('dopasowanie')}>Dopasowanie</TabBtn>
         <TabBtn active={tab === 'wplaty'} onClick={() => setTab('wplaty')}>Rejestr wpłat</TabBtn>
         <TabBtn active={tab === 'odsetki'} onClick={() => setTab('odsetki')}>Rejestr odsetek</TabBtn>
+        <TabBtn active={tab === 'subrachunki'} onClick={() => setTab('subrachunki')}>Subrachunki</TabBtn>
       </div>
 
       {tab === 'przeglad' && <AlertyPanel refreshKey={refreshKey} onGoImport={() => setTab('import')} />}
@@ -94,6 +96,7 @@ export function PowiernniczeView({ accounts }: { accounts: EscrowAccountLite[] }
       {tab === 'dopasowanie' && <DopasowaniePanel accounts={accounts} refreshKey={refreshKey} onChanged={refresh} />}
       {tab === 'wplaty' && <RejestrWplat refreshKey={refreshKey} />}
       {tab === 'odsetki' && <RejestrOdsetek refreshKey={refreshKey} onChanged={refresh} />}
+      {tab === 'subrachunki' && <SubrachunkiPanel refreshKey={refreshKey} />}
     </div>
   )
 }
