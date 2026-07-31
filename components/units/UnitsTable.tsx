@@ -56,6 +56,17 @@ const COLUMNS: Column[] = [
 
 const STORAGE_KEY = 'units-table-visible-cols-v1'
 
+// Sort „Nr lokalu": najpierw mieszkania, potem usługowe, garaże, postojowe,
+// komórki — bez tego alfabet decydował (np. „…KL1" przed „…M1") i komórki
+// lądowały na górze listy.
+const TYPE_SORT_ORDER: Record<string, number> = {
+  MIESZKALNY: 0,
+  USLUGOWY: 1,
+  GARAZ: 2,
+  PARKING: 3,
+  KOMORKA: 4,
+}
+
 function floorLabel(f: number | null) {
   if (f === null) return '—'
   if (f === 0) return 'Parter'
@@ -117,6 +128,11 @@ export function UnitsTable({ units }: { units: UnitRow[] }) {
     const arr = [...units]
     const dir = sortDir === 'asc' ? 1 : -1
     arr.sort((a, b) => {
+      if (sortKey === 'number') {
+        const t = (TYPE_SORT_ORDER[a.type] ?? 9) - (TYPE_SORT_ORDER[b.type] ?? 9)
+        if (t !== 0) return t * dir
+        return a.number.localeCompare(b.number, 'pl', { numeric: true }) * dir
+      }
       const va = getSortValue(a, sortKey)
       const vb = getSortValue(b, sortKey)
       if (va == null && vb == null) return 0
