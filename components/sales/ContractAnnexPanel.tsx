@@ -1,7 +1,7 @@
 'use client'
 import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Loader2, Plus, X, FileDown } from 'lucide-react'
+import { Loader2, Plus, X } from 'lucide-react'
 import { UNIT_TYPE_LABELS, type UnitType } from '@/lib/types'
 import { formatCurrency, formatDate } from '@/lib/utils'
 
@@ -65,12 +65,6 @@ export function ContractAnnexPanel({
                 </div>
                 <div className="text-right flex-shrink-0">
                   <p className="text-sm font-medium text-emerald-700">+ {formatCurrency(a.valueGrossDelta)}</p>
-                  <a
-                    href={`/api/contracts/${contractId}/annex/${a.id}/generate`}
-                    className="mt-1 inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700"
-                  >
-                    <FileDown className="w-3.5 h-3.5" /> .docx
-                  </a>
                 </div>
               </div>
             </div>
