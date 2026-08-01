@@ -297,6 +297,16 @@ input::placeholder, textarea::placeholder { color: var(--text-muted); }
 
 .dark .text-red-500 { color: #F87171 !important; }
 
+/* Luki mapowań wykryte przy karcie klienta (stepper etapów, flagi, KPI) —
+   klasy używane m.in. w ContractStageStepper/StageMiniStepper i pasku uwagi. */
+.dark .text-blue-800 { color: #E8D0B0 !important; }
+.dark .border-blue-400 { border-color: rgba(212, 165, 116, 0.5) !important; }
+.dark .text-blue-700\/70 { color: rgba(232, 208, 176, 0.7) !important; }
+.dark .bg-gray-300 { background-color: var(--surface-hover) !important; }
+.dark .text-red-800 { color: #FCA5A5 !important; }
+.dark .border-amber-200 { border-color: rgba(251, 191, 36, 0.28) !important; }
+.dark .text-green-700\/80 { color: rgba(134, 239, 172, 0.8) !important; }
+
 /* Smooth transitions on theme-affected surfaces */
 .bg-white, .bg-gray-50, .border-gray-200, .border-gray-100 {
   transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;

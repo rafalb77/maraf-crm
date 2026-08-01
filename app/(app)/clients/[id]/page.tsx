@@ -1,37 +1,65 @@
 import { prisma } from '@/lib/prisma'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { formatDateTime, formatCurrency, formatDate } from '@/lib/utils'
+import { formatDate } from '@/lib/utils'
 import {
-  CLIENT_STATUS_LABELS, CLIENT_STATUS_COLORS,
-  ACTIVITY_TYPE_LABELS, SERVICE_STATUS_COLORS, SERVICE_STATUS_LABELS,
-  SERVICE_PRIORITY_LABELS, SERVICE_PRIORITY_COLORS,
-  UNIT_TYPE_LABELS, UNIT_STATUS_LABELS, UNIT_STATUS_COLORS,
-  RESERVATION_TYPE_LABELS, RESERVATION_TYPE_COLORS,
+  SERVICE_STATUS_COLORS, SERVICE_STATUS_LABELS,
   CONTRACT_TYPE_LABELS, CONTRACT_STATUS_LABELS, CONTRACT_STATUS_COLORS,
-  type ClientStatus, type ActivityType, type ServiceStatus, type ServicePriority, type UnitType, type UnitStatus, type ReservationType,
-  type ContractType, type ContractStatus,
+  type ClientStatus, type ServiceStatus, type ContractType, type ContractStatus,
 } from '@/lib/types'
 import { expireSoftReservations } from '@/lib/reservations'
+import {
+  isActiveContract, groupPriceHistory, buildDealCardData, buildPortfolioRows,
+  computePortfolioSums, computeClientKpi, computeAttentionFlags, buildTimeline,
+} from '@/lib/client-portfolio'
 import { ActivityForm } from '@/components/clients/ActivityForm'
-import { AssignUnitModal } from '@/components/clients/AssignUnitModal'
 import { DeleteClientButton } from '@/components/clients/DeleteClientButton'
 import { ClientStatusChanger } from '@/components/clients/ClientStatusChanger'
-import { UnassignUnitButton } from '@/components/clients/UnassignUnitButton'
 import { PromoteReservationButton } from '@/components/clients/PromoteReservationButton'
-import { SwapButton } from '@/components/reservations/ReservationActions'
 import { ClientOwnerChanger } from '@/components/clients/ClientOwnerChanger'
+import { ClientSummaryBar } from '@/components/clients/ClientSummaryBar'
+import { ContractDealCard } from '@/components/clients/ContractDealCard'
+import { ClientUnitsPanel } from '@/components/clients/ClientUnitsPanel'
+import { ClientTimeline } from '@/components/clients/ClientTimeline'
 
 export default async function ClientDetailPage({ params }: { params: { id: string } }) {
   await expireSoftReservations()
-  const [client, allUnits, users] = await Promise.all([
+  const [client, contracts, allUnits, users] = await Promise.all([
     prisma.client.findUnique({
       where: { id: params.id },
       include: {
         clientUnits: { include: { unit: true } },
         activities: { orderBy: { date: 'desc' } },
         serviceRequests: { include: { unit: true }, orderBy: { createdAt: 'desc' } },
-        contracts: { orderBy: { createdAt: 'desc' } },
+      },
+    }),
+    // Umowy klienta: jako główny kupujący LUB współkupujący (ContractClient).
+    prisma.contract.findMany({
+      where: { OR: [{ clientId: params.id }, { contractClients: { some: { clientId: params.id } } }] },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        contractUnits: {
+          include: {
+            unit: {
+              select: {
+                id: true, number: true, type: true, status: true, priceGross: true,
+                reservationType: true, reservationExpiresAt: true,
+              },
+            },
+          },
+        },
+        client: { select: { id: true, firstName: true, lastName: true } },
+        stages: true,
+        annexes: { orderBy: { createdAt: 'desc' } },
+        contractClients: { include: { client: { select: { id: true, firstName: true, lastName: true } } } },
+        // Filtr eventów PRZED take — inaczej szum (EDYCJA_SKLADNIKOW, WYSLANO_MAILEM)
+        // zjadałby budżet 50 i wypychał z osi stare zdarzenia istotne.
+        // Lista zsynchronizowana z CONTRACT_EVENT_TITLES w lib/client-portfolio.ts.
+        history: {
+          where: { event: { in: ['UTWORZONO', 'UTWORZONA', 'ZMIANA_STATUSU', 'ZMIANA_ETAPU', 'ANEKS'] } },
+          orderBy: { createdAt: 'desc' },
+          take: 50,
+        },
       },
     }),
     prisma.unit.findMany({ orderBy: { number: 'asc' } }),
@@ -43,6 +71,26 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
 
   if (!client) notFound()
 
+  // Cennik z dnia umowy (PriceHistory) dla lokali z aktywnych umów — do rabatów.
+  const activeUnitIds = [...new Set(contracts.filter(isActiveContract).flatMap((c) => c.contractUnits.map((cu) => cu.unitId)))]
+  const priceHistory = activeUnitIds.length
+    ? await prisma.priceHistory.findMany({
+        where: { unitId: { in: activeUnitIds } },
+        orderBy: { changedAt: 'asc' },
+        select: { unitId: true, priceGross: true, changedAt: true },
+      })
+    : []
+  const historyByUnit = groupPriceHistory(priceHistory)
+
+  const activeContracts = contracts.filter(isActiveContract)
+  const archivedContracts = contracts.filter((c) => !isActiveContract(c))
+  const dealCards = activeContracts.map((c) => buildDealCardData(c, client.id, historyByUnit))
+  const portfolioRows = buildPortfolioRows(client.clientUnits, contracts, historyByUnit)
+  const portfolioSums = computePortfolioSums(portfolioRows)
+  const kpi = computeClientKpi(portfolioRows, contracts)
+  const flags = computeAttentionFlags(portfolioRows, contracts)
+  const timeline = buildTimeline(client.activities, contracts)
+
   const assignedUnitIds = client.clientUnits.map((cu) => cu.unitId)
   // Available = not already assigned and not sold/hard-reserved by someone else
   const availableUnits = allUnits.filter(
@@ -52,11 +100,10 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
       u.reservationType !== 'REZERWACJA',
   )
 
-  // Meta pod nazwiskiem: klient od · źródło · pierwszy przypisany lokal
+  // Meta pod nazwiskiem: klient od · źródło (lokal jest teraz w pasku KPI)
   const heroMeta = [
     `Klient od ${formatDate(client.createdAt)}`,
     client.source ? `Źródło: ${client.source}` : null,
-    client.clientUnits[0] ? `Lokal ${client.clientUnits[0].unit.number}` : null,
   ].filter(Boolean).join(' · ')
 
   return (
@@ -71,7 +118,7 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
       </Link>
 
       {/* Hero: avatar-inicjały + nazwisko + status + meta + akcje */}
-      <div className="flex items-center gap-[18px] mb-6 flex-wrap v2-card-in">
+      <div className="flex items-center gap-[18px] mb-4 flex-wrap v2-card-in">
         <div
           className="w-14 h-14 rounded-full flex items-center justify-center text-[19px] font-bold text-white flex-shrink-0"
           style={{ background: 'var(--gradient-brand)', boxShadow: 'var(--shadow-sm)' }}
@@ -106,61 +153,79 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
         </div>
       </div>
 
+      {/* Pasek KPI: co i za ile kupił + flagi „Wymaga uwagi" */}
+      <div className="mb-4 v2-card-in" style={{ animationDelay: '.05s' }}>
+        <ClientSummaryBar kpi={kpi} flags={flags} clientId={client.id} unitCount={client.clientUnits.length} />
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
-        {/* Lewa (szeroka): historia działań + notatki */}
+        {/* Lewa (szeroka): umowy + portfel lokali + historia działań */}
         <div className="lg:col-span-2 space-y-4">
-          {/* Activity feed */}
-          <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5 v2-card-in" style={{ animationDelay: '.06s' }}>
+          {/* Umowy — karty transakcji */}
+          <div className="v2-card-in" style={{ animationDelay: '.08s' }}>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="font-semibold text-gray-900">Umowy</h2>
+              <Link href={`/sales/new?clientId=${client.id}`}
+                className="text-sm text-blue-600 hover:text-blue-700 font-medium">
+                + Nowa
+              </Link>
+            </div>
+            {dealCards.length === 0 ? (
+              <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5">
+                <p className="text-gray-400 text-sm">Brak umów</p>
+                <div className="mt-3">
+                  <PromoteReservationButton clientId={client.id} unitCount={client.clientUnits.length} />
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {dealCards.map((deal) => (
+                  <ContractDealCard key={deal.id} deal={deal} />
+                ))}
+                <PromoteReservationButton clientId={client.id} unitCount={client.clientUnits.length} />
+              </div>
+            )}
+            {archivedContracts.length > 0 && (
+              <details className="mt-3">
+                <summary className="text-sm text-gray-500 hover:text-gray-700 cursor-pointer font-medium select-none">
+                  Umowy archiwalne ({archivedContracts.length})
+                </summary>
+                <div className="mt-2 space-y-2">
+                  {archivedContracts.map((c) => (
+                    <Link key={c.id} href={`/sales/${c.id}`} prefetch={false}
+                      className="flex gap-3 items-center p-2.5 rounded-lg bg-white border border-gray-100 hover:bg-gray-50 transition-colors">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-900">{c.number}</p>
+                        <p className="text-xs text-gray-500">{CONTRACT_TYPE_LABELS[c.type as ContractType]}</p>
+                      </div>
+                      <span className={`px-1.5 py-0.5 rounded text-xs font-medium flex-shrink-0 ${CONTRACT_STATUS_COLORS[c.status as ContractStatus]}`}>
+                        {CONTRACT_STATUS_LABELS[c.status as ContractStatus]}
+                      </span>
+                    </Link>
+                  ))}
+                </div>
+              </details>
+            )}
+          </div>
+
+          {/* Portfel lokali: co, za ile, z jakim rabatem */}
+          <div className="v2-card-in" style={{ animationDelay: '.12s' }}>
+            <ClientUnitsPanel clientId={client.id} rows={portfolioRows} sums={portfolioSums} availableUnits={availableUnits} />
+          </div>
+
+          {/* Historia działań: aktywności + zdarzenia umów */}
+          <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5 v2-card-in" style={{ animationDelay: '.16s' }}>
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-semibold text-gray-900">Historia działań</h2>
             </div>
             <ActivityForm clientId={client.id} />
             <div className="mt-5">
-              {client.activities.length === 0 ? (
-                <p className="text-gray-400 text-sm">Brak zarejestrowanych działań</p>
-              ) : (
-                client.activities.map((a) => (
-                  <div key={a.id} className="flex gap-3.5 py-3 border-b last:border-b-0" style={{ borderColor: 'var(--border-soft)' }}>
-                    <div
-                      className="w-[34px] h-[34px] rounded-full flex items-center justify-center text-sm flex-shrink-0 border"
-                      style={{ background: 'var(--surface-alt)', borderColor: 'var(--border-soft)' }}
-                    >
-                      {activityIcon(a.type)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-2.5">
-                        <span className="text-[13px] font-semibold text-gray-900">
-                          {ACTIVITY_TYPE_LABELS[a.type as ActivityType]}{a.title ? ` — ${a.title}` : ''}
-                        </span>
-                        <span className="text-[11px] tabular-nums flex-shrink-0" style={{ color: 'var(--text-muted)' }}>
-                          {formatDateTime(a.date)}
-                        </span>
-                      </div>
-                      {a.content && (
-                        <p className="text-[13px] text-gray-600 mt-1 leading-relaxed whitespace-pre-wrap">{a.content}</p>
-                      )}
-                    </div>
-                  </div>
-                ))
-              )}
+              <ClientTimeline items={timeline} />
             </div>
           </div>
-
-          {/* Notes */}
-          {client.notes && (
-            <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5 v2-card-in" style={{ animationDelay: '.12s' }}>
-              <h2 className="font-semibold text-gray-900 mb-3.5">Notatki</h2>
-              <div
-                className="px-3.5 py-3 rounded-[10px] text-[13px] text-gray-600 leading-relaxed whitespace-pre-wrap"
-                style={{ background: 'var(--surface-alt)' }}
-              >
-                {client.notes}
-              </div>
-            </div>
-          )}
         </div>
 
-        {/* Prawa (wąska): dane osobowe + lokale + umowy + serwis */}
+        {/* Prawa (wąska): dane osobowe + serwis + notatki */}
         <div className="lg:col-span-1 space-y-4">
           {/* Personal data */}
           <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5 v2-card-in" style={{ animationDelay: '.09s' }}>
@@ -173,112 +238,17 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
                 <ClientOwnerChanger clientId={client.id} ownerId={client.ownerId} users={users} />
               </div>
               <DataRow label="Imię i nazwisko" value={`${client.firstName} ${client.lastName}`} />
-              <DataRow label="Telefon" value={client.phone || '—'} />
-              {client.phone2 && <DataRow label="Telefon 2" value={client.phone2} />}
-              <DataRow label="E-mail" value={client.email || '—'} />
+              <DataRow label="Telefon" value={client.phone || '—'} href={client.phone ? `tel:${client.phone}` : undefined} />
+              {client.phone2 && <DataRow label="Telefon 2" value={client.phone2} href={`tel:${client.phone2}`} />}
+              <DataRow label="E-mail" value={client.email || '—'} href={client.email ? `mailto:${client.email}` : undefined} />
               <DataRow label="PESEL" value={client.pesel || '—'} />
               {client.nip && <DataRow label="NIP" value={client.nip} />}
               <DataRow label="Adres" value={[client.address, client.zipCode, client.city].filter(Boolean).join(', ') || '—'} />
             </div>
           </div>
 
-          {/* Assigned units */}
-          <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5 v2-card-in" style={{ animationDelay: '.15s' }}>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="font-semibold text-gray-900">Przypisane lokale</h2>
-              <AssignUnitModal clientId={client.id} availableUnits={availableUnits} />
-            </div>
-            {client.clientUnits.length === 0 ? (
-              <p className="text-gray-400 text-sm">Brak przypisanych lokali</p>
-            ) : (
-              <div className="space-y-2">
-                {client.clientUnits.map((cu) => {
-                  const isSoft = cu.unit.reservationType === 'MIEKKA'
-                  const canUnassign = cu.unit.reservationType !== 'REZERWACJA'
-                  return (
-                    <div
-                      key={cu.unitId}
-                      className="px-3.5 py-3 rounded-[10px] border transition-colors"
-                      style={{ background: 'var(--surface-alt)', borderColor: 'var(--border-soft)' }}
-                    >
-                      {/* Górny wiersz: lokal + status */}
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0">
-                          <Link href={`/units/${cu.unitId}`} className="text-sm font-medium text-gray-900 hover:text-blue-600">
-                            {cu.unit.number}
-                          </Link>
-                          <p className="text-xs text-gray-500">
-                            {UNIT_TYPE_LABELS[cu.unit.type as UnitType]} · {formatCurrency(cu.unit.priceGross)}
-                          </p>
-                        </div>
-                        <span className={`flex-shrink-0 px-1.5 py-0.5 rounded text-xs font-medium ${UNIT_STATUS_COLORS[cu.unit.status as UnitStatus]}`}>
-                          {UNIT_STATUS_LABELS[cu.unit.status as UnitStatus]}
-                        </span>
-                      </div>
-                      {/* Dolny wiersz: typ rezerwacji + akcje */}
-                      {(cu.unit.reservationType || isSoft || canUnassign) && (
-                        <div className="flex items-center justify-between gap-2 mt-2">
-                          <div className="flex items-center gap-1.5 min-w-0 text-xs">
-                            {cu.unit.reservationType && (
-                              <span className={`px-1.5 py-0.5 rounded font-medium ${RESERVATION_TYPE_COLORS[cu.unit.reservationType as ReservationType]}`}>
-                                {RESERVATION_TYPE_LABELS[cu.unit.reservationType as ReservationType]}
-                              </span>
-                            )}
-                            {isSoft && cu.unit.reservationExpiresAt && (
-                              <span className="text-gray-500 whitespace-nowrap">do {formatDate(cu.unit.reservationExpiresAt)}</span>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-1 flex-shrink-0">
-                            {isSoft && (
-                              <SwapButton unitId={cu.unitId} unitNumber={cu.unit.number} unitType={cu.unit.type} />
-                            )}
-                            {canUnassign && (
-                              <UnassignUnitButton clientId={client.id} unitId={cu.unitId} />
-                            )}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-          </div>
-
-          {/* Contracts */}
-          <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5 v2-card-in" style={{ animationDelay: '.21s' }}>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="font-semibold text-gray-900">Umowy</h2>
-              <Link href={`/sales/new?clientId=${client.id}`}
-                className="text-sm text-blue-600 hover:text-blue-700 font-medium">
-                + Nowa
-              </Link>
-            </div>
-            {client.contracts.length === 0 ? (
-              <p className="text-gray-400 text-sm">Brak umów</p>
-            ) : (
-              <div className="space-y-2">
-                {client.contracts.map((c) => (
-                  <Link key={c.id} href={`/sales/${c.id}`}
-                    className="flex gap-3 items-start p-2 rounded-lg hover:bg-gray-50 border border-gray-100">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900">{c.number}</p>
-                      <p className="text-xs text-gray-500">{CONTRACT_TYPE_LABELS[c.type as ContractType]}</p>
-                    </div>
-                    <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${CONTRACT_STATUS_COLORS[c.status as ContractStatus]}`}>
-                      {CONTRACT_STATUS_LABELS[c.status as ContractStatus]}
-                    </span>
-                  </Link>
-                ))}
-              </div>
-            )}
-            <div className="mt-3">
-              <PromoteReservationButton clientId={client.id} unitCount={client.clientUnits.length} />
-            </div>
-          </div>
-
           {/* Service requests */}
-          <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5 v2-card-in" style={{ animationDelay: '.27s' }}>
+          <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5 v2-card-in" style={{ animationDelay: '.15s' }}>
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-semibold text-gray-900">Serwis / Usterki</h2>
               <Link href={`/service/new?clientId=${client.id}`}
@@ -307,6 +277,19 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
               </div>
             )}
           </div>
+
+          {/* Notes */}
+          {client.notes && (
+            <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5 v2-card-in" style={{ animationDelay: '.21s' }}>
+              <h2 className="font-semibold text-gray-900 mb-3.5">Notatki</h2>
+              <div
+                className="px-3.5 py-3 rounded-[10px] text-[13px] text-gray-600 leading-relaxed whitespace-pre-wrap"
+                style={{ background: 'var(--surface-alt)' }}
+              >
+                {client.notes}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -314,7 +297,7 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
 }
 
 // Etykieta nad wartością (styl v2) zamiast dwóch kolumn
-function DataRow({ label, value }: { label: string; value: string }) {
+function DataRow({ label, value, href }: { label: string; value: string; href?: string }) {
   return (
     <div className="flex flex-col gap-0.5">
       <span
@@ -323,15 +306,11 @@ function DataRow({ label, value }: { label: string; value: string }) {
       >
         {label}
       </span>
-      <span className="text-sm text-gray-900">{value}</span>
+      {href ? (
+        <a href={href} className="text-sm text-blue-600 hover:text-blue-700">{value}</a>
+      ) : (
+        <span className="text-sm text-gray-900">{value}</span>
+      )}
     </div>
   )
 }
-
-function activityIcon(type: string) {
-  const icons: Record<string, string> = {
-    NOTATKA: '📝', TELEFON: '📞', EMAIL: '✉️', SPOTKANIE: '🤝', DOKUMENT: '📄',
-  }
-  return icons[type] || '📝'
-}
-
