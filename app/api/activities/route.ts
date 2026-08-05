@@ -45,7 +45,12 @@ export async function POST(req: NextRequest) {
         end: new Date(activity.date.getTime() + durationMin * 60_000),
       })
     } catch (e) {
-      calendarError = e instanceof Error ? e.message : 'Błąd Google Calendar'
+      const raw = e instanceof Error ? e.message : ''
+      // invalid_grant = refresh token wygasł/unieważniony (np. aplikacja OAuth
+      // w statusie „Testing" — Google ubija tokeny po 7 dniach).
+      calendarError = raw.includes('invalid_grant')
+        ? 'Połączenie z Google wygasło. Wejdź w Ustawienia → Google Calendar → „Połącz ponownie".'
+        : raw || 'Błąd Google Calendar'
     }
   }
 
