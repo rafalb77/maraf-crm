@@ -24,7 +24,7 @@ import { ClientTimeline } from '@/components/clients/ClientTimeline'
 
 export default async function ClientDetailPage({ params }: { params: { id: string } }) {
   await expireSoftReservations()
-  const [client, contracts, allUnits, users] = await Promise.all([
+  const [client, contracts, allUnits, users, calendarToken] = await Promise.all([
     prisma.client.findUnique({
       where: { id: params.id },
       include: {
@@ -67,6 +67,9 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
       select: { id: true, name: true, preferredName: true, email: true },
       orderBy: [{ name: 'asc' }, { email: 'asc' }],
     }),
+    // Aktywne połączenie OAuth z Google Calendar (moduł Kalendarz) —
+    // steruje checkboxem „Dodaj do Kalendarza Google" w formularzu działania.
+    prisma.calendarToken.findFirst({ select: { id: true } }),
   ])
 
   if (!client) notFound()
@@ -218,7 +221,7 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-semibold text-gray-900">Historia działań</h2>
             </div>
-            <ActivityForm clientId={client.id} />
+            <ActivityForm clientId={client.id} calendarConnected={!!calendarToken} />
             <div className="mt-5">
               <ClientTimeline items={timeline} />
             </div>
