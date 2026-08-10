@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { advanceClientToOferta } from '@/lib/client-status'
 
 const VALID = ['SZKIC', 'WYSLANA', 'ZAAKCEPTOWANA', 'ODRZUCONA', 'ANULOWANA']
 
@@ -15,5 +16,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     return NextResponse.json({ error: 'Nieprawidłowy status' }, { status: 400 })
   }
   const updated = await prisma.offer.update({ where: { id }, data: { status } })
+  // Wysłana/zaakceptowana oferta = klient przeszedł z zapytania do etapu oferty.
+  if (updated.clientId && (status === 'WYSLANA' || status === 'ZAAKCEPTOWANA')) {
+    await advanceClientToOferta(updated.clientId)
+  }
   return NextResponse.json(updated)
 }

@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { sendEmail, toFriendlyMailError } from '@/lib/mailer'
 import { generateOfferPdf } from '@/lib/pdf-generator'
+import { advanceClientToOferta } from '@/lib/client-status'
 
 function fmt(n: number) {
   return n.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -124,6 +125,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         content: `Wysłano na ${to}.\nKwota brutto: ${fmt(offer.totalGross)} zł`,
       },
     })
+    // Wysłana oferta = klient przeszedł z zapytania do etapu oferty.
+    await advanceClientToOferta(offer.clientId)
   }
   if (offer.status === 'SZKIC') {
     await prisma.offer.update({ where: { id }, data: { status: 'WYSLANA' } })
