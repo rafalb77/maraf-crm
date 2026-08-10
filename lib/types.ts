@@ -306,6 +306,26 @@ export const CONTRACT_STATUS_COLORS: Record<ContractStatus, string> = {
   ANULOWANA: 'bg-red-100 text-red-700',
 }
 
+// Statusy ofert (moduł Oferty). Uwaga: OffersTable i strona oferty mają
+// jeszcze własne lokalne mapy — to jest wersja kanoniczna dla nowych miejsc.
+export type OfferStatus = 'SZKIC' | 'WYSLANA' | 'ZAAKCEPTOWANA' | 'ODRZUCONA' | 'ANULOWANA'
+
+export const OFFER_STATUS_LABELS: Record<OfferStatus, string> = {
+  SZKIC: 'Szkic',
+  WYSLANA: 'Wysłana',
+  ZAAKCEPTOWANA: 'Zaakceptowana',
+  ODRZUCONA: 'Odrzucona',
+  ANULOWANA: 'Anulowana',
+}
+
+export const OFFER_STATUS_COLORS: Record<OfferStatus, string> = {
+  SZKIC: 'bg-gray-100 text-gray-600',
+  WYSLANA: 'bg-blue-50 text-blue-700',
+  ZAAKCEPTOWANA: 'bg-green-50 text-green-700',
+  ODRZUCONA: 'bg-red-50 text-red-700',
+  ANULOWANA: 'bg-gray-100 text-gray-500',
+}
+
 // Kind zdjec w galerii lokalu (UnitImage) — wykorzystywane przez generator
 // kreacji Meta Ads do wyboru wlasciwego zdjecia per format reklamy.
 export type UnitImageKind = 'RZUT_3D' | 'DOLL_HOUSE' | 'WNETRZE' | 'WIDOK_Z_OKNA' | 'INNE'

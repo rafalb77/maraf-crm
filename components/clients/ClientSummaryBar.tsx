@@ -2,7 +2,8 @@ import Link from 'next/link'
 import { AlertTriangle } from 'lucide-react'
 import {
   CONTRACT_TYPE_LABELS, CONTRACT_STATUS_LABELS, CONTRACT_STATUS_COLORS,
-  type ContractType, type ContractStatus,
+  OFFER_STATUS_LABELS, OFFER_STATUS_COLORS,
+  type ContractType, type ContractStatus, type OfferStatus,
 } from '@/lib/types'
 import { formatCurrency } from '@/lib/utils'
 import type { AttentionFlag, ClientKpi } from '@/lib/client-portfolio'
@@ -18,11 +19,14 @@ export function ClientSummaryBar({
   flags,
   clientId,
   unitCount,
+  topOffer = null,
 }: {
   kpi: ClientKpi
   flags: AttentionFlag[]
   clientId: string
   unitCount: number
+  /** Najdalsza oferta klienta — pokazywana w kaflu „Etap sprzedaży", gdy brak umów. */
+  topOffer?: { id: string; status: string } | null
 }) {
   return (
     <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5">
@@ -65,6 +69,15 @@ export function ClientSummaryBar({
               </p>
               <span className={`inline-block mt-1 px-1.5 py-0.5 rounded text-xs font-medium ${CONTRACT_STATUS_COLORS[kpi.topContract.status as ContractStatus]}`}>
                 {CONTRACT_STATUS_LABELS[kpi.topContract.status as ContractStatus] ?? kpi.topContract.status}
+              </span>
+            </Kpi>
+          </Link>
+        ) : topOffer ? (
+          <Link href={`/oferty/${topOffer.id}`} prefetch={false} className="group">
+            <Kpi label="Etap sprzedaży">
+              <p className="text-sm font-bold text-gray-900 group-hover:text-blue-600 leading-snug">Oferta</p>
+              <span className={`inline-block mt-1 px-1.5 py-0.5 rounded text-xs font-medium ${OFFER_STATUS_COLORS[topOffer.status as OfferStatus] ?? 'bg-gray-100 text-gray-600'}`}>
+                {OFFER_STATUS_LABELS[topOffer.status as OfferStatus] ?? topOffer.status}
               </span>
             </Kpi>
           </Link>

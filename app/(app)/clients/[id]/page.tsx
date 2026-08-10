@@ -18,13 +18,14 @@ import { ClientStatusChanger } from '@/components/clients/ClientStatusChanger'
 import { PromoteReservationButton } from '@/components/clients/PromoteReservationButton'
 import { ClientOwnerChanger } from '@/components/clients/ClientOwnerChanger'
 import { ClientSummaryBar } from '@/components/clients/ClientSummaryBar'
+import { ClientOffersPanel, type ClientOfferRow } from '@/components/clients/ClientOffersPanel'
 import { ContractDealCard } from '@/components/clients/ContractDealCard'
 import { ClientUnitsPanel } from '@/components/clients/ClientUnitsPanel'
 import { ClientTimeline } from '@/components/clients/ClientTimeline'
 
 export default async function ClientDetailPage({ params }: { params: { id: string } }) {
   await expireSoftReservations()
-  const [client, contracts, allUnits, users, calendarToken] = await Promise.all([
+  const [client, contracts, allUnits, users, calendarToken, offers] = await Promise.all([
     prisma.client.findUnique({
       where: { id: params.id },
       include: {
@@ -70,6 +71,12 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
     // Aktywne połączenie OAuth z Google Calendar (moduł Kalendarz) —
     // steruje checkboxem „Dodaj do Kalendarza Google" w formularzu działania.
     prisma.calendarToken.findFirst({ select: { id: true } }),
+    // Oferty klienta — lejek przed umową, panel „Oferty" + kafel etapu w KPI.
+    prisma.offer.findMany({
+      where: { clientId: params.id },
+      orderBy: { createdAt: 'desc' },
+      include: { items: { orderBy: { position: 'asc' }, select: { label: true } } },
+    }),
   ])
 
   if (!client) notFound()
@@ -93,6 +100,25 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
   const kpi = computeClientKpi(portfolioRows, contracts)
   const flags = computeAttentionFlags(portfolioRows, contracts)
   const timeline = buildTimeline(client.activities, contracts)
+
+  const offerRows: ClientOfferRow[] = offers.map((o) => ({
+    id: o.id,
+    number: o.number,
+    title: o.title,
+    status: o.status,
+    createdAtISO: o.createdAt.toISOString(),
+    validUntilISO: o.validUntil?.toISOString() ?? null,
+    totalGross: o.totalGross,
+    totalDiscountGross: o.totalDiscountGross,
+    itemLabels: o.items.map((i) => i.label),
+  }))
+  // Najdalsza oferta do kafla KPI (gdy brak umów): zaakceptowana > wysłana > szkic;
+  // odrzucone/anulowane pomijamy. Lista jest posortowana malejąco po dacie,
+  // więc przy remisie wygrywa najnowsza.
+  const OFFER_RANK: Record<string, number> = { ZAAKCEPTOWANA: 3, WYSLANA: 2, SZKIC: 1 }
+  const topOffer = offers
+    .filter((o) => OFFER_RANK[o.status])
+    .sort((a, b) => OFFER_RANK[b.status] - OFFER_RANK[a.status])[0] ?? null
 
   const assignedUnitIds = client.clientUnits.map((cu) => cu.unitId)
   // Available = not already assigned and not sold/hard-reserved by someone else
@@ -158,7 +184,13 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
 
       {/* Pasek KPI: co i za ile kupił + flagi „Wymaga uwagi" */}
       <div className="mb-4 v2-card-in" style={{ animationDelay: '.05s' }}>
-        <ClientSummaryBar kpi={kpi} flags={flags} clientId={client.id} unitCount={client.clientUnits.length} />
+        <ClientSummaryBar
+          kpi={kpi}
+          flags={flags}
+          clientId={client.id}
+          unitCount={client.clientUnits.length}
+          topOffer={topOffer ? { id: topOffer.id, status: topOffer.status } : null}
+        />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
@@ -209,6 +241,11 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
                 </div>
               </details>
             )}
+          </div>
+
+          {/* Oferty — lejek przed umową */}
+          <div className="v2-card-in" style={{ animationDelay: '.10s' }}>
+            <ClientOffersPanel offers={offerRows} hasContracts={dealCards.length > 0} />
           </div>
 
           {/* Portfel lokali: co, za ile, z jakim rabatem */}
