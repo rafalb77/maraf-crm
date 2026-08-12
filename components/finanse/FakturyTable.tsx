@@ -2,6 +2,7 @@
 import Link from 'next/link'
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
+import { isSessionExpired } from '@/lib/api-client'
 import {
   PURCHASE_INVOICE_STATUS_LABELS,
   PURCHASE_INVOICE_STATUS_COLORS,
@@ -93,7 +94,11 @@ export function FakturyTable({ rows, totals, currentSort, sortOptions }: Props) 
         body: JSON.stringify({ ids }),
       })
       const data = await r.json().catch(() => ({}))
-      if (!r.ok) { alert(data.error || 'Błąd zatwierdzania'); return }
+      if (!r.ok) {
+        if (isSessionExpired(r)) return
+        alert(data.error || 'Błąd zatwierdzania')
+        return
+      }
       setSelected(new Set())
       router.refresh()
     } catch (e: any) {

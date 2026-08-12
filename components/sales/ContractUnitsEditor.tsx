@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { Car, Home, Loader2, Package, Plus, Store, Warehouse, X, type LucideIcon } from 'lucide-react'
 import { UNIT_TYPE_LABELS, type UnitType } from '@/lib/types'
 import { formatArea, formatCurrency } from '@/lib/utils'
+import { isSessionExpired, SESSION_EXPIRED_HINT } from '@/lib/api-client'
 
 type UnitRow = {
   unitId: string
@@ -90,6 +91,7 @@ export function ContractUnitsEditor({
   units,
   availableUnits,
   reservationFee: storedFee,
+  contractUpdatedAt,
 }: {
   contractId: string
   status: string
@@ -97,6 +99,8 @@ export function ContractUnitsEditor({
   availableUnits: AvailableUnit[]
   /** Opłata rezerwacyjna zapisana na umowie (1% wartości); null dla starych umów. */
   reservationFee?: number | null
+  /** Znacznik wersji umowy (ISO) — backend odrzuci zapis, gdy ktoś edytował równolegle. */
+  contractUpdatedAt?: string
 }) {
   const router = useRouter()
   const canEdit = status === 'W_PRZYGOTOWANIU'
@@ -214,9 +218,17 @@ export function ContractUnitsEditor({
       const res = await fetch(`/api/contracts/${contractId}/units`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ units: rows.map((r) => ({ unitId: r.unitId, priceGross: finalGrossOf(r) })) }),
+        body: JSON.stringify({
+          units: rows.map((r) => ({ unitId: r.unitId, priceGross: finalGrossOf(r) })),
+          expectedUpdatedAt: contractUpdatedAt,
+        }),
       })
       if (!res.ok) {
+        // Wygasła sesja (8h): komunikat ratujący zmiany, formularz zostaje otwarty.
+        if (isSessionExpired(res)) {
+          setError(SESSION_EXPIRED_HINT)
+          return
+        }
         const d = await res.json().catch(() => ({}))
         throw new Error(d.error || 'Nie udało się zapisać składników')
       }

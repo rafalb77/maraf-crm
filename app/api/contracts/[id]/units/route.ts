@@ -25,7 +25,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
   const contract = await prisma.contract.findUnique({
     where: { id: params.id },
     select: {
-      id: true, type: true, status: true, clientId: true,
+      id: true, type: true, status: true, clientId: true, updatedAt: true,
       contractUnits: { select: { unitId: true, priceNet: true, priceGross: true } },
     },
   })
@@ -40,6 +40,20 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
   }
 
   const body = await req.json().catch(() => ({}))
+
+  // Optymistyczna blokada: front wysyła znacznik wersji umowy z chwili
+  // wyrenderowania strony. Rozjazd = ktoś edytował umowę równolegle — bez tego
+  // ostatni zapis po cichu nadpisywał wcześniejszy. Brak pola = stary klient
+  // (np. otwarta karta sprzed deployu) → sprawdzenie pomijamy.
+  if (typeof body.expectedUpdatedAt === 'string') {
+    const expected = new Date(body.expectedUpdatedAt).getTime()
+    if (!Number.isFinite(expected) || expected !== contract.updatedAt.getTime()) {
+      return NextResponse.json(
+        { error: 'Umowa została w międzyczasie zmieniona przez kogoś innego. Odśwież stronę i wprowadź zmiany ponownie.' },
+        { status: 409 },
+      )
+    }
+  }
   const rawUnits: { unitId?: string; priceGross?: unknown }[] = Array.isArray(body.units) ? body.units : []
   // Dedup wewnętrzny + walidacja unitId.
   const wanted = new Map<string, number>()

@@ -223,6 +223,7 @@ export default async function ContractDetailPage({ params }: { params: { id: str
             units={unitsForEditor}
             availableUnits={availableUnits}
             reservationFee={contract.reservationFee}
+            contractUpdatedAt={contract.updatedAt.toISOString()}
           />
 
           <ContractAnnexPanel

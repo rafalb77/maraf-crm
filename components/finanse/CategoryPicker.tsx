@@ -7,6 +7,7 @@ import {
   PURCHASE_INVOICE_CATEGORY_COLORS,
   type PurchaseInvoiceCategory,
 } from '@/lib/types'
+import { isSessionExpired, SESSION_EXPIRED_HINT } from '@/lib/api-client'
 
 // Szybkie przypisanie faktury do kategorii kosztowej. Zestaw kategorii
 // zalezy od spolki (Maraf: Tynki; MD: Grunwaldzka). Klik w kafelek zapisuje
@@ -25,6 +26,7 @@ export function CategoryPicker({ invoiceId, category, company }: { invoiceId: st
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ category: next }),
       })
+      if (isSessionExpired(r)) { setError(SESSION_EXPIRED_HINT); return }
       const data = await r.json().catch(() => ({}))
       if (!r.ok) { setError(data.error || 'Błąd zapisu'); return }
       router.refresh()

@@ -1,6 +1,7 @@
 'use client'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
+import { isSessionExpired, SESSION_EXPIRED_HINT } from '@/lib/api-client'
 
 // Akcje faktury przychodowej: konwersja zaliczki na zwykla, anulowanie.
 export function SalesInvoiceActions({ invoiceId, isAdvance, status }: { invoiceId: string; isAdvance: boolean; status: string }) {
@@ -14,6 +15,7 @@ export function SalesInvoiceActions({ invoiceId, isAdvance, status }: { invoiceI
       const r = await fetch(`/api/finanse/sales-invoices/${invoiceId}`, {
         method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body),
       })
+      if (isSessionExpired(r)) { setError(SESSION_EXPIRED_HINT); return }
       const data = await r.json()
       if (!r.ok) { setError(data.error || 'Blad'); return }
       router.refresh()

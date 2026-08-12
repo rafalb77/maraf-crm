@@ -1,6 +1,7 @@
 'use client'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
+import { isSessionExpired } from '@/lib/api-client'
 import {
   SALES_INVOICE_CATEGORIES,
   SALES_INVOICE_CATEGORY_LABELS,
@@ -24,7 +25,7 @@ export function SalesCategoryCell({ invoiceId, category }: { invoiceId: string; 
         body: JSON.stringify({ category: next || null }),
       })
       if (r.ok) { setEditing(false); router.refresh() }
-      else {
+      else if (!isSessionExpired(r)) {
         const data = await r.json().catch(() => ({}))
         alert(data.error || 'Błąd zapisu kategorii')
       }

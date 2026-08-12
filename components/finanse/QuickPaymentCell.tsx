@@ -1,6 +1,7 @@
 'use client'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
+import { isSessionExpired, SESSION_EXPIRED_HINT } from '@/lib/api-client'
 import { fmtMoney } from '@/lib/finanse-format'
 
 // Statusy, w ktorych API pozwala dodac platnosc (lustro payableStatuses
@@ -56,7 +57,11 @@ export function QuickPaymentCell({ invoiceId, remaining, status, kind, buttonLab
         }),
       })
       const data = await r.json().catch(() => ({}))
-      if (!r.ok) { setError(data.error || 'Błąd zapisu'); return }
+      if (!r.ok) {
+        if (isSessionExpired(r)) { setError(SESSION_EXPIRED_HINT); return }
+        setError(data.error || 'Błąd zapisu')
+        return
+      }
       setOpen(false)
       router.refresh()
     } catch (e: any) {

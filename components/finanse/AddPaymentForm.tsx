@@ -1,6 +1,7 @@
 'use client'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
+import { isSessionExpired, SESSION_EXPIRED_HINT } from '@/lib/api-client'
 
 export function AddPaymentForm({ invoiceId, remaining }: { invoiceId: string; remaining: number }) {
   const router = useRouter()
@@ -37,6 +38,11 @@ export function AddPaymentForm({ invoiceId, remaining }: { invoiceId: string; re
           notes: notes || null,
         }),
       })
+      if (isSessionExpired(r)) {
+        setError(SESSION_EXPIRED_HINT)
+        setLoading(false)
+        return
+      }
       const data = await r.json()
       if (!r.ok) {
         setError(data.error || 'Blad')

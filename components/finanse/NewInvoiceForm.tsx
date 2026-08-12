@@ -1,6 +1,7 @@
 'use client'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
+import { isSessionExpired, SESSION_EXPIRED_HINT } from '@/lib/api-client'
 
 type Vendor = {
   id: string
@@ -74,6 +75,11 @@ export function NewInvoiceForm({ vendors, company }: { vendors: Vendor[]; compan
           description: description.trim() || null,
         }),
       })
+      if (isSessionExpired(r)) {
+        setError(SESSION_EXPIRED_HINT)
+        setLoading(false)
+        return
+      }
       const data = await r.json()
       if (!r.ok) {
         setError(data.error || 'Blad')

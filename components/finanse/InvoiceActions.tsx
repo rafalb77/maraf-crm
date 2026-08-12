@@ -1,6 +1,7 @@
 'use client'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
+import { isSessionExpired, SESSION_EXPIRED_HINT } from '@/lib/api-client'
 
 type Props = {
   invoiceId: string
@@ -57,6 +58,11 @@ export function InvoiceActions({ invoiceId, status, canApprove, isAdmin }: Props
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ action, comment: withComment }),
       })
+      if (isSessionExpired(r)) {
+        setError(SESSION_EXPIRED_HINT)
+        setLoading(null)
+        return
+      }
       const data = await r.json()
       if (!r.ok) {
         setError(data.error || 'Blad')

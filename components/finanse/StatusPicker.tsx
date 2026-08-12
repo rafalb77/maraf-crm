@@ -2,6 +2,7 @@
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { PURCHASE_INVOICE_STATUS_LABELS, type PurchaseInvoiceStatus } from '@/lib/types'
+import { isSessionExpired, SESSION_EXPIRED_HINT } from '@/lib/api-client'
 
 const ALL_STATUSES: PurchaseInvoiceStatus[] = [
   'POBRANA', 'WPROWADZONA', 'DO_ZATWIERDZENIA', 'ZATWIERDZONA',
@@ -24,6 +25,7 @@ export function StatusPicker({ invoiceId, status }: { invoiceId: string; status:
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ status: next }),
       })
+      if (isSessionExpired(r)) { setError(SESSION_EXPIRED_HINT); return }
       const data = await r.json().catch(() => ({}))
       if (!r.ok) { setError(data.error || 'Błąd zapisu'); return }
       router.refresh()

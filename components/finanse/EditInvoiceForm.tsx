@@ -1,6 +1,7 @@
 'use client'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
+import { isSessionExpired, SESSION_EXPIRED_HINT } from '@/lib/api-client'
 
 type VendorOption = { id: string; name: string }
 
@@ -78,7 +79,11 @@ export function EditInvoiceForm(p: Props) {
         }),
       })
       const data = await r.json().catch(() => ({}))
-      if (!r.ok) { setError(data.error || 'Błąd zapisu'); return }
+      if (!r.ok) {
+        if (isSessionExpired(r)) { setError(SESSION_EXPIRED_HINT); return }
+        setError(data.error || 'Błąd zapisu')
+        return
+      }
       router.refresh()
       setOpen(false)
     } catch (e: any) {
