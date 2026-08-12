@@ -15,6 +15,7 @@ type UnitRow = {
   floor: number | null
   basePriceGross: number // cennik (live)
   priceGross: number // snapshot na umowie (po rabacie)
+  priceNet: number // snapshot netto (fallback wyliczony z VAT w page.tsx)
 }
 type AvailableUnit = {
   id: string
@@ -230,6 +231,7 @@ export function ContractUnitsEditor({
 
   const totalBase = units.reduce((s, u) => s + u.basePriceGross, 0)
   const totalSnapshot = units.reduce((s, u) => s + u.priceGross, 0)
+  const totalNet = units.reduce((s, u) => s + u.priceNet, 0)
   const totalDiscount = round2(totalBase - totalSnapshot)
 
   return (
@@ -293,6 +295,7 @@ export function ContractUnitsEditor({
                       )}
                       <Detail label="Rabat">{discounted ? formatPct(discountPct) : '—'}</Detail>
                       <Detail label="Rabat brutto">{discounted ? formatCurrency(discountGross) : '—'}</Detail>
+                      <Detail label="Cena netto">{formatCurrency(u.priceNet)}</Detail>
                       <Detail label="Cena brutto">
                         <span className="font-semibold">{formatCurrency(u.priceGross)}</span>
                       </Detail>
@@ -307,7 +310,11 @@ export function ContractUnitsEditor({
                 <span>−{formatCurrency(totalDiscount)}</span>
               </div>
             )}
-            <div className="flex justify-between items-center pt-2 text-sm border-t border-gray-100">
+            <div className="flex justify-between items-center pt-2 text-xs text-gray-500 border-t border-gray-100">
+              <span>Razem netto</span>
+              <span className="tabular-nums">{formatCurrency(totalNet)}</span>
+            </div>
+            <div className="flex justify-between items-center text-sm">
               <span className="text-gray-600">Razem brutto</span>
               <span className="font-semibold text-gray-900">{formatCurrency(totalSnapshot)}</span>
             </div>

@@ -64,6 +64,13 @@ export default async function ContractDetailPage({ params }: { params: { id: str
     floor: cu.unit.floor,
     basePriceGross: cu.unit.priceGross,
     priceGross: cu.priceGross ?? cu.unit.priceGross,
+    // Netto: snapshot z umowy; legacy bez snapshotu netto ale z brutto po
+    // rabacie → przelicz z VAT (cennikowe netto kłóciłoby się z rabatem).
+    priceNet:
+      cu.priceNet ??
+      (cu.priceGross != null
+        ? Math.round((cu.priceGross / (1 + (cu.unit.vatRate ?? 8) / 100)) * 100) / 100
+        : cu.unit.priceNet),
   }))
   const currentUnitIds = contract.contractUnits.map((cu) => cu.unitId)
   // Lokale z INNYCH aktywnych umów tego klienta — też wykluczamy z dropdownu
