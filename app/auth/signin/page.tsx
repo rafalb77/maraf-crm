@@ -51,9 +51,14 @@ export default function SignInPage() {
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+              {/* name + autoComplete: bez nich menedżer haseł przeglądarki nie
+                  rozpoznaje formularza logowania (brak zapisu i autouzupełniania). */}
               <input
+                id="email"
+                name="email"
                 type="email"
+                autoComplete="username"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -63,7 +68,7 @@ export default function SignInPage() {
             </div>
             <div>
               <div className="flex items-center justify-between mb-1">
-                <label className="block text-sm font-medium text-gray-700">Hasło</label>
+                <label htmlFor="password" className="block text-sm font-medium text-gray-700">Hasło</label>
                 <Link
                   href="/auth/forgot-password"
                   className="text-sm text-blue-600 hover:text-blue-700 hover:underline"
@@ -73,7 +78,10 @@ export default function SignInPage() {
               </div>
               <div className="relative">
                 <input
+                  id="password"
+                  name="password"
                   type={showPassword ? 'text' : 'password'}
+                  autoComplete="current-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required

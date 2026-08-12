@@ -127,8 +127,12 @@ export default function ResetPasswordPage() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nowe hasło</label>
                 <div className="relative">
+                  {/* autoComplete="new-password": menedżer haseł zaproponuje
+                      silne hasło i zaktualizuje zapisany wpis po zmianie. */}
                   <input
+                    name="password"
                     type={showPassword ? 'text' : 'password'}
+                    autoComplete="new-password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
@@ -151,7 +155,9 @@ export default function ResetPasswordPage() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Powtórz hasło</label>
                 <input
+                  name="password2"
                   type={showPassword ? 'text' : 'password'}
+                  autoComplete="new-password"
                   value={password2}
                   onChange={(e) => setPassword2(e.target.value)}
                   required
