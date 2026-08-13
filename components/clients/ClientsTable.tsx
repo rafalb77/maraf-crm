@@ -1,6 +1,6 @@
 'use client'
 import Link from 'next/link'
-import { formatDateTime } from '@/lib/utils'
+import { formatDate, formatDateTime } from '@/lib/utils'
 import { CLIENT_STATUS_LABELS, CLIENT_STATUS_COLORS, type ClientStatus } from '@/lib/types'
 import { ClickableRow } from '@/components/ui/ClickableRow'
 import { useTableSort, SortHeader } from '@/components/ui/sortableTable'
@@ -15,10 +15,11 @@ export type ClientRow = {
   status: string
   unitNumbers: string[]
   activitiesCount: number
+  createdAt: string // ISO — data wprowadzenia klienta do bazy
   updatedAt: string // ISO
 }
 
-type Key = 'klient' | 'kontakt' | 'status' | 'lokale' | 'dzialania' | 'aktywnosc'
+type Key = 'klient' | 'kontakt' | 'status' | 'lokale' | 'dzialania' | 'dodano' | 'aktywnosc'
 
 function getValue(r: ClientRow, key: Key): string | number | null {
   switch (key) {
@@ -27,6 +28,7 @@ function getValue(r: ClientRow, key: Key): string | number | null {
     case 'status': return CLIENT_STATUS_LABELS[r.status as ClientStatus] || r.status
     case 'lokale': return r.unitNumbers.length
     case 'dzialania': return r.activitiesCount
+    case 'dodano': return r.createdAt
     case 'aktywnosc': return r.updatedAt
   }
 }
@@ -96,13 +98,14 @@ export function ClientsTable({ rows }: { rows: ClientRow[] }) {
             <SortHeader label="Status" colKey="status" activeKey={sortKey} dir={sortDir} onSort={onSort} className={TH} />
             <SortHeader label="Lokale" colKey="lokale" activeKey={sortKey} dir={sortDir} onSort={onSort} className={TH} />
             <SortHeader label="Działania" colKey="dzialania" activeKey={sortKey} dir={sortDir} onSort={onSort} className={TH} align="right" />
+            <SortHeader label="Dodano" colKey="dodano" activeKey={sortKey} dir={sortDir} onSort={onSort} className={TH} />
             <SortHeader label="Ostatnia aktywność" colKey="aktywnosc" activeKey={sortKey} dir={sortDir} onSort={onSort} className={TH} />
           </tr>
         </thead>
         <tbody>
           {sorted.length === 0 ? (
             <tr>
-              <td colSpan={6} className="px-4 py-12 text-center text-gray-400">Brak klientów spełniających kryteria</td>
+              <td colSpan={7} className="px-4 py-12 text-center text-gray-400">Brak klientów spełniających kryteria</td>
             </tr>
           ) : (
             sorted.map((client) => (
@@ -133,6 +136,7 @@ export function ClientsTable({ rows }: { rows: ClientRow[] }) {
                     : <span className="text-gray-400">—</span>}
                 </td>
                 <td className="px-4 py-3 text-right text-gray-600">{client.activitiesCount}</td>
+                <td className="px-4 py-3 text-xs text-gray-400 whitespace-nowrap">{formatDate(new Date(client.createdAt))}</td>
                 <td className="px-4 py-3 text-xs text-gray-400">{formatDateTime(new Date(client.updatedAt))}</td>
               </ClickableRow>
             ))

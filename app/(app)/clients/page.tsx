@@ -84,6 +84,7 @@ export default async function ClientsPage({
             ...c.contracts.flatMap((ct) => ct.contractUnits.map((cu) => cu.unit.number)),
           ])),
           activitiesCount: c._count.activities,
+          createdAt: c.createdAt.toISOString(),
           updatedAt: c.updatedAt.toISOString(),
         }))}
       />
