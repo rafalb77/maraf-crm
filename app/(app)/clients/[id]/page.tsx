@@ -57,7 +57,7 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
         // zjadałby budżet 50 i wypychał z osi stare zdarzenia istotne.
         // Lista zsynchronizowana z CONTRACT_EVENT_TITLES w lib/client-portfolio.ts.
         history: {
-          where: { event: { in: ['UTWORZONO', 'UTWORZONA', 'ZMIANA_STATUSU', 'ZMIANA_ETAPU', 'ANEKS'] } },
+          where: { event: { in: ['UTWORZONO', 'UTWORZONA', 'ZMIANA_STATUSU', 'ZMIANA_ETAPU', 'ANEKS', 'WSPOLKUPUJACY'] } },
           orderBy: { createdAt: 'desc' },
           take: 50,
         },

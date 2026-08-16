@@ -16,6 +16,7 @@ import { ContractPaymentsPanel } from '@/components/sales/ContractPaymentsPanel'
 import { ContractStageStepper } from '@/components/sales/ContractStageStepper'
 import { ContractUnitsEditor } from '@/components/sales/ContractUnitsEditor'
 import { ContractAnnexPanel } from '@/components/sales/ContractAnnexPanel'
+import { ContractCoBuyersEditor } from '@/components/sales/ContractCoBuyersEditor'
 
 export default async function ContractDetailPage({ params }: { params: { id: string } }) {
   const contract = await prisma.contract.findUnique({
@@ -53,6 +54,18 @@ export default async function ContractDetailPage({ params }: { params: { id: str
     select: { id: true, name: true },
     orderBy: { createdAt: 'asc' },
   })
+
+  // Współrezerwujący do edytora: bez głównego klienta (import/konwersja
+  // wpisywały go także jako contractClient — nie pokazujemy go drugi raz).
+  const coBuyersForEditor = contract.contractClients
+    .filter((cc) => cc.clientId !== contract.clientId)
+    .map((cc) => ({ id: cc.clientId, firstName: cc.client.firstName, lastName: cc.client.lastName }))
+  const excludedCoBuyerIds = new Set([contract.clientId, ...contract.contractClients.map((cc) => cc.clientId)])
+  const allClientsForCoBuyer = await prisma.client.findMany({
+    select: { id: true, firstName: true, lastName: true },
+    orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
+  })
+  const availableCoBuyers = allClientsForCoBuyer.filter((c) => !excludedCoBuyerIds.has(c.id))
 
   // Składniki umowy do edytora: cena bazowa (cennik) + snapshot na umowie.
   const unitsForEditor = contract.contractUnits.map((cu) => ({
@@ -192,17 +205,12 @@ export default async function ContractDetailPage({ params }: { params: { id: str
                 {contract.client.firstName} {contract.client.lastName}
               </Link>
             </Row>
-            {contract.contractClients
-              // Import/konwersja wpisywały głównego klienta także jako contractClient
-              // — nie pokazujemy go drugi raz jako „współrezerwującego".
-              .filter((cc) => cc.clientId !== contract.clientId)
-              .map((cc, idx) => (
-                <Row key={cc.id} label={`Współrezerwujący ${idx + 1}`}>
-                  <Link href={`/clients/${cc.clientId}`} className="text-blue-600 hover:text-blue-700">
-                    {cc.client.firstName} {cc.client.lastName}
-                  </Link>
-                </Row>
-              ))}
+            <ContractCoBuyersEditor
+              contractId={contract.id}
+              contractType={contract.type}
+              coBuyers={coBuyersForEditor}
+              availableClients={availableCoBuyers}
+            />
             <Row label="Data wprowadzenia" value={formatDate(contract.introducedAt)} />
             <Row label="Data podpisania" value={contract.signedAt ? formatDate(contract.signedAt) : '—'} />
             <Row

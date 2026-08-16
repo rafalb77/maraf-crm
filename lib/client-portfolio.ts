@@ -482,6 +482,7 @@ const CONTRACT_EVENT_TITLES: Record<string, (number: string) => string> = {
   ZMIANA_STATUSU: (n) => `Zmiana statusu umowy ${n}`,
   ZMIANA_ETAPU: (n) => `Zmiana etapu umowy ${n}`,
   ANEKS: (n) => `Aneks do umowy ${n}`,
+  WSPOLKUPUJACY: (n) => `Zmiana kupujących umowy ${n}`,
 }
 
 export function buildTimeline(
