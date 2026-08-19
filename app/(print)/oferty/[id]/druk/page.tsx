@@ -1,7 +1,9 @@
+import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import Image from 'next/image'
 import { prisma } from '@/lib/prisma'
 import { PrintActions } from '@/components/oferty/PrintActions'
+import { buildOfferFilenameBase } from '@/lib/offer-filename'
 
 const TYPE_LABELS: Record<string, string> = {
   MIESZKALNY: 'Mieszkanie',
@@ -18,6 +20,27 @@ function fmt(n: number) {
 const NAVY = '#2C3E54'
 const GOLD = '#C9A37A'
 const GOLD_DARK = '#8B6F47'
+
+// Tytuł dokumentu = nazwa pliku sugerowana przez przeglądarkę przy „Zapisz jako PDF"
+// (window.print). Nadpisuje domyślne „Wydruk" z layoutu (print).
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}): Promise<Metadata> {
+  const { id } = await params
+  const offer = await prisma.offer.findUnique({
+    where: { id },
+    select: {
+      number: true,
+      createdAt: true,
+      client: { select: { firstName: true, lastName: true } },
+      items: { select: { label: true }, orderBy: { position: 'asc' } },
+    },
+  })
+  if (!offer) return { title: 'Wydruk' }
+  return { title: buildOfferFilenameBase(offer) }
+}
 
 export default async function OfferPrintPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params

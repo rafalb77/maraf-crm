@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { generateOfferPdf } from '@/lib/pdf-generator'
+import { buildOfferFilenameBase, offerContentDisposition } from '@/lib/offer-filename'
 
 export const runtime = 'nodejs'
 
@@ -16,17 +17,24 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { id } = await params
-  const offer = await prisma.offer.findUnique({ where: { id }, select: { number: true } })
+  const offer = await prisma.offer.findUnique({
+    where: { id },
+    select: {
+      number: true,
+      createdAt: true,
+      client: { select: { firstName: true, lastName: true } },
+      items: { select: { label: true }, orderBy: { position: 'asc' } },
+    },
+  })
   if (!offer) return NextResponse.json({ error: 'Nie znaleziono oferty' }, { status: 404 })
 
   try {
     const pdf = await generateOfferPdf(id)
-    const filename = `${(offer.number || 'oferta').replace(/[/\\]/g, '-')}.pdf`
     return new NextResponse(pdf as any, {
       status: 200,
       headers: {
         'Content-Type': 'application/pdf',
-        'Content-Disposition': `inline; filename="${filename}"`,
+        'Content-Disposition': offerContentDisposition(buildOfferFilenameBase(offer), 'inline'),
         'Content-Length': String(pdf.byteLength),
       },
     })

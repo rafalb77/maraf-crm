@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma'
 import { sendEmail, toFriendlyMailError } from '@/lib/mailer'
 import { generateOfferPdf } from '@/lib/pdf-generator'
 import { advanceClientToOferta } from '@/lib/client-status'
+import { buildOfferFilenameBase } from '@/lib/offer-filename'
 
 function fmt(n: number) {
   return n.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -24,7 +25,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const offer = await prisma.offer.findUnique({
     where: { id },
-    select: { id: true, number: true, clientId: true, status: true, totalGross: true },
+    select: {
+      id: true, number: true, clientId: true, status: true, totalGross: true, createdAt: true,
+      client: { select: { firstName: true, lastName: true } },
+      items: { select: { label: true }, orderBy: { position: 'asc' } },
+    },
   })
   if (!offer) return NextResponse.json({ error: 'Nie znaleziono oferty' }, { status: 404 })
 
@@ -55,8 +60,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     console.warn('[oferty.email] PDF generation skipped:', e?.message)
   }
 
-  // Bezpieczna nazwa pliku PDF (slash w numerze oferty → myslnik)
-  const pdfFilename = `${(offer.number || 'oferta').replace(/[/\\]/g, '-')}.pdf`
+  // Nazwa pliku PDF: imie_nazwisko_nrLokalu_dataWystawienia (ASCII-safe)
+  const pdfFilename = `${buildOfferFilenameBase(offer)}.pdf`
   const attachments = pdfBuffer
     ? [{ filename: pdfFilename, content: pdfBuffer, contentType: 'application/pdf' }]
     : undefined
