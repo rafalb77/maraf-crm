@@ -68,6 +68,14 @@ export default async function UnitDetailPage({ params }: { params: { id: string 
               Generuj kreacje
             </Link>
           )}
+          {unit.type === 'MIESZKALNY' && (
+            <a
+              href={`/api/units/${unit.id}/prospekt`}
+              className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
+            >
+              Prospekt (.docx)
+            </a>
+          )}
           <Link
             href={`/units/${unit.id}/edit`}
             className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
