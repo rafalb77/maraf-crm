@@ -14,7 +14,16 @@ function fmt(n: number): string {
   return new Intl.NumberFormat('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n)
 }
 
-export function generateProspektDocx(unit: Unit): Buffer {
+export function generateProspektDocx(
+  unit: Unit,
+  opts?: {
+    /**
+     * Cena brutto z umowy (snapshot po rabacie) zamiast cennika — wtedy cena
+     * za m² jest przeliczana: cena po rabacie ÷ powierzchnia.
+     */
+    priceGrossOverride?: number
+  },
+): Buffer {
   if (unit.type !== 'MIESZKALNY') {
     throw new Error('Prospekt informacyjny generujemy tylko dla lokali mieszkalnych.')
   }
@@ -30,11 +39,17 @@ export function generateProspektDocx(unit: Unit): Buffer {
     delimiters: { start: '{{', end: '}}' },
   })
 
+  const priceGross = opts?.priceGrossOverride ?? unit.priceGross
+  // Bez nadpisania trzymamy się cennikowej stawki za m² (bez ryzyka groszowych
+  // rozjazdów zaokrągleń wobec karty lokalu); z ceną umowną — przeliczamy.
+  const pricePerSqm =
+    opts?.priceGrossOverride != null && unit.area > 0 ? priceGross / unit.area : unit.pricePerSqmGross
+
   doc.render({
     unitNumber: unit.number,
     unitArea: fmt(unit.area),
-    pricePerSqm: fmt(unit.pricePerSqmGross),
-    totalPrice: fmt(unit.priceGross),
+    pricePerSqm: fmt(pricePerSqm),
+    totalPrice: fmt(priceGross),
     // Kondygnacja = piętro + 1 (parter = pierwsza kondygnacja) — konwencja
     // z §1 umowy rezerwacyjnej („na kondygnacji pierwszej (parterze)").
     floorNo: String((unit.floor ?? 0) + 1),
