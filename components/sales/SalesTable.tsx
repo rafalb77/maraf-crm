@@ -1,4 +1,5 @@
 'use client'
+import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { formatDate, formatCurrency } from '@/lib/utils'
 import {
@@ -50,9 +51,29 @@ function initials(name: string): string {
 const TH = 'px-4 py-3 font-medium'
 
 export function SalesTable({ rows }: { rows: ContractRow[] }) {
-  const { sorted, sortKey, sortDir, onSort } = useTableSort<ContractRow, Key>(rows, getValue, 'podpis', 'desc')
+  // Szukajka lokalna: klient / numer umowy / numery lokali — działa w obrębie
+  // aktywnych filtrów statusu i typu (chipy nad tabelą, filtrowanie serwerowe).
+  const [query, setQuery] = useState('')
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    if (!q) return rows
+    return rows.filter(
+      (r) =>
+        r.clientName.toLowerCase().includes(q) ||
+        r.number.toLowerCase().includes(q) ||
+        r.unitLabel.toLowerCase().includes(q),
+    )
+  }, [rows, query])
+  const { sorted, sortKey, sortDir, onSort } = useTableSort<ContractRow, Key>(filtered, getValue, 'podpis', 'desc')
 
   return (
+    <div>
+      <input
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder="Szukaj: klient, numer umowy, lokal…"
+        className="w-full sm:max-w-xs px-4 py-2 mb-3 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+      />
     <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
       {/* Mobile (<md): karty zamiast tabeli — wzorzec ClientsTable.tsx. Cała karta
           klika w szczegóły umowy (Link absolute inset-0). */}
@@ -170,6 +191,7 @@ export function SalesTable({ rows }: { rows: ContractRow[] }) {
           )}
         </tbody>
       </table>
+    </div>
     </div>
   )
 }
