@@ -8,6 +8,7 @@ import {
   type ClientStatus, type ServiceStatus, type ContractType, type ContractStatus,
 } from '@/lib/types'
 import { expireSoftReservations } from '@/lib/reservations'
+import { maybeGenerateTasks } from '@/lib/tasks'
 import {
   isActiveContract, groupPriceHistory, buildDealCardData, buildPortfolioRows,
   computePortfolioSums, computeClientKpi, computeAttentionFlags, buildTimeline,
@@ -19,13 +20,17 @@ import { PromoteReservationButton } from '@/components/clients/PromoteReservatio
 import { ClientOwnerChanger } from '@/components/clients/ClientOwnerChanger'
 import { ClientSummaryBar } from '@/components/clients/ClientSummaryBar'
 import { ClientOffersPanel, type ClientOfferRow } from '@/components/clients/ClientOffersPanel'
+import { ClientTasksPanel, type ClientTaskRow } from '@/components/clients/ClientTasksPanel'
 import { ContractDealCard } from '@/components/clients/ContractDealCard'
 import { ClientUnitsPanel } from '@/components/clients/ClientUnitsPanel'
 import { ClientTimeline } from '@/components/clients/ClientTimeline'
 
 export default async function ClientDetailPage({ params }: { params: { id: string } }) {
   await expireSoftReservations()
-  const [client, contracts, allUnits, users, calendarToken, offers] = await Promise.all([
+  // Świeże zadania z silnika przypomnień (throttling 10 min, nigdy nie rzuca) —
+  // sekcja „Zaplanowane" pokazuje także reguły (raty, rezerwacje, koniec rezerwacji).
+  await maybeGenerateTasks()
+  const [client, contracts, allUnits, users, calendarToken, openTasks, offers] = await Promise.all([
     prisma.client.findUnique({
       where: { id: params.id },
       include: {
@@ -71,6 +76,12 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
     // Aktywne połączenie OAuth z Google Calendar (moduł Kalendarz) —
     // steruje checkboxem „Dodaj do Kalendarza Google" w formularzu działania.
     prisma.calendarToken.findFirst({ select: { id: true } }),
+    // Otwarte zadania klienta (ręczne + z reguł) — sekcja „Zaplanowane".
+    prisma.task.findMany({
+      where: { clientId: params.id, status: 'OTWARTE' },
+      orderBy: [{ pinned: 'desc' }, { dueAt: 'asc' }],
+      select: { id: true, title: true, description: true, type: true, dueAt: true, pinned: true, source: true },
+    }),
     // Oferty klienta — lejek przed umową, panel „Oferty" + kafel etapu w KPI.
     prisma.offer.findMany({
       where: { clientId: params.id },
@@ -100,6 +111,16 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
   const kpi = computeClientKpi(portfolioRows, contracts)
   const flags = computeAttentionFlags(portfolioRows, contracts)
   const timeline = buildTimeline(client.activities, contracts)
+
+  const taskRows: ClientTaskRow[] = openTasks.map((t) => ({
+    id: t.id,
+    title: t.title,
+    description: t.description,
+    type: t.type,
+    dueAtISO: t.dueAt?.toISOString() ?? null,
+    pinned: t.pinned,
+    source: t.source,
+  }))
 
   const offerRows: ClientOfferRow[] = offers.map((o) => ({
     id: o.id,
@@ -265,8 +286,13 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
           </div>
         </div>
 
-        {/* Prawa (wąska): dane osobowe + serwis + notatki */}
+        {/* Prawa (wąska): zaplanowane + dane osobowe + serwis + notatki */}
         <div className="lg:col-span-1 space-y-4">
+          {/* Zaplanowane działania (zadania z pulpitu przypięte do klienta) */}
+          <div className="v2-card-in" style={{ animationDelay: '.07s' }}>
+            <ClientTasksPanel clientId={client.id} tasks={taskRows} />
+          </div>
+
           {/* Personal data */}
           <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5 v2-card-in" style={{ animationDelay: '.09s' }}>
             <h2 className="font-semibold text-gray-900 mb-3.5">Dane osobowe</h2>
