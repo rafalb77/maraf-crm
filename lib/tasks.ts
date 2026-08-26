@@ -15,6 +15,9 @@ import type { TaskBucket } from './types'
  *    RES_EXPIRE tego samego lokalu/terminu (nie dublujemy wpisów w widgecie).
  *  - PAYMENT_DUE:<paymentId>:<yyyy-mm-dd> — rata harmonogramu (PLANOWANA) z terminem
  *    w ciągu N dni lub po terminie (Settings: tasks.paymentWarnDays, default 7)
+ *  - CONTRACT_RES_END:<contractId>:<yyyy-mm-dd> — podpisana umowa REZERWACYJNA
+ *    z terminem końca rezerwacji w ciągu N dni lub po terminie — czas podpisać
+ *    umowę deweloperską (Settings: tasks.contractResEndWarnDays, default 14)
  *
  * ruleKey zawiera datę źródła — przesunięcie terminu (przedłużenie rezerwacji,
  * zmiana plannedDate raty) tworzy NOWY klucz; stare zadanie domyka reconcile.
@@ -32,6 +35,12 @@ import type { TaskBucket } from './types'
 
 const RESERVATION_WARN_DAYS_DEFAULT = 3
 const PAYMENT_WARN_DAYS_DEFAULT = 7
+// Koniec rezerwacji umownej: podpisanie deweloperskiej wymaga umówienia
+// notariusza, stąd dłuższy horyzont niż przy rezerwacjach lokali.
+const CONTRACT_RES_END_WARN_DAYS_DEFAULT = 14
+// Nie twórz zadań dla terminów minionych dawniej niż 90 dni (stare umowy
+// z importu obsłużone poza systemem zalałyby pulpit szumem).
+const CONTRACT_RES_END_OVERDUE_MAX_DAYS = 90
 // Nie generuj zadań dla rat zaległych dawniej niż 90 dni — stare PLANOWANA
 // z importów (opłacone poza systemem) zalałyby pulpit szumem.
 const PAYMENT_OVERDUE_MAX_DAYS = 90
@@ -148,13 +157,14 @@ export async function generateTasks(): Promise<GenerateResult> {
   const { autoClosed, cancelled } = await reconcileRuleTasks()
 
   const now = new Date()
-  const [reservationRows, paymentRows, budowaRows] = await Promise.all([
+  const [reservationRows, paymentRows, contractResEndRows, budowaRows] = await Promise.all([
     buildReservationTaskRows(now),
     buildPaymentTaskRows(now),
+    buildContractResEndTaskRows(now),
     buildBudowaTaskRows(now), // moduł Budowa: opóźnienia / odbiory / kończące się umowy
   ])
 
-  const rows = [...reservationRows, ...paymentRows, ...budowaRows]
+  const rows = [...reservationRows, ...paymentRows, ...contractResEndRows, ...budowaRows]
   let created = 0
   if (rows.length > 0) {
     // skipDuplicates + unique(ruleKey) = idempotencja (także wobec zadań już
@@ -209,6 +219,51 @@ async function buildReservationTaskRows(now: Date) {
         assigneeId: u.reservedBy?.ownerId ?? null,
       }
     })
+}
+
+/**
+ * Podpisane umowy REZERWACYJNE, którym kończy się (lub minął) termin rezerwacji
+ * — przypomnienie o konieczności podpisania umowy deweloperskiej. Umowa po
+ * advance na etap deweloperski wypada z zapytania (type != REZERWACYJNA),
+ * a otwarte zadanie domyka reconcile jako ZROBIONE.
+ */
+async function buildContractResEndTaskRows(now: Date) {
+  const warnDays = await getIntSetting('tasks.contractResEndWarnDays', CONTRACT_RES_END_WARN_DAYS_DEFAULT)
+  const horizon = new Date(now.getTime() + warnDays * 86_400_000)
+  const overdueFloor = new Date(now.getTime() - CONTRACT_RES_END_OVERDUE_MAX_DAYS * 86_400_000)
+
+  const contracts = await prisma.contract.findMany({
+    where: {
+      type: 'REZERWACYJNA',
+      status: 'PODPISANA',
+      reservationEndDate: { not: null, lte: horizon, gte: overdueFloor },
+    },
+    select: {
+      id: true,
+      number: true,
+      reservationEndDate: true,
+      clientId: true,
+      client: { select: { firstName: true, lastName: true, phone: true, ownerId: true } },
+    },
+  })
+
+  return contracts.map((c) => {
+    const ends = c.reservationEndDate as Date
+    const verb = ends.getTime() < now.getTime() ? 'minął' : 'kończy się'
+    const contact = `${c.client.firstName} ${c.client.lastName}${c.client.phone ? `, tel. ${c.client.phone}` : ''}`
+    return {
+      title: `Termin rezerwacji umowy ${c.number} ${verb} ${fmtShortDate(ends)} — podpisz umowę deweloperską`,
+      description: `Klient: ${contact}. Umów notariusza i przeprowadź deal na etap deweloperski (karta umowy → „Przejdź do etapu").`,
+      type: 'REZERWACJA',
+      source: 'RULE',
+      ruleKey: `CONTRACT_RES_END:${c.id}:${warsawDateKey(ends)}`,
+      dueAt: ends,
+      contractId: c.id,
+      clientId: c.clientId,
+      // Kieruj do opiekuna klienta (null = pula wspólna, widoczne dla wszystkich)
+      assigneeId: c.client.ownerId ?? null,
+    }
+  })
 }
 
 /** Raty harmonogramu (PLANOWANA) z terminem w ciągu warnDays lub po terminie. */
@@ -269,6 +324,7 @@ export async function reconcileRuleTasks(): Promise<{ autoClosed: number; cancel
       ruleKey: true,
       clientId: true,
       payment: { select: { status: true, plannedDate: true, contract: { select: { status: true } } } },
+      contract: { select: { type: true, status: true, reservationEndDate: true } },
       unit: {
         select: {
           status: true,
@@ -308,6 +364,19 @@ export async function reconcileRuleTasks(): Promise<{ autoClosed: number; cancel
         cancelIds.push(t.id)
       } else if (!p.plannedDate || warsawDateKey(p.plannedDate) !== keyDate) {
         cancelIds.push(t.id) // termin przesunięty — nowe zadanie powstanie we właściwym horyzoncie
+      }
+    } else if (rule === 'CONTRACT_RES_END') {
+      const c = t.contract
+      if (!c) {
+        cancelIds.push(t.id)
+      } else if (c.type !== 'REZERWACYJNA') {
+        doneIds.push(t.id) // deal przeszedł na deweloperską/dalej — cel osiągnięty
+      } else if (c.status !== 'PODPISANA') {
+        cancelIds.push(t.id) // rozwiązana/anulowana/cofnięta do przygotowania
+      } else if (!c.reservationEndDate) {
+        cancelIds.push(t.id) // termin usunięty — bezprzedmiotowe
+      } else if (warsawDateKey(c.reservationEndDate) !== keyDate) {
+        doneIds.push(t.id) // termin przedłużony aneksem — temat obsłużony
       }
     } else if (rule === 'RES_EXPIRE' || rule === 'RES_CALL') {
       const u = t.unit
