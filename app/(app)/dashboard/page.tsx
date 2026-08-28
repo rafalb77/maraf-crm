@@ -12,7 +12,7 @@ import { TaskWidget } from '@/components/dashboard/TaskWidget'
 import { getSalesValue } from '@/lib/sales-metrics'
 
 async function getDashboardData() {
-  const [unitsByStatus, residentialByStatus, clientsByStatus, openService, recentActivities, recentClients, revenueData, residentialAll, residentialSold, salesValue] = await Promise.all([
+  const [unitsByStatus, residentialByStatus, clientsByStatus, openService, recentActivities, recentClients, revenueData, residentialAll, residentialSold, residentialReserved, salesValue] = await Promise.all([
     prisma.unit.groupBy({ by: ['status'], _count: true }),
     // Tylko lokale mieszkalne (bez usługowych, miejsc postojowych, garaży, komórek) — kafelek „Wolne mieszkania"
     prisma.unit.groupBy({ by: ['status'], where: { type: 'MIESZKALNY' }, _count: true }),
@@ -49,16 +49,22 @@ async function getDashboardData() {
       _sum: { area: true, priceGross: true },
       _count: true,
     }),
+    // Mieszkania w twardej rezerwacji (umowa rezerwacyjna) — do PUM „z rezerwacyjnymi".
+    prisma.unit.aggregate({
+      where: { type: 'MIESZKALNY', status: 'ZAREZERWOWANY', reservationType: 'REZERWACJA' },
+      _sum: { area: true },
+      _count: true,
+    }),
     // Wartość sprzedaży — wspólne źródło prawdy (cena z umowy wiążącej, nie cennik).
     getSalesValue(),
   ])
 
-  return { unitsByStatus, residentialByStatus, clientsByStatus, openService, recentActivities, recentClients, revenueData, residentialAll, residentialSold, salesValue }
+  return { unitsByStatus, residentialByStatus, clientsByStatus, openService, recentActivities, recentClients, revenueData, residentialAll, residentialSold, residentialReserved, salesValue }
 }
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions)
-  const { unitsByStatus, residentialByStatus, clientsByStatus, openService, recentActivities, recentClients, revenueData, residentialAll, residentialSold, salesValue } = await getDashboardData()
+  const { unitsByStatus, residentialByStatus, clientsByStatus, openService, recentActivities, recentClients, revenueData, residentialAll, residentialSold, residentialReserved, salesValue } = await getDashboardData()
 
   const unitStats = Object.fromEntries(unitsByStatus.map((u) => [u.status, u._count]))
   const residentialStats = Object.fromEntries(residentialByStatus.map((u) => [u.status, u._count]))
@@ -82,10 +88,13 @@ export default async function DashboardPage() {
 
   // Mieszkania (MIESZKALNY): sztuki, wartość i PUM — % PUM liczony po powierzchni
   const mSoldCount = residentialSold._count
-  const mSoldValue = salesValue.residential // cena z umowy (po rabacie), nie cennik
   const mSoldArea = residentialSold._sum.area || 0
   const mTotalArea = residentialAll._sum.area || 0
   const pumPct = mTotalArea > 0 ? Math.round((mSoldArea / mTotalArea) * 100) : 0
+  // PUM „z rezerwacyjnymi" = sprzedane + mieszkania w twardej rezerwacji (umowa rezerwacyjna).
+  const mReservedArea = residentialReserved._sum.area || 0
+  const mSoldResArea = mSoldArea + mReservedArea
+  const pumPctWithRes = mTotalArea > 0 ? Math.round((mSoldResArea / mTotalArea) * 100) : 0
   const fmtM2 = (n: number) => `${Math.round(n).toLocaleString('pl-PL')} m²`
 
   return (
@@ -182,24 +191,24 @@ export default async function DashboardPage() {
             </div>
             <div>
               <div className="v2-eyebrow" style={{ color: 'var(--color-brand-gold)' }}>
-                Wartość
-              </div>
-              <div className="mt-0.5 font-bold tabular-nums" style={{ fontSize: 16, color: '#F2E8D6' }}>
-                {formatCurrency(mSoldValue)}
-              </div>
-              <div className="text-[11px]" style={{ color: 'rgba(242,232,214,.65)' }}>
-                sprzedane mieszkania
-              </div>
-            </div>
-            <div>
-              <div className="v2-eyebrow" style={{ color: 'var(--color-brand-gold)' }}>
-                PUM
+                PUM (umowy dew.)
               </div>
               <div className="mt-0.5 font-bold tabular-nums" style={{ fontSize: 16, color: '#F2E8D6' }}>
                 {pumPct}%
               </div>
               <div className="text-[11px]" style={{ color: 'rgba(242,232,214,.65)' }}>
                 {fmtM2(mSoldArea)} z {fmtM2(mTotalArea)}
+              </div>
+            </div>
+            <div>
+              <div className="v2-eyebrow" style={{ color: 'var(--color-brand-gold)' }}>
+                PUM (z rezerwacyjnymi)
+              </div>
+              <div className="mt-0.5 font-bold tabular-nums" style={{ fontSize: 16, color: '#F2E8D6' }}>
+                {pumPctWithRes}%
+              </div>
+              <div className="text-[11px]" style={{ color: 'rgba(242,232,214,.65)' }}>
+                {fmtM2(mSoldResArea)} z {fmtM2(mTotalArea)}
               </div>
             </div>
           </div>
