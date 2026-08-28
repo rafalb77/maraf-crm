@@ -18,8 +18,10 @@ export async function getSalesValue(): Promise<{
   residentialCount: number
   reservation: number
   reservationCount: number
+  /** Wartość cennikowa CAŁEJ inwestycji (suma priceGross wszystkich lokali) — mianownik procentów. */
+  investmentTotal: number
 }> {
-  const [soldUnits, reservedUnits] = await Promise.all([
+  const [soldUnits, reservedUnits, investmentAgg] = await Promise.all([
     prisma.unit.findMany({
       where: { status: 'SPRZEDANY' },
       select: {
@@ -45,6 +47,7 @@ export async function getSalesValue(): Promise<{
         },
       },
     }),
+    prisma.unit.aggregate({ _sum: { priceGross: true } }),
   ])
 
   let total = 0
@@ -72,5 +75,13 @@ export async function getSalesValue(): Promise<{
     reservationCount++
   }
 
-  return { total, residential, soldCount: soldUnits.length, residentialCount, reservation, reservationCount }
+  return {
+    total,
+    residential,
+    soldCount: soldUnits.length,
+    residentialCount,
+    reservation,
+    reservationCount,
+    investmentTotal: investmentAgg._sum.priceGross ?? 0,
+  }
 }

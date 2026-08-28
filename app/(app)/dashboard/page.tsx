@@ -70,6 +70,13 @@ export default async function DashboardPage() {
   // (suma cennika SPRZEDANYCH) już nieużywane do kwoty — zostaje dla zgodności.
   void revenueData
   const revenue = salesValue.total
+  // Procenty WARTOŚCI (nie sztuk): sprzedane po umowach deweloperskich/przeniesienia
+  // oraz w rezerwacjach — wobec wartości cennikowej całej inwestycji.
+  const fmtPct1 = (n: number) =>
+    new Intl.NumberFormat('pl-PL', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(n)
+  const invValue = salesValue.investmentTotal
+  const soldValPct = invValue > 0 ? fmtPct1((salesValue.total / invValue) * 100) : '0,0'
+  const resValPct = invValue > 0 ? fmtPct1((salesValue.reservation / invValue) * 100) : '0,0'
   const soldUnits = unitStats['SPRZEDANY'] || 0
   const soldPct = totalUnits > 0 ? Math.round((soldUnits / totalUnits) * 100) : 0
 
@@ -112,7 +119,7 @@ export default async function DashboardPage() {
             </span>
             {salesValue.reservation > 0 && (
               <span className="tabular-nums" style={{ fontSize: 15, color: 'rgba(242,232,214,.58)' }}>
-                + {formatCurrency(salesValue.reservation)} w rezerwacjach
+                + {formatCurrency(salesValue.reservation)} w rezerwacjach ({resValPct}%)
               </span>
             )}
           </div>
@@ -134,11 +141,34 @@ export default async function DashboardPage() {
             />
           </div>
 
-          {/* Mieszkania (MIESZKALNY): wartość sprzedanych, sztuki i % PUM po powierzchni */}
+          {/* Wartości wg etapu (umowy dew./przeniesienia vs rezerwacje) z % wartości
+              inwestycji + mieszkania: sztuki, wartość i % PUM po powierzchni */}
           <div
-            className="mt-3.5 pt-3 grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4 max-w-[560px]"
+            className="mt-3.5 pt-3 grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4 max-w-[720px]"
             style={{ borderTop: '1px solid rgba(242,232,214,.12)' }}
           >
+            <div>
+              <div className="v2-eyebrow" style={{ color: 'var(--color-brand-gold)' }}>
+                Umowy deweloperskie
+              </div>
+              <div className="mt-0.5 font-bold tabular-nums" style={{ fontSize: 16, color: '#F2E8D6' }}>
+                {formatCurrency(revenue)}
+              </div>
+              <div className="text-[11px]" style={{ color: 'rgba(242,232,214,.65)' }}>
+                {soldValPct}% wartości inwestycji
+              </div>
+            </div>
+            <div>
+              <div className="v2-eyebrow" style={{ color: 'var(--color-brand-gold)' }}>
+                W rezerwacjach
+              </div>
+              <div className="mt-0.5 font-bold tabular-nums" style={{ fontSize: 16, color: '#F2E8D6' }}>
+                {formatCurrency(salesValue.reservation)}
+              </div>
+              <div className="text-[11px]" style={{ color: 'rgba(242,232,214,.65)' }}>
+                {resValPct}% wartości inwestycji
+              </div>
+            </div>
             <div>
               <div className="v2-eyebrow" style={{ color: 'var(--color-brand-gold)' }}>
                 Mieszkania
