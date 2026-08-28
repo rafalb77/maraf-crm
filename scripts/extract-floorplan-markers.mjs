@@ -68,6 +68,92 @@ const LEGEND_HINTS = [
   // realnych miejscach P1.14-P1.22 i promień wykluczenia je wycinał.
 ]
 
+/**
+ * Poligony WYPEŁNIEŃ ze strumienia wektorowego strony (śledzenie CTM).
+ * Rzuty kondygnacji mają komórki lokatorskie wypełnione kolorem #b0bffd —
+ * to gotowe, dokładne kontury po ścianach.
+ */
+async function extractFillPolygons(pdfjs, page, vp) {
+  const { OPS } = pdfjs
+  const FILL = new Set([OPS.fill, OPS.eoFill, OPS.fillStroke, OPS.eoFillStroke, OPS.closeFillStroke])
+  const ops = await page.getOperatorList()
+  let ctm = [1, 0, 0, 1, 0, 0]
+  const stack = []
+  let color = null
+  const polys = []
+  for (let i = 0; i < ops.fnArray.length; i++) {
+    const fn = ops.fnArray[i]
+    const a = ops.argsArray[i]
+    if (fn === OPS.save) stack.push([...ctm])
+    else if (fn === OPS.restore) ctm = stack.pop() || [1, 0, 0, 1, 0, 0]
+    else if (fn === OPS.transform) {
+      const m = a
+      const c = ctm
+      ctm = [
+        c[0] * m[0] + c[2] * m[1],
+        c[1] * m[0] + c[3] * m[1],
+        c[0] * m[2] + c[2] * m[3],
+        c[1] * m[2] + c[3] * m[3],
+        c[0] * m[4] + c[2] * m[5] + c[4],
+        c[1] * m[4] + c[3] * m[5] + c[5],
+      ]
+    } else if (fn === OPS.setFillRGBColor) color = String(a && a[0])
+    else if (fn === OPS.constructPath) {
+      if (!FILL.has(a[0])) continue
+      const segs = ArrayBuffer.isView(a[1]) ? [a[1]] : a[1]
+      let cur = []
+      const subs = []
+      const push = (x, y) => {
+        const ux = ctm[0] * x + ctm[2] * y + ctm[4]
+        const uy = ctm[1] * x + ctm[3] * y + ctm[5]
+        const [vx, vy] = vp.convertToViewportPoint(ux, uy)
+        cur.push([Math.round(vx * 10) / 10, Math.round(vy * 10) / 10])
+      }
+      for (const d of segs) {
+        if (typeof d === 'number') continue
+        let j = 0
+        while (j < d.length) {
+          const c = d[j++]
+          if (c === 0) {
+            if (cur.length >= 3) subs.push(cur)
+            cur = []
+            push(d[j], d[j + 1]); j += 2
+          } else if (c === 1) {
+            push(d[j], d[j + 1]); j += 2
+          } else if (c === 2) {
+            push(d[j + 4], d[j + 5]); j += 6
+          } else if (c === 3) {
+            if (cur.length >= 3) subs.push(cur)
+            cur = []
+          } else break
+        }
+      }
+      if (cur.length >= 3) subs.push(cur)
+      for (const pts of subs) {
+        let ar = 0
+        for (let k = 0; k < pts.length; k++) {
+          const [x1, y1] = pts[k]
+          const [x2, y2] = pts[(k + 1) % pts.length]
+          ar += x1 * y2 - x2 * y1
+        }
+        ar = Math.abs(ar / 2)
+        if (ar > 30) polys.push({ pts, area: ar, color })
+      }
+    }
+  }
+  return polys
+}
+
+function pointInPolygon(pt, poly) {
+  let odd = false
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const [xi, yi] = poly[i]
+    const [xj, yj] = poly[j]
+    if (yi > pt[1] !== yj > pt[1] && pt[0] < ((xj - xi) * (pt[1] - yi)) / (yj - yi) + xi) odd = !odd
+  }
+  return odd
+}
+
 const out = { generatedAt: new Date().toISOString(), floors: {} }
 
 for (const sheet of SHEETS) {
@@ -189,6 +275,19 @@ for (const sheet of SHEETS) {
       }
     }
   }
+  // Dokładne kontury komórek lokatorskich z wypełnień #b0bffd na rzucie.
+  if (sheet.mode === 'floor') {
+    const fills = (await extractFillPolygons(pdfjs, page, vp)).filter((p) => p.color === '#b0bffd')
+    for (const m of markers) {
+      if (m.kind !== 'KOMORKA') continue
+      const hit = fills.filter((p) => pointInPolygon([m.x, m.y], p.pts)).sort((a, b) => a.area - b.area)[0]
+      if (hit) m.poly = hit.pts
+    }
+    const withPoly = markers.filter((m) => m.poly).length
+    const komorki = markers.filter((m) => m.kind === 'KOMORKA').length
+    if (komorki > 0) console.log(`  komórki z konturem: ${withPoly}/${komorki}`)
+  }
+
   // Kotwica znacznika/tooltipa miejsc = środek obrysu (etykiety bywają z boku).
   for (const m of markers) {
     if ((m.kind === 'PARKING' || m.kind === 'GARAZ') && m.box) {
@@ -208,7 +307,9 @@ for (const sheet of SHEETS) {
 
   // Pre-render planszy do PNG (scale 2) — viewer używa <img> zamiast pdfjs
   // w przeglądarce (wektorowe rzuty CAD renderowały się sekundami).
-  {
+  // Cache: pomijamy istniejące PNG (render trwa minuty); po podmianie PDF-a
+  // usuń odpowiadający PNG, żeby wymusić ponowny render.
+  if (!fs.existsSync(path.join(RZUTY, sheet.file.replace(/\.pdf$/, '.png')))) {
     const renderVp = page.getViewport({ scale: 2 })
     const canvasFactory = doc.canvasFactory
     const { canvas, context } = canvasFactory.create(Math.round(renderVp.width), Math.round(renderVp.height))

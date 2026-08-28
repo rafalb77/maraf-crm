@@ -12,6 +12,16 @@ export type FloorMarker = {
   y: number
   /** Obwiednia obszaru mieszkania (viewport pt): [x1, y1, x2, y2]. */
   box?: [number, number, number, number]
+  /** Dokładny kontur (komórki lokatorskie — z wypełnień wektorowych rzutu). */
+  poly?: [number, number][]
+}
+
+// Kolory SVG wypełnień konturów (odpowiedniki STATUS_FILL).
+const SVG_FILL: Record<string, string> = {
+  WOLNY: '#16a34a',
+  ZAREZERWOWANY: '#eab308',
+  SPRZEDANY: '#dc2626',
+  NIEDOSTEPNY: '#9ca3af',
 }
 export type FloorData = { file: string; image: string; width: number; height: number; markers: FloorMarker[] }
 export type FloorUnitInfo = {
@@ -188,11 +198,40 @@ export function FloorPlanViewer({
               draggable={false}
             />
             <div className="absolute inset-0">
+              {/* Komórki lokatorskie: dokładne kontury (z wektorów rzutu)
+                  wypełnione kolorem statusu — klikalne jak znaczniki. */}
+              <svg
+                className="absolute inset-0 w-full h-full"
+                viewBox={`0 0 ${floor.width} ${floor.height}`}
+                style={{ pointerEvents: 'none' }}
+              >
+                {floor.markers
+                  .filter((m) => m.poly)
+                  .map((m) => {
+                    const u = units[m.number]
+                    const fill = u ? SVG_FILL[u.status] ?? '#9ca3af' : '#e5e7eb'
+                    const active = hoveredGroup.has(m.number)
+                    return (
+                      <polygon
+                        key={`poly-${m.number}`}
+                        points={m.poly!.map((p) => p.join(',')).join(' ')}
+                        fill={fill}
+                        fillOpacity={active ? 0.75 : 0.4}
+                        stroke={fill}
+                        strokeWidth={active ? 2.5 : 1}
+                        style={{ pointerEvents: 'auto', cursor: u ? 'pointer' : 'default' }}
+                        onMouseEnter={() => setHovered(m.number)}
+                        onMouseLeave={() => setHovered((h) => (h === m.number ? null : h))}
+                        onClick={() => u && router.push(`/units/${u.id}`)}
+                      />
+                    )
+                  })}
+              </svg>
               {/* Podświetlenie pakietu: obszar mieszkania (obwiednia z etykiet
                   pomieszczeń) + powiązane komórki/miejsca kupione razem. */}
               {hoveredGroup.size > 0 &&
                 floor.markers
-                  .filter((m) => hoveredGroup.has(m.number))
+                  .filter((m) => hoveredGroup.has(m.number) && !m.poly)
                   .map((m) => {
                     const isPrimary = m.number === hovered
                     const border = isPrimary ? 'border-blue-600' : 'border-blue-500 border-dashed'
@@ -220,6 +259,8 @@ export function FloorPlanViewer({
                     )
                   })}
               {floor.markers.map((m) => {
+                // Komórki z konturem rysuje warstwa SVG — kółko byłoby dublem.
+                if (m.poly) return null
                 const u = units[m.number]
                 // Miejsca postojowe/garażowe z obrysem: prostokąt wypełniony
                 // kolorem statusu dokładnie po obrysie miejsca (2,5×5 m).
