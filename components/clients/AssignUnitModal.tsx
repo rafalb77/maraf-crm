@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Unit } from '@prisma/client'
 import { UNIT_TYPE_LABELS, UNIT_STATUS_LABELS, type UnitType, type UnitStatus } from '@/lib/types'
@@ -9,7 +9,19 @@ export function AssignUnitModal({ clientId, availableUnits }: { clientId: string
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [selectedUnitId, setSelectedUnitId] = useState('')
+  const [query, setQuery] = useState('')
   const [loading, setLoading] = useState(false)
+
+  // Szukajka po numerze lub typie („M13", „komórka", „garaż"…).
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    if (!q) return availableUnits
+    return availableUnits.filter(
+      (u) =>
+        u.number.toLowerCase().includes(q) ||
+        (UNIT_TYPE_LABELS[u.type as UnitType] ?? u.type).toLowerCase().includes(q),
+    )
+  }, [availableUnits, query])
 
   async function handleAssign() {
     if (!selectedUnitId) return
@@ -41,8 +53,19 @@ export function AssignUnitModal({ clientId, availableUnits }: { clientId: string
             {availableUnits.length === 0 ? (
               <p className="text-gray-400 text-sm">Brak dostępnych lokali</p>
             ) : (
+              <>
+              <input
+                autoFocus
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Szukaj po numerze lub typie…"
+                className="w-full px-3 py-2 mb-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
               <div className="max-h-64 overflow-y-auto space-y-1 mb-4">
-                {availableUnits.map((u) => (
+                {filtered.length === 0 && (
+                  <p className="py-4 text-sm text-gray-400 text-center">Brak lokali pasujących do „{query}"</p>
+                )}
+                {filtered.map((u) => (
                   <label key={u.id}
                     className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer border transition-colors ${
                       selectedUnitId === u.id ? 'border-blue-500 bg-blue-50' : 'border-gray-100 hover:bg-gray-50'
@@ -61,6 +84,7 @@ export function AssignUnitModal({ clientId, availableUnits }: { clientId: string
                   </label>
                 ))}
               </div>
+              </>
             )}
 
             <div className="flex gap-2 justify-end">
