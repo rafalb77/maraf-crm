@@ -73,6 +73,23 @@ export default async function RzutyPage() {
     text: orphanAlertText(a),
   }))
 
+  // Ręcznie obrysowane kontury mieszkań (edytor na /rzuty, Settings
+  // 'rzuty.shapes') — nadpisują przybliżoną obwiednię z etykiet.
+  const shapesRow = await prisma.settings.findUnique({ where: { key: 'rzuty.shapes' } })
+  if (shapesRow) {
+    try {
+      const shapes = JSON.parse(shapesRow.value) as Record<string, Record<string, [number, number][]>>
+      for (const [floorKey, floorShapes] of Object.entries(shapes)) {
+        const floor = markersData.floors[floorKey]
+        if (!floor) continue
+        for (const m of floor.markers) {
+          const pts = floorShapes[m.number]
+          if (pts && pts.length >= 3) m.poly = pts
+        }
+      }
+    } catch {}
+  }
+
   return (
     <div className="p-4 sm:p-6 lg:p-8">
       <div className="mb-5">
