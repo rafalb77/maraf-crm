@@ -99,7 +99,10 @@ for (const sheet of SHEETS) {
     const [vx, vy] = vp.convertToViewportPoint(it.transform[4] + (it.width || 0) / 2, it.transform[5])
     const prev = best.get(parsed.number)
     if (!prev || fontH > prev.fontH) {
-      best.set(parsed.number, { ...parsed, x: Math.round(vx), y: Math.round(vy), fontH })
+      // Metadane do kotwiczenia obrysów na PZT: początek tekstu i rotacja.
+      const [sx, sy] = vp.convertToViewportPoint(it.transform[4], it.transform[5])
+      const rotated = Math.abs(it.transform[1]) > Math.abs(it.transform[3]) * 0.5
+      best.set(parsed.number, { ...parsed, x: Math.round(vx), y: Math.round(vy), fontH, sx, sy, rotated })
     }
     const pts = points.get(parsed.number) || []
     pts.push([vx, vy])
@@ -107,7 +110,11 @@ for (const sheet of SHEETS) {
   }
 
   const markers = [...best.values()]
-    .map(({ fontH, ...m }) => {
+    .map(({ fontH, sx, sy, rotated, ...m }) => {
+      m._meta = { sx, sy, rotated, fontH }
+      return m
+    })
+    .map((m) => {
       // Obwiednia obszaru mieszkania z rozrzutu etykiet pomieszczeń (≥2 punkty).
       const pts = points.get(m.number) || []
       if (m.kind === 'MIESZKALNY' && pts.length >= 2) {
@@ -123,7 +130,93 @@ for (const sheet of SHEETS) {
       return m
     })
     .sort((a, b) => a.number.localeCompare(b.number, 'pl', { numeric: true }))
-  out.floors[sheet.key] = { file: sheet.file, width: Math.round(vp.width), height: Math.round(vp.height), markers }
+
+  // Obrysy miejsc postojowych/garażowych: prostokąt 2,5×5 m wyznaczony
+  // z rozstawu sąsiednich etykiet. Kierunek rzędu z położenia najbliższego
+  // sąsiada tej samej grupy. Na kondygnacjach etykieta stoi na środku miejsca
+  // (centrowanie); na PZT etykiety są kotwiczone różnie (obok/nad/obrócone) —
+  // osobne reguły wg orientacji tekstu, skalibrowane na kompozycie kontrolnym.
+  for (const kind of ['GARAZ', 'PARKING']) {
+    const group = markers.filter((m) => m.kind === kind)
+    if (group.length < 2) continue
+    const gaps = []
+    const nearestOf = new Map()
+    for (const m of group) {
+      let bestD = Infinity
+      let nearest = null
+      for (const o of group) {
+        if (o === m) continue
+        const d = Math.hypot(o.x - m.x, o.y - m.y)
+        if (d < bestD) {
+          bestD = d
+          nearest = o
+        }
+      }
+      if (nearest) {
+        gaps.push(bestD)
+        nearestOf.set(m, nearest)
+      }
+    }
+    gaps.sort((a, b) => a - b)
+    const sp = gaps[Math.floor(gaps.length / 2)] // mediana = 2,5 m w pt
+    for (const m of group) {
+      const nearest = nearestOf.get(m)
+      if (!nearest) continue
+      const verticalRow = Math.abs(nearest.y - m.y) > Math.abs(nearest.x - m.x)
+      const meta = m._meta || {}
+      if (sheet.mode === 'pzt') {
+        if (!meta.rotated && verticalRow) {
+          // P1.05-18: rząd pionowy, tekst poziomy w ~1/3 szerokości miejsca
+          // od lewej (kalibracja na kompozycie kontrolnym).
+          m.box = [Math.round(m.x - 0.7 * sp), Math.round(m.y - sp / 2), Math.round(m.x + 1.3 * sp), Math.round(m.y + sp / 2)]
+        } else if (!meta.rotated && !verticalRow) {
+          // P1.01-04: tekst poziomy NAD miejscem pionowym (pas chodnika między).
+          m.box = [Math.round(m.x - sp / 2), Math.round(m.y + 0.35 * sp), Math.round(m.x + sp / 2), Math.round(m.y + 0.35 * sp + 2 * sp)]
+        } else if (meta.rotated && !verticalRow) {
+          // P1.19-25: rząd poziomy, tekst obrócony pisany od dołu — miejsce
+          // pionowe NAD początkiem tekstu.
+          m.box = [Math.round(meta.sx - sp / 2), Math.round(meta.sy - 3 - 2 * sp), Math.round(meta.sx + sp / 2), Math.round(meta.sy - 3)]
+        } else {
+          // P2.01-04: rząd pionowy przy krawędzi, tekst obrócony — miejsce
+          // poziome na prawo od etykiety.
+          m.box = [Math.round(meta.sx + 2), Math.round(m.y - sp / 2), Math.round(meta.sx + 2 + 2 * sp), Math.round(m.y + sp / 2)]
+        }
+      } else {
+        // Hala garażowa: etykieta w środku miejsca — centrowanie.
+        const w = verticalRow ? sp * 2 : sp
+        const h = verticalRow ? sp : sp * 2
+        m.box = [Math.round(m.x - w / 2), Math.round(m.y - h / 2), Math.round(m.x + w / 2), Math.round(m.y + h / 2)]
+      }
+    }
+  }
+  // Kotwica znacznika/tooltipa miejsc = środek obrysu (etykiety bywają z boku).
+  for (const m of markers) {
+    if ((m.kind === 'PARKING' || m.kind === 'GARAZ') && m.box) {
+      m.x = Math.round((m.box[0] + m.box[2]) / 2)
+      m.y = Math.round((m.box[1] + m.box[3]) / 2)
+    }
+    delete m._meta
+  }
+
+  out.floors[sheet.key] = {
+    file: sheet.file,
+    image: sheet.file.replace(/\.pdf$/, '.png'),
+    width: Math.round(vp.width),
+    height: Math.round(vp.height),
+    markers,
+  }
+
+  // Pre-render planszy do PNG (scale 2) — viewer używa <img> zamiast pdfjs
+  // w przeglądarce (wektorowe rzuty CAD renderowały się sekundami).
+  {
+    const renderVp = page.getViewport({ scale: 2 })
+    const canvasFactory = doc.canvasFactory
+    const { canvas, context } = canvasFactory.create(Math.round(renderVp.width), Math.round(renderVp.height))
+    await page.render({ canvasContext: context, viewport: renderVp }).promise
+    const png = canvas.toBuffer('image/png')
+    fs.writeFileSync(path.join(RZUTY, sheet.file.replace(/\.pdf$/, '.png')), png)
+    canvasFactory.destroy({ canvas, context })
+  }
   console.log(
     `${sheet.file}: ${markers.length} znaczników (` +
       ['MIESZKALNY', 'KOMORKA', 'GARAZ', 'USLUGOWY', 'PARKING']

@@ -1,14 +1,9 @@
 'use client'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Document, Page, pdfjs } from 'react-pdf'
 import { AlertTriangle } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 import { UNIT_TYPE_LABELS, UNIT_STATUS_LABELS, type UnitType, type UnitStatus } from '@/lib/types'
-
-// Worker pdfjs serwowany statycznie (kopiowany ze scripts/extract-floorplan-markers.mjs
-// pipeline'u — wersja musi zgadzać się z pdfjs-dist w node_modules).
-pdfjs.GlobalWorkerOptions.workerSrc = '/rzuty/pdf.worker.min.mjs'
 
 export type FloorMarker = {
   number: string
@@ -18,7 +13,7 @@ export type FloorMarker = {
   /** Obwiednia obszaru mieszkania (viewport pt): [x1, y1, x2, y2]. */
   box?: [number, number, number, number]
 }
-export type FloorData = { file: string; width: number; height: number; markers: FloorMarker[] }
+export type FloorData = { file: string; image: string; width: number; height: number; markers: FloorMarker[] }
 export type FloorUnitInfo = {
   id: string
   number: string
@@ -44,6 +39,14 @@ const STATUS_MARKER: Record<string, string> = {
   ZAREZERWOWANY: 'bg-yellow-400 text-gray-900 border-yellow-500',
   SPRZEDANY: 'bg-red-600 text-white border-red-700',
   NIEDOSTEPNY: 'bg-gray-400 text-white border-gray-500',
+}
+
+// Półprzezroczyste wypełnienie obrysu miejsca postojowego/garażowego.
+const STATUS_FILL: Record<string, string> = {
+  WOLNY: 'bg-green-500/35 border-green-700 text-green-950',
+  ZAREZERWOWANY: 'bg-yellow-400/45 border-yellow-600 text-yellow-950',
+  SPRZEDANY: 'bg-red-500/40 border-red-700 text-red-950',
+  NIEDOSTEPNY: 'bg-gray-400/40 border-gray-500 text-gray-800',
 }
 
 function shortLabel(m: FloorMarker): string {
@@ -104,7 +107,6 @@ export function FloorPlanViewer({
 
   const hoveredMarker = hovered ? floor?.markers.find((m) => m.number === hovered) : null
   const hoveredUnit = hovered ? units[hovered] : null
-  const pdfFile = useMemo(() => `/rzuty/${floor?.file}`, [floor?.file])
 
   // Pakiet klienta: najechany lokal + wszystko kupione/zarezerwowane razem z nim.
   const hoveredGroup = useMemo(() => {
@@ -176,14 +178,15 @@ export function FloorPlanViewer({
       <div ref={containerRef} className="relative bg-white rounded-xl border border-gray-200 overflow-hidden">
         {floor && containerWidth > 0 && (
           <>
-            <Document file={pdfFile} loading={<div className="py-24 text-center text-gray-400 text-sm">Wczytywanie rzutu…</div>}>
-              <Page
-                pageNumber={1}
-                width={containerWidth}
-                renderTextLayer={false}
-                renderAnnotationLayer={false}
-              />
-            </Document>
+            {/* Pre-renderowany PNG (pipeline extract-floorplan-markers.mjs) —
+                natychmiastowe ładowanie zamiast renderowania PDF w przeglądarce. */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={`/rzuty/${floor.image}`}
+              alt={FLOOR_LABELS[active] ?? active}
+              className="block w-full h-auto select-none"
+              draggable={false}
+            />
             <div className="absolute inset-0">
               {/* Podświetlenie pakietu: obszar mieszkania (obwiednia z etykiet
                   pomieszczeń) + powiązane komórki/miejsca kupione razem. */}
@@ -218,6 +221,31 @@ export function FloorPlanViewer({
                   })}
               {floor.markers.map((m) => {
                 const u = units[m.number]
+                // Miejsca postojowe/garażowe z obrysem: prostokąt wypełniony
+                // kolorem statusu dokładnie po obrysie miejsca (2,5×5 m).
+                if ((m.kind === 'PARKING' || m.kind === 'GARAZ') && m.box) {
+                  const fill = u
+                    ? STATUS_FILL[u.status] ?? 'bg-gray-300/40 border-gray-400 text-gray-700'
+                    : 'bg-white/10 border-gray-400 border-dashed text-gray-500'
+                  return (
+                    <button
+                      key={m.number}
+                      onMouseEnter={() => setHovered(m.number)}
+                      onMouseLeave={() => setHovered((h) => (h === m.number ? null : h))}
+                      onClick={() => u && router.push(`/units/${u.id}`)}
+                      title={u ? undefined : `${m.number} — brak w bazie lokali`}
+                      className={`absolute border flex items-center justify-center text-[9px] font-bold leading-none transition-colors hover:z-20 hover:brightness-110 ${fill} ${u ? 'cursor-pointer' : 'cursor-default'}`}
+                      style={{
+                        left: m.box[0] * scale,
+                        top: m.box[1] * scale,
+                        width: (m.box[2] - m.box[0]) * scale,
+                        height: (m.box[3] - m.box[1]) * scale,
+                      }}
+                    >
+                      {shortLabel(m)}
+                    </button>
+                  )
+                }
                 const cls = u
                   ? STATUS_MARKER[u.status] ?? 'bg-gray-300 text-gray-700 border-gray-400'
                   : 'bg-white text-gray-400 border-gray-300 border-dashed'
