@@ -12,18 +12,47 @@ export default async function RzutyPage() {
   const markersRaw = fs.readFileSync(path.join(process.cwd(), 'public', 'rzuty', 'markers.json'), 'utf8')
   const markersData = JSON.parse(markersRaw) as { floors: Record<string, FloorData> }
 
-  const units = await prisma.unit.findMany({
-    select: {
-      id: true,
-      number: true,
-      type: true,
-      status: true,
-      floor: true,
-      building: true,
-      priceGross: true,
-      clientUnits: { include: { client: { select: { firstName: true, lastName: true } } }, take: 1 },
-    },
-  })
+  const [units, activeContracts, allAssignments] = await Promise.all([
+    prisma.unit.findMany({
+      select: {
+        id: true,
+        number: true,
+        type: true,
+        status: true,
+        floor: true,
+        building: true,
+        priceGross: true,
+        clientUnits: { include: { client: { select: { firstName: true, lastName: true } } }, take: 1 },
+      },
+    }),
+    // Powiązania „kupione razem": składniki tej samej aktywnej umowy.
+    prisma.contract.findMany({
+      where: { status: { notIn: ['ROZWIAZANA', 'ANULOWANA'] } },
+      select: { contractUnits: { select: { unit: { select: { number: true } } } } },
+    }),
+    // Oraz lokale przypisane temu samemu klientowi (rezerwacje przed umową).
+    prisma.clientUnit.findMany({ select: { clientId: true, unit: { select: { number: true } } } }),
+  ])
+
+  // links[nr] = numery lokali kupowanych/rezerwowanych razem z nim (pakiet
+  // klienta: mieszkanie + komórka + miejsce postojowe/garażowe).
+  const links: Record<string, string[]> = {}
+  const linkGroup = (numbers: string[]) => {
+    const uniq = [...new Set(numbers)]
+    if (uniq.length < 2) return
+    for (const a of uniq) {
+      links[a] = links[a] || []
+      for (const b of uniq) if (b !== a && !links[a].includes(b)) links[a].push(b)
+    }
+  }
+  for (const c of activeContracts) linkGroup(c.contractUnits.map((cu) => cu.unit.number))
+  const byClient = new Map<string, string[]>()
+  for (const cu of allAssignments) {
+    const arr = byClient.get(cu.clientId) || []
+    arr.push(cu.unit.number)
+    byClient.set(cu.clientId, arr)
+  }
+  for (const nums of byClient.values()) linkGroup(nums)
 
   const unitsByNumber: Record<string, FloorUnitInfo> = {}
   for (const u of units) {
@@ -52,7 +81,7 @@ export default async function RzutyPage() {
           Nova Staffa — Etap 1 · statusy lokali na żywo z bazy, kliknięcie znacznika otwiera kartę lokalu
         </p>
       </div>
-      <FloorPlanViewerLazy floors={markersData.floors} units={unitsByNumber} alerts={alerts} />
+      <FloorPlanViewerLazy floors={markersData.floors} units={unitsByNumber} alerts={alerts} links={links} />
     </div>
   )
 }

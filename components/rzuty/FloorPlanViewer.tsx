@@ -10,7 +10,14 @@ import { UNIT_TYPE_LABELS, UNIT_STATUS_LABELS, type UnitType, type UnitStatus } 
 // pipeline'u — wersja musi zgadzać się z pdfjs-dist w node_modules).
 pdfjs.GlobalWorkerOptions.workerSrc = '/rzuty/pdf.worker.min.mjs'
 
-export type FloorMarker = { number: string; kind: string; x: number; y: number }
+export type FloorMarker = {
+  number: string
+  kind: string
+  x: number
+  y: number
+  /** Obwiednia obszaru mieszkania (viewport pt): [x1, y1, x2, y2]. */
+  box?: [number, number, number, number]
+}
 export type FloorData = { file: string; width: number; height: number; markers: FloorMarker[] }
 export type FloorUnitInfo = {
   id: string
@@ -28,6 +35,7 @@ const FLOOR_LABELS: Record<string, string> = {
   '2': '2 piętro',
   '3': '3 piętro',
   '4': '4 piętro',
+  pzt: 'Teren (PZT)',
 }
 
 // Klasyczna „tablica dewelopera": zielony wolny, żółty rezerwacja, czerwony sprzedany.
@@ -40,6 +48,7 @@ const STATUS_MARKER: Record<string, string> = {
 
 function shortLabel(m: FloorMarker): string {
   if (m.kind === 'GARAZ') return m.number.replace('MG.', 'P')
+  if (m.kind === 'PARKING') return m.number.replace('MP.', 'MP')
   const tail = m.number.split('.').pop() || m.number
   return tail
 }
@@ -48,10 +57,13 @@ export function FloorPlanViewer({
   floors,
   units,
   alerts,
+  links = {},
 }: {
   floors: Record<string, FloorData>
   units: Record<string, FloorUnitInfo>
   alerts: FloorAlert[]
+  /** Numery lokali kupowanych/rezerwowanych razem (pakiet klienta). */
+  links?: Record<string, string[]>
 }) {
   const router = useRouter()
   const floorKeys = Object.keys(floors).sort()
@@ -93,6 +105,18 @@ export function FloorPlanViewer({
   const hoveredMarker = hovered ? floor?.markers.find((m) => m.number === hovered) : null
   const hoveredUnit = hovered ? units[hovered] : null
   const pdfFile = useMemo(() => `/rzuty/${floor?.file}`, [floor?.file])
+
+  // Pakiet klienta: najechany lokal + wszystko kupione/zarezerwowane razem z nim.
+  const hoveredGroup = useMemo(() => {
+    if (!hovered) return new Set<string>()
+    return new Set([hovered, ...(links[hovered] ?? [])])
+  }, [hovered, links])
+  // Powiązania spoza bieżącej planszy — pokazujemy tekstowo w tooltipie.
+  const linkedElsewhere = useMemo(() => {
+    if (!hovered || !floor) return []
+    const here = new Set(floor.markers.map((m) => m.number))
+    return (links[hovered] ?? []).filter((n) => !here.has(n))
+  }, [hovered, floor, links])
 
   return (
     <div>
@@ -161,6 +185,37 @@ export function FloorPlanViewer({
               />
             </Document>
             <div className="absolute inset-0">
+              {/* Podświetlenie pakietu: obszar mieszkania (obwiednia z etykiet
+                  pomieszczeń) + powiązane komórki/miejsca kupione razem. */}
+              {hoveredGroup.size > 0 &&
+                floor.markers
+                  .filter((m) => hoveredGroup.has(m.number))
+                  .map((m) => {
+                    const isPrimary = m.number === hovered
+                    const border = isPrimary ? 'border-blue-600' : 'border-blue-500 border-dashed'
+                    if (m.box) {
+                      const pad = 12
+                      return (
+                        <div
+                          key={`hl-${m.number}`}
+                          className={`absolute rounded-lg border-2 bg-blue-500/15 pointer-events-none z-10 ${border}`}
+                          style={{
+                            left: m.box[0] * scale - pad,
+                            top: m.box[1] * scale - pad,
+                            width: (m.box[2] - m.box[0]) * scale + pad * 2,
+                            height: (m.box[3] - m.box[1]) * scale + pad * 2,
+                          }}
+                        />
+                      )
+                    }
+                    return (
+                      <div
+                        key={`hl-${m.number}`}
+                        className={`absolute rounded-full border-2 bg-blue-500/15 pointer-events-none z-10 -translate-x-1/2 -translate-y-1/2 ${border}`}
+                        style={{ left: m.x * scale, top: m.y * scale, width: 40, height: 40 }}
+                      />
+                    )
+                  })}
               {floor.markers.map((m) => {
                 const u = units[m.number]
                 const cls = u
@@ -198,6 +253,12 @@ export function FloorPlanViewer({
                   </p>
                   {hoveredUnit.clientName && <p className="mt-0.5">👤 {hoveredUnit.clientName}</p>}
                   <p className="mt-0.5 tabular-nums opacity-80">{formatCurrency(hoveredUnit.priceGross)}</p>
+                  {(links[hoveredUnit.number]?.length ?? 0) > 0 && (
+                    <p className="mt-0.5 text-blue-300">
+                      W pakiecie: {links[hoveredUnit.number].join(', ')}
+                      {linkedElsewhere.length > 0 && <span className="opacity-70"> (inna kondygnacja: {linkedElsewhere.join(', ')})</span>}
+                    </p>
+                  )}
                   <p className="mt-1 opacity-60">kliknij → karta lokalu</p>
                 </div>
               )}

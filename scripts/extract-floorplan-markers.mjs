@@ -24,11 +24,26 @@ const pdfjs = await import(
   pathToFileURL(path.join(__dirname, '..', 'node_modules', 'pdfjs-dist', 'legacy', 'build', 'pdf.mjs')).href
 )
 
-const FLOORS = [0, 1, 2, 3, 4]
+// Plansze: kondygnacje budynku + PZT (teren, miejsca postojowe naziemne).
+const SHEETS = [
+  { key: '0', file: 'kondygnacja-0.pdf', mode: 'floor' },
+  { key: '1', file: 'kondygnacja-1.pdf', mode: 'floor' },
+  { key: '2', file: 'kondygnacja-2.pdf', mode: 'floor' },
+  { key: '3', file: 'kondygnacja-3.pdf', mode: 'floor' },
+  { key: '4', file: 'kondygnacja-4.pdf', mode: 'floor' },
+  { key: 'pzt', file: 'pzt.pdf', mode: 'pzt' },
+]
 
 /** Rozpoznaje etykietę lokalu → { number: numer w bazie, kind } albo null. */
-function parseLabel(raw) {
+function parseLabel(raw, mode) {
   const s = raw.trim()
+  if (mode === 'pzt') {
+    // PZT: P1.01–P1.25 i P2.01–P2.04 → w bazie MP.<n> (P2 numerowane dalej, +25).
+    const m = /^P([12])\.(\d{2})$/.exec(s)
+    if (!m) return null
+    const n = parseInt(m[2], 10) + (m[1] === '2' ? 25 : 0)
+    return { number: `MP.${n}`, kind: 'PARKING' }
+  }
   let m = /^B1\.(\d)\.M(\d+)$/.exec(s)
   if (m) return { number: `B1.${m[1]}.M${m[2]}`, kind: 'MIESZKALNY' }
   // Warianty na rzutach: "B1.1.KOM.LOK. 8" (p.1) i "B1.2.Kom.lok.8" (p.2-4).
@@ -48,14 +63,15 @@ const LEGEND_HINTS = [
   'obszar komórki lokatorskiej',
   'numer miejsca gara',
   'miejsce garażowe o wymiarach',
-  'LEGENDA',
+  'NUMER PROJEKTOWANYCH',
+  // UWAGA: nie dodawać ogólnego 'LEGENDA' — na PZT napis stoi tuż przy
+  // realnych miejscach P1.14-P1.22 i promień wykluczenia je wycinał.
 ]
 
 const out = { generatedAt: new Date().toISOString(), floors: {} }
 
-for (const floor of FLOORS) {
-  const file = `kondygnacja-${floor}.pdf`
-  const data = new Uint8Array(fs.readFileSync(path.join(RZUTY, file)))
+for (const sheet of SHEETS) {
+  const data = new Uint8Array(fs.readFileSync(path.join(RZUTY, sheet.file)))
   const doc = await pdfjs.getDocument({ data, useSystemFonts: true }).promise
   const page = await doc.getPage(1)
   const vp = page.getViewport({ scale: 1 })
@@ -67,11 +83,14 @@ for (const floor of FLOORS) {
     .map((it) => ({ x: it.transform[4], y: it.transform[5] }))
   const inLegend = (x, y) => legendZones.some((z) => Math.hypot(x - z.x, y - z.y) < 250)
 
-  // Najlepsze (największa czcionka) wystąpienie każdego numeru.
+  // Najlepsze (największa czcionka) wystąpienie numeru = pozycja znacznika;
+  // WSZYSTKIE wystąpienia (etykiety pomieszczeń wewnątrz mieszkania) = punkty
+  // do obwiedni obszaru mieszkania (box).
   const best = new Map()
+  const points = new Map()
   for (const it of tc.items) {
     if (!it.str) continue
-    const parsed = parseLabel(it.str)
+    const parsed = parseLabel(it.str, sheet.mode)
     if (!parsed) continue
     if (inLegend(it.transform[4], it.transform[5])) continue
     // Wysokość czcionki z macierzy transformacji (skala Y).
@@ -82,18 +101,35 @@ for (const floor of FLOORS) {
     if (!prev || fontH > prev.fontH) {
       best.set(parsed.number, { ...parsed, x: Math.round(vx), y: Math.round(vy), fontH })
     }
+    const pts = points.get(parsed.number) || []
+    pts.push([vx, vy])
+    points.set(parsed.number, pts)
   }
 
   const markers = [...best.values()]
-    .map(({ fontH, ...m }) => m)
+    .map(({ fontH, ...m }) => {
+      // Obwiednia obszaru mieszkania z rozrzutu etykiet pomieszczeń (≥2 punkty).
+      const pts = points.get(m.number) || []
+      if (m.kind === 'MIESZKALNY' && pts.length >= 2) {
+        const xs = pts.map((p) => p[0])
+        const ys = pts.map((p) => p[1])
+        m.box = [
+          Math.round(Math.min(...xs)),
+          Math.round(Math.min(...ys)),
+          Math.round(Math.max(...xs)),
+          Math.round(Math.max(...ys)),
+        ]
+      }
+      return m
+    })
     .sort((a, b) => a.number.localeCompare(b.number, 'pl', { numeric: true }))
-  out.floors[floor] = { file, width: Math.round(vp.width), height: Math.round(vp.height), markers }
+  out.floors[sheet.key] = { file: sheet.file, width: Math.round(vp.width), height: Math.round(vp.height), markers }
   console.log(
-    `${file}: ${markers.length} znaczników (` +
-      ['MIESZKALNY', 'KOMORKA', 'GARAZ', 'USLUGOWY']
+    `${sheet.file}: ${markers.length} znaczników (` +
+      ['MIESZKALNY', 'KOMORKA', 'GARAZ', 'USLUGOWY', 'PARKING']
         .map((k) => `${k}: ${markers.filter((x) => x.kind === k).length}`)
         .join(', ') +
-      ')',
+      `, z obwiednią: ${markers.filter((x) => x.box).length})`,
   )
 }
 

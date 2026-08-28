@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-08-28T09:17:21.164Z",
+ "generatedAt": "2026-08-28T09:46:08.412Z",
  "floors": {
   "0": {
    "file": "kondygnacja-0.pdf",
@@ -341,91 +341,181 @@
      "number": "B1.1.M1",
      "kind": "MIESZKALNY",
      "x": 987,
-     "y": 485
+     "y": 485,
+     "box": [
+      929,
+      420,
+      999,
+      485
+     ]
     },
     {
      "number": "B1.1.M2",
      "kind": "MIESZKALNY",
      "x": 1030,
-     "y": 618
+     "y": 618,
+     "box": [
+      946,
+      516,
+      1030,
+      618
+     ]
     },
     {
      "number": "B1.1.M3",
      "kind": "MIESZKALNY",
      "x": 896,
-     "y": 620
+     "y": 620,
+     "box": [
+      896,
+      584,
+      966,
+      626
+     ]
     },
     {
      "number": "B1.1.M4",
      "kind": "MIESZKALNY",
      "x": 796,
-     "y": 575
+     "y": 575,
+     "box": [
+      796,
+      530,
+      885,
+      618
+     ]
     },
     {
      "number": "B1.1.M5",
      "kind": "MIESZKALNY",
      "x": 826,
-     "y": 523
+     "y": 523,
+     "box": [
+      817,
+      441,
+      872,
+      523
+     ]
     },
     {
      "number": "B1.1.M6",
      "kind": "MIESZKALNY",
      "x": 828,
-     "y": 399
+     "y": 399,
+     "box": [
+      818,
+      342,
+      846,
+      399
+     ]
     },
     {
      "number": "B1.1.M7",
      "kind": "MIESZKALNY",
      "x": 943,
-     "y": 180
+     "y": 180,
+     "box": [
+      825,
+      147,
+      943,
+      224
+     ]
     },
     {
      "number": "B1.1.M8",
      "kind": "MIESZKALNY",
      "x": 976,
-     "y": 294
+     "y": 294,
+     "box": [
+      904,
+      251,
+      976,
+      311
+     ]
     },
     {
      "number": "B1.1.M9",
      "kind": "MIESZKALNY",
      "x": 753,
-     "y": 154
+     "y": 154,
+     "box": [
+      753,
+      140,
+      804,
+      312
+     ]
     },
     {
      "number": "B1.1.M10",
      "kind": "MIESZKALNY",
      "x": 716,
-     "y": 265
+     "y": 265,
+     "box": [
+      640,
+      253,
+      716,
+      336
+     ]
     },
     {
      "number": "B1.1.M11",
      "kind": "MIESZKALNY",
      "x": 560,
-     "y": 230
+     "y": 230,
+     "box": [
+      543,
+      126,
+      609,
+      293
+     ]
     },
     {
      "number": "B1.1.M12",
      "kind": "MIESZKALNY",
      "x": 484,
-     "y": 201
+     "y": 201,
+     "box": [
+      463,
+      125,
+      520,
+      326
+     ]
     },
     {
      "number": "B1.1.M13",
      "kind": "MIESZKALNY",
      "x": 439,
-     "y": 326
+     "y": 326,
+     "box": [
+      374,
+      258,
+      439,
+      335
+     ]
     },
     {
      "number": "B1.1.M14",
      "kind": "MIESZKALNY",
      "x": 329,
-     "y": 361
+     "y": 361,
+     "box": [
+      264,
+      251,
+      337,
+      361
+     ]
     },
     {
      "number": "B1.1.M15",
      "kind": "MIESZKALNY",
      "x": 259,
-     "y": 148
+     "y": 148,
+     "box": [
+      246,
+      139,
+      312,
+      235
+     ]
     }
    ]
   },
@@ -486,91 +576,181 @@
      "number": "B1.2.M16",
      "kind": "MIESZKALNY",
      "x": 893,
-     "y": 428
+     "y": 428,
+     "box": [
+      890,
+      428,
+      953,
+      503
+     ]
     },
     {
      "number": "B1.2.M17",
      "kind": "MIESZKALNY",
      "x": 976,
-     "y": 598
+     "y": 598,
+     "box": [
+      903,
+      513,
+      977,
+      598
+     ]
     },
     {
      "number": "B1.2.M18",
      "kind": "MIESZKALNY",
      "x": 842,
-     "y": 611
+     "y": 611,
+     "box": [
+      842,
+      580,
+      917,
+      624
+     ]
     },
     {
      "number": "B1.2.M19",
      "kind": "MIESZKALNY",
      "x": 755,
-     "y": 583
+     "y": 583,
+     "box": [
+      755,
+      520,
+      840,
+      621
+     ]
     },
     {
      "number": "B1.2.M20",
      "kind": "MIESZKALNY",
      "x": 776,
-     "y": 526
+     "y": 526,
+     "box": [
+      776,
+      443,
+      827,
+      526
+     ]
     },
     {
      "number": "B1.2.M21",
      "kind": "MIESZKALNY",
      "x": 782,
-     "y": 396
+     "y": 396,
+     "box": [
+      774,
+      344,
+      802,
+      396
+     ]
     },
     {
      "number": "B1.2.M22",
      "kind": "MIESZKALNY",
      "x": 895,
-     "y": 174
+     "y": 174,
+     "box": [
+      776,
+      145,
+      895,
+      227
+     ]
     },
     {
      "number": "B1.2.M23",
      "kind": "MIESZKALNY",
      "x": 917,
-     "y": 294
+     "y": 294,
+     "box": [
+      857,
+      235,
+      917,
+      315
+     ]
     },
     {
      "number": "B1.2.M24",
      "kind": "MIESZKALNY",
      "x": 706,
-     "y": 148
+     "y": 148,
+     "box": [
+      706,
+      148,
+      757,
+      312
+     ]
     },
     {
      "number": "B1.2.M25",
      "kind": "MIESZKALNY",
      "x": 669,
-     "y": 266
+     "y": 266,
+     "box": [
+      596,
+      263,
+      669,
+      327
+     ]
     },
     {
      "number": "B1.2.M26",
      "kind": "MIESZKALNY",
      "x": 512,
-     "y": 228
+     "y": 228,
+     "box": [
+      501,
+      146,
+      563,
+      321
+     ]
     },
     {
      "number": "B1.2.M27",
      "kind": "MIESZKALNY",
      "x": 442,
-     "y": 197
+     "y": 197,
+     "box": [
+      414,
+      146,
+      475,
+      321
+     ]
     },
     {
      "number": "B1.2.M28",
      "kind": "MIESZKALNY",
      "x": 392,
-     "y": 337
+     "y": 337,
+     "box": [
+      329,
+      247,
+      392,
+      349
+     ]
     },
     {
      "number": "B1.2.M29",
      "kind": "MIESZKALNY",
      "x": 286,
-     "y": 349
+     "y": 349,
+     "box": [
+      226,
+      251,
+      294,
+      349
+     ]
     },
     {
      "number": "B1.2.M30",
      "kind": "MIESZKALNY",
      "x": 217,
-     "y": 149
+     "y": 149,
+     "box": [
+      195,
+      148,
+      269,
+      242
+     ]
     }
    ]
   },
@@ -631,91 +811,181 @@
      "number": "B1.3.M31",
      "kind": "MIESZKALNY",
      "x": 958,
-     "y": 496
+     "y": 496,
+     "box": [
+      893,
+      425,
+      958,
+      496
+     ]
     },
     {
      "number": "B1.3.M32",
      "kind": "MIESZKALNY",
      "x": 981,
-     "y": 619
+     "y": 619,
+     "box": [
+      904,
+      523,
+      981,
+      619
+     ]
     },
     {
      "number": "B1.3.M33",
      "kind": "MIESZKALNY",
      "x": 856,
-     "y": 627
+     "y": 627,
+     "box": [
+      856,
+      578,
+      926,
+      627
+     ]
     },
     {
      "number": "B1.3.M34",
      "kind": "MIESZKALNY",
      "x": 760,
-     "y": 581
+     "y": 581,
+     "box": [
+      760,
+      538,
+      838,
+      619
+     ]
     },
     {
      "number": "B1.3.M35",
      "kind": "MIESZKALNY",
      "x": 771,
-     "y": 514
+     "y": 514,
+     "box": [
+      771,
+      438,
+      837,
+      514
+     ]
     },
     {
      "number": "B1.3.M36",
      "kind": "MIESZKALNY",
      "x": 773,
-     "y": 397
+     "y": 397,
+     "box": [
+      773,
+      341,
+      804,
+      397
+     ]
     },
     {
      "number": "B1.3.M37",
      "kind": "MIESZKALNY",
      "x": 892,
-     "y": 163
+     "y": 163,
+     "box": [
+      778,
+      143,
+      892,
+      233
+     ]
     },
     {
      "number": "B1.3.M38",
      "kind": "MIESZKALNY",
      "x": 922,
-     "y": 296
+     "y": 296,
+     "box": [
+      861,
+      248,
+      922,
+      313
+     ]
     },
     {
      "number": "B1.3.M39",
      "kind": "MIESZKALNY",
      "x": 712,
-     "y": 152
+     "y": 152,
+     "box": [
+      712,
+      139,
+      759,
+      307
+     ]
     },
     {
      "number": "B1.3.M40",
      "kind": "MIESZKALNY",
      "x": 672,
-     "y": 267
+     "y": 267,
+     "box": [
+      597,
+      263,
+      672,
+      336
+     ]
     },
     {
      "number": "B1.3.M41",
      "kind": "MIESZKALNY",
      "x": 514,
-     "y": 230
+     "y": 230,
+     "box": [
+      506,
+      140,
+      568,
+      321
+     ]
     },
     {
      "number": "B1.3.M42",
      "kind": "MIESZKALNY",
      "x": 442,
-     "y": 195
+     "y": 195,
+     "box": [
+      417,
+      145,
+      475,
+      321
+     ]
     },
     {
      "number": "B1.3.M43",
      "kind": "MIESZKALNY",
      "x": 395,
-     "y": 350
+     "y": 350,
+     "box": [
+      322,
+      247,
+      395,
+      350
+     ]
     },
     {
      "number": "B1.3.M44",
      "kind": "MIESZKALNY",
      "x": 286,
-     "y": 351
+     "y": 351,
+     "box": [
+      225,
+      260,
+      292,
+      351
+     ]
     },
     {
      "number": "B1.3.M45",
      "kind": "MIESZKALNY",
      "x": 213,
-     "y": 173
+     "y": 173,
+     "box": [
+      195,
+      142,
+      270,
+      237
+     ]
     }
    ]
   },
@@ -776,85 +1046,350 @@
      "number": "B1.4.M46",
      "kind": "MIESZKALNY",
      "x": 897,
-     "y": 472
+     "y": 472,
+     "box": [
+      889,
+      424,
+      963,
+      487
+     ]
     },
     {
      "number": "B1.4.M47",
      "kind": "MIESZKALNY",
      "x": 931,
-     "y": 545
+     "y": 545,
+     "box": [
+      906,
+      522,
+      982,
+      618
+     ]
     },
     {
      "number": "B1.4.M48",
      "kind": "MIESZKALNY",
      "x": 842,
-     "y": 526
+     "y": 526,
+     "box": [
+      762,
+      526,
+      894,
+      629
+     ]
     },
     {
      "number": "B1.4.M49",
      "kind": "MIESZKALNY",
      "x": 833,
-     "y": 483
+     "y": 483,
+     "box": [
+      768,
+      439,
+      833,
+      507
+     ]
     },
     {
      "number": "B1.4.M50",
      "kind": "MIESZKALNY",
      "x": 805,
-     "y": 336
+     "y": 336,
+     "box": [
+      769,
+      336,
+      805,
+      402
+     ]
     },
     {
      "number": "B1.4.M51",
      "kind": "MIESZKALNY",
      "x": 833,
-     "y": 200
+     "y": 200,
+     "box": [
+      778,
+      129,
+      900,
+      229
+     ]
     },
     {
      "number": "B1.4.M52",
      "kind": "MIESZKALNY",
      "x": 866,
-     "y": 265
+     "y": 265,
+     "box": [
+      866,
+      239,
+      926,
+      314
+     ]
     },
     {
      "number": "B1.4.M53",
      "kind": "MIESZKALNY",
      "x": 702,
-     "y": 208
+     "y": 208,
+     "box": [
+      702,
+      149,
+      756,
+      309
+     ]
     },
     {
      "number": "B1.4.M54",
      "kind": "MIESZKALNY",
      "x": 635,
-     "y": 250
+     "y": 250,
+     "box": [
+      598,
+      250,
+      665,
+      326
+     ]
     },
     {
      "number": "B1.4.M55",
      "kind": "MIESZKALNY",
      "x": 544,
-     "y": 199
+     "y": 199,
+     "box": [
+      501,
+      150,
+      566,
+      326
+     ]
     },
     {
      "number": "B1.4.M56",
      "kind": "MIESZKALNY",
      "x": 454,
-     "y": 326
+     "y": 326,
+     "box": [
+      424,
+      151,
+      475,
+      326
+     ]
     },
     {
      "number": "B1.4.M57",
      "kind": "MIESZKALNY",
      "x": 363,
-     "y": 248
+     "y": 248,
+     "box": [
+      327,
+      248,
+      397,
+      357
+     ]
     },
     {
      "number": "B1.4.M58",
      "kind": "MIESZKALNY",
      "x": 287,
-     "y": 253
+     "y": 253,
+     "box": [
+      227,
+      253,
+      297,
+      367
+     ]
     },
     {
      "number": "B1.4.M59",
      "kind": "MIESZKALNY",
      "x": 204,
+     "y": 235,
+     "box": [
+      204,
+      149,
+      269,
+      246
+     ]
+    }
+   ]
+  },
+  "pzt": {
+   "file": "pzt.pdf",
+   "width": 1191,
+   "height": 842,
+   "markers": [
+    {
+     "number": "MP.1",
+     "kind": "PARKING",
+     "x": 664,
+     "y": 131
+    },
+    {
+     "number": "MP.2",
+     "kind": "PARKING",
+     "x": 596,
+     "y": 131
+    },
+    {
+     "number": "MP.3",
+     "kind": "PARKING",
+     "x": 259,
+     "y": 129
+    },
+    {
+     "number": "MP.4",
+     "kind": "PARKING",
+     "x": 191,
+     "y": 129
+    },
+    {
+     "number": "MP.5",
+     "kind": "PARKING",
+     "x": 113,
+     "y": 178
+    },
+    {
+     "number": "MP.6",
+     "kind": "PARKING",
+     "x": 113,
+     "y": 207
+    },
+    {
+     "number": "MP.7",
+     "kind": "PARKING",
+     "x": 113,
      "y": 235
+    },
+    {
+     "number": "MP.8",
+     "kind": "PARKING",
+     "x": 113,
+     "y": 263
+    },
+    {
+     "number": "MP.9",
+     "kind": "PARKING",
+     "x": 113,
+     "y": 292
+    },
+    {
+     "number": "MP.10",
+     "kind": "PARKING",
+     "x": 113,
+     "y": 320
+    },
+    {
+     "number": "MP.11",
+     "kind": "PARKING",
+     "x": 113,
+     "y": 348
+    },
+    {
+     "number": "MP.12",
+     "kind": "PARKING",
+     "x": 113,
+     "y": 377
+    },
+    {
+     "number": "MP.13",
+     "kind": "PARKING",
+     "x": 113,
+     "y": 405
+    },
+    {
+     "number": "MP.14",
+     "kind": "PARKING",
+     "x": 113,
+     "y": 433
+    },
+    {
+     "number": "MP.15",
+     "kind": "PARKING",
+     "x": 113,
+     "y": 462
+    },
+    {
+     "number": "MP.16",
+     "kind": "PARKING",
+     "x": 113,
+     "y": 491
+    },
+    {
+     "number": "MP.17",
+     "kind": "PARKING",
+     "x": 113,
+     "y": 518
+    },
+    {
+     "number": "MP.18",
+     "kind": "PARKING",
+     "x": 113,
+     "y": 547
+    },
+    {
+     "number": "MP.19",
+     "kind": "PARKING",
+     "x": 190,
+     "y": 550
+    },
+    {
+     "number": "MP.20",
+     "kind": "PARKING",
+     "x": 218,
+     "y": 548
+    },
+    {
+     "number": "MP.21",
+     "kind": "PARKING",
+     "x": 247,
+     "y": 547
+    },
+    {
+     "number": "MP.22",
+     "kind": "PARKING",
+     "x": 275,
+     "y": 546
+    },
+    {
+     "number": "MP.23",
+     "kind": "PARKING",
+     "x": 303,
+     "y": 546
+    },
+    {
+     "number": "MP.24",
+     "kind": "PARKING",
+     "x": 332,
+     "y": 545
+    },
+    {
+     "number": "MP.25",
+     "kind": "PARKING",
+     "x": 360,
+     "y": 544
+    },
+    {
+     "number": "MP.26",
+     "kind": "PARKING",
+     "x": 44,
+     "y": 215
+    },
+    {
+     "number": "MP.27",
+     "kind": "PARKING",
+     "x": 44,
+     "y": 283
+    },
+    {
+     "number": "MP.28",
+     "kind": "PARKING",
+     "x": 44,
+     "y": 394
+    },
+    {
+     "number": "MP.29",
+     "kind": "PARKING",
+     "x": 44,
+     "y": 462
     }
    ]
   }
