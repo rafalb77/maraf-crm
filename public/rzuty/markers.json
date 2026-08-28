@@ -1,0 +1,862 @@
+{
+ "generatedAt": "2026-08-28T09:17:21.164Z",
+ "floors": {
+  "0": {
+   "file": "kondygnacja-0.pdf",
+   "width": 1191,
+   "height": 842,
+   "markers": [
+    {
+     "number": "MG.1",
+     "kind": "GARAZ",
+     "x": 157,
+     "y": 455
+    },
+    {
+     "number": "MG.2",
+     "kind": "GARAZ",
+     "x": 157,
+     "y": 415
+    },
+    {
+     "number": "MG.3",
+     "kind": "GARAZ",
+     "x": 157,
+     "y": 364
+    },
+    {
+     "number": "MG.4",
+     "kind": "GARAZ",
+     "x": 157,
+     "y": 325
+    },
+    {
+     "number": "MG.5",
+     "kind": "GARAZ",
+     "x": 157,
+     "y": 276
+    },
+    {
+     "number": "MG.6",
+     "kind": "GARAZ",
+     "x": 157,
+     "y": 234
+    },
+    {
+     "number": "MG.7",
+     "kind": "GARAZ",
+     "x": 220,
+     "y": 170
+    },
+    {
+     "number": "MG.8",
+     "kind": "GARAZ",
+     "x": 270,
+     "y": 170
+    },
+    {
+     "number": "MG.9",
+     "kind": "GARAZ",
+     "x": 310,
+     "y": 170
+    },
+    {
+     "number": "MG.10",
+     "kind": "GARAZ",
+     "x": 319,
+     "y": 325
+    },
+    {
+     "number": "MG.11",
+     "kind": "GARAZ",
+     "x": 319,
+     "y": 364
+    },
+    {
+     "number": "MG.12",
+     "kind": "GARAZ",
+     "x": 319,
+     "y": 415
+    },
+    {
+     "number": "MG.13",
+     "kind": "GARAZ",
+     "x": 319,
+     "y": 453
+    },
+    {
+     "number": "MG.14",
+     "kind": "GARAZ",
+     "x": 405,
+     "y": 325
+    },
+    {
+     "number": "MG.15",
+     "kind": "GARAZ",
+     "x": 405,
+     "y": 364
+    },
+    {
+     "number": "MG.16",
+     "kind": "GARAZ",
+     "x": 405,
+     "y": 415
+    },
+    {
+     "number": "MG.17",
+     "kind": "GARAZ",
+     "x": 405,
+     "y": 455
+    },
+    {
+     "number": "MG.18",
+     "kind": "GARAZ",
+     "x": 563,
+     "y": 325
+    },
+    {
+     "number": "MG.19",
+     "kind": "GARAZ",
+     "x": 563,
+     "y": 364
+    },
+    {
+     "number": "MG.20",
+     "kind": "GARAZ",
+     "x": 563,
+     "y": 415
+    },
+    {
+     "number": "MG.21",
+     "kind": "GARAZ",
+     "x": 563,
+     "y": 453
+    },
+    {
+     "number": "MG.22",
+     "kind": "GARAZ",
+     "x": 632,
+     "y": 349
+    },
+    {
+     "number": "MG.23",
+     "kind": "GARAZ",
+     "x": 563,
+     "y": 174
+    },
+    {
+     "number": "MG.24",
+     "kind": "GARAZ",
+     "x": 606,
+     "y": 174
+    },
+    {
+     "number": "MG.25",
+     "kind": "GARAZ",
+     "x": 761,
+     "y": 174
+    },
+    {
+     "number": "MG.26",
+     "kind": "GARAZ",
+     "x": 802,
+     "y": 174
+    },
+    {
+     "number": "MG.27",
+     "kind": "GARAZ",
+     "x": 706,
+     "y": 338
+    },
+    {
+     "number": "MG.28",
+     "kind": "GARAZ",
+     "x": 714,
+     "y": 376
+    },
+    {
+     "number": "MG.29",
+     "kind": "GARAZ",
+     "x": 724,
+     "y": 426
+    },
+    {
+     "number": "MG.30",
+     "kind": "GARAZ",
+     "x": 732,
+     "y": 466
+    },
+    {
+     "number": "MG.31",
+     "kind": "GARAZ",
+     "x": 741,
+     "y": 516
+    },
+    {
+     "number": "MG.32",
+     "kind": "GARAZ",
+     "x": 749,
+     "y": 556
+    },
+    {
+     "number": "MG.33",
+     "kind": "GARAZ",
+     "x": 758,
+     "y": 604
+    },
+    {
+     "number": "MG.34",
+     "kind": "GARAZ",
+     "x": 929,
+     "y": 613
+    },
+    {
+     "number": "MG.35",
+     "kind": "GARAZ",
+     "x": 920,
+     "y": 573
+    },
+    {
+     "number": "MG.36",
+     "kind": "GARAZ",
+     "x": 911,
+     "y": 523
+    },
+    {
+     "number": "MG.37",
+     "kind": "GARAZ",
+     "x": 902,
+     "y": 483
+    },
+    {
+     "number": "MG.38",
+     "kind": "GARAZ",
+     "x": 893,
+     "y": 434
+    },
+    {
+     "number": "MG.39",
+     "kind": "GARAZ",
+     "x": 885,
+     "y": 394
+    },
+    {
+     "number": "MG.40",
+     "kind": "GARAZ",
+     "x": 872,
+     "y": 330
+    },
+    {
+     "number": "MG.41",
+     "kind": "GARAZ",
+     "x": 880,
+     "y": 276
+    },
+    {
+     "number": "MG.42",
+     "kind": "GARAZ",
+     "x": 870,
+     "y": 237
+    },
+    {
+     "number": "U-1.1",
+     "kind": "USLUGOWY",
+     "x": 938,
+     "y": 161
+    },
+    {
+     "number": "U-1.2",
+     "kind": "USLUGOWY",
+     "x": 939,
+     "y": 241
+    },
+    {
+     "number": "U-2.1",
+     "kind": "USLUGOWY",
+     "x": 1007,
+     "y": 547
+    },
+    {
+     "number": "U-2.2",
+     "kind": "USLUGOWY",
+     "x": 960,
+     "y": 428
+    }
+   ]
+  },
+  "1": {
+   "file": "kondygnacja-1.pdf",
+   "width": 1191,
+   "height": 842,
+   "markers": [
+    {
+     "number": "B1.1.KL1",
+     "kind": "KOMORKA",
+     "x": 432,
+     "y": 186
+    },
+    {
+     "number": "B1.1.KL2",
+     "kind": "KOMORKA",
+     "x": 447,
+     "y": 286
+    },
+    {
+     "number": "B1.1.KL3",
+     "kind": "KOMORKA",
+     "x": 432,
+     "y": 249
+    },
+    {
+     "number": "B1.1.KL4",
+     "kind": "KOMORKA",
+     "x": 627,
+     "y": 186
+    },
+    {
+     "number": "B1.1.KL5",
+     "kind": "KOMORKA",
+     "x": 634,
+     "y": 251
+    },
+    {
+     "number": "B1.1.KL6",
+     "kind": "KOMORKA",
+     "x": 828,
+     "y": 259
+    },
+    {
+     "number": "B1.1.KL7",
+     "kind": "KOMORKA",
+     "x": 814,
+     "y": 289
+    },
+    {
+     "number": "B1.1.KL8",
+     "kind": "KOMORKA",
+     "x": 830,
+     "y": 316
+    },
+    {
+     "number": "B1.1.M1",
+     "kind": "MIESZKALNY",
+     "x": 987,
+     "y": 485
+    },
+    {
+     "number": "B1.1.M2",
+     "kind": "MIESZKALNY",
+     "x": 1030,
+     "y": 618
+    },
+    {
+     "number": "B1.1.M3",
+     "kind": "MIESZKALNY",
+     "x": 896,
+     "y": 620
+    },
+    {
+     "number": "B1.1.M4",
+     "kind": "MIESZKALNY",
+     "x": 796,
+     "y": 575
+    },
+    {
+     "number": "B1.1.M5",
+     "kind": "MIESZKALNY",
+     "x": 826,
+     "y": 523
+    },
+    {
+     "number": "B1.1.M6",
+     "kind": "MIESZKALNY",
+     "x": 828,
+     "y": 399
+    },
+    {
+     "number": "B1.1.M7",
+     "kind": "MIESZKALNY",
+     "x": 943,
+     "y": 180
+    },
+    {
+     "number": "B1.1.M8",
+     "kind": "MIESZKALNY",
+     "x": 976,
+     "y": 294
+    },
+    {
+     "number": "B1.1.M9",
+     "kind": "MIESZKALNY",
+     "x": 753,
+     "y": 154
+    },
+    {
+     "number": "B1.1.M10",
+     "kind": "MIESZKALNY",
+     "x": 716,
+     "y": 265
+    },
+    {
+     "number": "B1.1.M11",
+     "kind": "MIESZKALNY",
+     "x": 560,
+     "y": 230
+    },
+    {
+     "number": "B1.1.M12",
+     "kind": "MIESZKALNY",
+     "x": 484,
+     "y": 201
+    },
+    {
+     "number": "B1.1.M13",
+     "kind": "MIESZKALNY",
+     "x": 439,
+     "y": 326
+    },
+    {
+     "number": "B1.1.M14",
+     "kind": "MIESZKALNY",
+     "x": 329,
+     "y": 361
+    },
+    {
+     "number": "B1.1.M15",
+     "kind": "MIESZKALNY",
+     "x": 259,
+     "y": 148
+    }
+   ]
+  },
+  "2": {
+   "file": "kondygnacja-2.pdf",
+   "width": 1191,
+   "height": 842,
+   "markers": [
+    {
+     "number": "B1.2.KL1",
+     "kind": "KOMORKA",
+     "x": 391,
+     "y": 185
+    },
+    {
+     "number": "B1.2.KL2",
+     "kind": "KOMORKA",
+     "x": 401,
+     "y": 255
+    },
+    {
+     "number": "B1.2.KL3",
+     "kind": "KOMORKA",
+     "x": 396,
+     "y": 287
+    },
+    {
+     "number": "B1.2.KL4",
+     "kind": "KOMORKA",
+     "x": 582,
+     "y": 194
+    },
+    {
+     "number": "B1.2.KL5",
+     "kind": "KOMORKA",
+     "x": 588,
+     "y": 252
+    },
+    {
+     "number": "B1.2.KL6",
+     "kind": "KOMORKA",
+     "x": 778,
+     "y": 261
+    },
+    {
+     "number": "B1.2.KL7",
+     "kind": "KOMORKA",
+     "x": 772,
+     "y": 289
+    },
+    {
+     "number": "B1.2.KL8",
+     "kind": "KOMORKA",
+     "x": 786,
+     "y": 314
+    },
+    {
+     "number": "B1.2.M16",
+     "kind": "MIESZKALNY",
+     "x": 893,
+     "y": 428
+    },
+    {
+     "number": "B1.2.M17",
+     "kind": "MIESZKALNY",
+     "x": 976,
+     "y": 598
+    },
+    {
+     "number": "B1.2.M18",
+     "kind": "MIESZKALNY",
+     "x": 842,
+     "y": 611
+    },
+    {
+     "number": "B1.2.M19",
+     "kind": "MIESZKALNY",
+     "x": 755,
+     "y": 583
+    },
+    {
+     "number": "B1.2.M20",
+     "kind": "MIESZKALNY",
+     "x": 776,
+     "y": 526
+    },
+    {
+     "number": "B1.2.M21",
+     "kind": "MIESZKALNY",
+     "x": 782,
+     "y": 396
+    },
+    {
+     "number": "B1.2.M22",
+     "kind": "MIESZKALNY",
+     "x": 895,
+     "y": 174
+    },
+    {
+     "number": "B1.2.M23",
+     "kind": "MIESZKALNY",
+     "x": 917,
+     "y": 294
+    },
+    {
+     "number": "B1.2.M24",
+     "kind": "MIESZKALNY",
+     "x": 706,
+     "y": 148
+    },
+    {
+     "number": "B1.2.M25",
+     "kind": "MIESZKALNY",
+     "x": 669,
+     "y": 266
+    },
+    {
+     "number": "B1.2.M26",
+     "kind": "MIESZKALNY",
+     "x": 512,
+     "y": 228
+    },
+    {
+     "number": "B1.2.M27",
+     "kind": "MIESZKALNY",
+     "x": 442,
+     "y": 197
+    },
+    {
+     "number": "B1.2.M28",
+     "kind": "MIESZKALNY",
+     "x": 392,
+     "y": 337
+    },
+    {
+     "number": "B1.2.M29",
+     "kind": "MIESZKALNY",
+     "x": 286,
+     "y": 349
+    },
+    {
+     "number": "B1.2.M30",
+     "kind": "MIESZKALNY",
+     "x": 217,
+     "y": 149
+    }
+   ]
+  },
+  "3": {
+   "file": "kondygnacja-3.pdf",
+   "width": 1191,
+   "height": 842,
+   "markers": [
+    {
+     "number": "B1.3.KL1",
+     "kind": "KOMORKA",
+     "x": 394,
+     "y": 184
+    },
+    {
+     "number": "B1.3.KL2",
+     "kind": "KOMORKA",
+     "x": 406,
+     "y": 257
+    },
+    {
+     "number": "B1.3.KL3",
+     "kind": "KOMORKA",
+     "x": 401,
+     "y": 284
+    },
+    {
+     "number": "B1.3.KL4",
+     "kind": "KOMORKA",
+     "x": 582,
+     "y": 186
+    },
+    {
+     "number": "B1.3.KL5",
+     "kind": "KOMORKA",
+     "x": 591,
+     "y": 249
+    },
+    {
+     "number": "B1.3.KL6",
+     "kind": "KOMORKA",
+     "x": 780,
+     "y": 263
+    },
+    {
+     "number": "B1.3.KL7",
+     "kind": "KOMORKA",
+     "x": 776,
+     "y": 290
+    },
+    {
+     "number": "B1.3.KL8",
+     "kind": "KOMORKA",
+     "x": 785,
+     "y": 313
+    },
+    {
+     "number": "B1.3.M31",
+     "kind": "MIESZKALNY",
+     "x": 958,
+     "y": 496
+    },
+    {
+     "number": "B1.3.M32",
+     "kind": "MIESZKALNY",
+     "x": 981,
+     "y": 619
+    },
+    {
+     "number": "B1.3.M33",
+     "kind": "MIESZKALNY",
+     "x": 856,
+     "y": 627
+    },
+    {
+     "number": "B1.3.M34",
+     "kind": "MIESZKALNY",
+     "x": 760,
+     "y": 581
+    },
+    {
+     "number": "B1.3.M35",
+     "kind": "MIESZKALNY",
+     "x": 771,
+     "y": 514
+    },
+    {
+     "number": "B1.3.M36",
+     "kind": "MIESZKALNY",
+     "x": 773,
+     "y": 397
+    },
+    {
+     "number": "B1.3.M37",
+     "kind": "MIESZKALNY",
+     "x": 892,
+     "y": 163
+    },
+    {
+     "number": "B1.3.M38",
+     "kind": "MIESZKALNY",
+     "x": 922,
+     "y": 296
+    },
+    {
+     "number": "B1.3.M39",
+     "kind": "MIESZKALNY",
+     "x": 712,
+     "y": 152
+    },
+    {
+     "number": "B1.3.M40",
+     "kind": "MIESZKALNY",
+     "x": 672,
+     "y": 267
+    },
+    {
+     "number": "B1.3.M41",
+     "kind": "MIESZKALNY",
+     "x": 514,
+     "y": 230
+    },
+    {
+     "number": "B1.3.M42",
+     "kind": "MIESZKALNY",
+     "x": 442,
+     "y": 195
+    },
+    {
+     "number": "B1.3.M43",
+     "kind": "MIESZKALNY",
+     "x": 395,
+     "y": 350
+    },
+    {
+     "number": "B1.3.M44",
+     "kind": "MIESZKALNY",
+     "x": 286,
+     "y": 351
+    },
+    {
+     "number": "B1.3.M45",
+     "kind": "MIESZKALNY",
+     "x": 213,
+     "y": 173
+    }
+   ]
+  },
+  "4": {
+   "file": "kondygnacja-4.pdf",
+   "width": 1191,
+   "height": 842,
+   "markers": [
+    {
+     "number": "B1.4.KL1",
+     "kind": "KOMORKA",
+     "x": 397,
+     "y": 188
+    },
+    {
+     "number": "B1.4.KL2",
+     "kind": "KOMORKA",
+     "x": 408,
+     "y": 250
+    },
+    {
+     "number": "B1.4.KL3",
+     "kind": "KOMORKA",
+     "x": 398,
+     "y": 286
+    },
+    {
+     "number": "B1.4.KL4",
+     "kind": "KOMORKA",
+     "x": 585,
+     "y": 185
+    },
+    {
+     "number": "B1.4.KL5",
+     "kind": "KOMORKA",
+     "x": 585,
+     "y": 254
+    },
+    {
+     "number": "B1.4.KL6",
+     "kind": "KOMORKA",
+     "x": 779,
+     "y": 261
+    },
+    {
+     "number": "B1.4.KL7",
+     "kind": "KOMORKA",
+     "x": 772,
+     "y": 295
+    },
+    {
+     "number": "B1.4.KL8",
+     "kind": "KOMORKA",
+     "x": 789,
+     "y": 316
+    },
+    {
+     "number": "B1.4.M46",
+     "kind": "MIESZKALNY",
+     "x": 897,
+     "y": 472
+    },
+    {
+     "number": "B1.4.M47",
+     "kind": "MIESZKALNY",
+     "x": 931,
+     "y": 545
+    },
+    {
+     "number": "B1.4.M48",
+     "kind": "MIESZKALNY",
+     "x": 842,
+     "y": 526
+    },
+    {
+     "number": "B1.4.M49",
+     "kind": "MIESZKALNY",
+     "x": 833,
+     "y": 483
+    },
+    {
+     "number": "B1.4.M50",
+     "kind": "MIESZKALNY",
+     "x": 805,
+     "y": 336
+    },
+    {
+     "number": "B1.4.M51",
+     "kind": "MIESZKALNY",
+     "x": 833,
+     "y": 200
+    },
+    {
+     "number": "B1.4.M52",
+     "kind": "MIESZKALNY",
+     "x": 866,
+     "y": 265
+    },
+    {
+     "number": "B1.4.M53",
+     "kind": "MIESZKALNY",
+     "x": 702,
+     "y": 208
+    },
+    {
+     "number": "B1.4.M54",
+     "kind": "MIESZKALNY",
+     "x": 635,
+     "y": 250
+    },
+    {
+     "number": "B1.4.M55",
+     "kind": "MIESZKALNY",
+     "x": 544,
+     "y": 199
+    },
+    {
+     "number": "B1.4.M56",
+     "kind": "MIESZKALNY",
+     "x": 454,
+     "y": 326
+    },
+    {
+     "number": "B1.4.M57",
+     "kind": "MIESZKALNY",
+     "x": 363,
+     "y": 248
+    },
+    {
+     "number": "B1.4.M58",
+     "kind": "MIESZKALNY",
+     "x": 287,
+     "y": 253
+    },
+    {
+     "number": "B1.4.M59",
+     "kind": "MIESZKALNY",
+     "x": 204,
+     "y": 235
+    }
+   ]
+  }
+ }
+}

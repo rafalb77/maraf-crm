@@ -1,6 +1,7 @@
 import { prisma } from './prisma'
 import { expireSoftReservations, attachReservedByClient } from './reservations'
 import { buildBudowaTaskRows, reconcileBudowaTask } from './budowa-task-rules'
+import { computeOrphanStorageAlerts, orphanAlertText, staircaseOf } from './floorplan'
 import type { TaskBucket } from './types'
 
 /**
@@ -18,6 +19,8 @@ import type { TaskBucket } from './types'
  *  - CONTRACT_RES_END:<contractId>:<yyyy-mm-dd> — podpisana umowa REZERWACYJNA
  *    z terminem końca rezerwacji w ciągu N dni lub po terminie — czas podpisać
  *    umowę deweloperską (Settings: tasks.contractResEndWarnDays, default 14)
+ *  - ORPHAN_KL:<klatka|X>:<floor> — w grupie klatka×kondygnacja wszystkie
+ *    mieszkania sprzedane, a komórki lokatorskie zostały wolne (lib/floorplan.ts)
  *
  * ruleKey zawiera datę źródła — przesunięcie terminu (przedłużenie rezerwacji,
  * zmiana plannedDate raty) tworzy NOWY klucz; stare zadanie domyka reconcile.
@@ -157,14 +160,15 @@ export async function generateTasks(): Promise<GenerateResult> {
   const { autoClosed, cancelled } = await reconcileRuleTasks()
 
   const now = new Date()
-  const [reservationRows, paymentRows, contractResEndRows, budowaRows] = await Promise.all([
+  const [reservationRows, paymentRows, contractResEndRows, orphanRows, budowaRows] = await Promise.all([
     buildReservationTaskRows(now),
     buildPaymentTaskRows(now),
     buildContractResEndTaskRows(now),
+    buildOrphanStorageTaskRows(now),
     buildBudowaTaskRows(now), // moduł Budowa: opóźnienia / odbiory / kończące się umowy
   ])
 
-  const rows = [...reservationRows, ...paymentRows, ...contractResEndRows, ...budowaRows]
+  const rows = [...reservationRows, ...paymentRows, ...contractResEndRows, ...orphanRows, ...budowaRows]
   let created = 0
   if (rows.length > 0) {
     // skipDuplicates + unique(ruleKey) = idempotencja (także wobec zadań już
@@ -306,6 +310,33 @@ async function buildPaymentTaskRows(now: Date) {
   })
 }
 
+/** Lokale do wyliczenia alertów osieroconych komórek (mieszkania + komórki). */
+async function fetchOrphanUnits() {
+  return prisma.unit.findMany({
+    where: { type: { in: ['MIESZKALNY', 'KOMORKA'] } },
+    select: { number: true, type: true, status: true, floor: true, building: true },
+  })
+}
+
+/**
+ * Osierocone komórki: wszystkie mieszkania w klatce na kondygnacji sprzedane,
+ * a komórki lokatorskie wolne — zadanie-alert (pilne, na dziś), żeby dosprzedać
+ * je aneksem nabywcom z tej klatki, zanim zostaną bez chętnych.
+ */
+async function buildOrphanStorageTaskRows(now: Date) {
+  const units = await fetchOrphanUnits()
+  const alerts = computeOrphanStorageAlerts(units).filter((a) => a.severity === 'alert')
+  return alerts.map((a) => ({
+    title: `⚠ ${orphanAlertText(a)}`,
+    description:
+      'Zaproponuj wolne komórki nabywcom mieszkań z tej klatki (dołożenie aneksem na karcie umowy), zanim zostaną bez chętnych.',
+    type: 'SPRAWA',
+    source: 'RULE',
+    ruleKey: `ORPHAN_KL:${a.staircase ?? 'X'}:${a.floor}`,
+    dueAt: now,
+  }))
+}
+
 // ---------------------------------------------------------------------------
 // Auto-domykanie (reconcile)
 // ---------------------------------------------------------------------------
@@ -341,8 +372,29 @@ export async function reconcileRuleTasks(): Promise<{ autoClosed: number; cancel
   const cancelIds: string[] = []
   const reconcileNow = new Date()
 
+  // Stan lokali do reconcile ORPHAN_KL — pobierany raz, tylko gdy potrzebny.
+  const orphanUnits = open.some((t) => (t.ruleKey || '').startsWith('ORPHAN_KL:'))
+    ? await fetchOrphanUnits()
+    : []
+
   for (const t of open) {
     const [rule, , keyDate] = (t.ruleKey || '').split(':')
+
+    if (rule === 'ORPHAN_KL') {
+      // ORPHAN_KL:<klatka|X>:<floor> — przelicz grupę na świeżo.
+      const [, stKey, floorStr] = (t.ruleKey || '').split(':')
+      const floor = Number(floorStr)
+      const group = orphanUnits.filter(
+        (u) => u.floor === floor && (staircaseOf(u.building) ?? 'X') === stKey,
+      )
+      const freeStorage = group.filter((u) => u.type === 'KOMORKA' && u.status === 'WOLNY').length
+      const openApartments = group.filter(
+        (u) => u.type === 'MIESZKALNY' && (u.status === 'WOLNY' || u.status === 'ZAREZERWOWANY'),
+      ).length
+      if (freeStorage === 0) doneIds.push(t.id) // komórki zagospodarowane — cel osiągnięty
+      else if (openApartments > 0) cancelIds.push(t.id) // mieszkanie wróciło do puli — alert bezprzedmiotowy
+      continue
+    }
 
     if (rule.startsWith('BUDOWA_')) {
       // Reguły cron-owe budowy (OPOZNIENIE/ODBIOR/UMOWA_KONIEC) — logika w

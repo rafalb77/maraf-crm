@@ -21,6 +21,9 @@ const nextConfig = {
     if (!isServer) {
       config.resolve.fallback = { ...config.resolve.fallback, fs: false, path: false }
     }
+    // react-pdf/pdfjs: opcjonalna zależność `canvas` (Node-only) nie może być
+    // resolvowana w bundlu — bez aliasu build padał na "Can't resolve 'canvas'".
+    config.resolve.alias = { ...config.resolve.alias, canvas: false }
     return config
   },
   /**

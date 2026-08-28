@@ -100,6 +100,7 @@ export function getRequiredPermission(pathname: string): Permission | 'admin' | 
   if (pathname.startsWith('/dashboard')) return 'dashboard'
   if (pathname.startsWith('/clients')) return 'clients'
   if (pathname.startsWith('/units')) return 'units'
+  if (pathname.startsWith('/rzuty')) return 'units' // rzuty pięter — widok modułu Lokale
   if (pathname.startsWith('/oferty')) return 'oferty'
   if (pathname.startsWith('/sales')) return 'sales'
   if (pathname.startsWith('/rezerwacje')) return 'sales' // moduł rezerwacji — workflow sprzedażowy
