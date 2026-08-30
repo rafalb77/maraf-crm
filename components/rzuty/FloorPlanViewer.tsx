@@ -143,9 +143,15 @@ export function FloorPlanViewer({
   const [savingShapes, setSavingShapes] = useState(false)
   const [editError, setEditError] = useState<string | null>(null)
 
-  /** Efektywny kontur: ręczny obrys mieszkania (stan edytora) > dane z serwera. */
+  /**
+   * Efektywny kontur lokalu: ręczny obrys (stan edytora) > kontur z serwera.
+   * Mieszkania nie mają automatycznego konturu, więc po usunięciu ręcznego
+   * wracają do obwiedni; komórki/miejsca wracają do konturu automatycznego.
+   */
   const getPoly = (m: FloorMarker): [number, number][] | undefined => {
-    if (m.kind === 'MIESZKALNY' && shapes) return shapes[active]?.[m.number]
+    const manual = shapes?.[active]?.[m.number]
+    if (manual) return manual
+    if (m.kind === 'MIESZKALNY' && shapes) return undefined
     return m.poly
   }
   const floorShapes: Record<string, [number, number][]> = shapes?.[active] ?? {}
@@ -194,8 +200,10 @@ export function FloorPlanViewer({
     setShapes(nextShapes)
     setDirty(true)
     setDraft([])
-    // Auto-przejście do kolejnego mieszkania bez obrysu — szybkie obrysowanie planszy.
-    const next = floor.markers.find((m) => m.kind === 'MIESZKALNY' && !nextShapes[active]?.[m.number])
+    // Auto-przejście do kolejnego lokalu TEGO SAMEGO typu bez ręcznego obrysu
+    // — szybkie obrysowanie całej planszy (mieszkań, garaży, miejsc...).
+    const kind = floor.markers.find((m) => m.number === editTarget)?.kind
+    const next = floor.markers.find((m) => m.kind === kind && !nextShapes[active]?.[m.number])
     setEditTarget(next ? next.number : null)
   }
   function undoPoint() {
@@ -289,7 +297,7 @@ export function FloorPlanViewer({
           <span className="inline-flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-yellow-400 inline-block" /> zarezerwowany</span>
           <span className="inline-flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-red-600 inline-block" /> sprzedany</span>
           <span className="inline-flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-gray-400 inline-block" /> niedostępny</span>
-          {!editMode && floor?.markers.some((m) => m.kind === 'MIESZKALNY') && (
+          {!editMode && floor && floor.markers.length > 0 && (
             <button
               onClick={enterEdit}
               className="ml-2 inline-flex items-center gap-1 px-2 py-1 border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50 font-medium"
@@ -309,19 +317,17 @@ export function FloorPlanViewer({
             onChange={(e) => startTarget(e.target.value)}
             className="px-2 py-1 border border-gray-300 rounded-lg text-sm bg-white"
           >
-            <option value="">— wybierz mieszkanie —</option>
-            {floor.markers
-              .filter((m) => m.kind === 'MIESZKALNY')
-              .map((m) => (
-                <option key={m.number} value={m.number}>
-                  {m.number} {floorShapes[m.number] ? '✓' : '—'}
-                </option>
-              ))}
+            <option value="">— wybierz lokal —</option>
+            {floor.markers.map((m) => (
+              <option key={m.number} value={m.number}>
+                {m.number} {floorShapes[m.number] ? '✓' : m.poly ? '(auto)' : '—'}
+              </option>
+            ))}
           </select>
           {editTarget && (
             <span className="text-violet-800">
               punktów: {draft.length}
-              {draft.length >= 3 ? ' · kliknij pierwszy punkt lub „Zamknij", aby zakończyć' : ' · klikaj narożniki mieszkania'}
+              {draft.length >= 3 ? ' · kliknij pierwszy punkt lub „Zamknij", aby zakończyć' : ' · klikaj narożniki lokalu/miejsca'}
             </span>
           )}
           <button onClick={undoPoint} disabled={draft.length === 0} className="px-2 py-1 border border-gray-300 rounded-lg bg-white disabled:opacity-40">
@@ -545,9 +551,8 @@ export function FloorPlanViewer({
                       </>
                     )}
                   </svg>
-                  {/* Wybór mieszkania kliknięciem w jego etykietę */}
+                  {/* Wybór lokalu kliknięciem w jego etykietę */}
                   {floor.markers
-                    .filter((m) => m.kind === 'MIESZKALNY')
                     .map((m) => (
                       <button
                         key={`et-${m.number}`}
