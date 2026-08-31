@@ -61,7 +61,9 @@ async function main() {
       ...KSEF_OWNED,
       status: { in: ['ZATWIERDZONA', 'WPROWADZONA'] },
       payments: { none: {} },
-      approvals: { none: { action: { in: ['APPROVE', 'APPROVED'] } } },
+      // KAZDY wpis w historii (takze EDITED = reczna zmiana statusu dropdownem)
+      // oznacza decyzje czlowieka — takich faktur nie cofamy automatycznie.
+      approvals: { none: {} },
     },
     select: { id: true, number: true, status: true },
   })

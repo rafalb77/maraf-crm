@@ -683,25 +683,12 @@ export async function syncCompanyFromKsef(
   }
 
   try {
-    // 0. MIGRACJA STATUSU (jednorazowa, idempotentna): faktury zakupowe pobrane
-    // z KSeF maja miec status POBRANA (do przejrzenia), a nie ZATWIERDZONA
-    // (stary kod) ani WPROWADZONA (WPROWADZONA = wpis reczny). Migrujemy tylko
-    // faktury POCHODZACE z KSeF (znacznik jak w reconcile), ktore NIE zostaly
-    // recznie zatwierdzone (brak APPROVE) i NIE maja platnosci. Idempotentne.
-    await prisma.purchaseInvoice.updateMany({
-      where: {
-        company,
-        status: { in: ['ZATWIERDZONA', 'WPROWADZONA'] },
-        ksefNumber: { not: null },
-        createdById: null,
-        importSheet: null,
-        sourceSalesInvoiceId: null,
-        description: { startsWith: 'Z KSeF' },
-        payments: { none: {} },
-        approvals: { none: { action: { in: ['APPROVE', 'APPROVED'] } } },
-      },
-      data: { status: 'POBRANA' },
-    })
+    // (Usunieto 2026-08: dawny krok 0 "migracja statusu" ZATWIERDZONA/WPROWADZONA
+    // -> POBRANA. Byla to JEDNORAZOWA migracja legacy, ale dzialala przy kazdym
+    // syncu i COFALA reczne zatwierdzenia zrobione dropdownem statusu (wpis
+    // EDITED, nie APPROVE) — faktury znikaly z kolejki platnosci po ~1h.
+    // Migracja legacy dawno wykonana na produkcji; sync NIE zmienia juz statusow
+    // istniejacych faktur poza uzgodnieniem oplacenia (reconcileExistingFromKsef).)
 
     // 1. SALES (Subject1) — faktury wystawione przez nas
     const salesMeta = await client.queryInvoicesMetadata({

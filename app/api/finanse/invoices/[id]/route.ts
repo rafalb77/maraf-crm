@@ -137,7 +137,10 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     await prisma.purchaseInvoiceApproval.create({
       data: {
         invoiceId: params.id,
-        action: 'EDITED',
+        // Reczna zmiana na ZATWIERDZONA = pelnoprawna akceptacja (APPROVE) —
+        // logika sprawdzajaca "czy czlowiek zatwierdzil" (np. skrypty migracji
+        // statusow KSeF) musi ja widziec tak samo jak przycisk "Zatwierdz".
+        action: data.status === 'ZATWIERDZONA' ? 'APPROVE' : 'EDITED',
         userId: session.user.id || null,
         userEmail: session.user.email || null,
         comment: `Zmiana statusu: ${PURCHASE_INVOICE_STATUS_LABELS[inv.status as PurchaseInvoiceStatus] || inv.status} → ${PURCHASE_INVOICE_STATUS_LABELS[data.status as PurchaseInvoiceStatus] || data.status}`,
