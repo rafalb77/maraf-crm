@@ -2,14 +2,7 @@
 // Używane w 3 miejscach: <title> strony druku (window.print → nazwa zapisu),
 // Content-Disposition endpointu /pdf oraz nazwa załącznika w mailu.
 
-const PL_MAP: Record<string, string> = {
-  ą: 'a', ć: 'c', ę: 'e', ł: 'l', ń: 'n', ó: 'o', ś: 's', ź: 'z', ż: 'z',
-  Ą: 'A', Ć: 'C', Ę: 'E', Ł: 'L', Ń: 'N', Ó: 'O', Ś: 'S', Ź: 'Z', Ż: 'Z',
-}
-
-function foldPolish(s: string): string {
-  return s.replace(/[ąćęłńóśźżĄĆĘŁŃÓŚŹŻ]/g, (c) => PL_MAP[c] ?? c)
-}
+import { foldPolish } from './text'
 
 // Sanityzacja pojedynczego segmentu. Podkreślnik jest zarezerwowany jako
 // separator pól, więc wewnątrz segmentu zamieniamy spacje/inne znaki na "-".

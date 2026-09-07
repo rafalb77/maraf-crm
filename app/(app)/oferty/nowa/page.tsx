@@ -2,7 +2,11 @@ import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
 import { OfferCalculator } from '@/components/oferty/OfferCalculator'
 
-export default async function NowaOfertaPage() {
+export default async function NowaOfertaPage({
+  searchParams,
+}: {
+  searchParams: { clientId?: string }
+}) {
   const [units, clients] = await Promise.all([
     prisma.unit.findMany({
       where: { status: { in: ['WOLNY', 'ZAREZERWOWANY'] } },
@@ -10,6 +14,12 @@ export default async function NowaOfertaPage() {
     }),
     prisma.client.findMany({ orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }] }),
   ])
+
+  // Preselekcja klienta z URL (wejście z karty klienta). Walidujemy na już
+  // pobranej liście — nieistniejące id po prostu ignorujemy (bez dodatkowego zapytania).
+  const defaultClientId = clients.some((c) => c.id === searchParams.clientId)
+    ? searchParams.clientId
+    : undefined
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
@@ -40,6 +50,7 @@ export default async function NowaOfertaPage() {
           id: c.id,
           name: `${c.firstName} ${c.lastName}`,
         }))}
+        defaultClientId={defaultClientId}
       />
     </div>
   )

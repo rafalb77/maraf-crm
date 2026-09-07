@@ -1,6 +1,7 @@
 'use client'
 import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { ClientCombobox } from './ClientCombobox'
 
 const inputCls = 'px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500'
 
@@ -62,14 +63,18 @@ export function OfferCalculator({
   units,
   clients,
   initial,
+  defaultClientId,
 }: {
   units: Unit[]
   clients: Client[]
   initial?: InitialOffer
+  /** Preselekcja klienta przy nowej ofercie (np. wejście z karty klienta). */
+  defaultClientId?: string
 }) {
   const router = useRouter()
   const [title, setTitle] = useState(initial?.title || '')
-  const [clientId, setClientId] = useState(initial?.clientId || '')
+  // Edycja ma pierwszeństwo — defaultClientId dotyczy tylko nowej oferty.
+  const [clientId, setClientId] = useState(initial?.clientId || defaultClientId || '')
   const [validUntil, setValidUntil] = useState(initial?.validUntil ? initial.validUntil.slice(0, 10) : '')
   const [notes, setNotes] = useState(initial?.notes || '')
   const [items, setItems] = useState<Item[]>(initial?.items || [])
@@ -226,13 +231,14 @@ export function OfferCalculator({
             />
           </div>
           <div>
-            <label className="block text-xs text-gray-600 mb-1">Klient (opcjonalnie)</label>
-            <select value={clientId} onChange={(e) => setClientId(e.target.value)} className={inputCls + ' w-full bg-white'}>
-              <option value="">— bez przypisania —</option>
-              {clients.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
+            <label htmlFor="offer-client" className="block text-xs text-gray-600 mb-1">Klient (opcjonalnie)</label>
+            <ClientCombobox
+              id="offer-client"
+              clients={clients}
+              value={clientId}
+              onChange={setClientId}
+              inputCls={inputCls}
+            />
           </div>
           <div>
             <label className="block text-xs text-gray-600 mb-1">Ważna do</label>

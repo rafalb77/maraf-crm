@@ -19,12 +19,21 @@ export type ClientOfferRow = {
  * za ile, z jakim rabatem i co klient zaakceptował. Zaakceptowana oferta bez
  * umowy = następny krok (konwersja na karcie oferty w module Oferty).
  */
-export function ClientOffersPanel({ offers, hasContracts }: { offers: ClientOfferRow[]; hasContracts: boolean }) {
+export function ClientOffersPanel({
+  offers,
+  hasContracts,
+  clientId,
+}: {
+  offers: ClientOfferRow[]
+  hasContracts: boolean
+  /** Preselekcja klienta w kalkulatorze — oferta z karty klienta jest dla niego. */
+  clientId: string
+}) {
   return (
     <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5">
       <div className="flex items-center justify-between mb-4">
         <h2 className="font-semibold text-gray-900">Oferty</h2>
-        <Link href="/oferty/nowa" prefetch={false} className="text-sm text-blue-600 hover:text-blue-700 font-medium">
+        <Link href={`/oferty/nowa?clientId=${clientId}`} prefetch={false} className="text-sm text-blue-600 hover:text-blue-700 font-medium">
           + Nowa
         </Link>
       </div>

@@ -189,7 +189,7 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
         </div>
         <div className="flex flex-wrap gap-2.5">
           <Link
-            href="/oferty/nowa"
+            href={`/oferty/nowa?clientId=${client.id}`}
             className="px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors"
             style={{ background: 'var(--accent)' }}
           >
@@ -266,7 +266,7 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
 
           {/* Oferty — lejek przed umową */}
           <div className="v2-card-in" style={{ animationDelay: '.10s' }}>
-            <ClientOffersPanel offers={offerRows} hasContracts={dealCards.length > 0} />
+            <ClientOffersPanel offers={offerRows} hasContracts={dealCards.length > 0} clientId={client.id} />
           </div>
 
           {/* Portfel lokali: co, za ile, z jakim rabatem */}
