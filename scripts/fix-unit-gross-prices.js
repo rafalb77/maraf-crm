@@ -27,9 +27,18 @@ async function main() {
 
   const fixes = []
   for (const u of units) {
-    const expected = round2(u.priceNet * (1 + (u.vatRate ?? 8) / 100))
-    if (Math.abs(expected - u.priceGross) >= 0.005) {
-      fixes.push({ id: u.id, number: u.number, from: u.priceGross, to: expected })
+    const vat = 1 + (u.vatRate ?? 8) / 100
+    const grossFromNet = round2(u.priceNet * vat)
+    const netFromGross = round2(u.priceGross / vat)
+    // Spójne w KTÓRĄKOLWIEK stronę = OK. Lokale z okrągłą ceną brutto z cennika
+    // (np. 45 000,00) mają netto = brutto ÷ VAT zaokrąglone — przeliczenie
+    // brutto z takiego netto dałoby ±1 gr i zepsuło prawidłową cenę. Naprawiamy
+    // tylko rozjazd w obie strony (stary wzór: powierzchnia × zaokrąglona
+    // stawka brutto/m², np. 8 gr na M16).
+    const okFromNet = Math.abs(grossFromNet - u.priceGross) < 0.005
+    const okFromGross = Math.abs(netFromGross - u.priceNet) < 0.005
+    if (!okFromNet && !okFromGross) {
+      fixes.push({ id: u.id, number: u.number, from: u.priceGross, to: grossFromNet })
     }
   }
 
