@@ -17,6 +17,7 @@ import { ContractStageStepper } from '@/components/sales/ContractStageStepper'
 import { ContractUnitsEditor } from '@/components/sales/ContractUnitsEditor'
 import { ContractAnnexPanel } from '@/components/sales/ContractAnnexPanel'
 import { ContractCoBuyersEditor } from '@/components/sales/ContractCoBuyersEditor'
+import { ContractDateField } from '@/components/sales/ContractDateField'
 
 export default async function ContractDetailPage({ params }: { params: { id: string } }) {
   const contract = await prisma.contract.findUnique({
@@ -224,17 +225,23 @@ export default async function ContractDetailPage({ params }: { params: { id: str
               availableClients={availableCoBuyers}
             />
             <Row label="Data wprowadzenia" value={formatDate(contract.introducedAt)} />
+            <Row label="Termin zawarcia umowy">
+              <ContractDateField
+                contractId={contract.id}
+                field="plannedSignDate"
+                valueISO={contract.plannedSignDate?.toISOString() ?? null}
+                hint={'Trafia do nagłówka umowy („zawarta w dniu…”) do czasu oznaczenia jako podpisana.'}
+              />
+            </Row>
             <Row label="Data podpisania" value={contract.signedAt ? formatDate(contract.signedAt) : '—'} />
-            <Row
-              label="Termin zakończenia rezerwacji"
-              value={
-                contract.reservationEndDate
-                  ? formatDate(contract.reservationEndDate)
-                  : contract.plannedSignDate
-                    ? formatDate(contract.plannedSignDate) // legacy: stare umowy trzymały to w plannedSignDate
-                    : '—'
-              }
-            />
+            <Row label="Termin zakończenia rezerwacji">
+              <ContractDateField
+                contractId={contract.id}
+                field="reservationEndDate"
+                valueISO={contract.reservationEndDate?.toISOString() ?? null}
+                hint="Trafia do §2 umowy rezerwacyjnej i do przypomnień o podpisaniu umowy deweloperskiej."
+              />
+            </Row>
           </Panel>
 
           <ContractUnitsEditor
