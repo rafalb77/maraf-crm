@@ -35,8 +35,17 @@ export function legacyGrossPerSqm(area: number, pricePerSqmGross: number, fallba
  * reguły liczenia albo cennika, a nie z decyzji handlowej.
  */
 export function discountVsCennik(cennikGross: number, snapshotGross: number, equivalentGross: number[]): number {
+  return Math.max(0, priceDeltaVsCennik(cennikGross, snapshotGross, equivalentGross))
+}
+
+/**
+ * Różnica cennik − snapshot ZE ZNAKIEM: dodatnia = rabat, ujemna = dopłata
+ * (cena umowna powyżej cennika, np. ujemny rabat w edytorze składników).
+ * Równoważne ceny cennikowe (dryf) = 0.
+ */
+export function priceDeltaVsCennik(cennikGross: number, snapshotGross: number, equivalentGross: number[]): number {
   if (equivalentGross.some((g) => Math.abs(g - snapshotGross) < 0.005)) return 0
-  return Math.max(0, round2(cennikGross - snapshotGross))
+  return round2(cennikGross - snapshotGross)
 }
 
 /**

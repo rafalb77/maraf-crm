@@ -6,7 +6,7 @@ import { Car, Home, Loader2, Package, Plus, Store, Warehouse, X, type LucideIcon
 import { UNIT_TYPE_LABELS, type UnitType } from '@/lib/types'
 import { formatArea, formatCurrency } from '@/lib/utils'
 import { isSessionExpired, SESSION_EXPIRED_HINT } from '@/lib/api-client'
-import { discountVsCennik } from '@/lib/unit-pricing'
+import { priceDeltaVsCennik } from '@/lib/unit-pricing'
 
 type UnitRow = {
   unitId: string
@@ -61,13 +61,17 @@ function formatPct(pct: number): string {
   return `${new Intl.NumberFormat('pl-PL', { maximumFractionDigits: 2 }).format(pct)} %`
 }
 
-/** Cena po rabacie. Nietknięty wiersz zachowuje snapshot (nie re-wycenia się). */
+/**
+ * Cena po rabacie. Nietknięty wiersz zachowuje snapshot (nie re-wycenia się).
+ * Rabat ujemny (np. -2) = dopłata: cena rośnie powyżej cennika. Jedyny limit
+ * to cena nieujemna.
+ */
 function finalGrossOf(row: EditRow): number {
   if (!row.touched) return round2(row.snapshotPriceGross)
   const base = row.basePriceGross
   const d = parseFloat(row.discountValue) || 0
   const final = row.discountMode === 'PCT' ? base * (1 - d / 100) : base - d
-  return Math.min(base, Math.max(0, round2(final)))
+  return Math.max(0, round2(final))
 }
 
 function UnitTypeBadge({ type }: { type: string }) {
@@ -116,8 +120,8 @@ export function ContractUnitsEditor({
   function startEdit() {
     setRows(
       units.map((u) => {
-        // Pre-fill rabatu: różnica równa dryfowi cennika (stary wzór) to nie rabat.
-        const discount = discountVsCennik(u.basePriceGross, u.priceGross, [u.basePriceGross, u.legacyPriceGross])
+        // Pre-fill rabatu (ujemny = dopłata): różnica równa dryfowi cennika (stary wzór) to nie rabat.
+        const discount = priceDeltaVsCennik(u.basePriceGross, u.priceGross, [u.basePriceGross, u.legacyPriceGross])
         return {
           unitId: u.unitId,
           number: u.number,
@@ -128,7 +132,7 @@ export function ContractUnitsEditor({
           basePriceGross: u.basePriceGross,
           legacyPriceGross: u.legacyPriceGross,
           snapshotPriceGross: u.priceGross,
-          discountValue: discount > 0 ? String(discount) : '',
+          discountValue: Math.abs(discount) > 0.004 ? String(discount) : '',
           discountMode: 'PLN' as const,
           touched: false,
         }
@@ -180,7 +184,7 @@ export function ContractUnitsEditor({
         const d = parseFloat(r.discountValue) || 0
         const base = r.basePriceGross
         let converted = ''
-        if (d > 0 && base > 0) {
+        if (d !== 0 && base > 0) {
           converted = mode === 'PCT' ? String(round2((d / base) * 100)) : String(round2((base * d) / 100))
         }
         return { ...r, discountMode: mode, discountValue: converted, touched: true }
@@ -250,8 +254,9 @@ export function ContractUnitsEditor({
   const totalBase = units.reduce((s, u) => s + u.basePriceGross, 0)
   const totalSnapshot = units.reduce((s, u) => s + u.priceGross, 0)
   const totalNet = units.reduce((s, u) => s + u.priceNet, 0)
+  // Ze znakiem: dodatnia = rabat łącznie, ujemna = dopłata łącznie.
   const totalDiscount = round2(
-    units.reduce((s, u) => s + discountVsCennik(u.basePriceGross, u.priceGross, [u.basePriceGross, u.legacyPriceGross]), 0),
+    units.reduce((s, u) => s + priceDeltaVsCennik(u.basePriceGross, u.priceGross, [u.basePriceGross, u.legacyPriceGross]), 0),
   )
 
   return (
@@ -286,9 +291,10 @@ export function ContractUnitsEditor({
         ) : (
           <div className="space-y-2">
             {units.map((u) => {
-              const discountGross = discountVsCennik(u.basePriceGross, u.priceGross, [u.basePriceGross, u.legacyPriceGross])
+              const discountGross = priceDeltaVsCennik(u.basePriceGross, u.priceGross, [u.basePriceGross, u.legacyPriceGross])
               const discounted = discountGross > 0.004
-              const discountPct = u.basePriceGross > 0 ? (discountGross / u.basePriceGross) * 100 : 0
+              const surcharged = discountGross < -0.004
+              const discountPct = u.basePriceGross > 0 ? (Math.abs(discountGross) / u.basePriceGross) * 100 : 0
               return (
                 <div key={u.unitId} className="rounded-lg bg-blue-50/50 border border-gray-200 p-2.5">
                   <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
@@ -308,13 +314,15 @@ export function ContractUnitsEditor({
                       <Detail label="Budynek">{u.building || '—'}</Detail>
                       {u.floor != null && <Detail label="Piętro">{u.floor === 0 ? 'parter' : u.floor}</Detail>}
                       <Detail label="Powierzchnia umowna">{formatArea(u.area)}</Detail>
-                      {discounted && (
+                      {(discounted || surcharged) && (
                         <Detail label="Cena cennikowa">
                           <span className="text-gray-400 line-through font-normal">{formatCurrency(u.basePriceGross)}</span>
                         </Detail>
                       )}
-                      <Detail label="Rabat">{discounted ? formatPct(discountPct) : '—'}</Detail>
-                      <Detail label="Rabat brutto">{discounted ? formatCurrency(discountGross) : '—'}</Detail>
+                      <Detail label={surcharged ? 'Dopłata' : 'Rabat'}>{discounted || surcharged ? formatPct(discountPct) : '—'}</Detail>
+                      <Detail label={surcharged ? 'Dopłata brutto' : 'Rabat brutto'}>
+                        {discounted ? formatCurrency(discountGross) : surcharged ? `+${formatCurrency(-discountGross)}` : '—'}
+                      </Detail>
                       <Detail label="Cena netto">{formatCurrency(u.priceNet)}</Detail>
                       <Detail label="Cena brutto">
                         <span className="font-semibold">{formatCurrency(u.priceGross)}</span>
@@ -328,6 +336,12 @@ export function ContractUnitsEditor({
               <div className="flex justify-between items-center pt-1 text-xs text-gray-500">
                 <span>Rabat łącznie</span>
                 <span>−{formatCurrency(totalDiscount)}</span>
+              </div>
+            )}
+            {totalDiscount < -0.004 && (
+              <div className="flex justify-between items-center pt-1 text-xs text-gray-500">
+                <span>Dopłata łącznie</span>
+                <span>+{formatCurrency(-totalDiscount)}</span>
               </div>
             )}
             <div className="flex justify-between items-center pt-2 text-xs text-gray-500 border-t border-gray-100">
@@ -351,7 +365,7 @@ export function ContractUnitsEditor({
             // Nietknięty wiersz pokazuje rabat bez dryfu cennika; po edycji — dokładną różnicę.
             const rowDiscount = r.touched
               ? round2(r.basePriceGross - final)
-              : discountVsCennik(r.basePriceGross, final, [r.basePriceGross, r.legacyPriceGross])
+              : priceDeltaVsCennik(r.basePriceGross, final, [r.basePriceGross, r.legacyPriceGross])
             return (
               <div key={r.unitId} className="rounded-lg bg-blue-50/50 border border-gray-200 p-2.5">
                 <div className="flex items-start justify-between gap-2">
@@ -375,11 +389,11 @@ export function ContractUnitsEditor({
                     <span className="text-xs text-gray-500">Rabat</span>
                     <input
                       type="number"
-                      min={0}
                       step="0.01"
                       value={r.discountValue}
                       onChange={(e) => setDiscount(r.unitId, e.target.value)}
                       placeholder="0"
+                      title="Rabat; wartość ujemna (np. -2) = dopłata, cena rośnie"
                       className="w-24 px-2 py-1 border border-gray-300 rounded text-sm text-right bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                     <div className="inline-flex rounded border border-gray-300 overflow-hidden text-xs">
@@ -398,6 +412,9 @@ export function ContractUnitsEditor({
                     <span className="text-sm font-semibold text-gray-900">{formatCurrency(final)}</span>
                     {rowDiscount > 0.004 && (
                       <p className="text-[11px] text-gray-400">rabat −{formatCurrency(rowDiscount)}</p>
+                    )}
+                    {rowDiscount < -0.004 && (
+                      <p className="text-[11px] text-amber-700">dopłata +{formatCurrency(-rowDiscount)}</p>
                     )}
                   </div>
                 </div>
