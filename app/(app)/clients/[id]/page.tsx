@@ -49,6 +49,7 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
             unit: {
               select: {
                 id: true, number: true, type: true, status: true, priceGross: true,
+                area: true, pricePerSqmGross: true,
                 reservationType: true, reservationExpiresAt: true,
               },
             },

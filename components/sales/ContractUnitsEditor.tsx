@@ -6,6 +6,7 @@ import { Car, Home, Loader2, Package, Plus, Store, Warehouse, X, type LucideIcon
 import { UNIT_TYPE_LABELS, type UnitType } from '@/lib/types'
 import { formatArea, formatCurrency } from '@/lib/utils'
 import { isSessionExpired, SESSION_EXPIRED_HINT } from '@/lib/api-client'
+import { discountVsCennik } from '@/lib/unit-pricing'
 
 type UnitRow = {
   unitId: string
@@ -15,6 +16,7 @@ type UnitRow = {
   building: string | null
   floor: number | null
   basePriceGross: number // cennik (live)
+  legacyPriceGross: number // cennik wg starego wzoru (area × stawka brutto) — dryf, nie rabat
   priceGross: number // snapshot na umowie (po rabacie)
   priceNet: number // snapshot netto (fallback wyliczony z VAT w page.tsx)
 }
@@ -36,6 +38,7 @@ type EditRow = {
   building: string | null
   floor: number | null
   basePriceGross: number
+  legacyPriceGross: number
   snapshotPriceGross: number // wartość startowa (snapshot lub cennik dla dodanych)
   discountValue: string
   discountMode: 'PLN' | 'PCT'
@@ -113,7 +116,8 @@ export function ContractUnitsEditor({
   function startEdit() {
     setRows(
       units.map((u) => {
-        const discount = round2(u.basePriceGross - u.priceGross)
+        // Pre-fill rabatu: różnica równa dryfowi cennika (stary wzór) to nie rabat.
+        const discount = discountVsCennik(u.basePriceGross, u.priceGross, [u.basePriceGross, u.legacyPriceGross])
         return {
           unitId: u.unitId,
           number: u.number,
@@ -122,6 +126,7 @@ export function ContractUnitsEditor({
           building: u.building,
           floor: u.floor,
           basePriceGross: u.basePriceGross,
+          legacyPriceGross: u.legacyPriceGross,
           snapshotPriceGross: u.priceGross,
           discountValue: discount > 0 ? String(discount) : '',
           discountMode: 'PLN' as const,
@@ -198,6 +203,7 @@ export function ContractUnitsEditor({
         building: u.building,
         floor: u.floor,
         basePriceGross: u.priceGross,
+        legacyPriceGross: u.priceGross,
         snapshotPriceGross: u.priceGross,
         discountValue: '',
         discountMode: 'PLN',
@@ -244,7 +250,9 @@ export function ContractUnitsEditor({
   const totalBase = units.reduce((s, u) => s + u.basePriceGross, 0)
   const totalSnapshot = units.reduce((s, u) => s + u.priceGross, 0)
   const totalNet = units.reduce((s, u) => s + u.priceNet, 0)
-  const totalDiscount = round2(totalBase - totalSnapshot)
+  const totalDiscount = round2(
+    units.reduce((s, u) => s + discountVsCennik(u.basePriceGross, u.priceGross, [u.basePriceGross, u.legacyPriceGross]), 0),
+  )
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 p-6">
@@ -278,7 +286,7 @@ export function ContractUnitsEditor({
         ) : (
           <div className="space-y-2">
             {units.map((u) => {
-              const discountGross = round2(u.basePriceGross - u.priceGross)
+              const discountGross = discountVsCennik(u.basePriceGross, u.priceGross, [u.basePriceGross, u.legacyPriceGross])
               const discounted = discountGross > 0.004
               const discountPct = u.basePriceGross > 0 ? (discountGross / u.basePriceGross) * 100 : 0
               return (
@@ -340,7 +348,10 @@ export function ContractUnitsEditor({
         <div className="space-y-2">
           {rows.map((r) => {
             const final = finalGrossOf(r)
-            const rowDiscount = round2(r.basePriceGross - final)
+            // Nietknięty wiersz pokazuje rabat bez dryfu cennika; po edycji — dokładną różnicę.
+            const rowDiscount = r.touched
+              ? round2(r.basePriceGross - final)
+              : discountVsCennik(r.basePriceGross, final, [r.basePriceGross, r.legacyPriceGross])
             return (
               <div key={r.unitId} className="rounded-lg bg-blue-50/50 border border-gray-200 p-2.5">
                 <div className="flex items-start justify-between gap-2">

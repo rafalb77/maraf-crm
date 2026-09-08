@@ -18,6 +18,7 @@ import { ContractUnitsEditor } from '@/components/sales/ContractUnitsEditor'
 import { ContractAnnexPanel } from '@/components/sales/ContractAnnexPanel'
 import { ContractCoBuyersEditor } from '@/components/sales/ContractCoBuyersEditor'
 import { ContractDateField } from '@/components/sales/ContractDateField'
+import { legacyGrossPerSqm } from '@/lib/unit-pricing'
 
 export default async function ContractDetailPage({ params }: { params: { id: string } }) {
   const contract = await prisma.contract.findUnique({
@@ -77,6 +78,8 @@ export default async function ContractDetailPage({ params }: { params: { id: str
     building: cu.unit.building,
     floor: cu.unit.floor,
     basePriceGross: cu.unit.priceGross,
+    // Cennik wg starego wzoru — snapshot równy tej wartości to dryf zaokrągleń, nie rabat.
+    legacyPriceGross: legacyGrossPerSqm(cu.unit.area, cu.unit.pricePerSqmGross, cu.unit.priceGross),
     priceGross: cu.priceGross ?? cu.unit.priceGross,
     // Netto: snapshot z umowy; legacy bez snapshotu netto ale z brutto po
     // rabacie → przelicz z VAT (cennikowe netto kłóciłoby się z rabatem).

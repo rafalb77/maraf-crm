@@ -1,4 +1,5 @@
 import { ACTIVITY_TYPE_LABELS, CONTRACT_STAGE_ORDER, type ActivityType, type ContractType } from './types'
+import { discountVsCennik, legacyGrossPerSqm } from './unit-pricing'
 
 // =============================================================
 // Portfel klienta („Klient 360") — czyste funkcje bez Prisma/IO.
@@ -22,6 +23,8 @@ export type PortfolioUnit = {
   type: string
   status: string
   priceGross: number
+  area: number
+  pricePerSqmGross: number
   reservationType: string | null
   reservationExpiresAt: Date | null
 }
@@ -105,12 +108,24 @@ export type UnitPricing = {
 /**
  * NULL snapshot (legacy) = obowiązuje cennik → rabat 0, NIGDY „100%".
  * Ujemny rabat (cennik spadł poniżej snapshotu) przycinamy do 0.
+ * Snapshot równy bieżącemu cennikowi albo cennikowi wg starego wzoru
+ * (powierzchnia × zaokrąglona stawka brutto) = dryf zaokrągleń, nie rabat.
  */
-export function computeUnitDiscount(cennikRef: number, currentGross: number, snapshotGross: number | null): UnitPricing {
+export function computeUnitDiscount(
+  cennikRef: number,
+  currentGross: number,
+  snapshotGross: number | null,
+  legacyGross: number = currentGross,
+): UnitPricing {
   const purchase = snapshotGross ?? currentGross
-  const discount = snapshotGross != null ? Math.max(0, cennikRef - snapshotGross) : 0
+  const discount =
+    snapshotGross != null ? discountVsCennik(cennikRef, snapshotGross, [cennikRef, currentGross, legacyGross]) : 0
   const discountPct = cennikRef > 0 ? (discount / cennikRef) * 100 : 0
   return { cennikRef, purchase, discount, discountPct }
+}
+
+function legacyOf(u: PortfolioUnit): number {
+  return legacyGrossPerSqm(u.area, u.pricePerSqmGross, u.priceGross)
 }
 
 // ===== Karta umowy (DTO dla ContractDealCard — daty jako ISO) =====
@@ -156,7 +171,7 @@ export function buildDealCardData(
 ): DealCardData {
   const refDate = contractRefDate(c)
   const units: DealCardUnit[] = c.contractUnits.map((cu) => {
-    const p = computeUnitDiscount(cennikRefForUnit(cu.unit, refDate, historyByUnit), cu.unit.priceGross, cu.priceGross)
+    const p = computeUnitDiscount(cennikRefForUnit(cu.unit, refDate, historyByUnit), cu.unit.priceGross, cu.priceGross, legacyOf(cu.unit))
     return {
       unitId: cu.unitId,
       number: cu.unit.number,
@@ -268,7 +283,7 @@ export function buildPortfolioRows(
     for (const cu of c.contractUnits) {
       const existing = byUnit.get(cu.unitId)
       if (existing && existing.rank >= rank) continue
-      const p = computeUnitDiscount(cennikRefForUnit(cu.unit, refDate, historyByUnit), cu.unit.priceGross, cu.priceGross)
+      const p = computeUnitDiscount(cennikRefForUnit(cu.unit, refDate, historyByUnit), cu.unit.priceGross, cu.priceGross, legacyOf(cu.unit))
       byUnit.set(cu.unitId, {
         rank,
         row: {

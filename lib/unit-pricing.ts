@@ -20,6 +20,26 @@ export function netFromGross(gross: number, vatRate: number): number {
 }
 
 /**
+ * Brutto lokalu wg STAREGO wzoru (powierzchnia × zaokrąglona stawka brutto/m²).
+ * Snapshoty umów sprzed zmiany reguły były liczone tak — różnią się od
+ * bieżącego cennika o grosze. Taki snapshot to dryf zaokrągleń, nie rabat.
+ */
+export function legacyGrossPerSqm(area: number, pricePerSqmGross: number, fallbackGross: number): number {
+  return pricePerSqmGross > 0 && area > 0 ? round2(area * pricePerSqmGross) : fallbackGross
+}
+
+/**
+ * Rabat udzielony na lokalu = cennik − snapshot z umowy, ale 0 gdy snapshot
+ * jest którąś z „równoważnych" cen cennikowych (bieżący cennik, cennik wg
+ * starego wzoru, cennik z dnia umowy) — czyli różnica wynika ze zmiany
+ * reguły liczenia albo cennika, a nie z decyzji handlowej.
+ */
+export function discountVsCennik(cennikGross: number, snapshotGross: number, equivalentGross: number[]): number {
+  if (equivalentGross.some((g) => Math.abs(g - snapshotGross) < 0.005)) return 0
+  return Math.max(0, round2(cennikGross - snapshotGross))
+}
+
+/**
  * Ceny całkowite lokalu ze stawek za m². Gdy podano stawkę netto — to ona
  * jest źródłem; gdy tylko brutto — liczymy od brutto (netto = brutto ÷ 1,08).
  */
