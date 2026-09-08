@@ -3,6 +3,7 @@ import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { Unit } from '@prisma/client'
 import { formatCurrency } from '@/lib/utils'
+import { unitTotalsPerSqm } from '@/lib/unit-pricing'
 
 const TYPES = [
   { value: 'MIESZKALNY', label: 'Mieszkanie' },
@@ -57,16 +58,20 @@ export function UnitForm({ unit }: { unit?: Unit }) {
 
   const perSqm = isPerSqm(form.type)
 
-  // Computed totals (only for per-sqm pricing)
+  // Podgląd cen całkowitych (wycena za m²) — ta sama reguła co zapis w API:
+  // brutto lokalu = netto lokalu × (1 + VAT), nie powierzchnia × zaokrąglona
+  // stawka brutto (lib/unit-pricing.ts).
   const { totalNet, totalGross } = useMemo(() => {
     const area = parseFloat(form.area)
     const ppmNet = parseFloat(form.pricePerSqmNet)
     const ppmGross = parseFloat(form.pricePerSqmGross)
-    return {
-      totalNet: !isNaN(area) && !isNaN(ppmNet) ? area * ppmNet : null,
-      totalGross: !isNaN(area) && !isNaN(ppmGross) ? area * ppmGross : null,
+    const vat = parseInt(form.vatRate)
+    if (isNaN(area) || isNaN(vat) || (isNaN(ppmNet) && isNaN(ppmGross))) {
+      return { totalNet: null as number | null, totalGross: null as number | null }
     }
-  }, [form.area, form.pricePerSqmNet, form.pricePerSqmGross])
+    const t = unitTotalsPerSqm(area, isNaN(ppmNet) ? 0 : ppmNet, isNaN(ppmGross) ? 0 : ppmGross, vat)
+    return { totalNet: t.priceNet, totalGross: t.priceGross }
+  }, [form.area, form.pricePerSqmNet, form.pricePerSqmGross, form.vatRate])
 
   function setPpmNet(value: string) {
     const v = parseFloat(value)

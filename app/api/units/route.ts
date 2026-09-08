@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { expireSoftReservations } from '@/lib/reservations'
 import { recordPriceHistory } from '@/lib/price-history'
+import { unitTotalsPerSqm, round2 } from '@/lib/unit-pricing'
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions)
@@ -43,23 +44,26 @@ export async function POST(req: NextRequest) {
   const ppmNet = parseFloat(body.pricePerSqmNet) || 0
   const ppmGross = parseFloat(body.pricePerSqmGross) || 0
   const usePerSqm = ppmNet > 0 || ppmGross > 0
-  const priceNet = usePerSqm
-    ? Math.round(area * ppmNet * 100) / 100
-    : Math.round((parseFloat(body.priceNet) || 0) * 100) / 100
-  const priceGross = usePerSqm
-    ? Math.round(area * ppmGross * 100) / 100
-    : Math.round((parseFloat(body.priceGross) || 0) * 100) / 100
+  const vatRate = parseInt(body.vatRate) || 8
+  // Ceny całkowite: brutto = netto × (1+VAT) — lib/unit-pricing.ts (wspólne z PUT).
+  const totals = usePerSqm ? unitTotalsPerSqm(area, ppmNet, ppmGross, vatRate) : null
+  const priceNet = totals ? totals.priceNet : round2(parseFloat(body.priceNet) || 0)
+  const priceGross = totals ? totals.priceGross : round2(parseFloat(body.priceGross) || 0)
   // Promo prices — patrz [id]/route.ts dla pełnego kontekstu (mirror logic).
   const promoPpmNet = parseFloat(body.promoPricePerSqmNet)
   const promoPpmGross = parseFloat(body.promoPricePerSqmGross)
   const promoPriceNetRaw = parseFloat(body.promoPriceNet)
   const promoPriceGrossRaw = parseFloat(body.promoPriceGross)
+  const promoTotals =
+    usePerSqm && (!isNaN(promoPpmNet) || !isNaN(promoPpmGross))
+      ? unitTotalsPerSqm(area, isNaN(promoPpmNet) ? 0 : promoPpmNet, isNaN(promoPpmGross) ? 0 : promoPpmGross, vatRate)
+      : null
   const promoPriceNet = usePerSqm
-    ? (isNaN(promoPpmNet) ? null : Math.round(area * promoPpmNet * 100) / 100)
-    : (isNaN(promoPriceNetRaw) ? null : Math.round(promoPriceNetRaw * 100) / 100)
+    ? (promoTotals ? promoTotals.priceNet : null)
+    : (isNaN(promoPriceNetRaw) ? null : round2(promoPriceNetRaw))
   const promoPriceGross = usePerSqm
-    ? (isNaN(promoPpmGross) ? null : Math.round(area * promoPpmGross * 100) / 100)
-    : (isNaN(promoPriceGrossRaw) ? null : Math.round(promoPriceGrossRaw * 100) / 100)
+    ? (promoTotals ? promoTotals.priceGross : null)
+    : (isNaN(promoPriceGrossRaw) ? null : round2(promoPriceGrossRaw))
   // Data sprzedaży — tylko gdy status SPRZEDANY i data poprawna.
   let soldAt: Date | null = null
   if (body.status === 'SPRZEDANY' && body.soldAt) {

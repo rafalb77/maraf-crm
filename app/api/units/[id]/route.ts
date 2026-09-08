@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { recordPriceHistoryIfChanged } from '@/lib/price-history'
+import { unitTotalsPerSqm, round2 } from '@/lib/unit-pricing'
 
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions)
@@ -29,12 +30,12 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
   const ppmNet = parseFloat(body.pricePerSqmNet) || 0
   const ppmGross = parseFloat(body.pricePerSqmGross) || 0
   const usePerSqm = ppmNet > 0 || ppmGross > 0
-  const priceNet = usePerSqm
-    ? Math.round(area * ppmNet * 100) / 100
-    : Math.round((parseFloat(body.priceNet) || 0) * 100) / 100
-  const priceGross = usePerSqm
-    ? Math.round(area * ppmGross * 100) / 100
-    : Math.round((parseFloat(body.priceGross) || 0) * 100) / 100
+  const vatRate = parseInt(body.vatRate) || 8
+  // Ceny całkowite: brutto = netto × (1+VAT), nie powierzchnia × zaokrąglona
+  // stawka brutto (lib/unit-pricing.ts — wspólne z formularzem i POST).
+  const totals = usePerSqm ? unitTotalsPerSqm(area, ppmNet, ppmGross, vatRate) : null
+  const priceNet = totals ? totals.priceNet : round2(parseFloat(body.priceNet) || 0)
+  const priceGross = totals ? totals.priceGross : round2(parseFloat(body.priceGross) || 0)
   // Promo prices — mirror tej samej logiki per-sqm vs ryczalt.
   // Wartości promo zapisujemy zawsze (nie tylko gdy promoActive=true) — żeby
   // zachować wpisane wartości po odznaczeniu/zaznaczeniu checkboxa "Promocja aktywna".
@@ -42,12 +43,16 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
   const promoPpmGross = parseFloat(body.promoPricePerSqmGross)
   const promoPriceNetRaw = parseFloat(body.promoPriceNet)
   const promoPriceGrossRaw = parseFloat(body.promoPriceGross)
+  const promoTotals =
+    usePerSqm && (!isNaN(promoPpmNet) || !isNaN(promoPpmGross))
+      ? unitTotalsPerSqm(area, isNaN(promoPpmNet) ? 0 : promoPpmNet, isNaN(promoPpmGross) ? 0 : promoPpmGross, vatRate)
+      : null
   const promoPriceNet = usePerSqm
-    ? (isNaN(promoPpmNet) ? null : Math.round(area * promoPpmNet * 100) / 100)
-    : (isNaN(promoPriceNetRaw) ? null : Math.round(promoPriceNetRaw * 100) / 100)
+    ? (promoTotals ? promoTotals.priceNet : null)
+    : (isNaN(promoPriceNetRaw) ? null : round2(promoPriceNetRaw))
   const promoPriceGross = usePerSqm
-    ? (isNaN(promoPpmGross) ? null : Math.round(area * promoPpmGross * 100) / 100)
-    : (isNaN(promoPriceGrossRaw) ? null : Math.round(promoPriceGrossRaw * 100) / 100)
+    ? (promoTotals ? promoTotals.priceGross : null)
+    : (isNaN(promoPriceGrossRaw) ? null : round2(promoPriceGrossRaw))
 
   // Data sprzedaży — przechowywana tylko dla statusu SPRZEDANY; zmiana statusu
   // na inny czyści pole. Niepoprawna data → null.
