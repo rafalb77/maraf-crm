@@ -1,5 +1,5 @@
 import { ACTIVITY_TYPE_LABELS, CONTRACT_STAGE_ORDER, type ActivityType, type ContractType } from './types'
-import { discountVsCennik, legacyGrossPerSqm } from './unit-pricing'
+import { discountVsCennik, legacyGrossPerSqm, normalizeCennikRef } from './unit-pricing'
 
 // =============================================================
 // Portfel klienta („Klient 360") — czyste funkcje bez Prisma/IO.
@@ -117,11 +117,13 @@ export function computeUnitDiscount(
   snapshotGross: number | null,
   legacyGross: number = currentGross,
 ): UnitPricing {
+  // Referencja z historii zapisana wg starego wzoru (ta sama stawka za m²)
+  // = bieżący cennik; inaczej rabat 5 000,00 z karty umowy wyszedłby tu 4 999,92.
+  const ref = normalizeCennikRef(cennikRef, currentGross, legacyGross)
   const purchase = snapshotGross ?? currentGross
-  const discount =
-    snapshotGross != null ? discountVsCennik(cennikRef, snapshotGross, [cennikRef, currentGross, legacyGross]) : 0
-  const discountPct = cennikRef > 0 ? (discount / cennikRef) * 100 : 0
-  return { cennikRef, purchase, discount, discountPct }
+  const discount = snapshotGross != null ? discountVsCennik(ref, snapshotGross, [ref, currentGross, legacyGross]) : 0
+  const discountPct = ref > 0 ? (discount / ref) * 100 : 0
+  return { cennikRef: ref, purchase, discount, discountPct }
 }
 
 function legacyOf(u: PortfolioUnit): number {

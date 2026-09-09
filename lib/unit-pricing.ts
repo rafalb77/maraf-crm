@@ -49,6 +49,29 @@ export function priceDeltaVsCennik(cennikGross: number, snapshotGross: number, e
 }
 
 /**
+ * Dryf zaokrągleń: snapshot równy cennikowi wg STAREGO wzoru, ale różny od
+ * bieżącego cennika. Zwraca cennik − snapshot (dodatnie = snapshot poniżej
+ * cennika), 0 gdy wiersz nie jest dryfowany. To nie rabat — edytor pokazuje
+ * tę różnicę jawnie i daje akcję „Wyrównaj do cennika”.
+ */
+export function legacyDrift(cennikGross: number, snapshotGross: number, legacyGross: number): number {
+  if (Math.abs(snapshotGross - legacyGross) >= 0.005) return 0
+  if (Math.abs(snapshotGross - cennikGross) < 0.005) return 0
+  return round2(cennikGross - snapshotGross)
+}
+
+/**
+ * Referencja cennika (np. z historii cen z dnia umowy) zapisana jeszcze wg
+ * starego wzoru, przy niezmienionej stawce za m², to ta sama cena co bieżący
+ * cennik — normalizujemy do niego, żeby rabat 5 000,00 nie wychodził jako
+ * 4 999,92 wobec „historycznej” wartości różniącej się tylko zaokrągleniem.
+ */
+export function normalizeCennikRef(cennikRef: number, currentGross: number, legacyGross: number): number {
+  if (Math.abs(cennikRef - legacyGross) < 0.005 && Math.abs(legacyGross - currentGross) >= 0.005) return currentGross
+  return cennikRef
+}
+
+/**
  * Ceny całkowite lokalu ze stawek za m². Gdy podano stawkę netto — to ona
  * jest źródłem; gdy tylko brutto — liczymy od brutto (netto = brutto ÷ 1,08).
  */

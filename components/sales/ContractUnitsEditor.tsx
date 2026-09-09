@@ -6,7 +6,7 @@ import { Car, Home, Loader2, Package, Plus, Store, Warehouse, X, type LucideIcon
 import { UNIT_TYPE_LABELS, type UnitType } from '@/lib/types'
 import { formatArea, formatCurrency } from '@/lib/utils'
 import { isSessionExpired, SESSION_EXPIRED_HINT } from '@/lib/api-client'
-import { priceDeltaVsCennik } from '@/lib/unit-pricing'
+import { legacyDrift, priceDeltaVsCennik } from '@/lib/unit-pricing'
 
 type UnitRow = {
   unitId: string
@@ -41,8 +41,11 @@ type EditRow = {
   legacyPriceGross: number
   snapshotPriceGross: number // wartość startowa (snapshot lub cennik dla dodanych)
   discountValue: string
+  initialDiscountValue: string // pre-fill z otwarcia edycji — powrót do niego = wiersz nietknięty
   discountMode: 'PLN' | 'PCT'
   touched: boolean // czy user zmienił rabat — tylko wtedy przeliczamy od ceny bazowej
+  repriced: boolean // „Wyrównaj do cennika” — wiersz świadomie przeliczony od cennika
+  saved: boolean // lokal jest na zapisanej umowie (dodany w edycji nie ma „zapisanej ceny”)
 }
 
 const UNIT_TYPE_ICONS: Record<UnitType, LucideIcon> = {
@@ -58,11 +61,64 @@ function round2(n: number) {
 }
 
 function formatPct(pct: number): string {
+  // Dopłata 0,08 zł to 0,00002 % — „0 %” obok niezerowej kwoty wyglądałoby na błąd.
+  if (pct > 0 && pct < 0.005) return '< 0,01 %'
   return `${new Intl.NumberFormat('pl-PL', { maximumFractionDigits: 2 }).format(pct)} %`
+}
+
+function formatSigned(n: number): string {
+  return `${n < 0 ? '−' : '+'}${formatCurrency(Math.abs(n))}`
+}
+
+/** Porównanie wartości pola liczbowo (puste = puste; '5000' = '5000.00'). */
+function sameDiscountValue(a: string, b: string): boolean {
+  const x = parseFloat(a)
+  const y = parseFloat(b)
+  if (Number.isNaN(x) || Number.isNaN(y)) return Number.isNaN(x) && Number.isNaN(y)
+  return Math.abs(x - y) < 0.004
+}
+
+/**
+ * Pole wróciło do stanu z otwarcia edycji = wiersz znów nietknięty (cena
+ * zapisana bez zmian). Pre-fill jest zawsze w zł, więc „5” w trybie % to
+ * inna wartość niż startowe „5” zł; puste pole jest puste w obu jednostkach.
+ */
+function backToInitial(row: Pick<EditRow, 'initialDiscountValue' | 'repriced'>, value: string, mode: 'PLN' | 'PCT'): boolean {
+  if (row.repriced) return false
+  if (value === '' && row.initialDiscountValue === '') return true
+  if (mode !== 'PLN') return false
+  return sameDiscountValue(value, row.initialDiscountValue)
+}
+
+function rowFromUnit(u: UnitRow): EditRow {
+  // Pre-fill rabatu (ujemny = dopłata): różnica równa dryfowi cennika (stary wzór) to nie rabat.
+  const discount = priceDeltaVsCennik(u.basePriceGross, u.priceGross, [u.basePriceGross, u.legacyPriceGross])
+  const discountValue = Math.abs(discount) > 0.004 ? String(discount) : ''
+  return {
+    unitId: u.unitId,
+    number: u.number,
+    type: u.type,
+    area: u.area,
+    building: u.building,
+    floor: u.floor,
+    basePriceGross: u.basePriceGross,
+    legacyPriceGross: u.legacyPriceGross,
+    snapshotPriceGross: u.priceGross,
+    discountValue,
+    initialDiscountValue: discountValue,
+    discountMode: 'PLN',
+    touched: false,
+    repriced: false,
+    saved: true,
+  }
 }
 
 /**
  * Cena po rabacie. Nietknięty wiersz zachowuje snapshot (nie re-wycenia się).
+ * BAZĄ rabatu jest zawsze cennik (nie cena z umowy) — inaczej rabat 5000 na
+ * wierszu z ceną wg starego wzoru zapisałby się jako 5 000,08 i tak wracał
+ * w widoku umowy, przy re-edycji i na karcie klienta. Dryf wobec cennika
+ * edytor pokazuje jawnie (legacyDrift) i daje akcję „Wyrównaj do cennika”.
  * Rabat ujemny (np. -2) = dopłata: cena rośnie powyżej cennika. Jedyny limit
  * to cena nieujemna.
  */
@@ -72,6 +128,19 @@ function finalGrossOf(row: EditRow): number {
   const d = parseFloat(row.discountValue) || 0
   const final = row.discountMode === 'PCT' ? base * (1 - d / 100) : base - d
   return Math.max(0, round2(final))
+}
+
+/**
+ * Rabat (+) / dopłata (−) wiersza wobec cennika. Ta sama równoważność co w
+ * widoku po zapisie (cena równa cennikowi wg starego wzoru = 0), żeby edytor
+ * nie pokazywał „rabat −0,08”, które po zapisie zniknie.
+ */
+function rowDiscountOf(row: EditRow): number {
+  return priceDeltaVsCennik(row.basePriceGross, finalGrossOf(row), [row.basePriceGross, row.legacyPriceGross])
+}
+
+function rowDriftOf(row: EditRow): number {
+  return legacyDrift(row.basePriceGross, row.snapshotPriceGross, row.legacyPriceGross)
 }
 
 function UnitTypeBadge({ type }: { type: string }) {
@@ -118,26 +187,7 @@ export function ContractUnitsEditor({
   const [addId, setAddId] = useState('')
 
   function startEdit() {
-    setRows(
-      units.map((u) => {
-        // Pre-fill rabatu (ujemny = dopłata): różnica równa dryfowi cennika (stary wzór) to nie rabat.
-        const discount = priceDeltaVsCennik(u.basePriceGross, u.priceGross, [u.basePriceGross, u.legacyPriceGross])
-        return {
-          unitId: u.unitId,
-          number: u.number,
-          type: u.type,
-          area: u.area,
-          building: u.building,
-          floor: u.floor,
-          basePriceGross: u.basePriceGross,
-          legacyPriceGross: u.legacyPriceGross,
-          snapshotPriceGross: u.priceGross,
-          discountValue: Math.abs(discount) > 0.004 ? String(discount) : '',
-          discountMode: 'PLN' as const,
-          touched: false,
-        }
-      }),
-    )
+    setRows(units.map(rowFromUnit))
     setAddId('')
     setError(null)
     setEditing(true)
@@ -169,50 +219,106 @@ export function ContractUnitsEditor({
 
   const totalGross = rows.reduce((s, r) => s + finalGrossOf(r), 0)
   const reservationFee = round2(totalGross * 0.01)
+  // Stopka edycji: rabat/dopłata łącznie (jak w widoku po zapisie), zmiana
+  // wobec zapisanej umowy i wiersze z ceną wg starego wzoru do wyrównania.
+  const editTotalDiscount = round2(rows.reduce((s, r) => s + rowDiscountOf(r), 0))
+  const driftedUntouched = rows.filter((r) => !r.touched && rowDriftOf(r) !== 0)
+  // Stary wzór zaokrąglał stawkę w obie strony — dryfy poniżej i powyżej cennika osobno.
+  const driftedBelow = driftedUntouched.filter((r) => rowDriftOf(r) > 0)
+  const driftedAbove = driftedUntouched.filter((r) => rowDriftOf(r) < 0)
+  const driftSummary = [
+    driftedBelow.length > 0
+      ? `${driftedBelow.length} poniżej cennika o ${formatCurrency(round2(driftedBelow.reduce((s, r) => s + rowDriftOf(r), 0)))}`
+      : null,
+    driftedAbove.length > 0
+      ? `${driftedAbove.length} powyżej cennika o ${formatCurrency(round2(driftedAbove.reduce((s, r) => s - rowDriftOf(r), 0)))}`
+      : null,
+  ]
+    .filter(Boolean)
+    .join(', ')
 
   function setRow(unitId: string, patch: Partial<EditRow>) {
     setRows((prev) => prev.map((r) => (r.unitId === unitId ? { ...r, ...patch } : r)))
   }
   function setDiscount(unitId: string, discountValue: string) {
-    setRow(unitId, { discountValue, touched: true })
+    setRows((prev) =>
+      prev.map((r) => {
+        if (r.unitId !== unitId) return r
+        // Powrót do wartości startowej = wiersz znów nietknięty (cena wraca do
+        // zapisanej). Wyjątek: po „Wyrównaj do cennika” wiersz zostaje przeliczony.
+        return { ...r, discountValue, touched: !backToInitial(r, discountValue, r.discountMode) }
+      }),
+    )
   }
   function toggleMode(unitId: string, mode: 'PLN' | 'PCT') {
     setRows((prev) =>
       prev.map((r) => {
         if (r.unitId !== unitId || r.discountMode === mode) return r
-        // Konwertuj wartość, żeby zachować cenę końcową (a nie zmieniać znaczenia liczby).
         const d = parseFloat(r.discountValue) || 0
         const base = r.basePriceGross
-        let converted = ''
-        if (d !== 0 && base > 0) {
-          converted = mode === 'PCT' ? String(round2((d / base) * 100)) : String(round2((base * d) / 100))
-        }
-        return { ...r, discountMode: mode, discountValue: converted, touched: true }
+        // Puste pole: sama zmiana jednostki nie jest edycją — nie przelicza ceny.
+        if (d === 0 || base <= 0) return { ...r, discountMode: mode }
+        // Konwertuj wartość, żeby zachować cenę końcową co do grosza (procent
+        // z 8 miejscami — 2 miejsca dawały np. 5000 zł → 1,42 % → 5 016,95 zł,
+        // 6 miejsc gubiło grosz przy cenach ≥ 1 mln zł).
+        const converted =
+          mode === 'PCT' ? String(Number(((d / base) * 100).toFixed(8))) : String(round2((base * d) / 100))
+        return { ...r, discountMode: mode, discountValue: converted, touched: !backToInitial(r, converted, mode) }
       }),
+    )
+  }
+  /** Świadome przeliczenie wiersza od bieżącego cennika (usuwa dryf starego wzoru). */
+  function alignToCennik(unitId: string) {
+    setRow(unitId, { discountValue: '', discountMode: 'PLN', touched: true, repriced: true })
+  }
+  function undoAlign(unitId: string) {
+    setRows((prev) =>
+      prev.map((r) =>
+        r.unitId === unitId
+          ? { ...r, discountValue: r.initialDiscountValue, discountMode: 'PLN', touched: false, repriced: false }
+          : r,
+      ),
+    )
+  }
+  function alignAllDrifted() {
+    setRows((prev) =>
+      prev.map((r) =>
+        !r.touched && rowDriftOf(r) !== 0
+          ? { ...r, discountValue: '', discountMode: 'PLN', touched: true, repriced: true }
+          : r,
+      ),
     )
   }
   function removeRow(unitId: string) {
     setRows((prev) => prev.filter((r) => r.unitId !== unitId))
   }
   function addRow() {
+    // Składnik tej umowy usunięty i dodany z powrotem wraca ze swoim snapshotem
+    // (i ewentualnym dryfem), a nie jako nowy lokal po cenniku.
+    const savedUnit = units.find((x) => x.unitId === addId)
     const u = addPool.find((x) => x.id === addId)
-    if (!u) return
+    if (!savedUnit && !u) return
     setRows((prev) => [
       ...prev,
-      {
-        unitId: u.id,
-        number: u.number,
-        type: u.type,
-        area: u.area,
-        building: u.building,
-        floor: u.floor,
-        basePriceGross: u.priceGross,
-        legacyPriceGross: u.priceGross,
-        snapshotPriceGross: u.priceGross,
-        discountValue: '',
-        discountMode: 'PLN',
-        touched: false,
-      },
+      savedUnit
+        ? rowFromUnit(savedUnit)
+        : {
+            unitId: u!.id,
+            number: u!.number,
+            type: u!.type,
+            area: u!.area,
+            building: u!.building,
+            floor: u!.floor,
+            basePriceGross: u!.priceGross,
+            legacyPriceGross: u!.priceGross,
+            snapshotPriceGross: u!.priceGross,
+            discountValue: '',
+            initialDiscountValue: '',
+            discountMode: 'PLN',
+            touched: false,
+            repriced: false,
+            saved: false,
+          },
     ])
     setAddId('')
   }
@@ -258,6 +364,7 @@ export function ContractUnitsEditor({
   const totalDiscount = round2(
     units.reduce((s, u) => s + priceDeltaVsCennik(u.basePriceGross, u.priceGross, [u.basePriceGross, u.legacyPriceGross]), 0),
   )
+  const changeVsSavedTotal = round2(totalGross - totalSnapshot)
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 p-6">
@@ -295,6 +402,8 @@ export function ContractUnitsEditor({
               const discounted = discountGross > 0.004
               const surcharged = discountGross < -0.004
               const discountPct = u.basePriceGross > 0 ? (Math.abs(discountGross) / u.basePriceGross) * 100 : 0
+              // Dryf starego wzoru pokazujemy tylko na umowie edytowalnej — podpisana cena jest ceną.
+              const drift = canEdit ? legacyDrift(u.basePriceGross, u.priceGross, u.legacyPriceGross) : 0
               return (
                 <div key={u.unitId} className="rounded-lg bg-blue-50/50 border border-gray-200 p-2.5">
                   <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
@@ -327,6 +436,11 @@ export function ContractUnitsEditor({
                       <Detail label="Cena brutto">
                         <span className="font-semibold">{formatCurrency(u.priceGross)}</span>
                       </Detail>
+                      {drift !== 0 && (
+                        <div className="text-[11px] text-gray-400 text-right">
+                          cena wg starego wzoru, {formatCurrency(Math.abs(drift))} {drift > 0 ? 'poniżej' : 'powyżej'} cennika — to nie rabat
+                        </div>
+                      )}
                     </dl>
                   </div>
                 </div>
@@ -363,9 +477,9 @@ export function ContractUnitsEditor({
           {rows.map((r) => {
             const final = finalGrossOf(r)
             // Nietknięty wiersz pokazuje rabat bez dryfu cennika; po edycji — dokładną różnicę.
-            const rowDiscount = r.touched
-              ? round2(r.basePriceGross - final)
-              : priceDeltaVsCennik(r.basePriceGross, final, [r.basePriceGross, r.legacyPriceGross])
+            const rowDiscount = rowDiscountOf(r)
+            const drift = rowDriftOf(r)
+            const changeVsSaved = round2(final - r.snapshotPriceGross)
             return (
               <div key={r.unitId} className="rounded-lg bg-blue-50/50 border border-gray-200 p-2.5">
                 <div className="flex items-start justify-between gap-2">
@@ -393,7 +507,7 @@ export function ContractUnitsEditor({
                       value={r.discountValue}
                       onChange={(e) => setDiscount(r.unitId, e.target.value)}
                       placeholder="0"
-                      title="Rabat; wartość ujemna (np. -2) = dopłata, cena rośnie"
+                      title={`Rabat liczony od cennika (${formatCurrency(r.basePriceGross)}). Wartość ujemna, np. -2, to dopłata ponad cennik. 0, usunięcie rabatu lub „Wyrównaj do cennika” = cena cennikowa; lokal bez rabatu z pustym polem zachowuje zapisaną cenę.`}
                       className="w-24 px-2 py-1 border border-gray-300 rounded text-sm text-right bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                     <div className="inline-flex rounded border border-gray-300 overflow-hidden text-xs">
@@ -415,6 +529,36 @@ export function ContractUnitsEditor({
                     )}
                     {rowDiscount < -0.004 && (
                       <p className="text-[11px] text-amber-700">dopłata +{formatCurrency(-rowDiscount)}</p>
+                    )}
+                    {!r.touched && drift !== 0 && (
+                      <p className="text-[11px] text-gray-400">
+                        cena wg starego wzoru: {formatCurrency(Math.abs(drift))} {drift > 0 ? 'poniżej' : 'powyżej'} cennika ·{' '}
+                        <button
+                          type="button"
+                          onClick={() => alignToCennik(r.unitId)}
+                          className="text-blue-600 hover:underline"
+                          title={`Ustawia cenę na bieżący cennik (${formatCurrency(r.basePriceGross)}); rabat liczy się od cennika. Zapisze się dopiero po „Zapisz”.`}
+                        >
+                          Wyrównaj do cennika
+                        </button>
+                      </p>
+                    )}
+                    {r.touched && r.saved && Math.abs(changeVsSaved) >= 0.005 && (
+                      <p className="text-[11px] text-gray-400">
+                        {drift !== 0 && Math.abs(changeVsSaved - drift) < 0.005
+                          ? `wyrównano do cennika ${formatSigned(drift)}`
+                          : `wobec zapisanej ceny ${formatSigned(changeVsSaved)}${
+                              drift !== 0 ? ` (w tym wyrównanie do cennika ${formatSigned(drift)})` : ''
+                            }`}
+                        {r.repriced && r.discountValue === '' && (
+                          <>
+                            {' · '}
+                            <button type="button" onClick={() => undoAlign(r.unitId)} className="text-blue-600 hover:underline">
+                              cofnij
+                            </button>
+                          </>
+                        )}
+                      </p>
                     )}
                   </div>
                 </div>
@@ -446,6 +590,34 @@ export function ContractUnitsEditor({
             </div>
           )}
 
+          {driftedUntouched.length > 0 && (
+            <div className="flex justify-between items-center gap-3 pt-2 text-xs text-gray-500 border-t border-gray-100">
+              <span>
+                Ceny wg starego wzoru: {driftedUntouched.length} lok. ({driftSummary})
+              </span>
+              <button type="button" onClick={alignAllDrifted} className="text-blue-600 hover:underline whitespace-nowrap">
+                Wyrównaj wszystkie do cennika
+              </button>
+            </div>
+          )}
+          {editTotalDiscount > 0.004 && (
+            <div className="flex justify-between items-center pt-1 text-xs text-gray-500">
+              <span>Rabat łącznie</span>
+              <span>−{formatCurrency(editTotalDiscount)}</span>
+            </div>
+          )}
+          {editTotalDiscount < -0.004 && (
+            <div className="flex justify-between items-center pt-1 text-xs text-gray-500">
+              <span>Dopłata łącznie</span>
+              <span>+{formatCurrency(-editTotalDiscount)}</span>
+            </div>
+          )}
+          {Math.abs(changeVsSavedTotal) >= 0.005 && (
+            <div className="flex justify-between items-center text-xs text-gray-500">
+              <span>Zmiana wobec zapisanej umowy</span>
+              <span>{formatSigned(changeVsSavedTotal)}</span>
+            </div>
+          )}
           <div className="flex justify-between items-center pt-2 text-sm border-t border-gray-100">
             <span className="text-gray-600">Razem brutto</span>
             <span className="font-semibold text-gray-900">{formatCurrency(totalGross)}</span>
