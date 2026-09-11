@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { audit, extractRequestMeta } from '@/lib/audit-log'
 
 // GET — lista rat harmonogramu dla umowy.
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
@@ -64,6 +65,20 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       position: (last?.position ?? -1) + 1,
     },
     select: { id: true },
+  })
+
+  // Ślad w AuditLog: kto i kiedy dodał ratę (do 09.2026 raty nie zostawiały żadnego śladu).
+  const meta = extractRequestMeta(req)
+  void audit({
+    action: 'CREATE',
+    userId: (session.user as any)?.id,
+    userEmail: session.user?.email,
+    entity: 'ContractPayment',
+    entityId: created.id,
+    path: req.nextUrl.pathname,
+    ip: meta.ip,
+    userAgent: meta.userAgent,
+    metadata: { contractId: params.id, title: body.title || null, type, plannedAmount, plannedDate: body.plannedDate || null, toEscrow },
   })
   return NextResponse.json(created, { status: 201 })
 }

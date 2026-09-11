@@ -3,6 +3,32 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { resolveEscrowAccount, createDepositForPayment } from '@/lib/contract-escrow'
+import { audit, extractRequestMeta } from '@/lib/audit-log'
+
+/** Migawka raty do AuditLog (przed zmianą / przed skasowaniem). */
+function paymentSnapshot(p: {
+  contractId: string
+  title: string | null
+  type: string
+  plannedAmount: number
+  plannedDate: Date | null
+  status: string
+  paidAmount: number | null
+  paidDate: Date | null
+  toEscrow: boolean
+}) {
+  return {
+    contractId: p.contractId,
+    title: p.title,
+    type: p.type,
+    plannedAmount: p.plannedAmount,
+    plannedDate: p.plannedDate ? p.plannedDate.toISOString().slice(0, 10) : null,
+    status: p.status,
+    paidAmount: p.paidAmount,
+    paidDate: p.paidDate ? p.paidDate.toISOString().slice(0, 10) : null,
+    toEscrow: p.toEscrow,
+  }
+}
 
 // PATCH — odhaczenie/cofnięcie wpłaty lub edycja planowanej raty.
 // body.action:
@@ -23,6 +49,19 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   try { body = await req.json() } catch { return NextResponse.json({ error: 'Nieprawidłowy JSON' }, { status: 400 }) }
 
   const action = body.action as string | undefined
+  const meta = extractRequestMeta(req)
+  const logUpdate = (details: Record<string, unknown>) =>
+    void audit({
+      action: 'UPDATE',
+      userId: (session.user as any)?.id,
+      userEmail: session.user?.email,
+      entity: 'ContractPayment',
+      entityId: payment.id,
+      path: req.nextUrl.pathname,
+      ip: meta.ip,
+      userAgent: meta.userAgent,
+      metadata: { before: paymentSnapshot(payment), ...details },
+    })
 
   // === ODHACZENIE WPŁATY ===
   if (action === 'pay') {
@@ -56,6 +95,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       where: { id: params.id },
       data: { status: 'OPLACONA', paidDate, paidAmount },
     })
+    logUpdate({ action: 'pay', paidAmount, paidDate: paidDate.toISOString().slice(0, 10) })
     return NextResponse.json({ ok: true, warning })
   }
 
@@ -69,6 +109,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       where: { id: params.id },
       data: { status: 'PLANOWANA', paidDate: null, paidAmount: null },
     })
+    logUpdate({ action: 'unpay' })
     return NextResponse.json({ ok: true })
   }
 
@@ -82,14 +123,34 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   if ('note' in body) data.note = body.note ? String(body.note).trim() : null
 
   const updated = await prisma.contractPayment.update({ where: { id: params.id }, data, select: { id: true } })
+  logUpdate({
+    action: 'edit',
+    after: { ...data, plannedDate: data.plannedDate instanceof Date ? data.plannedDate.toISOString().slice(0, 10) : data.plannedDate },
+  })
   return NextResponse.json(updated)
 }
 
-// DELETE — usuń ratę (Cascade kasuje powiązany EscrowDeposit).
-export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
+// DELETE — usuń ratę (Cascade kasuje powiązany EscrowDeposit). Migawka raty trafia do AuditLog.
+export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+  const payment = await prisma.contractPayment.findUnique({ where: { id: params.id } })
+  if (!payment) return NextResponse.json({ error: 'Nie znaleziono raty' }, { status: 404 })
+
   await prisma.contractPayment.delete({ where: { id: params.id } })
+
+  const meta = extractRequestMeta(req)
+  void audit({
+    action: 'DELETE',
+    userId: (session.user as any)?.id,
+    userEmail: session.user?.email,
+    entity: 'ContractPayment',
+    entityId: params.id,
+    path: req.nextUrl.pathname,
+    ip: meta.ip,
+    userAgent: meta.userAgent,
+    metadata: { deletedSnapshot: paymentSnapshot(payment) },
+  })
   return NextResponse.json({ ok: true })
 }

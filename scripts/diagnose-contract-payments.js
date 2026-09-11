@@ -101,6 +101,29 @@ async function main() {
   }
   console.log(`\n  Podsumowanie: umów ${contracts.length}, z harmonogramem ${withPayments}, BEZ harmonogramu ${without}.`)
 
+  // Klient z kilkoma rekordami umów (import z Excela tworzył osobne /R i /D):
+  // raty wpisane na karcie rezerwacyjnej są NIEWIDOCZNE na karcie deweloperskiej
+  // i w module powierniczym (liczy tylko DEWELOPERSKA) — wyglądają jak „zniknięte”.
+  console.log('\n  --- Klienci z więcej niż jedną umową (gdzie leżą raty?) ---')
+  const byClient = new Map()
+  for (const c of contracts) {
+    const k = c.clientId || '?'
+    if (!byClient.has(k)) byClient.set(k, [])
+    byClient.get(k).push(c)
+  }
+  let misplaced = 0
+  for (const [, cs] of byClient) {
+    if (cs.length < 2) continue
+    const client = cs[0].client ? `${cs[0].client.lastName} ${cs[0].client.firstName}` : '—'
+    const parts = cs.map((c) => `${c.number} [${c.type}/${c.status}] raty=${c.payments.length}`)
+    const dev = cs.filter((c) => c.type === 'DEWELOPERSKA')
+    const other = cs.filter((c) => c.type !== 'DEWELOPERSKA')
+    const flag = dev.length && dev.every((c) => c.payments.length === 0) && other.some((c) => c.payments.length > 0)
+    if (flag) misplaced++
+    console.log(`  ${client.padEnd(28)} ${parts.join(' | ')}${flag ? '   <<< RATY NA INNEJ UMOWIE NIŻ DEWELOPERSKA' : ''}`)
+  }
+  console.log(`  Klientów z ratami wpisanymi poza umową deweloperską: ${misplaced}`)
+
   // ---------- D. oś czasu ----------
   h(`D. Oś czasu tworzenia rat od ${fmtD(since)} (dzień, godzina) + czy mieści się w oknie czyjejś sesji`)
   const recent = allPayments.filter((p) => new Date(p.createdAt) >= since).sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
@@ -155,6 +178,32 @@ async function main() {
   })
   console.log(`  Klienci ze statusem UMOWA/REZERWACJA/ODBIOR bez ŻADNEJ umowy (ślad skasowanej umowy): ${clientsNoContract.length}`)
   for (const c of clientsNoContract) console.log(`     - ${c.lastName} ${c.firstName} (${c.status}, zmieniony ${fmtDT(c.updatedAt)})`)
+  // lokale SPRZEDANE bez składnika żadnej umowy (kasowanie umowy zwalnia tylko REZERWACJE)
+  const soldOrphans = await prisma.unit.findMany({
+    where: { status: 'SPRZEDANY', contractUnits: { none: {} } },
+    select: { number: true, updatedAt: true },
+  })
+  console.log(`  Lokale SPRZEDANE bez żadnej umowy (ślad skasowanej umowy deweloperskiej): ${soldOrphans.length}`)
+  for (const u of soldOrphans.slice(0, 40)) console.log(`     - ${u.number} (zmieniony ${fmtDT(u.updatedAt)})`)
+  if (soldOrphans.length > 40) console.log(`     … i ${soldOrphans.length - 40} więcej`)
+  // dziury w numeracji pozycji rat (position = max+1 przy dodawaniu, nigdy nie renumerowane)
+  const gaps = contracts.filter((c) => c.payments.length > 0 && Math.max(...c.payments.map((p) => p.position)) >= c.payments.length)
+  console.log(`  Umowy z dziurą w numeracji pozycji rat (ślad kasowania pojedynczych rat „×”): ${gaps.length}`)
+  for (const c of gaps) console.log(`     - ${c.number}: pozycje ${c.payments.map((p) => p.position).join(',')}`)
+  // statystyki Postgresa: ile wierszy skasowano od resetu statystyk (obejmuje kaskady)
+  try {
+    const stats = await prisma.$queryRawUnsafe(
+      `SELECT relname, n_tup_ins::int AS ins, n_tup_upd::int AS upd, n_tup_del::int AS del, n_live_tup::int AS live
+         FROM pg_stat_user_tables WHERE relname IN ('Client','Contract','ContractPayment','ContractUnit','EscrowDeposit') ORDER BY relname`,
+    )
+    const meta = await prisma.$queryRawUnsafe(
+      `SELECT pg_postmaster_start_time() AS started, (SELECT stats_reset FROM pg_stat_database WHERE datname = current_database()) AS stats_reset`,
+    )
+    console.log(`  Statystyki Postgresa (od resetu ${fmtDT(meta[0]?.stats_reset)}; serwer wystartował ${fmtDT(meta[0]?.started)}):`)
+    for (const s of stats) console.log(`     ${String(s.relname).padEnd(16)} wstawione ${String(s.ins).padStart(6)}  zmienione ${String(s.upd).padStart(6)}  SKASOWANE ${String(s.del).padStart(6)}  żyje ${String(s.live).padStart(6)}`)
+  } catch (e) {
+    console.log(`  (statystyki Postgresa niedostępne: ${e.message})`)
+  }
 
   // ---------- F. umowy utworzone/zmienione ostatnio ----------
   h(`F. Umowy utworzone lub zmienione od ${fmtD(since)} + zdarzenia historii (re-kreacja umowy kasuje raty kaskadą)`)
@@ -169,12 +218,17 @@ async function main() {
   })
   console.log(`  Zdarzenia historii umów w oknie: ${history.length}`)
   for (const e of history) console.log(`     ${fmtDT(e.createdAt)}  ${String(e.contract?.number || '?').padEnd(14)} ${e.event.padEnd(20)} ${(e.details || '').slice(0, 90)}`)
+  // Kasowanie KLIENTA jest audytowane (kaskada: klient → umowy → raty); umowy i raty dotąd nie.
   const audits = await prisma.auditLog.findMany({
-    where: { createdAt: { gte: since }, action: { in: ['CREATE', 'UPDATE', 'DELETE'] }, entity: 'Contract' },
+    where: { createdAt: { gte: since }, action: { in: ['CREATE', 'UPDATE', 'DELETE'] }, entity: { in: ['Client', 'Contract', 'ContractPayment'] } },
     orderBy: { createdAt: 'asc' },
   })
-  console.log(`  AuditLog CREATE/UPDATE/DELETE dla Contract w oknie: ${audits.length}`)
-  for (const a of audits) console.log(`     ${fmtDT(a.createdAt)}  ${a.userEmail || a.userId || '?'}  ${a.action} ${a.entityId || ''} ${a.path || ''}`)
+  console.log(`  AuditLog CREATE/UPDATE/DELETE dla Client/Contract/ContractPayment w oknie: ${audits.length}`)
+  for (const a of audits) {
+    console.log(`     ${fmtDT(a.createdAt)}  ${(a.userEmail || a.userId || '?').padEnd(30)} ${a.action.padEnd(7)} ${String(a.entity).padEnd(16)} ${a.entityId || ''} ${(a.metadata || '').slice(0, 160)}`)
+  }
+  const lastAudit = await prisma.auditLog.findFirst({ orderBy: { createdAt: 'desc' }, select: { createdAt: true } })
+  console.log(`  Ostatni wpis AuditLog w ogóle: ${fmtDT(lastAudit?.createdAt)} (luka w logowaniach w dniach pracy = przywrócona kopia bazy)`)
 
   h('KONIEC — nic nie zostało zmienione. Wklej cały wynik do sesji Claude.')
 }

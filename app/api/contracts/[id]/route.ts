@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { unitStateForStage } from '@/lib/contracts'
 import type { ContractStatus, ContractType } from '@/lib/types'
+import { audit, extractRequestMeta } from '@/lib/audit-log'
 
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions)
@@ -132,15 +133,49 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   return NextResponse.json(updated)
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const contract = await prisma.contract.findUnique({
     where: { id: params.id },
-    include: { contractUnits: true },
+    include: {
+      contractUnits: { include: { unit: { select: { number: true } } } },
+      payments: { select: { title: true, type: true, plannedAmount: true, plannedDate: true, status: true } },
+      client: { select: { firstName: true, lastName: true } },
+    },
   })
   if (!contract) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+
+  // Kasowanie umowy kasuje kaskadą raty harmonogramu, etapy, historię — jedyny
+  // ślad zostaje w AuditLog (migawka: numer, klient, lokale, raty).
+  const meta = extractRequestMeta(req)
+  void audit({
+    action: 'DELETE',
+    userId: (session.user as any)?.id,
+    userEmail: session.user?.email,
+    entity: 'Contract',
+    entityId: params.id,
+    path: req.nextUrl.pathname,
+    ip: meta.ip,
+    userAgent: meta.userAgent,
+    metadata: {
+      deletedSnapshot: {
+        number: contract.number,
+        type: contract.type,
+        status: contract.status,
+        client: contract.client ? `${contract.client.firstName} ${contract.client.lastName}` : null,
+        units: contract.contractUnits.map((cu) => cu.unit?.number).filter(Boolean),
+        payments: contract.payments.map((p) => ({
+          title: p.title,
+          type: p.type,
+          plannedAmount: p.plannedAmount,
+          plannedDate: p.plannedDate ? p.plannedDate.toISOString().slice(0, 10) : null,
+          status: p.status,
+        })),
+      },
+    },
+  })
 
   // Release units on delete
   const unitIds = contract.contractUnits.map((cu) => cu.unitId)
