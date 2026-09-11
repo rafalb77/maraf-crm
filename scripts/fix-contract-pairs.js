@@ -55,12 +55,20 @@ async function main() {
     // --- 1. skrzyżowane typy ---
     if (pair.R.type === 'DEWELOPERSKA' && pair.D.type === 'REZERWACYJNA') {
       swapped++
+      // Raty dodane, gdy rekord …/D był typu REZERWACYJNA, dostały toEscrow=false
+      // (domyślnie true tylko dla DEWELOPERSKA) — po zamianie typów odhaczenie nie
+      // tworzyłoby wpłaty na rachunek powierniczy. Naprawiamy razem z typem.
+      const noEscrow = pair.D.payments.filter((p) => !p.toEscrow).length
       console.log(
         `\n[TYPY] ${prefix} (${client}): ${pair.R.number} ma type=DEWELOPERSKA (raty: ${pair.R.payments.length}), ` +
-          `${pair.D.number} ma type=REZERWACYJNA (raty: ${pair.D.payments.length}) → zamiana typów zgodnie z numerem`,
+          `${pair.D.number} ma type=REZERWACYJNA (raty: ${pair.D.payments.length}, z toEscrow=false: ${noEscrow}) → zamiana typów zgodnie z numerem` +
+          (noEscrow ? ` + ${noEscrow} rat dostanie toEscrow=true` : ''),
       )
       if (apply) {
         await prisma.$transaction(async (tx) => {
+          if (noEscrow) {
+            await tx.contractPayment.updateMany({ where: { contractId: pair.D.id, toEscrow: false }, data: { toEscrow: true } })
+          }
           for (const [c, newType] of [
             [pair.R, 'REZERWACYJNA'],
             [pair.D, 'DEWELOPERSKA'],

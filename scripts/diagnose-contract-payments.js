@@ -101,6 +101,25 @@ async function main() {
   }
   console.log(`\n  Podsumowanie: umów ${contracts.length}, z harmonogramem ${withPayments}, BEZ harmonogramu ${without}.`)
 
+  // Raty na umowach ANULOWANYCH/ROZWIĄZANYCH: API rat nie sprawdza statusu umowy,
+  // a karta klienta, moduł powierniczy i sekcja wyżej takie umowy pomijają —
+  // rata może „zniknąć" przez anulowanie umowy, na której ją wpisano.
+  const cancelled = await prisma.contract.findMany({
+    where: { status: { in: ['ANULOWANA', 'ROZWIAZANA'] } },
+    include: { client: { select: { firstName: true, lastName: true } }, payments: true },
+  })
+  const cancelledWithPayments = cancelled.filter((c) => c.payments.length > 0)
+  const totalPayments = await prisma.contractPayment.count()
+  console.log(
+    `\n  Umowy ANULOWANE/ROZWIĄZANE: ${cancelled.length}, z nich z ratami: ${cancelledWithPayments.length}. ` +
+      `Wszystkich rat w bazie (łącznie z tymi umowami): ${totalPayments}; na umowach aktywnych: ${allPayments.length}.`,
+  )
+  for (const c of cancelledWithPayments) {
+    const client = c.client ? `${c.client.lastName} ${c.client.firstName}` : '—'
+    console.log(`     - ${c.number} ${client} [${c.type}/${c.status}] zmieniona ${fmtDT(c.updatedAt)}: ${c.payments.length} rat, utworzone ${fmtDT(Math.min(...c.payments.map((p) => new Date(p.createdAt).getTime())))} … ${fmtDT(Math.max(...c.payments.map((p) => new Date(p.createdAt).getTime())))}`)
+    for (const p of c.payments) allPayments.push({ ...p, contractNumber: c.number + ' (anulowana)' })
+  }
+
   // Klient z kilkoma rekordami umów (import z Excela tworzył osobne /R i /D):
   // raty wpisane na karcie rezerwacyjnej są NIEWIDOCZNE na karcie deweloperskiej
   // i w module powierniczym (liczy tylko DEWELOPERSKA) — wyglądają jak „zniknięte”.
