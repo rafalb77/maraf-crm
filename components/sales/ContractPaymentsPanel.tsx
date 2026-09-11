@@ -26,16 +26,26 @@ const TYPE_LABELS: Record<string, string> = {
   REZERWACYJNA: 'Rezerwacyjna',
 }
 
+/** Podpowiedź o drugim rekordzie umowy tego klienta (rezerwacyjna /R vs deweloperska /D). */
+export type SiblingHint = {
+  kind: 'use-dev' | 'sibling-has'
+  contractId: string
+  number: string
+  paymentsCount: number
+}
+
 export function ContractPaymentsPanel({
   contractId,
   contractType,
   initialPayments,
   escrowAccounts,
+  siblingHint = null,
 }: {
   contractId: string
   contractType: string
   initialPayments: ContractPaymentRow[]
   escrowAccounts: { id: string; name: string }[]
+  siblingHint?: SiblingHint | null
 }) {
   const router = useRouter()
   const [showAdd, setShowAdd] = useState(false)
@@ -60,6 +70,30 @@ export function ContractPaymentsPanel({
           {showAdd ? 'Anuluj' : '+ Dodaj ratę'}
         </button>
       </div>
+
+      {siblingHint && (
+        <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          {siblingHint.kind === 'use-dev' ? (
+            <>
+              To rekord umowy <strong>rezerwacyjnej</strong>. Harmonogram wpłat prowadź na umowie deweloperskiej{' '}
+              <Link href={`/sales/${siblingHint.contractId}`} className="font-semibold underline hover:text-amber-700">
+                {siblingHint.number}
+              </Link>
+              {siblingHint.paymentsCount > 0 ? ` (ma już ${siblingHint.paymentsCount} rat)` : ' (bez rat)'} — tylko ona liczy się w
+              Rozliczeniach powierniczych.
+              {payments.length > 0 && ' Raty wpisane tutaj są tam niewidoczne — sprawdź, czy nie są zdublowane.'}
+            </>
+          ) : (
+            <>
+              Tu harmonogram jest pusty, ale ten klient ma <strong>{siblingHint.paymentsCount} rat</strong> wpisanych na umowie{' '}
+              <Link href={`/sales/${siblingHint.contractId}`} className="font-semibold underline hover:text-amber-700">
+                {siblingHint.number}
+              </Link>
+              . Raty powinny być na umowie deweloperskiej.
+            </>
+          )}
+        </div>
+      )}
 
       {/* Podsumowanie */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">

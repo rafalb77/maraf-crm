@@ -121,6 +121,27 @@ export default async function ContractDetailPage({ params }: { params: { id: str
     orderBy: { number: 'asc' },
   })
 
+  // Nabywcy z importu mają DWA rekordy (…/R rezerwacyjna i …/D deweloperska).
+  // Harmonogram wpisany na /R jest niewidoczny na /D i w module powierniczym —
+  // podpowiadamy, gdzie raty są / gdzie powinny być.
+  const siblingContracts = await prisma.contract.findMany({
+    where: { clientId: contract.clientId, id: { not: contract.id }, status: { notIn: ['ROZWIAZANA', 'ANULOWANA'] } },
+    select: { id: true, number: true, type: true, _count: { select: { payments: true } } },
+  })
+  const devSibling = siblingContracts.find((s) => s.type === 'DEWELOPERSKA')
+  const siblingWithPayments = siblingContracts.find((s) => s._count.payments > 0)
+  const siblingHint =
+    contract.type !== 'DEWELOPERSKA' && devSibling
+      ? { kind: 'use-dev' as const, contractId: devSibling.id, number: devSibling.number, paymentsCount: devSibling._count.payments }
+      : contract.type === 'DEWELOPERSKA' && contract.payments.length === 0 && siblingWithPayments
+        ? {
+            kind: 'sibling-has' as const,
+            contractId: siblingWithPayments.id,
+            number: siblingWithPayments.number,
+            paymentsCount: siblingWithPayments._count.payments,
+          }
+        : null
+
   const paymentsForPanel = contract.payments.map((p) => ({
     id: p.id,
     title: p.title,
@@ -274,6 +295,7 @@ export default async function ContractDetailPage({ params }: { params: { id: str
             contractType={contract.type}
             initialPayments={paymentsForPanel}
             escrowAccounts={escrowAccounts}
+            siblingHint={siblingHint}
           />
 
           {contract.notes && (
