@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { formatCurrency } from '@/lib/utils'
+import { isSessionExpired, SESSION_EXPIRED_HINT } from '@/lib/api-client'
 
 export type ContractPaymentRow = {
   id: string
@@ -119,26 +120,46 @@ function PaymentRow({
   onChange: () => void
 }) {
   const [payOpen, setPayOpen] = useState(false)
+  const [editOpen, setEditOpen] = useState(false)
   const [busy, setBusy] = useState(false)
 
   const isPaid = payment.status === 'OPLACONA'
   const isOverdue = !isPaid && payment.plannedDate && payment.plannedDate.slice(0, 10) < today
 
+  // Cicha porażka (wygasła sesja, brak uprawnień) wyglądałaby jak „nic się nie
+  // stało” — pokazujemy błąd zamiast po prostu odświeżać.
+  const run = async (req: () => Promise<Response>) => {
+    setBusy(true)
+    try {
+      const res = await req()
+      if (!res.ok) {
+        if (isSessionExpired(res)) return
+        const d = await res.json().catch(() => ({}))
+        alert(d.error || `Nie udało się zapisać (HTTP ${res.status})`)
+        return
+      }
+      onChange()
+    } catch (e: any) {
+      alert(e?.message || 'Błąd sieci')
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const unpay = async () => {
     if (!confirm('Cofnąć odhaczenie? Powiązany wpis na rachunku powierniczym zostanie usunięty.')) return
-    setBusy(true)
-    await fetch(`/api/contracts/payments/${payment.id}`, {
-      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'unpay' }),
-    })
-    setBusy(false); onChange()
+    await run(() =>
+      fetch(`/api/contracts/payments/${payment.id}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'unpay' }),
+      }),
+    )
   }
 
   const del = async () => {
-    if (!confirm('Usunąć ratę z harmonogramu?')) return
-    setBusy(true)
-    await fetch(`/api/contracts/payments/${payment.id}`, { method: 'DELETE' })
-    setBusy(false); onChange()
+    const label = payment.title || TYPE_LABELS[payment.type] || 'Rata'
+    if (!confirm(`Usunąć ratę „${label}” (${formatCurrency(payment.plannedAmount)}) z harmonogramu? Tej operacji nie da się cofnąć.`)) return
+    await run(() => fetch(`/api/contracts/payments/${payment.id}`, { method: 'DELETE' }))
   }
 
   return (
@@ -181,9 +202,25 @@ function PaymentRow({
             {isPaid ? (
               <button onClick={unpay} disabled={busy} className="text-xs text-amber-600 hover:text-amber-800 px-2 py-1 disabled:opacity-50">Cofnij</button>
             ) : (
-              <button onClick={() => setPayOpen((v) => !v)} disabled={busy} className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white rounded px-2.5 py-1 disabled:opacity-50">Odhacz</button>
+              <>
+                <button
+                  onClick={() => { setEditOpen((v) => !v); setPayOpen(false) }}
+                  disabled={busy}
+                  className="text-xs text-gray-600 hover:text-gray-900 px-2 py-1 disabled:opacity-50"
+                  title="Popraw nazwę, typ, kwotę lub termin raty"
+                >
+                  Edytuj
+                </button>
+                <button
+                  onClick={() => { setPayOpen((v) => !v); setEditOpen(false) }}
+                  disabled={busy}
+                  className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white rounded px-2.5 py-1 disabled:opacity-50"
+                >
+                  Odhacz
+                </button>
+              </>
             )}
-            <button onClick={del} disabled={busy} className="text-rose-400 hover:text-rose-600 px-1.5">×</button>
+            <button onClick={del} disabled={busy} className="text-rose-400 hover:text-rose-600 px-1.5" title="Usuń ratę">×</button>
           </div>
         </div>
       </div>
@@ -196,6 +233,101 @@ function PaymentRow({
           onCancel={() => setPayOpen(false)}
         />
       )}
+      {editOpen && !isPaid && (
+        <EditPaymentForm
+          payment={payment}
+          onDone={() => { setEditOpen(false); onChange() }}
+          onCancel={() => setEditOpen(false)}
+        />
+      )}
+    </div>
+  )
+}
+
+/** Edycja planowanej raty (nazwa, typ, kwota, termin, escrow, notatka). Opłaconej nie edytujemy — najpierw „Cofnij”. */
+function EditPaymentForm({
+  payment, onDone, onCancel,
+}: {
+  payment: ContractPaymentRow
+  onDone: () => void
+  onCancel: () => void
+}) {
+  const [title, setTitle] = useState(payment.title || '')
+  const [type, setType] = useState(payment.type)
+  const [plannedDate, setPlannedDate] = useState(payment.plannedDate ? payment.plannedDate.slice(0, 10) : '')
+  const [plannedAmount, setPlannedAmount] = useState(payment.plannedAmount.toFixed(2))
+  const [toEscrow, setToEscrow] = useState(payment.toEscrow)
+  const [note, setNote] = useState(payment.note || '')
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
+
+  const submit = async () => {
+    const amount = parseFloat(plannedAmount.replace(',', '.'))
+    if (!isFinite(amount) || amount <= 0) { setErr('Kwota planowana musi być większa od zera'); return }
+    setBusy(true); setErr(null)
+    try {
+      const res = await fetch(`/api/contracts/payments/${payment.id}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: title.trim() || null,
+          type,
+          plannedDate: plannedDate || null,
+          plannedAmount: amount,
+          toEscrow,
+          note: note.trim() || null,
+        }),
+      })
+      if (!res.ok) {
+        if (isSessionExpired(res)) { setErr(SESSION_EXPIRED_HINT); setBusy(false); return }
+        const data = await res.json().catch(() => ({}))
+        setErr(data.error || `Nie udało się zapisać (HTTP ${res.status})`); setBusy(false); return
+      }
+      onDone()
+    } catch (e: any) {
+      setErr(e.message || 'Błąd sieci'); setBusy(false)
+    }
+  }
+
+  return (
+    <div className="mt-2 bg-gray-50 border border-gray-200 rounded-lg p-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        <label className="block sm:col-span-2">
+          <span className="block text-[11px] text-gray-600 mb-0.5">Nazwa raty</span>
+          <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="np. I rata" className="w-full text-sm border border-gray-300 rounded px-2 py-1" />
+        </label>
+        <label className="block">
+          <span className="block text-[11px] text-gray-600 mb-0.5">Typ</span>
+          <select value={type} onChange={(e) => setType(e.target.value)} className="w-full text-sm border border-gray-300 rounded px-2 py-1">
+            <option value="ZALICZKA">Zaliczka</option>
+            <option value="RATA">Rata</option>
+            <option value="KONCOWA">Końcowa</option>
+            <option value="REZERWACYJNA">Rezerwacyjna</option>
+          </select>
+        </label>
+        <label className="block">
+          <span className="block text-[11px] text-gray-600 mb-0.5">Kwota planowana</span>
+          <input type="number" step="0.01" value={plannedAmount} onChange={(e) => setPlannedAmount(e.target.value)} className="w-full text-sm border border-gray-300 rounded px-2 py-1 tabular-nums" />
+        </label>
+        <label className="block">
+          <span className="block text-[11px] text-gray-600 mb-0.5">Termin</span>
+          <input type="date" value={plannedDate} onChange={(e) => setPlannedDate(e.target.value)} className="w-full text-sm border border-gray-300 rounded px-2 py-1" />
+        </label>
+        <label className="flex items-center gap-2 sm:mt-5">
+          <input type="checkbox" checked={toEscrow} onChange={(e) => setToEscrow(e.target.checked)} className="rounded" />
+          <span className="text-xs text-gray-700">Wpłata na rachunek powierniczy</span>
+        </label>
+        <label className="block sm:col-span-2">
+          <span className="block text-[11px] text-gray-600 mb-0.5">Notatka</span>
+          <input value={note} onChange={(e) => setNote(e.target.value)} className="w-full text-sm border border-gray-300 rounded px-2 py-1" />
+        </label>
+      </div>
+      {err && <p className="text-xs text-rose-600 mt-2">{err}</p>}
+      <div className="flex gap-2 mt-3">
+        <button onClick={submit} disabled={busy} className="bg-gray-900 hover:bg-gray-800 text-white text-sm rounded-lg px-3 py-1.5 disabled:opacity-50">
+          {busy ? 'Zapis...' : 'Zapisz zmiany'}
+        </button>
+        <button onClick={onCancel} disabled={busy} className="text-gray-600 hover:text-gray-900 text-sm px-3 py-1.5">Anuluj</button>
+      </div>
     </div>
   )
 }
@@ -228,8 +360,12 @@ function PayForm({
           escrowAccountId: needAccountChoice ? escrowAccountId : undefined,
         }),
       })
+      if (!res.ok) {
+        if (isSessionExpired(res)) { setErr(SESSION_EXPIRED_HINT); setBusy(false); return }
+        const data = await res.json().catch(() => ({}))
+        setErr(data.error || `Nie udało się zapisać (HTTP ${res.status})`); setBusy(false); return
+      }
       const data = await res.json()
-      if (!res.ok) { setErr(data.error || 'Błąd'); setBusy(false); return }
       if (data.warning) alert(data.warning)
       onDone()
     } catch (e: any) {
@@ -305,8 +441,12 @@ function AddPaymentRow({
           note: note || undefined,
         }),
       })
-      const data = await res.json()
-      if (!res.ok) { setErr(data.error || 'Błąd'); setBusy(false); return }
+      if (!res.ok) {
+        // Wygasła sesja (8h): alert + formularz zostaje otwarty z danymi — rata NIE jest zapisana.
+        if (isSessionExpired(res)) { setErr(SESSION_EXPIRED_HINT); setBusy(false); return }
+        const data = await res.json().catch(() => ({}))
+        setErr(data.error || `Nie udało się zapisać (HTTP ${res.status})`); setBusy(false); return
+      }
       onDone()
     } catch (e: any) {
       setErr(e.message || 'Błąd sieci'); setBusy(false)
