@@ -53,12 +53,17 @@ export async function POST(req: NextRequest) {
       select: { id: true, contractPaymentId: true },
     })
     for (const t of toApply) {
-      const res = await applyMatch(t.id, t.contractPaymentId!)
-      if (res.ok) {
-        applied++
-        interestTotal += res.interest
-      } else {
-        applyErrors.push(res.error)
+      try {
+        const res = await applyMatch(t.id, t.contractPaymentId!)
+        if (res.ok) {
+          applied++
+          interestTotal += res.interest
+        } else {
+          applyErrors.push(res.error)
+        }
+      } catch (e: any) {
+        // Jedna pozycja nie może zatrzymać zbiorczego księgowania pozostałych.
+        applyErrors.push(`Pozycja ${t.id}: ${e?.message || e}`)
       }
     }
   }

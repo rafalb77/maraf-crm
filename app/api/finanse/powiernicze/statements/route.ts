@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma'
 import { getActiveCompany } from '@/lib/finanse-company'
 import { parseStatement } from '@/lib/bank-import'
 import { decodeBankFile } from '@/lib/bank-import/decode'
+import { isPdfBuffer, parseIngHistoryPdf } from '@/lib/bank-import/pdf'
 import { commitStatement, fileHashOf, findEscrowAccountForIban } from '@/lib/bank-statement-import'
 import { loadOpenPayments, matchTransaction } from '@/lib/bank-reconcile'
 
@@ -48,7 +49,7 @@ export async function GET() {
 }
 
 // POST /api/finanse/powiernicze/statements?mode=preview|commit
-// multipart/form-data: field `file` = wyciąg (MT940 / CSV / camt.053)
+// multipart/form-data: field `file` = wyciąg (MT940 / CSV / camt.053 / PDF „Historia” z ING Business)
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -77,11 +78,15 @@ export async function POST(req: NextRequest) {
   const buffer = Buffer.from(await file.arrayBuffer())
   const forceFormat = (formData.get('format') as string) || undefined
 
-  let text: string
   let parsed
   try {
-    text = decodeBankFile(buffer)
-    parsed = parseStatement(text, fileName, forceFormat as any)
+    if (isPdfBuffer(buffer)) {
+      // PDF: warstwa tekstowa po współrzędnych (nie da się zdekodować jako tekst).
+      parsed = await parseIngHistoryPdf(buffer)
+    } else {
+      const text = decodeBankFile(buffer)
+      parsed = parseStatement(text, fileName, forceFormat as any)
+    }
   } catch (e: any) {
     return NextResponse.json({ error: 'Błąd parsowania pliku: ' + (e?.message || e) }, { status: 400 })
   }

@@ -8,15 +8,17 @@
 //   - CAMT053  — ISO 20022 XML (ING Business: „Wyciąg camt.053")
 //   - MT940    — SWIFT statement (ING Business: „Wyciąg MT940")
 //   - CSV      — eksport historii (Moje ING / ING Business), separator ';', CP1250
+//   - PDF      — eksport historii ING Business do PDF (warstwa tekstowa po
+//                współrzędnych; wejściem jest BUFOR, nie tekst — ./pdf)
 //
-// Parsery szczegółowe: ./mt940, ./csv, ./camt.
+// Parsery szczegółowe: ./mt940, ./csv, ./camt, ./pdf.
 // =====================================================================
 
 import { parseMt940 } from './mt940'
 import { parseIngCsv } from './csv'
 import { parseCamt053 } from './camt'
 
-export type StatementFormat = 'MT940' | 'CSV' | 'CAMT053'
+export type StatementFormat = 'MT940' | 'CSV' | 'CAMT053' | 'PDF'
 
 export type ParsedTransaction = {
   bookingDate: Date
@@ -70,6 +72,8 @@ export function detectFormat(text: string, fileName?: string): StatementFormat {
 export function parseStatement(text: string, fileName?: string, forceFormat?: StatementFormat): ParsedStatement {
   const format = forceFormat || detectFormat(text, fileName)
   switch (format) {
+    case 'PDF':
+      throw new Error('PDF parsuje się z bufora — użyj parseIngHistoryPdf (lib/bank-import/pdf).')
     case 'CAMT053':
       return parseCamt053(text)
     case 'MT940':

@@ -21,7 +21,12 @@ type Preview = {
   }[]
 }
 
-const FORMAT_LABELS: Record<string, string> = { MT940: 'MT940 (SWIFT)', CSV: 'CSV (Moje ING)', CAMT053: 'camt.053 (XML)' }
+const FORMAT_LABELS: Record<string, string> = {
+  MT940: 'MT940 (SWIFT)',
+  CSV: 'CSV (Moje ING)',
+  CAMT053: 'camt.053 (XML)',
+  PDF: 'PDF (Historia ING Business)',
+}
 
 export function ImportWyciaguForm({ onImported }: { onImported: () => void }) {
   const [file, setFile] = useState<File | null>(null)
@@ -72,17 +77,18 @@ export function ImportWyciaguForm({ onImported }: { onImported: () => void }) {
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-900">
         <p className="font-semibold mb-1">Jak pobrać plik z ING:</p>
         <ul className="list-disc list-inside space-y-0.5 text-blue-800">
-          <li><strong>ING Business</strong> → Wyciągi → eksport <strong>MT940</strong> (.sta/.txt) lub <strong>camt.053</strong> (.xml)</li>
+          <li><strong>ING Business</strong> → Wyciągi → eksport <strong>MT940</strong> (.sta/.txt) lub <strong>camt.053</strong> (.xml) — zalecane: zawierają numer subrachunku nabywcy, więc dopasowanie jest pewne</li>
+          <li><strong>ING Business</strong> → Historia → Eksportuj → <strong>PDF</strong> — działa, ale bez subrachunków: dopasowanie po nazwisku, kwocie i numerze lokalu w tytule (więcej pozycji „do przeglądu”)</li>
           <li><strong>Moje ING</strong> → Historia → Eksportuj → <strong>CSV</strong></li>
-          <li>Format wykrywany automatycznie. Najpierw <strong>podgląd</strong>, potem <strong>import</strong>.</li>
+          <li>Format wykrywany automatycznie. Najpierw <strong>podgląd</strong>, potem <strong>import</strong>. Ten sam plik drugi raz = pominięty.</li>
         </ul>
       </div>
 
       <div className="bg-white border border-gray-200 rounded-xl p-6">
-        <label className="block text-sm font-medium text-gray-700 mb-2">Plik wyciągu (MT940 / CSV / camt.053)</label>
+        <label className="block text-sm font-medium text-gray-700 mb-2">Plik wyciągu (MT940 / CSV / camt.053 / PDF)</label>
         <input
           type="file"
-          accept=".sta,.mt940,.txt,.csv,.xml,.camt"
+          accept=".sta,.mt940,.txt,.csv,.xml,.camt,.pdf"
           onChange={(e) => { setFile(e.target.files?.[0] || null); setPreview(null); setDone(null) }}
           className="block w-full text-sm border border-gray-300 rounded-lg file:bg-gray-100 file:border-0 file:px-4 file:py-2 file:text-sm file:font-medium file:text-gray-700 hover:file:bg-gray-200"
         />

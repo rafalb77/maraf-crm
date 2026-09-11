@@ -15,19 +15,25 @@ export function fileHashOf(buf: Buffer | Uint8Array): string {
   return createHash('sha256').update(buf).digest('hex')
 }
 
-/** Szuka rachunku powierniczego pasującego do IBAN z wyciągu (po znormalizowanym numerze). */
+/** Same cyfry NRB (bez prefiksu kraju) — rachunek w CRM bywa zapisany bez „PL”, wyciąg z „PL”. */
+function accountDigits(v: string | null | undefined): string | null {
+  const norm = normalizeIban(v)
+  return norm ? norm.replace(/^[A-Z]{2}/, '') : null
+}
+
+/** Szuka rachunku powierniczego pasującego do IBAN z wyciągu (po cyfrach numeru, niezależnie od „PL”). */
 export async function findEscrowAccountForIban(
   iban: string | null,
   company: Company
 ): Promise<{ id: string; name: string } | null> {
   if (!iban) return null
-  const norm = normalizeIban(iban)
-  if (!norm) return null
+  const digits = accountDigits(iban)
+  if (!digits) return null
   const accounts = await prisma.escrowAccount.findMany({
     where: { company },
     select: { id: true, name: true, accountNumber: true },
   })
-  const hit = accounts.find((a) => a.accountNumber && normalizeIban(a.accountNumber) === norm)
+  const hit = accounts.find((a) => a.accountNumber && accountDigits(a.accountNumber) === digits)
   return hit ? { id: hit.id, name: hit.name } : null
 }
 

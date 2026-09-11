@@ -76,6 +76,18 @@ function normText(s: string | null | undefined): string {
     .replace(/[̀-ͯ]/g, '')
 }
 
+/**
+ * Nazwisko/nazwa jako CAŁE słowo (granice = nie-litera), nie podciąg: dane
+ * kontrahenta z wyciągu zawierają adres, a „Maj” ⊂ „ul. 1 Maja” dawało
+ * fałszywe trafienie nabywcy.
+ */
+function hasWord(hay: string, needle: string): boolean {
+  const n = needle.trim()
+  if (!n) return false
+  const esc = n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  return new RegExp(`(^|[^a-z0-9])${esc}([^a-z0-9]|$)`).test(hay)
+}
+
 /** Ładuje otwarte raty (PLANOWANA) z kontekstem do dopasowania. */
 export async function loadOpenPayments(): Promise<OpenPayment[]> {
   const rows = await prisma.contractPayment.findMany({
@@ -154,7 +166,7 @@ export function scoreCandidate(tx: TxLite, p: OpenPayment, tolerancePct = DEFAUL
   // 3. Nazwisko / nazwa nabywcy
   let nameHit = false
   for (const full of p.buyerNames) {
-    if (full.length >= 5 && hayText.includes(normText(full))) {
+    if (full.length >= 5 && hasWord(hayText, normText(full))) {
       score += 40
       reasons.push(`nabywca „${full}”`)
       nameHit = true
@@ -163,7 +175,7 @@ export function scoreCandidate(tx: TxLite, p: OpenPayment, tolerancePct = DEFAUL
   }
   if (!nameHit) {
     for (const sur of p.surnames) {
-      if (hayText.includes(normText(sur))) {
+      if (hasWord(hayText, normText(sur))) {
         score += 25
         reasons.push(`nazwisko „${sur}”`)
         break
@@ -249,29 +261,52 @@ export async function reconcileStatement(
   let unmatched = 0
   let credits = 0
 
+  const outcomes: { txId: string; outcome: MatchOutcome }[] = []
   for (const tx of txs) {
     if (tx.side !== 'CREDIT') continue
     credits++
-    const outcome = matchTransaction(
-      {
-        id: tx.id,
-        side: 'CREDIT',
-        amount: tx.amount,
-        counterpartyName: tx.counterpartyName,
-        counterpartyIban: tx.counterpartyIban,
-        title: tx.title,
-        bankRef: tx.bankRef,
-        bookingDate: tx.bookingDate,
-      },
-      openPayments,
-      opts.tolerancePct
-    )
+    outcomes.push({
+      txId: tx.id,
+      outcome: matchTransaction(
+        {
+          id: tx.id,
+          side: 'CREDIT',
+          amount: tx.amount,
+          counterpartyName: tx.counterpartyName,
+          counterpartyIban: tx.counterpartyIban,
+          title: tx.title,
+          bankRef: tx.bankRef,
+          bookingDate: tx.bookingDate,
+        },
+        openPayments,
+        opts.tolerancePct
+      ),
+    })
+  }
+
+  // Jedna rata = jedna wpłata. Dwie wpłaty MATCHED na tę samą ratę (np. ta sama
+  // kwota od tego samego nabywcy dwa razy) → obie do przeglądu; inaczej zbiorcze
+  // księgowanie próbowałoby zaksięgować drugą na ratę już opłaconą.
+  const matchedPerPayment = new Map<string, number>()
+  for (const { outcome } of outcomes) {
+    if (outcome.status === 'MATCHED' && outcome.best) {
+      matchedPerPayment.set(outcome.best.paymentId, (matchedPerPayment.get(outcome.best.paymentId) ?? 0) + 1)
+    }
+  }
+  for (const { outcome } of outcomes) {
+    if (outcome.status === 'MATCHED' && outcome.best && (matchedPerPayment.get(outcome.best.paymentId) ?? 0) > 1) {
+      outcome.status = 'SUGGESTED'
+      outcome.reason = `${outcome.reason} • kilka wpłat pasuje do tej samej raty`
+    }
+  }
+
+  for (const { txId, outcome } of outcomes) {
     if (outcome.status === 'MATCHED') matched++
     else if (outcome.status === 'SUGGESTED') suggested++
     else unmatched++
 
     await prisma.bankTransaction.update({
-      where: { id: tx.id },
+      where: { id: txId },
       data: {
         matchStatus: outcome.status,
         matchScore: outcome.best?.score ?? null,
@@ -318,6 +353,16 @@ export async function applyMatch(
     },
   })
   if (!payment) return { ok: false, error: 'Nie znaleziono raty' }
+  // Rata przyjmuje JEDNĄ wpłatę (EscrowDeposit.contractPaymentId jest unikalny).
+  // Druga wpłata na tę samą ratę (wpłata częściowa, duplikat) = czytelna odmowa
+  // zamiast błędu unikalności z bazy.
+  if (payment.status !== 'PLANOWANA') {
+    return { ok: false, error: `Rata „${payment.title || payment.type}” nie jest planowana (status ${payment.status}) — nie można zaksięgować drugiej wpłaty.` }
+  }
+  const existingDeposit = await prisma.escrowDeposit.findUnique({ where: { contractPaymentId: paymentId }, select: { id: true } })
+  if (existingDeposit) {
+    return { ok: false, error: `Rata „${payment.title || payment.type}” ma już zaksięgowaną wpłatę. Wpłaty częściowe / dopłaty zaksięguj ręcznie w rejestrze wpłat.` }
+  }
 
   const accountId = opts.escrowAccountId || tx.statement.escrowAccountId
   if (!accountId) {
@@ -350,6 +395,7 @@ export async function applyMatch(
     }
   }
 
+  try {
   await prisma.$transaction(async (db) => {
     await db.contractPayment.update({
       where: { id: paymentId },
@@ -401,6 +447,11 @@ export async function applyMatch(
       })
     }
   })
+  } catch (e: any) {
+    // Wyścig (ktoś zaksięgował równolegle) → naruszenie unikalności zamiast 500.
+    if (e?.code === 'P2002') return { ok: false, error: 'Rata lub transakcja została w międzyczasie zaksięgowana.' }
+    throw e
+  }
 
   return { ok: true, interest: interestData?.amount ?? 0 }
 }
