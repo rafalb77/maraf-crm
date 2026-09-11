@@ -16,16 +16,25 @@
  *     kwotami (Olszewska MD/UF/2025/2). Naprawa (tylko z --dedupe): usunięcie
  *     rat z rekordu …/R, wpis w historii obu umów. Raty na …/D zostają.
  *
+ *  3. RATY BEZ FLAGI ESCROW na umowie deweloperskiej: raty dodane, gdy rekord był
+ *     jeszcze typu REZERWACYJNA (zamienione typy, deal awansowany później), mają
+ *     toEscrow=false — odhaczenie nie tworzy wpłaty na rachunek powierniczy.
+ *     Naprawa (tylko z --escrow): toEscrow=true dla rat umów DEWELOPERSKICH,
+ *     w których ŻADNA rata nie ma flagi (częściowe przypadki tylko raportujemy —
+ *     mogą być celowe).
+ *
  * Uruchomienie (Coolify Terminal w kontenerze CRM):
  *   node scripts/fix-contract-pairs.js                    # dry-run (podgląd)
  *   node scripts/fix-contract-pairs.js --apply            # naprawa typów
  *   node scripts/fix-contract-pairs.js --apply --dedupe   # + usunięcie dubli rat z …/R
+ *   node scripts/fix-contract-pairs.js --apply --escrow   # + toEscrow=true (krok 3)
  */
 const { PrismaClient } = require('@prisma/client')
 const prisma = new PrismaClient()
 
 const apply = process.argv.includes('--apply')
 const dedupe = process.argv.includes('--dedupe')
+const escrow = process.argv.includes('--escrow')
 const money = (n) => (Number(n) || 0).toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' zł'
 
 async function main() {
@@ -115,8 +124,36 @@ async function main() {
     }
   }
 
-  console.log(`\nPar …/R + …/D: ${[...pairs.values()].filter((p) => p.R && p.D).length}; skrzyżowane typy: ${swapped}; zdublowane harmonogramy: ${duplicates}.`)
-  if (!apply) console.log('DRY-RUN. Uruchom z --apply (i ewentualnie --dedupe), aby zapisać zmiany.')
+  // --- 3. raty bez flagi escrow na umowach deweloperskich ---
+  let escrowFixed = 0
+  for (const c of all) {
+    if (c.type !== 'DEWELOPERSKA' || c.payments.length === 0) continue
+    const off = c.payments.filter((p) => !p.toEscrow)
+    if (off.length === 0) continue
+    const client = c.client ? `${c.client.lastName} ${c.client.firstName}` : '—'
+    if (off.length === c.payments.length) {
+      escrowFixed++
+      console.log(`\n[ESCROW] ${c.number} (${client}): wszystkie ${off.length} rat bez flagi „na rachunek powierniczy" → toEscrow=true`)
+      if (apply && escrow) {
+        await prisma.$transaction(async (tx) => {
+          await tx.contractPayment.updateMany({ where: { contractId: c.id, toEscrow: false }, data: { toEscrow: true } })
+          await tx.contractHistory.create({
+            data: { contractId: c.id, event: 'KOREKTA', details: `${off.length} rat: włączono „wpłata na rachunek powierniczy" (skrypt fix-contract-pairs)` },
+          })
+        })
+        console.log('   zapisano.')
+      } else if (apply) {
+        console.log('   (bez --escrow nie zmieniam)')
+      }
+    } else {
+      console.log(`\n[ESCROW?] ${c.number} (${client}): ${off.length} z ${c.payments.length} rat bez flagi escrow — do ręcznego sprawdzenia (może być celowe)`)
+    }
+  }
+
+  console.log(
+    `\nPar …/R + …/D: ${[...pairs.values()].filter((p) => p.R && p.D).length}; skrzyżowane typy: ${swapped}; zdublowane harmonogramy: ${duplicates}; umowy deweloperskie z ratami bez escrow: ${escrowFixed}.`,
+  )
+  if (!apply) console.log('DRY-RUN. Uruchom z --apply (i ewentualnie --dedupe / --escrow), aby zapisać zmiany.')
 }
 
 main()
