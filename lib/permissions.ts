@@ -26,6 +26,7 @@ export const ALL_PERMISSIONS = [
   'statystyki',
   'budowa',
   'checkin',
+  'odbiory',
 ] as const
 
 // Sub-permissions w obrębie sekcji. Stringi z dot-notation, sprawdzane przez
@@ -53,6 +54,7 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
   statystyki: 'Statystyki',
   budowa: 'Budowa',
   checkin: 'Budowa — raport kierownika',
+  odbiory: 'Odbiory (usterki na rzutach)',
 }
 
 export const SUB_PERMISSION_LABELS: Record<SubPermission, string> = {
@@ -75,6 +77,7 @@ const PREFERRED_LANDING_ORDER: Permission[] = [
   'mailing',
   'calendar',
   'budowa',
+  'odbiory',
   'checkin',
 ]
 
@@ -113,7 +116,10 @@ export function getRequiredPermission(pathname: string): Permission | 'admin' | 
   if (pathname.startsWith('/statystyki')) return 'statystyki'
   if (pathname.startsWith('/budowa')) return 'budowa'
   if (pathname.startsWith('/checkin')) return 'checkin' // mobilny raport kierownika (Etap 1)
+  if (pathname.startsWith('/odbiory')) return 'odbiory' // odbiory robót + widok terenowy /odbiory/teren
   if (pathname.startsWith('/settings')) return 'admin'
+  // Strona wykonawcy (pakiet usterek po tokenie) — publiczna, gate = token w route handlerze
+  if (pathname === '/w' || pathname.startsWith('/w/')) return null
 
   // API
   if (pathname.startsWith('/api/dashboard')) return 'dashboard'
@@ -134,6 +140,8 @@ export function getRequiredPermission(pathname: string): Permission | 'admin' | 
   // UWAGA: /api/budowa/checkin PRZED /api/budowa (bardziej szczegółowy prefiks pierwszy)
   if (pathname.startsWith('/api/budowa/checkin')) return 'checkin'
   if (pathname.startsWith('/api/budowa')) return 'budowa'
+  if (pathname.startsWith('/api/odbiory')) return 'odbiory'
+  // /api/public/odbiory/w/* — strona wykonawcy, autoryzacja tokenem w handlerze (jak crony)
 
   // Admin-only API (zarządzanie userami, settings)
   if (pathname.startsWith('/api/users')) return 'admin'

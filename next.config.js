@@ -51,7 +51,7 @@ const nextConfig = {
           // Nie wysyłaj URL-i CRM do zewnętrznych domen w nagłówku Referer
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
           // Wyłączenie API które aplikacji nie używa (mniejszy attack surface)
-          { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(), interest-cohort=()' },
+          { key: 'Permissions-Policy', value: 'camera=(self), microphone=(self), geolocation=(), interest-cohort=()' },
         ],
       },
     ]

@@ -152,6 +152,7 @@ model Unit {
   priceHistory     PriceHistory[]
   cases            Case[]
   tasks            Task[]
+  defects          Defect[] // moduł Odbiory
 }
 
 // Historia zmian ceny/statusu lokalu. Źródło „Daty od której obowiązuje oferta"
@@ -779,6 +780,11 @@ model Subcontractor {
   contracts SubContract[]
   protocols Protocol[]
   constructionTasks ConstructionTask[] // moduł Budowa (Etap 2)
+  // Moduł Odbiory
+  defectTypes DefectType[]
+  inspections Inspection[]
+  defects     Defect[]
+  dispatches  Dispatch[]
 }
 
 // Umowa z podwykonawcą — kosztorys umowny w pozycjach (ContractWorkItem)
@@ -1587,6 +1593,11 @@ model Investment {
   reminderTasks Task[]
   invoices PurchaseInvoice[] // Etap 3: koszty przypisane do inwestycji (most z Finansów)
   risks    ConstructionRisk[] // Etap 4: rejestr ryzyk/blokerów
+  // Moduł Odbiory
+  planSheets  PlanSheet[]
+  inspections Inspection[]
+  defects     Defect[]
+  dispatches  Dispatch[]
 }
 
 // Etap budowy (Etap 2) — grupa zadań na Gancie (zwijalna). Daty planowane opcjonalne —
@@ -1894,4 +1905,240 @@ model PaymentInterest {
 
   @@index([contractId])
   @@index([status])
+}
+
+// =============================================================
+// MODUŁ: ODBIORY (odbiory robót od wykonawców, usterki jako pinezki na rzutach)
+// Patrz docs/odbiory-decyzje.md. Kod inwestycji do numeracji (np. STA) wynika z nazwy
+// (lib/odbiory/codes.ts investmentCode) — celowo BEZ kolumny na Investment, żeby deploy
+// nie psuł istniejących zapytań budowy zanim wykona się db push. Współrzędne w układzie arkusza
+// (PlanSheet.width × height = viewport PDF przy scale 1, jak markers.json w Rzutach).
+// =============================================================
+
+// Arkusz rzutu, na którym stawia się pinezki. kind: FLOOR | PZT | UNIT | CUSTOM
+model PlanSheet {
+  id           String   @id @default(cuid())
+  investmentId String
+  kind         String   @default("FLOOR")
+  name         String   // "2 piętro", "Teren (PZT)"
+  building     String?  // "B1"
+  floor        Int?
+  markersKey   String?  // klucz w public/rzuty/markers.json ("0".."4", "pzt")
+  imageUrl     String   // "/rzuty/kondygnacja-2.png"
+  width        Int
+  height       Int
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  investment  Investment   @relation(fields: [investmentId], references: [id], onDelete: Cascade)
+  inspections Inspection[]
+  defects     Defect[]
+
+  @@unique([investmentId, markersKey])
+}
+
+// Słownik usterek (legenda). code = stały numer typu, wspólny dla całej firmy.
+// trade: ELEKTRYKA | SANITARNA | WENTYLACJA | TYNKI | POSADZKI | OKNA | DRZWI | MURY |
+//        KONSTRUKCJA | BALKONY | WYKONCZENIE | OGOLNE
+// defaultPriority: NISKI | NORMALNY | PILNY
+model DefectType {
+  id                     String   @id @default(cuid())
+  code                   Int      @unique
+  name                   String
+  trade                  String   @default("OGOLNE")
+  defaultSubcontractorId String?
+  defaultDays            Int?
+  defaultPriority        String   @default("NORMALNY")
+  active                 Boolean  @default(true)
+  sortOrder              Int      @default(0)
+  usageCount             Int      @default(0) // do sortowania „ostatnio używane"
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  defaultSubcontractor Subcontractor? @relation(fields: [defaultSubcontractorId], references: [id], onDelete: SetNull)
+  defects              Defect[]
+}
+
+// Odbiór. kind: ROBOTY (od wykonawcy) | TECHNICZNY | Z_NABYWCA | PRZEGLAD
+// status: W_TOKU | ZAKONCZONY | ANULOWANY
+// result: ODEBRANO | ODEBRANO_Z_UWAGAMI | NIE_ODEBRANO
+model Inspection {
+  id              String    @id @default(cuid())
+  number          String    @unique // ODB/2026/0001
+  investmentId    String
+  kind            String    @default("ROBOTY")
+  scopeName       String    // "Stan surowy · B1 · klatka A · 2 piętro"
+  stage           String?   // zakres robót, np. "Stan surowy"
+  subcontractorId String?   // wykonawca odbieranych robót (główny adresat)
+  sheetId         String?
+  building        String?
+  staircase       String?
+  floor           Int?
+  status          String    @default("W_TOKU")
+  result          String?
+  scheduledAt     DateTime?
+  startedAt       DateTime  @default(now())
+  finishedAt      DateTime?
+  inspectorId     String?   // skalar bez FK (wzorzec AuditLog)
+  inspectorName   String?
+  parentId        String?   // ponowny odbiór → poprzedni
+  notes           String?
+  fixDueAt        DateTime? // wspólny termin usunięcia usterek
+  protocolUrl     String?   // PDF protokołu
+  attachmentUrl   String?   // PDF załącznika (rzuty + lista wad)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  investment    Investment           @relation(fields: [investmentId], references: [id], onDelete: Cascade)
+  subcontractor Subcontractor?       @relation(fields: [subcontractorId], references: [id], onDelete: SetNull)
+  sheet         PlanSheet?           @relation(fields: [sheetId], references: [id], onDelete: SetNull)
+  parent        Inspection?          @relation("InspectionChain", fields: [parentId], references: [id], onDelete: SetNull)
+  children      Inspection[]         @relation("InspectionChain")
+  attendees     InspectionAttendee[]
+  defects       Defect[]
+  dispatches    Dispatch[]
+
+  @@index([investmentId, status])
+}
+
+// Uczestnik odbioru. present=false = „nie stawił się".
+// role: INSPEKTOR | WYKONAWCA | KIEROWNIK_BUDOWY | INSPEKTOR_NADZORU | INWESTOR | INNY
+model InspectionAttendee {
+  id              String    @id @default(cuid())
+  inspectionId    String
+  role            String    @default("INNY")
+  name            String
+  company         String?
+  userId          String?
+  subcontractorId String?
+  email           String?
+  phone           String?
+  present         Boolean   @default(true)
+  signatureUrl    String?
+  signedAt        DateTime?
+  sortOrder       Int       @default(0)
+  createdAt       DateTime  @default(now())
+
+  inspection Inspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+}
+
+// Usterka = pinezka na arkuszu. seq = numer w kółku, ciągły per arkusz (nigdy nie
+// reużywany, stały przez całe życie usterki). code = STA-01-A-2-012.
+// id może nadać klient (praca offline) — API robi upsert po id.
+// status: DO_POPRAWY (czerwony) | POPRAWIONA (pomarańczowy, zgłosił wykonawca) |
+//         ODEBRANA (zielony) | ANULOWANA (szary) | SPORNA (fioletowy)
+// priority: NISKI | NORMALNY | PILNY
+model Defect {
+  id              String    @id @default(cuid())
+  investmentId    String
+  inspectionId    String
+  sheetId         String
+  seq             Int
+  code            String    @unique
+  x               Float
+  y               Float
+  unitId          String?
+  unitNumber      String?
+  room            String?
+  typeId          String?
+  trade           String?
+  title           String
+  description     String?
+  priority        String    @default("NORMALNY")
+  status          String    @default("DO_POPRAWY")
+  subcontractorId String?
+  dueAt           DateTime?
+  sourceText      String?   // dyktowany / wpisany tekst źródłowy
+  aiSuggested     Boolean   @default(false)
+  reportedById    String?
+  reportedByName  String?
+  reportedAt      DateTime  @default(now()) // czas z urządzenia
+  fixReportedAt   DateTime?
+  fixNote         String?
+  acceptedAt      DateTime?
+  acceptedById    String?
+  rejectedCount   Int       @default(0)
+  disputeNote     String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  investment    Investment     @relation(fields: [investmentId], references: [id], onDelete: Cascade)
+  inspection    Inspection     @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+  sheet         PlanSheet      @relation(fields: [sheetId], references: [id], onDelete: Cascade)
+  unit          Unit?          @relation(fields: [unitId], references: [id], onDelete: SetNull)
+  type          DefectType?    @relation(fields: [typeId], references: [id], onDelete: SetNull)
+  subcontractor Subcontractor? @relation(fields: [subcontractorId], references: [id], onDelete: SetNull)
+  photos        DefectPhoto[]
+  events        DefectEvent[]
+  dispatchItems DispatchItem[]
+
+  @@unique([sheetId, seq])
+  @@index([inspectionId, status])
+  @@index([subcontractorId, status])
+}
+
+// Zdjęcie usterki. phase: PRZED | PO. id może nadać klient (idempotentny upload).
+model DefectPhoto {
+  id           String   @id @default(cuid())
+  defectId     String
+  url          String
+  phase        String   @default("PRZED")
+  byUserId     String?
+  byContractor Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  defect Defect @relation(fields: [defectId], references: [id], onDelete: Cascade)
+}
+
+// Oś zdarzeń usterki. actorType: USER | CONTRACTOR | SYSTEM
+// event: UTWORZONA | ZMIENIONA | PRZEKAZANA | POPRAWIONA | ODEBRANA | NIE_ODEBRANA |
+//        ANULOWANA | SPORNA | ZDJECIE | KOMENTARZ
+model DefectEvent {
+  id        String   @id @default(cuid())
+  defectId  String
+  event     String
+  details   String?
+  actorType String   @default("USER")
+  actorName String?
+  createdAt DateTime @default(now())
+
+  defect Defect @relation(fields: [defectId], references: [id], onDelete: Cascade)
+
+  @@index([defectId, createdAt])
+}
+
+// Pakiet wykonawcy: wysyłka listy usterek + prywatny link (token w URL, w bazie hash).
+// status: UTWORZONY | WYSLANY | ZGLOSZONY (wykonawca zgłosił pozycje do ponownego odbioru) | ZAMKNIETY
+model Dispatch {
+  id              String    @id @default(cuid())
+  investmentId    String
+  inspectionId    String?
+  subcontractorId String
+  tokenHash       String    @unique
+  tokenExpiresAt  DateTime
+  status          String    @default("UTWORZONY")
+  sentAt          DateTime?
+  sentTo          String?
+  pdfUrl          String?
+  submittedAt     DateTime?
+  createdById     String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  investment    Investment    @relation(fields: [investmentId], references: [id], onDelete: Cascade)
+  inspection    Inspection?   @relation(fields: [inspectionId], references: [id], onDelete: SetNull)
+  subcontractor Subcontractor @relation(fields: [subcontractorId], references: [id], onDelete: Cascade)
+  items         DispatchItem[]
+}
+
+model DispatchItem {
+  id         String @id @default(cuid())
+  dispatchId String
+  defectId   String
+
+  dispatch Dispatch @relation(fields: [dispatchId], references: [id], onDelete: Cascade)
+  defect   Defect   @relation(fields: [defectId], references: [id], onDelete: Cascade)
+
+  @@unique([dispatchId, defectId])
 }
