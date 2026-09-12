@@ -146,7 +146,13 @@ async function main() {
         console.log('   (bez --escrow nie zmieniam)')
       }
     } else {
-      console.log(`\n[ESCROW?] ${c.number} (${client}): ${off.length} z ${c.payments.length} rat bez flagi escrow — do ręcznego sprawdzenia (może być celowe)`)
+      console.log(`\n[ESCROW?] ${c.number} (${client}): ${off.length} z ${c.payments.length} rat bez flagi escrow — do ręcznego sprawdzenia (może być celowe):`)
+      for (const p of off) {
+        console.log(
+          `     - ${(p.title || p.type).padEnd(20)} ${money(p.plannedAmount).padStart(16)}  termin ${p.plannedDate ? p.plannedDate.toISOString().slice(0, 10) : '—'}  ${p.status}  (dodano ${p.createdAt.toISOString().slice(0, 16).replace('T', ' ')})`,
+        )
+      }
+      console.log('     Włączysz flagę na karcie umowy: Edytuj przy racie → „Wpłata na rachunek powierniczy”.')
     }
   }
 
