@@ -1,6 +1,6 @@
 // Typy payloadów modułu Odbiory (klient + serwer). Daty jako ISO string —
 // snapshot jest serializowany do IndexedDB w widoku terenowym (offline).
-import type { SheetUnitMarker } from './geometry'
+import type { SheetRoom, SheetUnitMarker } from './geometry'
 import type { DefectAction } from './constants'
 
 export type SnapshotPhoto = {
@@ -73,6 +73,8 @@ export type SnapshotSheet = {
   width: number
   height: number
   markers: SheetUnitMarker[]
+  /** Pomieszczenia z projektu wykonawczego (puste dla rzutów marketingowych). */
+  rooms: SheetRoom[]
 }
 
 export type SnapshotInspection = {

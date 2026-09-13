@@ -9,8 +9,8 @@ import { prisma } from '@/lib/prisma'
 import { staircaseOf } from '@/lib/floorplan'
 import { defectCode, investmentCode, scopeLabel } from './codes'
 import { DEFECT_STATUSES, DEFECT_PRIORITIES, DISPATCH_TOKEN_DAYS, type DefectAction, type DefectStatus } from './constants'
-import { hitTestUnit } from './geometry'
-import { ensureSheet, getSheetMarkers } from './sheets'
+import { hitTestRoom, hitTestUnit } from './geometry'
+import { ensureSheet, getPwSheet, getSheetMarkers, getSheetRooms } from './sheets'
 import type { DefectUpsertBody, Snapshot, SnapshotDefect } from './types'
 
 export type SessionUser = { id: string; email: string; name: string }
@@ -148,6 +148,7 @@ export async function buildSnapshot(inspectionId: string, user: SessionUser): Pr
       width: inspection.sheet.width,
       height: inspection.sheet.height,
       markers,
+      rooms: getSheetRooms(inspection.sheet.markersKey),
     },
     defects: defects.map(toSnapshotDefect),
     defectTypes: defectTypes.map((t) => ({
@@ -256,13 +257,23 @@ export async function upsertDefect(id: string, body: DefectUpsertBody, user: Ses
   let unitId = body.unitId === undefined ? existing?.unitId ?? null : body.unitId
   let unitNumber = body.unitNumber === undefined ? existing?.unitNumber ?? null : body.unitNumber
   let staircase: string | null = inspection.staircase
+  let roomFromSheet: string | null = null
   if (!unitNumber) {
     const markers = await getSheetMarkers(inspection.sheet.markersKey)
-    const hit = hitTestUnit(x, y, markers)
+    const rooms = getSheetRooms(inspection.sheet.markersKey)
+    const room = hitTestRoom(x, y, rooms, markers)
+    const hit = room?.unit ? markers.find((m) => m.number === room.unit) || null : hitTestUnit(x, y, markers)
+    if (room) roomFromSheet = room.name
     if (hit) {
       unitNumber = hit.number
       unitId = hit.unitId
       if (hit.staircase) staircase = hit.staircase
+    }
+    // część wspólna bez lokalu: klatka z najbliższej kotwicy B1.<p>.K.<litera> (projekt wykonawczy)
+    if (!hit && !staircase) {
+      const pw = getPwSheet(inspection.sheet.markersKey)
+      const near = pw?.stairs.map((st) => ({ st, d: Math.hypot(st.x - x, st.y - y) })).sort((p, q) => p.d - q.d)[0]
+      if (near) staircase = near.st.letter
     }
   } else if (unitId) {
     const u = await prisma.unit.findUnique({ where: { id: unitId }, select: { building: true } })
@@ -281,7 +292,7 @@ export async function upsertDefect(id: string, body: DefectUpsertBody, user: Ses
     y,
     unitId,
     unitNumber,
-    room: body.room === undefined ? existing?.room ?? null : cleanStr(body.room, 80),
+    room: body.room === undefined ? existing?.room ?? roomFromSheet : cleanStr(body.room, 80),
     typeId: type ? type.id : null,
     trade,
     title,

@@ -11,7 +11,7 @@ import {
   type DefectStatus,
 } from '@/lib/odbiory/constants'
 import { addDaysIso, formatDatePl, unitShortLabel } from '@/lib/odbiory/codes'
-import { hitTestUnit, unionBox } from '@/lib/odbiory/geometry'
+import { hitTestRoom, hitTestUnit, unionBox } from '@/lib/odbiory/geometry'
 import {
   enqueueAction,
   enqueuePhoto,
@@ -322,7 +322,9 @@ export function FieldInspection({ inspectionId, initialMode, focusDefectId }: { 
     (x: number, y: number, template: SeriesTemplate | null): SnapshotDefect | null => {
       const s = snapshotRef.current
       if (!s) return null
-      const hit = hitTestUnit(x, y, s.sheet.markers)
+      // projekt wykonawczy: pomieszczenie + lokal z etykiet; rzut marketingowy: tylko obwiednia lokalu
+      const room = hitTestRoom(x, y, s.sheet.rooms || [], s.sheet.markers)
+      const hit = room?.unit ? s.sheet.markers.find((m) => m.number === room.unit) || null : hitTestUnit(x, y, s.sheet.markers)
       const seq = nextSeq()
       const st = hit?.staircase || s.inspection.staircase
       const floor = s.sheet.floor
@@ -338,7 +340,7 @@ export function FieldInspection({ inspectionId, initialMode, focusDefectId }: { 
         y,
         unitId: hit?.unitId ?? null,
         unitNumber: hit?.number ?? null,
-        room: template?.room || null,
+        room: template?.room || room?.name || null,
         typeId: template?.typeId ?? null,
         trade: template?.trade ?? null,
         title: template?.title || 'Usterka',

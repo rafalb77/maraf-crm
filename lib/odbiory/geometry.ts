@@ -75,6 +75,37 @@ export function polygonArea(poly: [number, number][]): number {
   return Math.abs(a / 2)
 }
 
+/** Pomieszczenie z projektu wykonawczego (etykieta „NN.Nazwa" + powierzchnia, kod lokalu lub null dla części wspólnych). */
+export type SheetRoom = {
+  unit: string | null
+  num: string | null
+  name: string
+  area: number | null
+  x: number
+  y: number
+}
+
+/**
+ * Pomieszczenie pod pinezką: jeśli punkt leży w obwiedni lokalu, wybieramy najbliższą
+ * etykietę pomieszczenia TEGO lokalu; inaczej najbliższą w promieniu maxDist (części wspólne).
+ * Rzuty PW są w skali 1:50 (≈57 pt/m), więc pokój 4 m to ~230 pt — stąd duży promień.
+ */
+export function hitTestRoom<T extends SheetMarker>(x: number, y: number, rooms: SheetRoom[], markers: T[] = [], maxDist = 260): SheetRoom | null {
+  if (rooms.length === 0) return null
+  const unit = markers.length ? hitTestUnit(x, y, markers) : null
+  const pool = unit ? rooms.filter((r) => r.unit === unit.number) : rooms
+  let best: SheetRoom | null = null
+  let bd = unit ? Infinity : maxDist
+  for (const r of pool) {
+    const d = Math.hypot(r.x - x, r.y - y)
+    if (d < bd) {
+      bd = d
+      best = r
+    }
+  }
+  return best
+}
+
 /** Obwiednia grupy znaczników (np. lokale jednej klatki) — do auto-zoomu. */
 export function unionBox(markers: SheetMarker[]): [number, number, number, number] | null {
   let x1 = Infinity

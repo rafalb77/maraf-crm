@@ -49,6 +49,27 @@ arkusz, nigdy nie reużywany**; `code`; statusy jw.), `DefectPhoto` (PRZED/PO),
 w URL, w bazie `tokenHash`, ważność 90 dni). Kod inwestycji (STA) wynika z nazwy — `investmentCode()` w `lib/odbiory/codes.ts`; celowo bez kolumny na `Investment`, żeby deploy przed `db push` nie psuł zapytań modułu Budowa.
 Relacje zwrotne: `Investment`, `Subcontractor`, `Unit`.
 
+### Podkłady z projektu wykonawczego (13.09.2026)
+Decyzja Rafała: pinezki stawiamy na rzutach z **projektu wykonawczego** (skala 1:50, są
+wymiary), nie na marketingowych. Pipeline `scripts/extract-pw-sheets.mjs` (lokalnie,
+`--src <katalog PDF>`; źródło: `Desktop/2025-09-09-PW/02_ARCHITEKTURA/PDF/PW-B1-0[1-6]*.pdf`,
+jedna plansza A0+ na kondygnację):
+- wycinek rzutu = obwiednia etykiet osi („1.1"…, litery) + 70 pt (odcina tabele i legendę),
+- render WebP ×1.5 → `public/rzuty/pw/<kondygnacja>.webp` (2–3,5 MB, ~5500×3600 px; commitowane),
+- `public/rzuty/pw/sheets.json`: `width/height` w pt (układ pinezek), `markers` lokali
+  (centroid + obwiednia z bloków pomieszczeń ± 45 pt, klatka z najbliższej kotwicy
+  `B1.<p>.K.<litera>`), `rooms` (kod lokalu, „NN.Nazwa", powierzchnia, pozycja; `unit=null`
+  dla części wspólnych), `stairs`.
+- Bloki tekstu na rzucie: kod lokalu (h≈10) / nazwa pomieszczenia (h≈7) / „X.XX m²";
+  komórki `B1.2.Kom.lok.8` → normalizacja do `B1.2.KL8` (jak markers.json); tabele po
+  prawej odrzuca filtr kolumnowy (≥4 kody w jednej kolumnie x).
+- `lib/odbiory/sheets.ts`: klucze `pw-0…pw-4`, `pw-dach` (DOMYŚLNE, pierwsze w kreatorze);
+  rzuty marketingowe zostają jako drugie źródło. `hitTestRoom()` (`geometry.ts`) daje
+  **lokal + pomieszczenie** pod pinezką (klient i serwer); rzut marketingowy = tylko lokal.
+- Parter PW: 4 lokale usługowe (`U-1.1`…), bez miejsc garażowych (te są na rzucie
+  marketingowym `0`). Klatki A/B/C dla kreatora pochodzą z kotwic PW, gdy `Unit.building` puste.
+- Po podmianie PDF-ów: uruchomić skrypt ponownie (`--only <piętro>`), commit WebP + manifestu.
+
 ### Uprawnienie i trasy
 - `odbiory` w `ALL_PERMISSIONS`; `/odbiory*` i `/api/odbiory*` → `odbiory`;
   `/w/*` = publiczne (gate = token w handlerze). Sidebar: workspace Budowa → „Odbiory robót".
