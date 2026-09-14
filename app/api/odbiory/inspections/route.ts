@@ -71,9 +71,18 @@ export async function POST(req: NextRequest) {
     if (startedAt.getTime() > Date.now() + 24 * 3600 * 1000) return jsonError('Data odbioru nie może być w przyszłości')
   }
 
+  // Prowadzący odbiór: domyślnie zalogowany; można wskazać innego użytkownika CRM
+  let inspector: { id: string; name: string } | null = null
+  if (body.inspectorId && String(body.inspectorId) !== user.id) {
+    const u = await prisma.user.findUnique({ where: { id: String(body.inspectorId) }, select: { id: true, name: true, email: true } })
+    if (!u) return jsonError('Wskazany prowadzący nie istnieje', 404)
+    inspector = { id: u.id, name: u.name || u.email }
+  }
+
   try {
     const inspection = await createInspection({
       startedAt,
+      inspector,
       investmentId,
       kind,
       stage: body.stage ? String(body.stage).slice(0, 120) : null,

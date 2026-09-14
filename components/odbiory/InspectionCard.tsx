@@ -6,6 +6,7 @@ import { Tablet, CheckSquare, Printer, Send, Copy, ExternalLink, Users, ListChec
 import {
   ATTENDEE_ROLES,
   ATTENDEE_ROLE_LABELS,
+  PROTOCOL_PARTIES,
   DEFECT_STATUS_BADGE,
   DEFECT_STATUS_LABELS,
   DEFECT_STATUS_RING,
@@ -400,7 +401,15 @@ function ContractorsTab({ insp, subcontractors }: { insp: InspectionDetail; subc
 // ---------------------------------------------------------------------------
 function ProtocolTab({ insp, subcontractors, readOnly, busy, onPatch }: { insp: InspectionDetail; subcontractors: Sub[]; readOnly: boolean; busy: boolean; onPatch: (data: Record<string, unknown>) => Promise<boolean> }) {
   const router = useRouter()
-  const [attendees, setAttendees] = useState<Attendee[]>(insp.attendees.length ? insp.attendees : [{ role: 'INSPEKTOR', name: insp.inspectorName || '', company: 'MARAF Development', userId: null, subcontractorId: null, email: null, phone: null, present: true }])
+  const [attendees, setAttendees] = useState<Attendee[]>(
+    insp.attendees.length
+      ? insp.attendees
+      : [
+          { role: 'PRZEDSTAWICIEL_GW', name: insp.inspectorName || '', company: PROTOCOL_PARTIES.generalContractor.name, userId: null, subcontractorId: null, email: null, phone: null, present: true },
+          ...(insp.subcontractor ? [{ role: 'WYKONAWCA', name: '', company: insp.subcontractor.name, userId: null, subcontractorId: insp.subcontractor.id, email: null, phone: null, present: true }] : []),
+        ],
+  )
+  const [inspectorName, setInspectorName] = useState(insp.inspectorName || '')
   const [users, setUsers] = useState<{ id: string; name: string | null; email: string }[]>([])
   const [notes, setNotes] = useState(insp.notes || '')
   const [result, setResult] = useState(insp.result || '')
@@ -451,11 +460,14 @@ function ProtocolTab({ insp, subcontractors, readOnly, busy, onPatch }: { insp: 
 
   function metaPayload() {
     const started = startedAt ? new Date(startedAt) : null
+    const trimmed = inspectorName.trim()
+    const matchedUser = users.find((u) => (u.name || u.email) === trimmed)
     return {
       notes,
       result: result || null,
       fixDueAt: fixDueAt || null,
       ...(started && !Number.isNaN(started.getTime()) && started.toISOString() !== insp.startedAt ? { startedAt: started.toISOString() } : {}),
+      ...(trimmed && trimmed !== (insp.inspectorName || '') ? { inspectorName: trimmed, inspectorId: matchedUser?.id || null } : {}),
     }
   }
 
@@ -477,7 +489,7 @@ function ProtocolTab({ insp, subcontractors, readOnly, busy, onPatch }: { insp: 
   }
 
   const suggestions = [
-    ...users.map((u) => ({ name: u.name || u.email, company: 'MARAF Development', role: 'INSPEKTOR', userId: u.id, subcontractorId: null as string | null })),
+    ...users.map((u) => ({ name: u.name || u.email, company: PROTOCOL_PARTIES.generalContractor.name, role: 'PRZEDSTAWICIEL_GW', userId: u.id, subcontractorId: null as string | null })),
     ...subcontractors.map((s) => ({ name: s.name, company: s.name, role: 'WYKONAWCA', userId: null as string | null, subcontractorId: s.id })),
   ]
 
@@ -533,6 +545,16 @@ function ProtocolTab({ insp, subcontractors, readOnly, busy, onPatch }: { insp: 
               <input type="datetime-local" value={startedAt} max={toLocalInput(new Date().toISOString())} onChange={(e) => setStartedAt(e.target.value)} className="mt-1 w-full rounded-md border border-gray-300 px-2 py-2 text-sm" />
               <p className="mt-1 text-[11px] text-gray-500">Może być wsteczna, gdy przepisujesz odbiór zrobiony na papierze. Trafia do protokołu i pakietu dla wykonawcy.</p>
             </div>
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wide text-gray-500">Prowadzący odbiór (przedstawiciel generalnego wykonawcy)</label>
+              <input list="inspector-names" value={inspectorName} onChange={(e) => setInspectorName(e.target.value)} placeholder="Imię i nazwisko" className="mt-1 w-full rounded-md border border-gray-300 px-2 py-2 text-sm" />
+              <datalist id="inspector-names">
+                {users.map((u) => (
+                  <option key={u.id} value={u.name || u.email} />
+                ))}
+              </datalist>
+              <p className="mt-1 text-[11px] text-gray-500">Domyślnie osoba, która założyła odbiór. Wpisz nazwisko, które ma być w protokole.</p>
+            </div>
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
@@ -571,7 +593,9 @@ function ProtocolTab({ insp, subcontractors, readOnly, busy, onPatch }: { insp: 
             <div className="flex justify-between"><dt className="text-gray-500">Data</dt><dd>{formatDatePl(insp.finishedAt || insp.startedAt)}</dd></div>
             <div className="flex justify-between"><dt className="text-gray-500">Inwestycja</dt><dd>{insp.investment.name}</dd></div>
             <div className="flex justify-between"><dt className="text-gray-500">Zakres</dt><dd className="text-right">{insp.scopeName}</dd></div>
-            <div className="flex justify-between"><dt className="text-gray-500">Wykonawca</dt><dd>{insp.subcontractor?.name || '—'}</dd></div>
+            <div className="flex justify-between"><dt className="text-gray-500">Generalny wykonawca</dt><dd>{PROTOCOL_PARTIES.generalContractor.name}</dd></div>
+            <div className="flex justify-between"><dt className="text-gray-500">Wykonawca robót</dt><dd>{insp.subcontractor?.name || '—'}</dd></div>
+            <div className="flex justify-between"><dt className="text-gray-500">Prowadzący</dt><dd>{inspectorName || insp.inspectorName || '—'}</dd></div>
             <div className="flex justify-between"><dt className="text-gray-500">Usterek</dt><dd>{insp.defects.filter((d) => d.status !== 'ANULOWANA').length} (otwartych {openCount})</dd></div>
             <div className="flex justify-between"><dt className="text-gray-500">Obecnych</dt><dd>{attendees.filter((a) => a.present && a.name).length} / nieobecnych {attendees.filter((a) => !a.present && a.name).length}</dd></div>
           </dl>

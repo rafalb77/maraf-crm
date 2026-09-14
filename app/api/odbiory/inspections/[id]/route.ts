@@ -67,6 +67,20 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     if (d && Number.isNaN(d.getTime())) return jsonError('Nieprawidłowa data zakończenia')
     data.finishedAt = d
   }
+  // Prowadzący odbiór: użytkownik CRM (id) albo dowolne nazwisko (np. osoba bez konta)
+  if (body.inspectorId !== undefined || body.inspectorName !== undefined) {
+    if (body.inspectorId) {
+      const u = await prisma.user.findUnique({ where: { id: String(body.inspectorId) }, select: { id: true, name: true, email: true } })
+      if (!u) return jsonError('Użytkownik nie istnieje', 404)
+      data.inspectorId = u.id
+      data.inspectorName = body.inspectorName ? String(body.inspectorName).slice(0, 120) : u.name || u.email
+    } else {
+      const name = body.inspectorName ? String(body.inspectorName).trim().slice(0, 120) : ''
+      if (!name) return jsonError('Podaj prowadzącego odbiór')
+      data.inspectorName = name
+      data.inspectorId = null
+    }
+  }
   if (body.result !== undefined) {
     if (body.result && !(INSPECTION_RESULTS as readonly string[]).includes(body.result)) return jsonError('Nieznany wynik odbioru')
     data.result = body.result || null

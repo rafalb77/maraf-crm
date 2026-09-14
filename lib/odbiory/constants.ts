@@ -102,20 +102,32 @@ export const INSPECTION_RESULT_LABELS: Record<InspectionResult, string> = {
 
 export const ATTENDEE_ROLES = [
   'INSPEKTOR',
+  'PRZEDSTAWICIEL_GW',
+  'INWESTOR',
   'WYKONAWCA',
   'KIEROWNIK_BUDOWY',
   'INSPEKTOR_NADZORU',
-  'INWESTOR',
   'INNY',
 ] as const
 export type AttendeeRole = (typeof ATTENDEE_ROLES)[number]
 export const ATTENDEE_ROLE_LABELS: Record<AttendeeRole, string> = {
   INSPEKTOR: 'Prowadzący odbiór',
-  WYKONAWCA: 'Przedstawiciel wykonawcy',
+  PRZEDSTAWICIEL_GW: 'Przedstawiciel generalnego wykonawcy',
+  INWESTOR: 'Przedstawiciel inwestora',
+  WYKONAWCA: 'Przedstawiciel wykonawcy robót (podwykonawcy)',
   KIEROWNIK_BUDOWY: 'Kierownik budowy',
   INSPEKTOR_NADZORU: 'Inspektor nadzoru',
-  INWESTOR: 'Przedstawiciel inwestora',
   INNY: 'Inna osoba',
+}
+
+/**
+ * Strony protokołu odbioru robót. MARAF sp. z o.o. = generalny wykonawca (zamawia roboty
+ * u podwykonawców, odbiera je), MARAF Development = inwestor (deweloper). NIP-y jak w KSeF.
+ * Nazwy można nadpisać w Settings: odbiory.gcName / odbiory.investorName.
+ */
+export const PROTOCOL_PARTIES = {
+  generalContractor: { name: 'MARAF sp. z o.o.', nip: '732-206-99-52' },
+  investor: { name: 'MARAF Development sp. z o.o.', nip: '732-220-21-44' },
 }
 
 /** Podpowiedzi pomieszczeń w mini-menu (szybki wybór, nie słownik zamknięty). */

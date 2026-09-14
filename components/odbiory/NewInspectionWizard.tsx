@@ -10,6 +10,7 @@ type StructureResponse = {
   structure: InvestmentStructure | null
   subcontractors: { id: string; name: string; email: string | null }[]
   users: { id: string; name: string | null; email: string }[]
+  me: { id: string; name: string }
 }
 
 const STAGE_SUGGESTIONS = ['Stan surowy', 'Stan surowy zamknięty', 'Tynki', 'Wylewki', 'Instalacje elektryczne', 'Instalacje sanitarne', 'Stolarka', 'Stan deweloperski']
@@ -30,6 +31,7 @@ export function NewInspectionWizard() {
   const [showNewSub, setShowNewSub] = useState(false)
   const [notes, setNotes] = useState('')
   const [startedAt, setStartedAt] = useState(() => new Date().toISOString().slice(0, 10))
+  const [inspectorId, setInspectorId] = useState('')
 
   async function loadStructure(invId?: string) {
     try {
@@ -37,6 +39,7 @@ export function NewInspectionWizard() {
       if (!res.ok) throw new Error((await res.json().catch(() => ({})))?.error || `Błąd ${res.status}`)
       const j = (await res.json()) as StructureResponse
       setData(j)
+      if (!invId && j.me?.id) setInspectorId((v) => v || j.me.id)
       if (!invId && j.structure) setInvestmentId(j.structure.id)
       if (j.structure && j.structure.buildings.length === 1) setBuilding(j.structure.buildings[0].name)
     } catch (e: any) {
@@ -84,6 +87,7 @@ export function NewInspectionWizard() {
           stage: stage.trim() || null,
           subcontractorId: subcontractorId || null,
           notes: notes.trim() || null,
+          inspectorId: inspectorId || null,
           // data odbioru: dziś = teraz; wsteczna = godzina 10:00 tego dnia
           startedAt: startedAt && startedAt !== new Date().toISOString().slice(0, 10) ? new Date(`${startedAt}T10:00:00`).toISOString() : null,
         }),
@@ -187,8 +191,18 @@ export function NewInspectionWizard() {
         <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} placeholder="Notatka do odbioru (opcjonalnie)" className="mt-3 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
       </Section>
 
-      <Section step="7" title="Data odbioru" hint="Domyślnie dziś. Wpisz wcześniejszą, gdy przepisujesz odbiór zrobiony na papierze — protokół i pakiet dla wykonawcy dostaną tę datę.">
-        <input type="date" value={startedAt} max={new Date().toISOString().slice(0, 10)} onChange={(e) => setStartedAt(e.target.value)} className="rounded-md border border-gray-300 px-3 py-2 text-sm" />
+      <Section step="7" title="Data odbioru i prowadzący" hint="Data domyślnie dziś — wpisz wcześniejszą, gdy przepisujesz odbiór z papieru. Prowadzący występuje w protokole jako przedstawiciel generalnego wykonawcy; nazwisko można też poprawić później na karcie.">
+        <div className="flex flex-wrap gap-3">
+          <input type="date" value={startedAt} max={new Date().toISOString().slice(0, 10)} onChange={(e) => setStartedAt(e.target.value)} className="rounded-md border border-gray-300 px-3 py-2 text-sm" />
+          <select value={inspectorId} onChange={(e) => setInspectorId(e.target.value)} className="min-w-[240px] rounded-md border border-gray-300 px-3 py-2 text-sm">
+            {data.users.map((u) => (
+              <option key={u.id} value={u.id}>
+                {u.name || u.email}
+                {u.id === data.me.id ? ' (ja)' : ''}
+              </option>
+            ))}
+          </select>
+        </div>
       </Section>
 
       {error && <p className="text-sm text-red-600">{error}</p>}

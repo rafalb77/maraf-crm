@@ -30,5 +30,5 @@ export async function GET(req: NextRequest) {
     }),
     prisma.user.findMany({ orderBy: { name: 'asc' }, select: { id: true, name: true, email: true } }),
   ])
-  return json({ investments, structure, subcontractors, users })
+  return json({ investments, structure, subcontractors, users, me: { id: user.id, name: user.name } })
 }

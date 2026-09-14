@@ -185,6 +185,8 @@ export async function createInspection(opts: {
   user: SessionUser
   /** Data odbioru (wsteczna, gdy przepisujemy odbiór z papieru); null = teraz. */
   startedAt?: Date | null
+  /** Prowadzący odbiór inny niż zalogowany (użytkownik CRM). */
+  inspector?: { id: string; name: string } | null
 }) {
   const sheet = await ensureSheet(opts.investmentId, opts.markersKey, opts.building)
   const scopeName = scopeLabel({
@@ -211,8 +213,8 @@ export async function createInspection(opts: {
           floor: sheet.floor,
           scheduledAt: opts.scheduledAt,
           startedAt: opts.startedAt ?? undefined,
-          inspectorId: opts.user.id || null,
-          inspectorName: opts.user.name,
+          inspectorId: opts.inspector ? opts.inspector.id : opts.user.id || null,
+          inspectorName: opts.inspector ? opts.inspector.name : opts.user.name,
           notes: opts.notes,
         },
       })

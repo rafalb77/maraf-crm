@@ -143,6 +143,21 @@ Wykonawca: POPRAWIONA (+zdjęcie PO), SPORNA (z uwagą), KOMENTARZ; zbiorcze zg�
   `defect.delete` w outboxie, wcześniej `dropDefectOps` zdejmuje oczekujące zapisy/zdjęcia tej
   usterki; 404 z serwera = sukces. „Odrzuć" w edytorze nowej usterki też czyści jej kolejkę.
 
+### Strony protokołu, prowadzący, wydruk rzutu (14.09.2026)
+- W odbiorach robót od podwykonawców MARAF występuje jako **generalny wykonawca**
+  (zamawiający roboty), MARAF Development jako **inwestor** — `PROTOCOL_PARTIES` w
+  `lib/odbiory/constants.ts` (nazwy/NIP; nadpisanie przez Settings `odbiory.gcName`,
+  `odbiory.gcAddress`, `odbiory.investorName`, `odbiory.investorAddress`; inwestor fallback
+  `companyName`). Nowa rola obecnego `PRZEDSTAWICIEL_GW`; domyślni obecni na nowym odbiorze:
+  prowadzący jako przedstawiciel GW + pusty wiersz wykonawcy robót.
+- **Prowadzący odbiór** edytowalny: kreator (select użytkowników, domyślnie zalogowany) i karta
+  (pole z podpowiedziami; PATCH `inspectorName` + `inspectorId` gdy pasuje do użytkownika).
+  Powód: na produkcji odbiory zakładał „Administrator", a w protokole ma być Rafał Boruch.
+- **Wydruk**: rzut na osobnej stronie A4 pionowej, obrócony o 90° (CSS `rotate(90deg)` na SVG,
+  rozmiar liczony z proporcji arkusza: długi bok = wysokość strony 273 − 16 mm nagłówka);
+  pinezki obracają się z rysunkiem (po obróceniu kartki wszystko jest „prosto"). Legenda i
+  zestawienie od nowej strony. Arkusze o proporcji < 1,15 nie są obracane.
+
 ## Deploy (checklista)
 1. `git push` → Coolify build (zmienione: `next.config.js` — nagłówek Permissions-Policy
    `camera=(self), microphone=(self)`; nowe zależności `react-zoom-pan-pinch`, `idb`).
