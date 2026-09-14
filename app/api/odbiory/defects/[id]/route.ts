@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
 import { audit } from '@/lib/audit-log'
-import { HttpError, json, jsonError, loadDefect, requireUser, toSnapshotDefect, upsertDefect } from '@/lib/odbiory/server'
+import { HttpError, deleteDefect, json, jsonError, loadDefect, requireUser, toSnapshotDefect, upsertDefect } from '@/lib/odbiory/server'
 import type { DefectUpsertBody } from '@/lib/odbiory/types'
 
 export const dynamic = 'force-dynamic'
@@ -36,5 +36,20 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     if (e instanceof HttpError) return jsonError(e.message, e.status)
     console.error('[odbiory] upsertDefect', e)
     return jsonError('Nie udało się zapisać usterki', 500)
+  }
+}
+
+/** DELETE /api/odbiory/defects/[id] — trwałe usunięcie pomyłkowej pinezki (patrz deleteDefect). */
+export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
+  const user = await requireUser()
+  if (!user) return jsonError('Unauthorized', 401)
+  try {
+    const result = await deleteDefect(params.id, user)
+    void audit({ userId: user.id, userEmail: user.email, action: 'DELETE', entity: 'Defect', entityId: params.id, metadata: { code: result.code, seq: result.seq } })
+    return json({ ok: true, id: result.id, code: result.code })
+  } catch (e: any) {
+    if (e instanceof HttpError) return jsonError(e.message, e.status)
+    console.error('[odbiory] deleteDefect', e)
+    return jsonError('Nie udało się usunąć usterki', 500)
   }
 }

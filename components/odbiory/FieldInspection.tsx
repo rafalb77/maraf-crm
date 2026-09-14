@@ -1,7 +1,7 @@
 'use client'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, List, Wifi, WifiOff, CloudUpload, Repeat, CheckSquare, RefreshCw, Camera, X } from 'lucide-react'
+import { ArrowLeft, List, Wifi, WifiOff, CloudUpload, Repeat, CheckSquare, RefreshCw, Camera, X, Move } from 'lucide-react'
 import { compressImage } from '@/lib/compress-image'
 import {
   DEFECT_STATUS_BADGE,
@@ -13,7 +13,9 @@ import {
 import { addDaysIso, formatDatePl, unitShortLabel } from '@/lib/odbiory/codes'
 import { hitTestRoom, hitTestUnit, unionBox } from '@/lib/odbiory/geometry'
 import {
+  dropDefectOps,
   enqueueAction,
+  enqueueDelete,
   enqueuePhoto,
   enqueueUpsert,
   listOutbox,
@@ -54,6 +56,7 @@ export function FieldInspection({ inspectionId, initialMode, focusDefectId }: { 
   const [sheet, setSheet] = useState<SheetState>(null)
   const [selectedId, setSelectedId] = useState<string | null>(focusDefectId || null)
   const [series, setSeries] = useState<SeriesTemplate | null>(null)
+  const [moving, setMoving] = useState<string | null>(null) // id pinezki czekającej na nowe miejsce
   const [legendOpen, setLegendOpen] = useState(false)
   const [recentTypeIds, setRecentTypeIds] = useState<string[]>([])
   const [toasts, setToasts] = useState<Toast[]>([])
@@ -373,10 +376,70 @@ export function FieldInspection({ inspectionId, initialMode, focusDefectId }: { 
     [nextSeq, updateDefects],
   )
 
+  const relocateDefect = useCallback(
+    (id: string, x: number, y: number) => {
+      const s = snapshotRef.current
+      if (!s) return
+      const room = hitTestRoom(x, y, s.sheet.rooms || [], s.sheet.markers)
+      const hit = room?.unit ? s.sheet.markers.find((m) => m.number === room.unit) || null : hitTestUnit(x, y, s.sheet.markers)
+      let saved: SnapshotDefect | null = null
+      updateDefects((prev) =>
+        prev.map((d) => {
+          if (d.id !== id) return d
+          saved = {
+            ...d,
+            x,
+            y,
+            unitId: hit?.unitId ?? null,
+            unitNumber: hit?.number ?? null,
+            // pomieszczenie z rzutu — chyba że wpisane ręcznie (nie z listy PW)
+            room: room?.name || (s.sheet.rooms?.length ? null : d.room),
+            updatedAt: new Date().toISOString(),
+          }
+          return saved
+        }),
+      )
+      if (saved) {
+        const sd = saved as SnapshotDefect
+        void queueUpsert(sd)
+        toast(`${sd.seq} przeniesiona${sd.unitNumber ? ` · ${unitShortLabel(sd.unitNumber)}` : ''}${sd.room ? ` / ${sd.room}` : ''}`)
+      }
+    },
+    [updateDefects, queueUpsert, toast],
+  )
+
+  const deleteDefectLocal = useCallback(
+    async (id: string) => {
+      const d = defectsRef.current.find((x) => x.id === id)
+      if (!d) return
+      if (!confirm(`Usunąć pinezkę ${d.seq} (${d.title})? Zniknie bez śladu razem ze zdjęciami.`)) return
+      for (const p of d.photos) {
+        if (p.url.startsWith('blob:')) {
+          try {
+            URL.revokeObjectURL(p.url)
+          } catch {}
+        }
+      }
+      updateDefects((prev) => prev.filter((x) => x.id !== id))
+      setSheet(null)
+      setSelectedId(null)
+      await enqueueDelete(inspectionId, id)
+      void refreshPending()
+      if (isOnline()) void sync()
+      toast(`Pinezka ${d.seq} usunięta`)
+    },
+    [inspectionId, updateDefects, refreshPending, sync, toast],
+  )
+
   const handleTap = useCallback(
     (x: number, y: number) => {
       if (readOnly) {
         toast('Odbiór jest zakończony — usterki są zablokowane')
+        return
+      }
+      if (moving) {
+        relocateDefect(moving, x, y)
+        setMoving(null)
         return
       }
       if (sheet && sheet.kind !== 'card') return // edytor otwarty — najpierw zapisz
@@ -393,7 +456,7 @@ export function FieldInspection({ inspectionId, initialMode, focusDefectId }: { 
       setSelectedId(d.id)
       setSheet({ kind: 'new', id: d.id })
     },
-    [readOnly, sheet, series, createDefectAt, queueUpsert, toast],
+    [readOnly, sheet, series, moving, relocateDefect, createDefectAt, queueUpsert, toast],
   )
 
   const handlePinTap = useCallback((id: string) => {
@@ -443,8 +506,10 @@ export function FieldInspection({ inspectionId, initialMode, focusDefectId }: { 
       updateDefects((prev) => prev.filter((d) => d.id !== id))
       setSheet(null)
       setSelectedId(null)
+      // zdjęcia dodane przed „Odrzuć" nie mogą czekać w kolejce na usterkę, której nie będzie
+      void dropDefectOps(inspectionId, id).then(() => refreshPending())
     },
-    [updateDefects],
+    [inspectionId, updateDefects, refreshPending],
   )
 
   const applyAction = useCallback(
@@ -675,7 +740,11 @@ export function FieldInspection({ inspectionId, initialMode, focusDefectId }: { 
           </button>
         ))}
         <div className="flex-1" />
-        {series ? (
+        {moving ? (
+          <button type="button" onClick={() => setMoving(null)} className="flex shrink-0 items-center gap-1 rounded-full bg-blue-700 px-3 py-1 font-semibold text-white">
+            <Move className="h-3.5 w-3.5" /> Dotknij nowe miejsce dla {defects.find((d) => d.id === moving)?.seq ?? ''} · anuluj
+          </button>
+        ) : series ? (
           <button type="button" onClick={() => { setSeries(null); toast('Tryb serii zakończony') }} className="flex shrink-0 items-center gap-1 rounded-full bg-red-600 px-3 py-1 font-semibold text-white">
             <Repeat className="h-3.5 w-3.5" /> Seria: {series.title} · zakończ
           </button>
@@ -793,6 +862,12 @@ export function FieldInspection({ inspectionId, initialMode, focusDefectId }: { 
                 readOnly={readOnly}
                 onClose={() => setSheet(null)}
                 onEdit={() => setSheet({ kind: 'edit', id: sheetDefect.id })}
+                onMove={() => {
+                  setMoving(sheetDefect.id)
+                  setSheet(null)
+                  toast(`Dotknij nowe miejsce dla ${sheetDefect.seq}`)
+                }}
+                onDelete={() => void deleteDefectLocal(sheetDefect.id)}
                 onAddPhotos={(files, phase) => void addPhotos(sheetDefect.id, files, phase)}
                 onAction={(action, note) => void applyAction(sheetDefect.id, action, note)}
                 onAppendDescription={(text) => appendDescription(sheetDefect.id, text)}

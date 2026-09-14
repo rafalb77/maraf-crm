@@ -41,6 +41,12 @@ async function run(inspectionId: string, cb: SyncCallbacks): Promise<SyncResult>
     if (res.status === 401) {
       return { ok: false, processed, remaining: ops.length - processed, error: 'Sesja wygasła — zaloguj się ponownie w nowej karcie', sessionExpired: true }
     }
+    if (!res.ok && op.kind === 'defect.delete' && res.status === 404) {
+      // usterki już nie ma na serwerze (np. nigdy tam nie trafiła) — cel osiągnięty
+      await removeOp(op.id)
+      processed++
+      continue
+    }
     if (!res.ok) {
       let message = `Błąd ${res.status}`
       try {
@@ -89,6 +95,9 @@ async function send(op: OutboxOp): Promise<Response> {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ action: op.action, note: op.note }),
     })
+  }
+  if (op.kind === 'defect.delete') {
+    return fetch(`/api/odbiory/defects/${encodeURIComponent(op.defectId)}`, { method: 'DELETE' })
   }
   const blob = await getBlob(op.blobId)
   if (!blob) {

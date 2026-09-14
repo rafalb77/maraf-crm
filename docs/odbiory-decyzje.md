@@ -132,6 +132,17 @@ Wykonawca: POPRAWIONA (+zdjęcie PO), SPORNA (z uwagą), KOMENTARZ; zbiorcze zg�
   z datą wcześniejszą niż dziś dostają `reportedAt` = data odbioru (klient), `createdAt`
   pozostaje realnym czasem wpisu. Protokół i mail pakietu używają `finishedAt || startedAt`.
 
+### Przesuwanie i usuwanie pinezek (14.09.2026)
+- **Przesuń pinezkę**: menu „…" na karcie usterki → tryb „dotknij nowe miejsce" (pasek nad
+  rzutem, bez drag&drop — brak konfliktu z przesuwaniem rzutu na dotyk). Nowe x/y + ponowne
+  rozpoznanie lokalu i pomieszczenia (`hitTestRoom`); **kod usterki się nie zmienia** (jest już
+  identyfikatorem u wykonawcy). Zapis = zwykły upsert (offline OK).
+- **Usuń pinezkę (pomyłka)**: hard delete, `DELETE /api/odbiory/defects/[id]` (`deleteDefect`):
+  tylko odbiór W_TOKU i usterka NIEprzekazana wykonawcy (jest w `DispatchItem` → 400, zostaje
+  „Anuluj" ze śladem); kaskada zdjęć/zdarzeń + pliki best-effort; AuditLog. Offline: op
+  `defect.delete` w outboxie, wcześniej `dropDefectOps` zdejmuje oczekujące zapisy/zdjęcia tej
+  usterki; 404 z serwera = sukces. „Odrzuć" w edytorze nowej usterki też czyści jej kolejkę.
+
 ## Deploy (checklista)
 1. `git push` → Coolify build (zmienione: `next.config.js` — nagłówek Permissions-Policy
    `camera=(self), microphone=(self)`; nowe zależności `react-zoom-pan-pinch`, `idb`).

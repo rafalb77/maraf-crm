@@ -42,6 +42,15 @@ export type OutboxOp =
       attempts: number
       error: string | null
     }
+  | {
+      id: string
+      kind: 'defect.delete'
+      inspectionId: string
+      defectId: string
+      createdAt: number
+      attempts: number
+      error: string | null
+    }
 
 interface OdbioryDB extends DBSchema {
   snapshots: { key: string; value: Snapshot }
@@ -166,6 +175,34 @@ export async function enqueuePhoto(opts: {
     photoId: opts.photoId,
     phase: opts.phase,
     blobId: opts.photoId,
+    createdAt: Date.now(),
+    attempts: 0,
+    error: null,
+  })
+}
+
+/** Zdejmuje z kolejki wszystkie operacje danej usterki (i bloby jej zdjęć) — przy odrzuceniu/usunięciu pinezki. */
+export async function dropDefectOps(inspectionId: string, defectId: string): Promise<void> {
+  if (!hasIndexedDb()) return
+  const db = await getDb()
+  const ops = await db.getAllFromIndex('outbox', 'byInspection', inspectionId)
+  for (const op of ops) {
+    if (op.defectId !== defectId) continue
+    if (op.kind === 'photo.upload') await db.delete('blobs', op.blobId)
+    await db.delete('outbox', op.id)
+  }
+}
+
+/** Trwałe usunięcie pinezki (pomyłka): kasuje jej oczekujące operacje i kolejkuje DELETE. */
+export async function enqueueDelete(inspectionId: string, defectId: string): Promise<void> {
+  if (!hasIndexedDb()) return
+  await dropDefectOps(inspectionId, defectId)
+  const db = await getDb()
+  await db.put('outbox', {
+    id: newId('op'),
+    kind: 'defect.delete',
+    inspectionId,
+    defectId,
     createdAt: Date.now(),
     attempts: 0,
     error: null,

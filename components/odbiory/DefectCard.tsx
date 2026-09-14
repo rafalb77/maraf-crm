@@ -1,6 +1,6 @@
 'use client'
 import { useRef, useState } from 'react'
-import { Camera, Mic, MicOff, Check, X, MoreHorizontal, Pencil, Ban, AlertTriangle, RotateCcw, ThumbsUp, ThumbsDown, Wrench } from 'lucide-react'
+import { Camera, Mic, MicOff, Check, X, MoreHorizontal, Pencil, Ban, AlertTriangle, RotateCcw, ThumbsUp, ThumbsDown, Wrench, Move, Trash2 } from 'lucide-react'
 import {
   DEFECT_STATUS_BADGE,
   DEFECT_STATUS_LABELS,
@@ -23,12 +23,14 @@ type Props = {
   readOnly: boolean
   onClose: () => void
   onEdit: () => void
+  onMove: () => void
+  onDelete: () => void
   onAddPhotos: (files: File[], phase: 'PRZED' | 'PO') => void
   onAction: (action: DefectAction, note: string | null) => void
   onAppendDescription: (text: string) => void
 }
 
-export function DefectCard({ defect, photos, subcontractors, verifyMode, readOnly, onClose, onEdit, onAddPhotos, onAction, onAppendDescription }: Props) {
+export function DefectCard({ defect, photos, subcontractors, verifyMode, readOnly, onClose, onEdit, onMove, onDelete, onAddPhotos, onAction, onAppendDescription }: Props) {
   const [menu, setMenu] = useState(false)
   const [notePrompt, setNotePrompt] = useState<{ action: DefectAction; label: string } | null>(null)
   const [note, setNote] = useState('')
@@ -80,6 +82,8 @@ export function DefectCard({ defect, photos, subcontractors, verifyMode, readOnl
             {menu && (
               <div className="absolute right-0 z-20 mt-1 w-64 rounded-lg border border-gray-200 bg-white py-1 text-sm shadow-lg">
                 <MenuItem icon={<Pencil className="h-4 w-4" />} label="Edytuj opis, typ, wykonawcę" onClick={() => { setMenu(false); onEdit() }} />
+                <MenuItem icon={<Move className="h-4 w-4" />} label="Przesuń pinezkę (dotknij nowe miejsce)" onClick={() => { setMenu(false); onMove() }} />
+                <MenuItem icon={<Trash2 className="h-4 w-4" />} label="Usuń pinezkę (pomyłka, bez śladu)" onClick={() => { setMenu(false); onDelete() }} />
                 {(status === 'DO_POPRAWY' || status === 'SPORNA') && <MenuItem icon={<Wrench className="h-4 w-4" />} label="Oznacz jako poprawioną (w imieniu wykonawcy)" onClick={() => act('POPRAWIONA', false, '')} />}
                 {(status === 'DO_POPRAWY' || status === 'POPRAWIONA') && <MenuItem icon={<AlertTriangle className="h-4 w-4" />} label="Oznacz jako sporną" onClick={() => act('SPORNA', true, 'Dlaczego sporna?')} />}
                 {status !== 'ANULOWANA' && status !== 'ODEBRANA' && <MenuItem icon={<Ban className="h-4 w-4" />} label="Anuluj usterkę (pomyłka)" onClick={() => act('ANULUJ', false, '')} />}

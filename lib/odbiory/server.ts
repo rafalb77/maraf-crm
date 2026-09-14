@@ -363,6 +363,31 @@ export async function upsertDefect(id: string, body: DefectUpsertBody, user: Ses
   throw new HttpError('Nie udało się nadać numeru usterki', 500)
 }
 
+/**
+ * Trwałe usunięcie pinezki (pomyłka). Dozwolone tylko w odbiorze W_TOKU i dla usterki,
+ * która nie trafiła jeszcze do żadnego pakietu wykonawcy (wtedy zostaje „anuluj" — ślad).
+ * Zwolniony numer może zostać nadany ponownie tylko, gdy był ostatni na arkuszu.
+ */
+export async function deleteDefect(id: string, user: SessionUser) {
+  const defect = await prisma.defect.findUnique({
+    where: { id },
+    select: { id: true, code: true, seq: true, inspectionId: true, inspection: { select: { status: true } }, _count: { select: { dispatchItems: true } }, photos: { select: { url: true } } },
+  })
+  if (!defect) throw new HttpError('Usterka nie istnieje', 404)
+  if (defect.inspection.status !== 'W_TOKU') throw new HttpError('Odbiór jest zakończony — usterki są zablokowane', 400)
+  if (defect._count.dispatchItems > 0) throw new HttpError('Usterka była już przekazana wykonawcy — zamiast usuwać, anuluj ją (zostanie ślad)', 400)
+  await prisma.defect.delete({ where: { id } }) // kaskada: zdjęcia, zdarzenia
+  for (const p of defect.photos) {
+    try {
+      if (!p.url.startsWith('/uploads/odbiory/')) continue
+      const root = path.resolve(process.cwd(), 'public', 'uploads', 'odbiory')
+      const abs = path.resolve(process.cwd(), 'public', p.url.replace(/^\//, ''))
+      if (abs.startsWith(root + path.sep)) await fs.unlink(abs)
+    } catch {}
+  }
+  return { id: defect.id, code: defect.code, seq: defect.seq, inspectionId: defect.inspectionId, actor: user.name }
+}
+
 export class HttpError extends Error {
   status: number
   constructor(message: string, status = 400) {
