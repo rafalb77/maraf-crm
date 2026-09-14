@@ -121,6 +121,17 @@ Wykonawca: POPRAWIONA (+zdjęcie PO), SPORNA (z uwagą), KOMENTARZ; zbiorcze zg�
 `Dispatch.status=ZGLOSZONY`, `Task` (ruleKey `ODBIORY_PONOWNY:<dispatchId>:<data>:<n>`)
 + mail do prowadzącego.
 
+### Usuwanie odbioru i data wsteczna (14.09.2026)
+- `DELETE /api/odbiory/inspections/[id]` (przycisk „Usuń odbiór" na karcie, zakładka Protokół):
+  kasuje usterki (kaskada: zdjęcia, zdarzenia, pozycje pakietów), obecnych i pakiety
+  (`Dispatch` jawnie — relacja do odbioru to SetNull); pliki `public/uploads/odbiory/<id>/`
+  best-effort; wpis AuditLog z numerem i liczbą usterek. Numery usterek po usunięciu MOGĄ
+  zostać nadane ponownie (max+1) — to celowo tylko do sprzątania danych testowych.
+- Data odbioru (`Inspection.startedAt`) edytowalna: kreator (krok 7, domyślnie dziś,
+  wsteczna = 10:00 danego dnia) i karta (datetime-local, PATCH). Usterki dodawane w odbiorze
+  z datą wcześniejszą niż dziś dostają `reportedAt` = data odbioru (klient), `createdAt`
+  pozostaje realnym czasem wpisu. Protokół i mail pakietu używają `finishedAt || startedAt`.
+
 ## Deploy (checklista)
 1. `git push` → Coolify build (zmienione: `next.config.js` — nagłówek Permissions-Policy
    `camera=(self), microphone=(self)`; nowe zależności `react-zoom-pan-pinch`, `idb`).

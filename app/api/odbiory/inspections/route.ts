@@ -63,8 +63,17 @@ export async function POST(req: NextRequest) {
   const inv = await prisma.investment.findUnique({ where: { id: investmentId }, select: { id: true } })
   if (!inv) return jsonError('Inwestycja nie istnieje', 404)
 
+  // Data odbioru: domyślnie teraz; można wpisać wsteczną (odbiór z papieru przepisywany później)
+  let startedAt: Date | null = null
+  if (body.startedAt) {
+    startedAt = new Date(String(body.startedAt))
+    if (Number.isNaN(startedAt.getTime())) return jsonError('Nieprawidłowa data odbioru')
+    if (startedAt.getTime() > Date.now() + 24 * 3600 * 1000) return jsonError('Data odbioru nie może być w przyszłości')
+  }
+
   try {
     const inspection = await createInspection({
+      startedAt,
       investmentId,
       kind,
       stage: body.stage ? String(body.stage).slice(0, 120) : null,

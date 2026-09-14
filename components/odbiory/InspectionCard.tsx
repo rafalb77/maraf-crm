@@ -405,8 +405,28 @@ function ProtocolTab({ insp, subcontractors, readOnly, busy, onPatch }: { insp: 
   const [notes, setNotes] = useState(insp.notes || '')
   const [result, setResult] = useState(insp.result || '')
   const [fixDueAt, setFixDueAt] = useState(insp.fixDueAt ? insp.fixDueAt.slice(0, 10) : '')
+  const [startedAt, setStartedAt] = useState(toLocalInput(insp.startedAt))
   const [saved, setSaved] = useState<string | null>(null)
   const [err, setErr] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState(false)
+
+  async function deleteInspection() {
+    const n = insp.defects.length
+    if (!confirm(`Usunąć odbiór ${insp.number} (${insp.scopeName})?\n\nZniknie ${n} ${n === 1 ? 'usterka' : n < 5 ? 'usterki' : 'usterek'} ze zdjęciami, obecni i pakiety wykonawców (ich linki przestaną działać). Tej operacji nie da się cofnąć.`)) return
+    setDeleting(true)
+    setErr(null)
+    try {
+      const res = await fetch(`/api/odbiory/inspections/${insp.id}`, { method: 'DELETE' })
+      if (isSessionExpired(res)) return
+      const j = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(j?.error || 'Nie udało się usunąć')
+      router.push('/odbiory')
+      router.refresh()
+    } catch (e: any) {
+      setErr(e?.message)
+      setDeleting(false)
+    }
+  }
 
   useEffect(() => {
     fetch('/api/odbiory/structure', { cache: 'no-store' })
@@ -429,9 +449,19 @@ function ProtocolTab({ insp, subcontractors, readOnly, busy, onPatch }: { insp: 
     router.refresh()
   }
 
+  function metaPayload() {
+    const started = startedAt ? new Date(startedAt) : null
+    return {
+      notes,
+      result: result || null,
+      fixDueAt: fixDueAt || null,
+      ...(started && !Number.isNaN(started.getTime()) && started.toISOString() !== insp.startedAt ? { startedAt: started.toISOString() } : {}),
+    }
+  }
+
   async function saveMeta() {
     setSaved(null)
-    const ok = await onPatch({ notes, result: result || null, fixDueAt: fixDueAt || null })
+    const ok = await onPatch(metaPayload())
     if (ok) setSaved('Zapisano')
   }
 
@@ -442,7 +472,7 @@ function ProtocolTab({ insp, subcontractors, readOnly, busy, onPatch }: { insp: 
     }
     if (!confirm(`Zakończyć odbiór ${insp.number}? Po zakończeniu usterki są zablokowane do edycji (nadal można je odbierać i wysyłać wykonawcom).`)) return
     await saveAttendees()
-    const ok = await onPatch({ notes, result, fixDueAt: fixDueAt || null, status: 'ZAKONCZONY' })
+    const ok = await onPatch({ ...metaPayload(), result, status: 'ZAKONCZONY' })
     if (ok) window.open(`/odbiory/${insp.id}/protokol`, '_blank')
   }
 
@@ -497,6 +527,13 @@ function ProtocolTab({ insp, subcontractors, readOnly, busy, onPatch }: { insp: 
 
         <div className="rounded-xl border border-gray-200 bg-white p-4">
           <div className="mb-2 flex items-center gap-2 text-base font-semibold text-gray-900"><Flag className="h-4 w-4" /> Wynik i uwagi</div>
+          <div className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wide text-gray-500">Data i godzina odbioru</label>
+              <input type="datetime-local" value={startedAt} max={toLocalInput(new Date().toISOString())} onChange={(e) => setStartedAt(e.target.value)} className="mt-1 w-full rounded-md border border-gray-300 px-2 py-2 text-sm" />
+              <p className="mt-1 text-[11px] text-gray-500">Może być wsteczna, gdy przepisujesz odbiór zrobiony na papierze. Trafia do protokołu i pakietu dla wykonawcy.</p>
+            </div>
+          </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wide text-gray-500">Wynik odbioru</label>
@@ -554,7 +591,22 @@ function ProtocolTab({ insp, subcontractors, readOnly, busy, onPatch }: { insp: 
             </ul>
           </div>
         )}
+        <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm">
+          <div className="mb-1 font-semibold text-red-800">Usuń odbiór</div>
+          <p className="mb-3 text-xs text-red-700">Do sprzątania danych testowych. Kasuje usterki ze zdjęciami, obecnych i pakiety wykonawców. Nieodwracalne.</p>
+          <button type="button" onClick={deleteInspection} disabled={deleting} className="rounded-md border border-red-600 bg-white px-3 py-2 font-medium text-red-700 hover:bg-red-100 disabled:opacity-50">
+            {deleting ? 'Usuwam…' : `Usuń odbiór ${insp.number}`}
+          </button>
+        </div>
       </div>
     </div>
   )
+}
+
+/** ISO → wartość dla <input type="datetime-local"> w strefie przeglądarki (bez sekund). */
+function toLocalInput(iso: string): string {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
 }

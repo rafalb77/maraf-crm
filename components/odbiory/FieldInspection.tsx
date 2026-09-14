@@ -330,6 +330,11 @@ export function FieldInspection({ inspectionId, initialMode, focusDefectId }: { 
       const floor = s.sheet.floor
       const code = `${s.investment.code}-${(s.sheet.building || s.inspection.building || 'B1').replace(/\D/g, '').padStart(2, '0') || '01'}-${st || 'X'}-${floor == null ? 'X' : floor}-${String(seq).padStart(3, '0')}`
       const now = new Date().toISOString()
+      // odbiór z datą wsteczną (przepisywany z papieru): usterka „zgłoszona” w dniu odbioru
+      const startedAt = new Date(s.inspection.startedAt)
+      const todayStart = new Date()
+      todayStart.setHours(0, 0, 0, 0)
+      const reportedAt = startedAt.getTime() < todayStart.getTime() ? startedAt.toISOString() : now
       const d: SnapshotDefect = {
         id: newId('d'),
         inspectionId: s.inspection.id,
@@ -353,7 +358,7 @@ export function FieldInspection({ inspectionId, initialMode, focusDefectId }: { 
         aiSuggested: false,
         reportedById: s.user.id,
         reportedByName: s.user.name,
-        reportedAt: now,
+        reportedAt,
         fixReportedAt: null,
         fixNote: null,
         acceptedAt: null,

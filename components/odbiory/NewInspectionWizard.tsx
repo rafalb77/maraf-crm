@@ -29,6 +29,7 @@ export function NewInspectionWizard() {
   const [newSub, setNewSub] = useState({ name: '', email: '' })
   const [showNewSub, setShowNewSub] = useState(false)
   const [notes, setNotes] = useState('')
+  const [startedAt, setStartedAt] = useState(() => new Date().toISOString().slice(0, 10))
 
   async function loadStructure(invId?: string) {
     try {
@@ -74,7 +75,18 @@ export function NewInspectionWizard() {
       const res = await fetch('/api/odbiory/inspections', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ investmentId, building: building || null, staircase: staircase || null, markersKey, kind, stage: stage.trim() || null, subcontractorId: subcontractorId || null, notes: notes.trim() || null }),
+        body: JSON.stringify({
+          investmentId,
+          building: building || null,
+          staircase: staircase || null,
+          markersKey,
+          kind,
+          stage: stage.trim() || null,
+          subcontractorId: subcontractorId || null,
+          notes: notes.trim() || null,
+          // data odbioru: dziś = teraz; wsteczna = godzina 10:00 tego dnia
+          startedAt: startedAt && startedAt !== new Date().toISOString().slice(0, 10) ? new Date(`${startedAt}T10:00:00`).toISOString() : null,
+        }),
       })
       if (isSessionExpired(res)) return
       const j = await res.json()
@@ -173,6 +185,10 @@ export function NewInspectionWizard() {
           </div>
         )}
         <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} placeholder="Notatka do odbioru (opcjonalnie)" className="mt-3 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
+      </Section>
+
+      <Section step="7" title="Data odbioru" hint="Domyślnie dziś. Wpisz wcześniejszą, gdy przepisujesz odbiór zrobiony na papierze — protokół i pakiet dla wykonawcy dostaną tę datę.">
+        <input type="date" value={startedAt} max={new Date().toISOString().slice(0, 10)} onChange={(e) => setStartedAt(e.target.value)} className="rounded-md border border-gray-300 px-3 py-2 text-sm" />
       </Section>
 
       {error && <p className="text-sm text-red-600">{error}</p>}
