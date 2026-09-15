@@ -158,6 +158,14 @@ Wykonawca: POPRAWIONA (+zdjęcie PO), SPORNA (z uwagą), KOMENTARZ; zbiorcze zg�
   pinezki obracają się z rysunkiem (po obróceniu kartki wszystko jest „prosto"). Legenda i
   zestawienie od nowej strony. Arkusze o proporcji < 1,15 nie są obracane.
 
+### Domyślny wykonawca i branża usterki (15.09.2026)
+Uwaga Rafała: przy odbiorze z wykonawcą nowa usterka spoza słownika ma od razu dostać tego
+wykonawcę i zakres prac. Łańcuch domyślnych (klient `createDefectAt` i serwer `upsertDefect`):
+wykonawca = jawny → dotychczasowy → domyślny z typu → `Inspection.subcontractorId`;
+branża = jawna → z typu → dotychczasowa → `tradeFromStage(Inspection.stage)` (`codes.ts`, np.
+„Stan surowy" → MURY, „Tynki" → TYNKI). W edytorze typ z własnym domyślnym wykonawcą nadpisuje
+wykonawcę z odbioru; typ bez domyślnego go zostawia.
+
 ## Deploy (checklista)
 1. `git push` → Coolify build (zmienione: `next.config.js` — nagłówek Permissions-Policy
    `camera=(self), microphone=(self)`; nowe zależności `react-zoom-pan-pinch`, `idb`).

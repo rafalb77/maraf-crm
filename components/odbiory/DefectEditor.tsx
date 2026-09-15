@@ -120,7 +120,8 @@ export function DefectEditor({
       typeId: t.id,
       trade: t.trade,
       title: d.title.trim() && d.typeId !== t.id && d.title !== types.find((x) => x.id === d.typeId)?.name ? d.title : t.name,
-      subcontractorId: d.subcontractorId || t.defaultSubcontractorId || null,
+      // domyślny wykonawca typu ma pierwszeństwo (np. elektryka); bez niego zostaje wykonawca z odbioru
+      subcontractorId: t.defaultSubcontractorId || d.subcontractorId || null,
       priority: (t.defaultPriority as DefectPriority) || d.priority,
       dueAt: d.dueAt || (t.defaultDays != null ? addDaysIso(t.defaultDays) : null),
     }))
@@ -335,7 +336,7 @@ export function DefectEditor({
         {/* Wykonawca + branża */}
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
-            <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Wykonawca</span>
+            <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Wykonawca {defect.subcontractorId && draft.subcontractorId === defect.subcontractorId && isNew ? <span className="normal-case text-gray-400">· z odbioru</span> : null}</span>
             <div className="flex gap-2">
               <select value={draft.subcontractorId || ''} onChange={(e) => setDraft((d) => ({ ...d, subcontractorId: e.target.value || null }))} className="w-full rounded-md border border-gray-300 px-2 py-2 text-sm">
                 <option value="">— nieprzypisany —</option>

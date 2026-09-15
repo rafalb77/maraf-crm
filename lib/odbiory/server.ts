@@ -7,7 +7,7 @@ import { Prisma } from '@prisma/client'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { staircaseOf } from '@/lib/floorplan'
-import { defectCode, investmentCode, scopeLabel } from './codes'
+import { defectCode, investmentCode, scopeLabel, tradeFromStage } from './codes'
 import { DEFECT_STATUSES, DEFECT_PRIORITIES, DISPATCH_TOKEN_DAYS, type DefectAction, type DefectStatus } from './constants'
 import { hitTestRoom, hitTestUnit } from './geometry'
 import { ensureSheet, getPwSheet, getSheetMarkers, getSheetRooms } from './sheets'
@@ -290,7 +290,8 @@ export async function upsertDefect(id: string, body: DefectUpsertBody, user: Ses
   const typeId = body.typeId === undefined ? existing?.typeId ?? null : body.typeId
   const type = typeId ? await prisma.defectType.findUnique({ where: { id: typeId } }) : null
   const title = cleanStr(body.title, 200) || existing?.title || type?.name || 'Usterka'
-  const trade = cleanStr(body.trade, 40) || type?.trade || existing?.trade || null
+  // branża: jawna → z typu → dotychczasowa → z zakresu robót odbioru („Stan surowy" → MURY)
+  const trade = cleanStr(body.trade, 40) || type?.trade || existing?.trade || tradeFromStage(inspection.stage)
 
   const data = {
     x,
@@ -303,10 +304,10 @@ export async function upsertDefect(id: string, body: DefectUpsertBody, user: Ses
     title,
     description: body.description === undefined ? existing?.description ?? null : cleanStr(body.description, 2000),
     priority,
-    // brak jawnego wykonawcy/terminu → domyślne z typu ze słownika (serwer = jedno źródło prawdy, także dla API)
+    // brak jawnego wykonawcy → dotychczasowy → domyślny z typu → wykonawca odbieranych robót (odbiór z wykonawcą)
     subcontractorId:
       body.subcontractorId === undefined
-        ? existing?.subcontractorId ?? type?.defaultSubcontractorId ?? null
+        ? existing?.subcontractorId ?? type?.defaultSubcontractorId ?? inspection.subcontractorId ?? null
         : body.subcontractorId || null,
     dueAt:
       body.dueAt === undefined

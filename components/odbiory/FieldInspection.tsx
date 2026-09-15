@@ -10,7 +10,7 @@ import {
   type DefectAction,
   type DefectStatus,
 } from '@/lib/odbiory/constants'
-import { addDaysIso, formatDatePl, unitShortLabel } from '@/lib/odbiory/codes'
+import { addDaysIso, formatDatePl, tradeFromStage, unitShortLabel } from '@/lib/odbiory/codes'
 import { hitTestRoom, hitTestUnit, unionBox } from '@/lib/odbiory/geometry'
 import {
   dropDefectOps,
@@ -350,12 +350,13 @@ export function FieldInspection({ inspectionId, initialMode, focusDefectId }: { 
         unitNumber: hit?.number ?? null,
         room: template?.room || room?.name || null,
         typeId: template?.typeId ?? null,
-        trade: template?.trade ?? null,
+        // usterka spoza słownika: branża z zakresu robót odbioru, wykonawca z odbioru (uwaga Rafała 15.09.2026)
+        trade: template?.trade ?? tradeFromStage(s.inspection.stage),
         title: template?.title || 'Usterka',
         description: null,
         priority: template?.priority || 'NORMALNY',
         status: 'DO_POPRAWY',
-        subcontractorId: template?.subcontractorId ?? null,
+        subcontractorId: template?.subcontractorId ?? s.inspection.subcontractorId ?? null,
         dueAt: template && template.dueDays != null ? addDaysIso(template.dueDays) : null,
         sourceText: null,
         aiSuggested: false,

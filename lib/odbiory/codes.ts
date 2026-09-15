@@ -72,6 +72,30 @@ export function scopeLabel(parts: {
   return out.join(' · ')
 }
 
+/**
+ * Branża domyślna z zakresu robót odbioru („Stan surowy" → MURY, „Tynki" → TYNKI…).
+ * Używana dla usterek spoza słownika — użytkownik może zmienić w edytorze.
+ */
+export function tradeFromStage(stage: string | null | undefined): string | null {
+  if (!stage) return null
+  const s = stripDiacritics(stage).toLowerCase()
+  const rules: [RegExp, string][] = [
+    [/tynk/, 'TYNKI'],
+    [/wylewk|posadzk|jastrych/, 'POSADZKI'],
+    [/elektr|niskopr|teletech/, 'ELEKTRYKA'],
+    [/sanit|wod|kanal|hydraul|c\.o\.|grzew|ogrzew/, 'SANITARNA'],
+    [/went|klimat|rekuper/, 'WENTYLACJA'],
+    [/okn|stolark|slusark|fasad|elewac/, 'OKNA'],
+    [/drzwi/, 'DRZWI'],
+    [/balkon|taras|obrobk|dach|izolac/, 'BALKONY'],
+    [/wykoncz|malar|glazur|plytk|deweloper/, 'WYKONCZENIE'],
+    [/zelbet|konstruk|strop|fundament|schod/, 'KONSTRUKCJA'],
+    [/surow|mur|scian|zamkni/, 'MURY'],
+  ]
+  for (const [re, trade] of rules) if (re.test(s)) return trade
+  return null
+}
+
 /** Krótka etykieta lokalu z numeru „B1.2.M28" → „M28"; „MG.14" → „MG.14". */
 export function unitShortLabel(number: string | null | undefined): string {
   if (!number) return ''
