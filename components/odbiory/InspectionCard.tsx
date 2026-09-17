@@ -2,15 +2,18 @@
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Tablet, CheckSquare, Printer, Send, Copy, ExternalLink, Users, ListChecks, FileText, Flag } from 'lucide-react'
+import { Tablet, CheckSquare, Printer, Send, Copy, ExternalLink, Users, ListChecks, FileText, Flag, Pencil, Trash2, X, Check } from 'lucide-react'
 import {
   ATTENDEE_ROLES,
   ATTENDEE_ROLE_LABELS,
   PROTOCOL_PARTIES,
+  DEFECT_PRIORITIES,
   DEFECT_STATUS_BADGE,
   DEFECT_STATUS_LABELS,
   DEFECT_STATUS_RING,
   DEFECT_PRIORITY_LABELS,
+  ROOM_SUGGESTIONS,
+  TRADES,
   INSPECTION_KIND_LABELS,
   INSPECTION_RESULTS,
   INSPECTION_RESULT_LABELS,
@@ -89,11 +92,13 @@ const TABS = [
 export function InspectionCard({ initial, subcontractors }: { initial: InspectionDetail; subcontractors: Sub[] }) {
   const router = useRouter()
   const [tab, setTab] = useState<(typeof TABS)[number]['key']>('defects')
-  const [statusFilter, setStatusFilter] = useState<string>('')
-  const [subFilter, setSubFilter] = useState<string>('')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
-  const insp = initial
+  // Usterki trzymamy lokalnie: edycja na liście i zmiany zbiorcze aktualizują widok od razu,
+  // a router.refresh() dociąga świeże dane z serwera w tle.
+  const [defects, setDefects] = useState<SnapshotDefect[]>(initial.defects)
+  useEffect(() => setDefects(initial.defects), [initial.defects])
+  const insp = useMemo(() => ({ ...initial, defects }), [initial, defects])
   const readOnly = insp.status !== 'W_TOKU'
 
   const counts = useMemo(() => {
@@ -101,10 +106,6 @@ export function InspectionCard({ initial, subcontractors }: { initial: Inspectio
     for (const d of insp.defects) c[d.status] = (c[d.status] || 0) + 1
     return c
   }, [insp.defects])
-
-  const subName = (id: string | null) => subcontractors.find((s) => s.id === id)?.name || null
-
-  const filtered = insp.defects.filter((d) => (!statusFilter || d.status === statusFilter) && (!subFilter || (subFilter === 'none' ? !d.subcontractorId : d.subcontractorId === subFilter)))
 
   async function patch(data: Record<string, unknown>) {
     setBusy(true)
@@ -181,79 +182,7 @@ export function InspectionCard({ initial, subcontractors }: { initial: Inspectio
       </div>
       {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
 
-      {tab === 'defects' && (
-        <div>
-          <div className="mb-3 flex flex-wrap items-center gap-2 text-sm">
-            {[['', 'Wszystkie'], ['DO_POPRAWY', 'Do poprawy'], ['POPRAWIONA', 'Do odbioru'], ['ODEBRANA', 'Odebrane'], ['SPORNA', 'Sporne'], ['ANULOWANA', 'Anulowane']].map(([k, l]) => (
-              <button key={k} type="button" onClick={() => setStatusFilter(k)} className={`rounded-full px-3 py-1 ${statusFilter === k ? 'bg-gray-900 text-white' : 'border border-gray-200 bg-white text-gray-700'}`}>
-                {l}
-                {k && counts[k] ? ` (${counts[k]})` : ''}
-              </button>
-            ))}
-            <select value={subFilter} onChange={(e) => setSubFilter(e.target.value)} className="ml-auto rounded-md border border-gray-300 px-2 py-1 text-sm">
-              <option value="">wszyscy wykonawcy</option>
-              <option value="none">nieprzypisane</option>
-              {subcontractors.map((s) => (
-                <option key={s.id} value={s.id}>{s.name}</option>
-              ))}
-            </select>
-          </div>
-          <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white">
-            <table className="w-full min-w-[900px] text-sm lg:min-w-0">
-              <thead className="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
-                <tr>
-                  <th className="px-3 py-2 w-14">Nr</th>
-                  <th className="px-3 py-2">Kod</th>
-                  <th className="px-3 py-2">Lokal / pom.</th>
-                  <th className="px-3 py-2">Usterka</th>
-                  <th className="px-3 py-2">Wykonawca</th>
-                  <th className="px-3 py-2">Termin</th>
-                  <th className="px-3 py-2">Priorytet</th>
-                  <th className="px-3 py-2">Zdj.</th>
-                  <th className="px-3 py-2">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {filtered.map((d) => {
-                  const overdue = d.dueAt && d.status === 'DO_POPRAWY' && new Date(d.dueAt).getTime() < Date.now() - 12 * 3600 * 1000
-                  return (
-                    <tr key={d.id} className="hover:bg-gray-50">
-                      <td className="px-3 py-2">
-                        <Link href={`/odbiory/teren/${insp.id}?usterka=${d.id}`} className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-xs font-bold text-gray-900" style={{ border: `3px solid ${DEFECT_STATUS_RING[d.status as DefectStatus] || '#dc2626'}` }} title="Pokaż na rzucie">
-                          {d.seq}
-                        </Link>
-                      </td>
-                      <td className="px-3 py-2 font-mono text-xs text-gray-600">{d.code}</td>
-                      <td className="px-3 py-2 text-gray-700">
-                        {d.unitNumber ? unitShortLabel(d.unitNumber) : <span className="text-gray-400">część wspólna</span>}
-                        {d.room ? <div className="text-xs text-gray-500">{d.room}</div> : null}
-                      </td>
-                      <td className="px-3 py-2">
-                        <div className="font-medium text-gray-900">{d.title}</div>
-                        {d.description && <div className="line-clamp-2 text-xs text-gray-500">{d.description}</div>}
-                        {d.trade && <div className="text-[11px] uppercase tracking-wide text-gray-400">{TRADE_LABELS[d.trade as keyof typeof TRADE_LABELS] || d.trade}</div>}
-                      </td>
-                      <td className="px-3 py-2 text-gray-700">{subName(d.subcontractorId) || <span className="text-gray-400">—</span>}</td>
-                      <td className={`px-3 py-2 ${overdue ? 'font-semibold text-red-600' : 'text-gray-700'}`}>{d.dueAt ? formatDatePl(d.dueAt) : '—'}</td>
-                      <td className="px-3 py-2">{d.priority === 'PILNY' ? <span className="rounded-full bg-red-600 px-2 py-0.5 text-[11px] font-semibold text-white">Pilne</span> : <span className="text-gray-500">{DEFECT_PRIORITY_LABELS[d.priority as keyof typeof DEFECT_PRIORITY_LABELS] || d.priority}</span>}</td>
-                      <td className="px-3 py-2 text-gray-500">{d.photos.length || ''}</td>
-                      <td className="px-3 py-2">
-                        <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${DEFECT_STATUS_BADGE[d.status as DefectStatus] || ''}`}>{DEFECT_STATUS_LABELS[d.status as DefectStatus] || d.status}</span>
-                        {d.rejectedCount > 0 && <div className="text-[11px] text-red-600">nie odebrana {d.rejectedCount}×</div>}
-                      </td>
-                    </tr>
-                  )
-                })}
-                {filtered.length === 0 && (
-                  <tr>
-                    <td colSpan={9} className="px-3 py-8 text-center text-gray-500">Brak usterek w tym widoku. Postaw pinezki w widoku terenowym.</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
+      {tab === 'defects' && <DefectsTab insp={insp} counts={counts} subcontractors={subcontractors} readOnly={readOnly} onChange={setDefects} onError={setError} />}
 
       {tab === 'contractors' && <ContractorsTab insp={insp} subcontractors={subcontractors} />}
 
@@ -399,6 +328,431 @@ function ContractorsTab({ insp, subcontractors }: { insp: InspectionDetail; subc
 }
 
 // ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// Lista usterek: filtry, edycja wiersza na miejscu (bez wchodzenia w pinezkę),
+// zaznaczanie i zmiana zbiorcza (branża / wykonawca / termin / priorytet).
+// ---------------------------------------------------------------------------
+
+const STATUS_FILTERS: [string, string][] = [['', 'Wszystkie'], ['DO_POPRAWY', 'Do poprawy'], ['POPRAWIONA', 'Do odbioru'], ['ODEBRANA', 'Odebrane'], ['SPORNA', 'Sporne'], ['ANULOWANA', 'Anulowane']]
+const NO_SUB = '__none'
+
+type DefectDraft = { title: string; description: string; trade: string; room: string; subcontractorId: string; dueAt: string; priority: string }
+
+function draftOf(d: SnapshotDefect): DefectDraft {
+  return {
+    title: d.title,
+    description: d.description || '',
+    trade: d.trade || '',
+    room: d.room || '',
+    subcontractorId: d.subcontractorId || '',
+    dueAt: d.dueAt ? d.dueAt.slice(0, 10) : '',
+    priority: d.priority,
+  }
+}
+
+function DefectsTab({
+  insp,
+  counts,
+  subcontractors,
+  readOnly,
+  onChange,
+  onError,
+}: {
+  insp: InspectionDetail
+  counts: Record<string, number>
+  subcontractors: Sub[]
+  readOnly: boolean
+  onChange: (updater: (prev: SnapshotDefect[]) => SnapshotDefect[]) => void
+  onError: (m: string | null) => void
+}) {
+  const router = useRouter()
+  const [statusFilter, setStatusFilter] = useState('')
+  const [subFilter, setSubFilter] = useState('')
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [bulk, setBulk] = useState({ trade: '', subcontractorId: '', dueAt: '', priority: '' })
+  const [bulkInfo, setBulkInfo] = useState<string | null>(null)
+
+  const subName = (id: string | null) => subcontractors.find((s) => s.id === id)?.name || null
+  const filtered = insp.defects.filter((d) => (!statusFilter || d.status === statusFilter) && (!subFilter || (subFilter === 'none' ? !d.subcontractorId : d.subcontractorId === subFilter)))
+  const allFilteredSelected = filtered.length > 0 && filtered.every((d) => selected.has(d.id))
+
+  function toggle(id: string) {
+    setSelected((s) => {
+      const n = new Set(s)
+      if (n.has(id)) n.delete(id)
+      else n.add(id)
+      return n
+    })
+  }
+  function toggleAll() {
+    setSelected((s) => {
+      const n = new Set(s)
+      if (allFilteredSelected) filtered.forEach((d) => n.delete(d.id))
+      else filtered.forEach((d) => n.add(d.id))
+      return n
+    })
+  }
+
+  async function saveRow(d: SnapshotDefect, draft: DefectDraft): Promise<boolean> {
+    if (!draft.title.trim()) {
+      onError('Usterka musi mieć nazwę')
+      return false
+    }
+    setBusy(true)
+    onError(null)
+    try {
+      const body = {
+        inspectionId: d.inspectionId,
+        x: d.x,
+        y: d.y,
+        seq: d.seq,
+        unitId: d.unitId,
+        unitNumber: d.unitNumber,
+        typeId: d.typeId,
+        sourceText: d.sourceText,
+        aiSuggested: d.aiSuggested,
+        reportedAt: d.reportedAt,
+        title: draft.title.trim(),
+        description: draft.description.trim() || null,
+        trade: draft.trade || null,
+        room: draft.room.trim() || null,
+        subcontractorId: draft.subcontractorId || null,
+        dueAt: draft.dueAt ? new Date(`${draft.dueAt}T12:00:00`).toISOString() : null,
+        priority: draft.priority,
+      }
+      const res = await fetch(`/api/odbiory/defects/${d.id}`, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
+      if (isSessionExpired(res)) return false
+      const j = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(j?.error || 'Nie udało się zapisać usterki')
+      onChange((prev) => prev.map((x) => (x.id === d.id ? j.defect : x)))
+      setEditingId(null)
+      router.refresh()
+      return true
+    } catch (e: any) {
+      onError(e?.message)
+      return false
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function deleteRow(d: SnapshotDefect) {
+    if (!confirm(`Usunąć usterkę ${d.seq} (${d.code}) „${d.title}”?\n\nZniknie z rzutu, protokołu i pakietów wykonawcy razem ze zdjęciami. Tej operacji nie da się cofnąć.`)) return
+    setBusy(true)
+    onError(null)
+    try {
+      const res = await fetch(`/api/odbiory/defects/${d.id}`, { method: 'DELETE' })
+      if (isSessionExpired(res)) return
+      const j = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(j?.error || 'Nie udało się usunąć usterki')
+      onChange((prev) => prev.filter((x) => x.id !== d.id))
+      setSelected((s) => {
+        const n = new Set(s)
+        n.delete(d.id)
+        return n
+      })
+      setEditingId(null)
+      router.refresh()
+    } catch (e: any) {
+      onError(e?.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function applyBulk() {
+    const ids = [...selected]
+    const patch: Record<string, unknown> = {}
+    if (bulk.trade) patch.trade = bulk.trade
+    if (bulk.subcontractorId) patch.subcontractorId = bulk.subcontractorId === NO_SUB ? null : bulk.subcontractorId
+    if (bulk.dueAt) patch.dueAt = new Date(`${bulk.dueAt}T12:00:00`).toISOString()
+    if (bulk.priority) patch.priority = bulk.priority
+    if (ids.length === 0 || Object.keys(patch).length === 0) {
+      onError('Zaznacz usterki i wybierz, co zmienić')
+      return
+    }
+    setBusy(true)
+    onError(null)
+    setBulkInfo(null)
+    try {
+      const res = await fetch('/api/odbiory/defects/bulk', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ids, patch }) })
+      if (isSessionExpired(res)) return
+      const j = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(j?.error || 'Nie udało się zapisać zmian')
+      const byId = new Map<string, SnapshotDefect>((j.defects as SnapshotDefect[]).map((x) => [x.id, x]))
+      onChange((prev) => prev.map((x) => byId.get(x.id) || x))
+      setBulkInfo(`Zmieniono ${j.count} ${j.count === 1 ? 'usterkę' : j.count < 5 ? 'usterki' : 'usterek'}`)
+      setSelected(new Set())
+      setBulk({ trade: '', subcontractorId: '', dueAt: '', priority: '' })
+      router.refresh()
+    } catch (e: any) {
+      onError(e?.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div>
+      <div className="mb-3 flex flex-wrap items-center gap-2 text-sm">
+        {STATUS_FILTERS.map(([k, l]) => (
+          <button key={k} type="button" onClick={() => setStatusFilter(k)} className={`rounded-full px-3 py-1 ${statusFilter === k ? 'bg-gray-900 text-white' : 'border border-gray-200 bg-white text-gray-700'}`}>
+            {l}
+            {k && counts[k] ? ` (${counts[k]})` : ''}
+          </button>
+        ))}
+        <select value={subFilter} onChange={(e) => setSubFilter(e.target.value)} className="ml-auto rounded-md border border-gray-300 px-2 py-1 text-sm">
+          <option value="">wszyscy wykonawcy</option>
+          <option value="none">nieprzypisane</option>
+          {subcontractors.map((s) => (
+            <option key={s.id} value={s.id}>{s.name}</option>
+          ))}
+        </select>
+      </div>
+
+      {!readOnly && selected.size > 0 && (
+        <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-sm">
+          <span className="font-semibold text-blue-900">Zaznaczone: {selected.size}</span>
+          <select value={bulk.trade} onChange={(e) => setBulk((b) => ({ ...b, trade: e.target.value }))} className="rounded-md border border-gray-300 bg-white px-2 py-1">
+            <option value="">branża: bez zmian</option>
+            {TRADES.map((t) => (
+              <option key={t} value={t}>{TRADE_LABELS[t]}</option>
+            ))}
+          </select>
+          <select value={bulk.subcontractorId} onChange={(e) => setBulk((b) => ({ ...b, subcontractorId: e.target.value }))} className="rounded-md border border-gray-300 bg-white px-2 py-1">
+            <option value="">wykonawca: bez zmian</option>
+            {subcontractors.map((s) => (
+              <option key={s.id} value={s.id}>{s.name}</option>
+            ))}
+            <option value={NO_SUB}>— usuń wykonawcę —</option>
+          </select>
+          <label className="flex items-center gap-1">
+            <span className="text-gray-600">termin</span>
+            <input type="date" value={bulk.dueAt} onChange={(e) => setBulk((b) => ({ ...b, dueAt: e.target.value }))} className="rounded-md border border-gray-300 bg-white px-2 py-1" />
+          </label>
+          <select value={bulk.priority} onChange={(e) => setBulk((b) => ({ ...b, priority: e.target.value }))} className="rounded-md border border-gray-300 bg-white px-2 py-1">
+            <option value="">priorytet: bez zmian</option>
+            {DEFECT_PRIORITIES.map((p) => (
+              <option key={p} value={p}>{DEFECT_PRIORITY_LABELS[p]}</option>
+            ))}
+          </select>
+          <button type="button" onClick={applyBulk} disabled={busy} className="rounded-md bg-blue-700 px-3 py-1.5 font-semibold text-white disabled:opacity-50">Zastosuj do zaznaczonych</button>
+          <button type="button" onClick={() => setSelected(new Set())} className="text-blue-800 underline">wyczyść zaznaczenie</button>
+        </div>
+      )}
+      {bulkInfo && <p className="mb-2 text-sm text-green-700">{bulkInfo}</p>}
+      {readOnly && <p className="mb-2 text-xs text-gray-500">Odbiór zakończony — edycja usterek zablokowana (zakładka „Protokół” → „Wznów odbiór”).</p>}
+
+      <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white">
+        <table className="w-full min-w-[960px] text-sm lg:min-w-0">
+          <thead className="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
+            <tr>
+              <th className="w-8 px-2 py-2">{!readOnly && filtered.length > 0 && <input type="checkbox" checked={allFilteredSelected} onChange={toggleAll} title="Zaznacz wszystkie widoczne" />}</th>
+              <th className="w-14 px-3 py-2">Nr</th>
+              <th className="px-3 py-2">Kod</th>
+              <th className="px-3 py-2">Lokal / pom.</th>
+              <th className="px-3 py-2">Usterka</th>
+              <th className="px-3 py-2">Wykonawca</th>
+              <th className="px-3 py-2">Termin</th>
+              <th className="px-3 py-2">Priorytet</th>
+              <th className="px-3 py-2">Zdj.</th>
+              <th className="px-3 py-2">Status</th>
+              <th className="w-10 px-2 py-2"></th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {filtered.map((d) => {
+              const overdue = d.dueAt && d.status === 'DO_POPRAWY' && new Date(d.dueAt).getTime() < Date.now() - 12 * 3600 * 1000
+              const editing = editingId === d.id
+              return (
+                <DefectRow
+                  key={d.id}
+                  d={d}
+                  inspId={insp.id}
+                  editing={editing}
+                  readOnly={readOnly}
+                  busy={busy}
+                  checked={selected.has(d.id)}
+                  overdue={!!overdue}
+                  subName={subName}
+                  subcontractors={subcontractors}
+                  onToggle={() => toggle(d.id)}
+                  onEdit={() => setEditingId(editing ? null : d.id)}
+                  onCancel={() => setEditingId(null)}
+                  onSave={(draft) => saveRow(d, draft)}
+                  onDelete={() => deleteRow(d)}
+                />
+              )
+            })}
+            {filtered.length === 0 && (
+              <tr>
+                <td colSpan={11} className="px-3 py-8 text-center text-gray-500">Brak usterek w tym widoku. Postaw pinezki w widoku terenowym.</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+      {!readOnly && <p className="mt-2 text-xs text-gray-500">Kliknij ołówek (albo nazwę usterki), żeby poprawić ją bez wchodzenia w rzut. Zaznacz kilka, żeby zmienić im branżę, wykonawcę, termin lub priorytet naraz.</p>}
+    </div>
+  )
+}
+
+function DefectRow({
+  d,
+  inspId,
+  editing,
+  readOnly,
+  busy,
+  checked,
+  overdue,
+  subName,
+  subcontractors,
+  onToggle,
+  onEdit,
+  onCancel,
+  onSave,
+  onDelete,
+}: {
+  d: SnapshotDefect
+  inspId: string
+  editing: boolean
+  readOnly: boolean
+  busy: boolean
+  checked: boolean
+  overdue: boolean
+  subName: (id: string | null) => string | null
+  subcontractors: Sub[]
+  onToggle: () => void
+  onEdit: () => void
+  onCancel: () => void
+  onSave: (draft: DefectDraft) => Promise<boolean>
+  onDelete: () => void
+}) {
+  const [draft, setDraft] = useState<DefectDraft>(() => draftOf(d))
+  useEffect(() => {
+    if (editing) setDraft(draftOf(d))
+  }, [editing, d])
+
+  if (editing) {
+    const inp = 'w-full rounded-md border border-gray-300 px-2 py-1.5 text-sm'
+    return (
+      <tr className="bg-amber-50/60">
+        <td className="px-2 py-2 align-top">
+          <input type="checkbox" checked={checked} onChange={onToggle} />
+        </td>
+        <td className="px-3 py-2 align-top">
+          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-xs font-bold text-gray-900" style={{ border: `3px solid ${DEFECT_STATUS_RING[d.status as DefectStatus] || '#dc2626'}` }}>{d.seq}</span>
+        </td>
+        <td colSpan={9} className="px-3 py-2">
+          <div className="grid grid-cols-1 gap-2 md:grid-cols-6">
+            <label className="md:col-span-3">
+              <span className="block text-[11px] font-semibold uppercase tracking-wide text-gray-500">Usterka</span>
+              <input value={draft.title} onChange={(e) => setDraft((x) => ({ ...x, title: e.target.value }))} className={inp} autoFocus />
+            </label>
+            <label className="md:col-span-3">
+              <span className="block text-[11px] font-semibold uppercase tracking-wide text-gray-500">Opis</span>
+              <input value={draft.description} onChange={(e) => setDraft((x) => ({ ...x, description: e.target.value }))} className={inp} placeholder="szczegóły, wymiar, uwagi" />
+            </label>
+            <label className="md:col-span-2">
+              <span className="block text-[11px] font-semibold uppercase tracking-wide text-gray-500">Branża</span>
+              <select value={draft.trade} onChange={(e) => setDraft((x) => ({ ...x, trade: e.target.value }))} className={inp}>
+                <option value="">— brak —</option>
+                {TRADES.map((t) => (
+                  <option key={t} value={t}>{TRADE_LABELS[t]}</option>
+                ))}
+              </select>
+            </label>
+            <label className="md:col-span-1">
+              <span className="block text-[11px] font-semibold uppercase tracking-wide text-gray-500">Pomieszczenie</span>
+              <input list={`rooms-${d.id}`} value={draft.room} onChange={(e) => setDraft((x) => ({ ...x, room: e.target.value }))} className={inp} />
+              <datalist id={`rooms-${d.id}`}>
+                {ROOM_SUGGESTIONS.map((r) => (
+                  <option key={r} value={r} />
+                ))}
+              </datalist>
+            </label>
+            <label className="md:col-span-1">
+              <span className="block text-[11px] font-semibold uppercase tracking-wide text-gray-500">Wykonawca</span>
+              <select value={draft.subcontractorId} onChange={(e) => setDraft((x) => ({ ...x, subcontractorId: e.target.value }))} className={inp}>
+                <option value="">— brak —</option>
+                {subcontractors.map((s) => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+            </label>
+            <label className="md:col-span-1">
+              <span className="block text-[11px] font-semibold uppercase tracking-wide text-gray-500">Termin</span>
+              <input type="date" value={draft.dueAt} onChange={(e) => setDraft((x) => ({ ...x, dueAt: e.target.value }))} className={inp} />
+            </label>
+            <label className="md:col-span-1">
+              <span className="block text-[11px] font-semibold uppercase tracking-wide text-gray-500">Priorytet</span>
+              <select value={draft.priority} onChange={(e) => setDraft((x) => ({ ...x, priority: e.target.value }))} className={inp}>
+                {DEFECT_PRIORITIES.map((p) => (
+                  <option key={p} value={p}>{DEFECT_PRIORITY_LABELS[p]}</option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <button type="button" onClick={() => void onSave(draft)} disabled={busy} className="flex items-center gap-1 rounded-md bg-gray-900 px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-50">
+              <Check className="h-4 w-4" /> Zapisz
+            </button>
+            <button type="button" onClick={onCancel} disabled={busy} className="flex items-center gap-1 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm">
+              <X className="h-4 w-4" /> Anuluj
+            </button>
+            <Link href={`/odbiory/teren/${inspId}?usterka=${d.id}`} className="text-sm text-blue-700 underline">pokaż na rzucie</Link>
+            <button type="button" onClick={onDelete} disabled={busy} className="ml-auto flex items-center gap-1 rounded-md border border-red-300 bg-white px-3 py-1.5 text-sm text-red-700 hover:bg-red-50">
+              <Trash2 className="h-4 w-4" /> Usuń usterkę
+            </button>
+          </div>
+        </td>
+      </tr>
+    )
+  }
+
+  return (
+    <tr className={`hover:bg-gray-50 ${checked ? 'bg-blue-50/40' : ''}`}>
+      <td className="px-2 py-2">{!readOnly && <input type="checkbox" checked={checked} onChange={onToggle} />}</td>
+      <td className="px-3 py-2">
+        <Link href={`/odbiory/teren/${inspId}?usterka=${d.id}`} className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-xs font-bold text-gray-900" style={{ border: `3px solid ${DEFECT_STATUS_RING[d.status as DefectStatus] || '#dc2626'}` }} title="Pokaż na rzucie">
+          {d.seq}
+        </Link>
+      </td>
+      <td className="px-3 py-2 font-mono text-xs text-gray-600">{d.code}</td>
+      <td className="px-3 py-2 text-gray-700">
+        {d.unitNumber ? unitShortLabel(d.unitNumber) : <span className="text-gray-400">część wspólna</span>}
+        {d.room ? <div className="text-xs text-gray-500">{d.room}</div> : null}
+      </td>
+      <td className="px-3 py-2">
+        {readOnly ? (
+          <div className="font-medium text-gray-900">{d.title}</div>
+        ) : (
+          <button type="button" onClick={onEdit} className="text-left font-medium text-gray-900 hover:underline" title="Edytuj usterkę">{d.title}</button>
+        )}
+        {d.description && <div className="line-clamp-2 text-xs text-gray-500">{d.description}</div>}
+        {d.trade && <div className="text-[11px] uppercase tracking-wide text-gray-400">{TRADE_LABELS[d.trade as keyof typeof TRADE_LABELS] || d.trade}</div>}
+      </td>
+      <td className="px-3 py-2 text-gray-700">{subName(d.subcontractorId) || <span className="text-gray-400">—</span>}</td>
+      <td className={`px-3 py-2 ${overdue ? 'font-semibold text-red-600' : 'text-gray-700'}`}>{d.dueAt ? formatDatePl(d.dueAt) : '—'}</td>
+      <td className="px-3 py-2">{d.priority === 'PILNY' ? <span className="rounded-full bg-red-600 px-2 py-0.5 text-[11px] font-semibold text-white">Pilne</span> : <span className="text-gray-500">{DEFECT_PRIORITY_LABELS[d.priority as keyof typeof DEFECT_PRIORITY_LABELS] || d.priority}</span>}</td>
+      <td className="px-3 py-2 text-gray-500">{d.photos.length || ''}</td>
+      <td className="px-3 py-2">
+        <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${DEFECT_STATUS_BADGE[d.status as DefectStatus] || ''}`}>{DEFECT_STATUS_LABELS[d.status as DefectStatus] || d.status}</span>
+        {d.rejectedCount > 0 && <div className="text-[11px] text-red-600">nie odebrana {d.rejectedCount}×</div>}
+      </td>
+      <td className="px-2 py-2">
+        {!readOnly && (
+          <button type="button" onClick={onEdit} className="rounded-md p-1.5 text-gray-500 hover:bg-gray-100 hover:text-gray-900" title="Edytuj usterkę">
+            <Pencil className="h-4 w-4" />
+          </button>
+        )}
+      </td>
+    </tr>
+  )
+}
+
 function ProtocolTab({ insp, subcontractors, readOnly, busy, onPatch }: { insp: InspectionDetail; subcontractors: Sub[]; readOnly: boolean; busy: boolean; onPatch: (data: Record<string, unknown>) => Promise<boolean> }) {
   const router = useRouter()
   const [attendees, setAttendees] = useState<Attendee[]>(

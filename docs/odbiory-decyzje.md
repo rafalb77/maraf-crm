@@ -98,6 +98,16 @@ jedna plansza A0+ na kondygnację):
 - Tryb weryfikacji: filtr „do odbioru", po decyzji przeskok do następnej oczekującej.
 - Legenda: panel z listą, klik centruje pinezkę.
 
+### Lista usterek na karcie (17.09.2026)
+Uwaga Rafała: literówki poprawiać bez wchodzenia w pinezki. Zakładka „Usterki" ma
+edycję wiersza na miejscu (ołówek / klik w nazwę: tytuł, opis, branża, pomieszczenie,
+wykonawca, termin, priorytet, „Usuń usterkę" → `DELETE /api/odbiory/defects/[id]`) oraz
+zaznaczanie z paskiem zmian zbiorczych (`POST /api/odbiory/defects/bulk` — branża,
+wykonawca, termin, priorytet; tylko jeden odbiór, tylko W_TOKU; każda usterka dostaje
+zdarzenie ZMIENIONA „zmiana zbiorcza: …"). Zapis wiersza idzie przez zwykły upsert
+(`PUT /api/odbiory/defects/[id]`) z niezmienionymi x/y/seq. Lista trzyma stan lokalnie
+i dociąga `router.refresh()` w tle.
+
 ### Offline-first (`lib/odbiory/offline-store.ts`, `sync.ts`)
 - IndexedDB (`idb`): `snapshots` (pełny pakiet odbioru), `outbox` (operacje),
   `blobs` (zdjęcia). Id usterek i zdjęć nadaje klient → API robi **upsert po id**
