@@ -58,6 +58,9 @@ export function developerActNumber(c: ExportContract): string {
  */
 export function isSignedDeveloperContractInPeriod(c: ExportContract, from: Date, to: Date): boolean {
   if (c.status === 'ROZWIAZANA' || c.status === 'ANULOWANA') return false
+  // Rekord rezerwacyjny (legacy para …/R + …/D) nigdy nie jest umową deweloperską,
+  // nawet gdy ma zbędny wiersz etapu DEWELOPERSKA (ślad po zamianie typów).
+  if (c.type !== 'DEWELOPERSKA' && c.type !== 'PRZENIESIENIA') return false
   const st = c.stages.find((s) => s.stage === 'DEWELOPERSKA')
   const signedStage = st ? st.status === 'PODPISANA' : c.type === 'DEWELOPERSKA' && c.status === 'PODPISANA'
   if (!signedStage) return false

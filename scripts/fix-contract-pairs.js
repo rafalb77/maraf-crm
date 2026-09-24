@@ -23,11 +23,19 @@
  *     w których ŻADNA rata nie ma flagi (częściowe przypadki tylko raportujemy —
  *     mogą być celowe).
  *
+ *  4. ZBĘDNE ETAPY w parze: rekord …/R powinien mieć tylko etap REZERWACYJNA,
+ *     rekord …/D — tylko DEWELOPERSKA/PRZENIESIENIA. Podpisanie rekordu w czasie,
+ *     gdy miał zamieniony typ, dopisało mu etap drugiego rodzaju (Filipiak 6/R ma
+ *     „DEWELOPERSKA: podpisana”), przez co eksport dla banku i karta klienta
+ *     widzą dwie umowy deweloperskie. Naprawa (tylko z --stages): usunięcie
+ *     etapów niezgodnych z rolą rekordu + wpis w historii.
+ *
  * Uruchomienie (Coolify Terminal w kontenerze CRM):
  *   node scripts/fix-contract-pairs.js                    # dry-run (podgląd)
  *   node scripts/fix-contract-pairs.js --apply            # naprawa typów
  *   node scripts/fix-contract-pairs.js --apply --dedupe   # + usunięcie dubli rat z …/R
  *   node scripts/fix-contract-pairs.js --apply --escrow   # + toEscrow=true (krok 3)
+ *   node scripts/fix-contract-pairs.js --apply --stages   # + usunięcie zbędnych etapów (krok 4)
  */
 const { PrismaClient } = require('@prisma/client')
 const prisma = new PrismaClient()
@@ -35,6 +43,7 @@ const prisma = new PrismaClient()
 const apply = process.argv.includes('--apply')
 const dedupe = process.argv.includes('--dedupe')
 const escrow = process.argv.includes('--escrow')
+const stagesFix = process.argv.includes('--stages')
 const money = (n) => (Number(n) || 0).toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' zł'
 
 async function main() {
@@ -156,10 +165,45 @@ async function main() {
     }
   }
 
+  // --- 4. zbędne etapy w parach (…/R tylko REZERWACYJNA, …/D bez REZERWACYJNA) ---
+  let stagesFixed = 0
+  for (const [prefix, pair] of pairs) {
+    if (!pair.R || !pair.D) continue
+    const client = pair.D.client ? `${pair.D.client.lastName} ${pair.D.client.firstName}` : '—'
+    const wrong = [
+      ...pair.R.stages.filter((s) => s.stage !== 'REZERWACYJNA').map((s) => ({ c: pair.R, s })),
+      ...pair.D.stages.filter((s) => s.stage === 'REZERWACYJNA').map((s) => ({ c: pair.D, s })),
+    ]
+    if (wrong.length === 0) continue
+    stagesFixed++
+    console.log(
+      `\n[ETAPY] ${prefix} (${client}): ` +
+        wrong.map(({ c, s }) => `${c.number} ma zbędny etap ${s.stage} (${s.status}${s.signedAt ? ', podpisany ' + s.signedAt.toISOString().slice(0, 10) : ''})`).join('; ') +
+        ' → do usunięcia',
+    )
+    if (apply && stagesFix) {
+      await prisma.$transaction(async (tx) => {
+        for (const { c, s } of wrong) {
+          await tx.contractStage.delete({ where: { id: s.id } })
+          await tx.contractHistory.create({
+            data: {
+              contractId: c.id,
+              event: 'KOREKTA',
+              details: `Usunięto zbędny etap ${s.stage} (${s.status}) — rekord ${c.number} to ${c.number.endsWith('/R') ? 'umowa rezerwacyjna' : 'umowa deweloperska'} pary (skrypt fix-contract-pairs)`,
+            },
+          })
+        }
+      })
+      console.log('   usunięto.')
+    } else if (apply) {
+      console.log('   (bez --stages nie usuwam)')
+    }
+  }
+
   console.log(
-    `\nPar …/R + …/D: ${[...pairs.values()].filter((p) => p.R && p.D).length}; skrzyżowane typy: ${swapped}; zdublowane harmonogramy: ${duplicates}; umowy deweloperskie z ratami bez escrow: ${escrowFixed}.`,
+    `\nPar …/R + …/D: ${[...pairs.values()].filter((p) => p.R && p.D).length}; skrzyżowane typy: ${swapped}; zdublowane harmonogramy: ${duplicates}; umowy deweloperskie z ratami bez escrow: ${escrowFixed}; pary ze zbędnymi etapami: ${stagesFixed}.`,
   )
-  if (!apply) console.log('DRY-RUN. Uruchom z --apply (i ewentualnie --dedupe / --escrow), aby zapisać zmiany.')
+  if (!apply) console.log('DRY-RUN. Uruchom z --apply (i ewentualnie --dedupe / --escrow / --stages), aby zapisać zmiany.')
 }
 
 main()
