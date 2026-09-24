@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { formatCurrency } from '@/lib/utils'
 import { SalesTable } from '@/components/sales/SalesTable'
 import { NewContractFromReservationButton } from '@/components/sales/NewContractFromReservationButton'
+import { SalesExportButton } from '@/components/sales/SalesExportButton'
 import { getSalesValue } from '@/lib/sales-metrics'
 
 export default async function SalesPage({
@@ -83,6 +84,7 @@ export default async function SalesPage({
           </p>
         </div>
         <div className="flex gap-2 flex-wrap">
+          <SalesExportButton />
           <Link
             href="/sales/import"
             className="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
