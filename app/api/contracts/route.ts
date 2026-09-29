@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { generateContractNumber, validateContractUnits } from '@/lib/contracts'
+import { contractCreateErrorMessage, createWithFreshNumber, generateContractNumber, validateContractUnits } from '@/lib/contracts'
 import { resolveUnitPricesForClient, computeReservationFee, findClientUnitConflict } from '@/lib/contract-pricing'
 import type { ContractType, UnitType } from '@/lib/types'
 
@@ -113,39 +113,45 @@ export async function POST(req: NextRequest) {
       ? Math.round(Number(body.reservationFeeDays))
       : 7
 
-  const number = await generateContractNumber(type as ContractType)
-
-  const contract = await prisma.contract.create({
-    data: {
-      number,
-      type,
-      status: 'W_PRZYGOTOWANIU',
-      investmentName: investmentName || 'Inwestycja',
-      clientId,
-      plannedSignDate: plannedSignDate ? new Date(plannedSignDate) : null,
-      reservationEndDate: reservationEndDate ? new Date(reservationEndDate) : null,
-      reservationFee,
-      reservationFeeDays,
-      valueNet: Math.round(totalNet * 100) / 100,
-      valueGross: Math.round(totalGross * 100) / 100,
-      notes: notes || null,
-      contractUnits: {
-        create: contractUnitsData,
-      },
-      contractClients: {
-        create: (secondaryClientIds as string[])
-          .filter((id) => id && id !== clientId)
-          .map((id, idx) => ({ clientId: id, position: idx + 2 })),
-      },
-      stages: {
-        create: { stage: type, status: 'W_PRZYGOTOWANIU' },
-      },
-      history: {
-        create: { event: 'UTWORZONO', details: `Umowa ${number} utworzona (etap: ${type})` },
-      },
-    },
-    include: { client: true, contractUnits: { include: { unit: true } } },
-  })
-
-  return NextResponse.json(contract, { status: 201 })
+  try {
+    const contract = await createWithFreshNumber(
+      () => generateContractNumber(type as ContractType),
+      (number) =>
+        prisma.contract.create({
+          data: {
+            number,
+            type,
+            status: 'W_PRZYGOTOWANIU',
+            investmentName: investmentName || 'Inwestycja',
+            clientId,
+            plannedSignDate: plannedSignDate ? new Date(plannedSignDate) : null,
+            reservationEndDate: reservationEndDate ? new Date(reservationEndDate) : null,
+            reservationFee,
+            reservationFeeDays,
+            valueNet: Math.round(totalNet * 100) / 100,
+            valueGross: Math.round(totalGross * 100) / 100,
+            notes: notes || null,
+            contractUnits: {
+              create: contractUnitsData,
+            },
+            contractClients: {
+              create: (secondaryClientIds as string[])
+                .filter((id) => id && id !== clientId)
+                .map((id, idx) => ({ clientId: id, position: idx + 2 })),
+            },
+            stages: {
+              create: { stage: type, status: 'W_PRZYGOTOWANIU' },
+            },
+            history: {
+              create: { event: 'UTWORZONO', details: `Umowa ${number} utworzona (etap: ${type})` },
+            },
+          },
+          include: { client: true, contractUnits: { include: { unit: true } } },
+        }),
+    )
+    return NextResponse.json(contract, { status: 201 })
+  } catch (e) {
+    console.error('[POST /api/contracts] tworzenie umowy nieudane:', e)
+    return NextResponse.json({ error: `Nie udało się utworzyć umowy: ${contractCreateErrorMessage(e)}.` }, { status: 500 })
+  }
 }

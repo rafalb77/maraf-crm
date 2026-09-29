@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { generateContractNumber, validateContractUnits } from '@/lib/contracts'
+import { contractCreateErrorMessage, createWithFreshNumber, generateContractNumber, validateContractUnits } from '@/lib/contracts'
 import { resolveUnitPricesForClient, computeReservationFee, findClientUnitConflict } from '@/lib/contract-pricing'
 import type { ContractType, UnitType } from '@/lib/types'
 
@@ -79,33 +79,40 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       ? Math.round(Number(body.reservationFeeDays))
       : 7
 
-  const number = await generateContractNumber(startStage)
-
-  const contract = await prisma.contract.create({
-    data: {
-      number,
-      type: startStage,
-      status: 'W_PRZYGOTOWANIU',
-      investmentName: body.investmentName || 'Inwestycja',
-      clientId: params.id,
-      plannedSignDate: body.plannedSignDate ? new Date(body.plannedSignDate) : null,
-      reservationEndDate: body.reservationEndDate ? new Date(body.reservationEndDate) : null,
-      reservationFee,
-      reservationFeeDays,
-      valueNet: Math.round(totalNet * 100) / 100,
-      valueGross: Math.round(totalGross * 100) / 100,
-      notes: body.notes || null,
-      contractUnits: { create: contractUnitsData },
-      stages: { create: { stage: startStage, status: 'W_PRZYGOTOWANIU' } },
-      history: {
-        create: {
-          event: 'UTWORZONO',
-          details: `Umowa ${number} utworzona z rezerwacji klienta (etap: ${startStage})`,
-        },
-      },
-    },
-    include: { client: true, contractUnits: { include: { unit: true } } },
-  })
-
-  return NextResponse.json(contract, { status: 201 })
+  try {
+    const contract = await createWithFreshNumber(
+      () => generateContractNumber(startStage),
+      (number) =>
+        prisma.contract.create({
+          data: {
+            number,
+            type: startStage,
+            status: 'W_PRZYGOTOWANIU',
+            investmentName: body.investmentName || 'Inwestycja',
+            clientId: params.id,
+            plannedSignDate: body.plannedSignDate ? new Date(body.plannedSignDate) : null,
+            reservationEndDate: body.reservationEndDate ? new Date(body.reservationEndDate) : null,
+            reservationFee,
+            reservationFeeDays,
+            valueNet: Math.round(totalNet * 100) / 100,
+            valueGross: Math.round(totalGross * 100) / 100,
+            notes: body.notes || null,
+            contractUnits: { create: contractUnitsData },
+            stages: { create: { stage: startStage, status: 'W_PRZYGOTOWANIU' } },
+            history: {
+              create: {
+                event: 'UTWORZONO',
+                details: `Umowa ${number} utworzona z rezerwacji klienta (etap: ${startStage})`,
+              },
+            },
+          },
+          include: { client: true, contractUnits: { include: { unit: true } } },
+        }),
+    )
+    return NextResponse.json(contract, { status: 201 })
+  } catch (e) {
+    // Bez tego wyjątek kończył się gołym 500 i okno pokazywało tylko „Nie udało się utworzyć umowy”.
+    console.error('[POST /api/clients/[id]/contract] tworzenie umowy nieudane:', e)
+    return NextResponse.json({ error: `Nie udało się utworzyć umowy: ${contractCreateErrorMessage(e)}.` }, { status: 500 })
+  }
 }

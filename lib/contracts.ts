@@ -2,36 +2,112 @@ import { prisma } from './prisma'
 import type { ContractType, UnitType } from './types'
 import { CONTRACT_TYPE_LETTER, RESERVATION_CONTRACT_LIMITS } from './types'
 
+/** Miesiąc i rok w czasie polskim (kontener prod chodzi w UTC — na przełomie miesiąca różnica). */
+function warsawYearMonth(date: Date): { year: number; month: number } {
+  const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Warsaw', year: 'numeric', month: 'numeric' }).formatToParts(date)
+  const year = Number(parts.find((p) => p.type === 'year')?.value)
+  const month = Number(parts.find((p) => p.type === 'month')?.value)
+  return { year: year || date.getFullYear(), month: month || date.getMonth() + 1 }
+}
+
 /**
- * Generate next contract number in format "M/YYYY/L" (e.g. "1/2026/R").
- * Month-scoped counter per contract type.
+ * Następny numer umowy „M/RRRR/L” (np. „9/2026/R”), kolejne w tym samym miesiącu
+ * i typie: „M/RRRR/L-2”, „-3”, … Licznik = NAJWYŻSZY istniejący numer porządkowy + 1.
+ *
+ * Do 29.09.2026 zapytanie brało numery kończące się na „/RRRR/L”, więc numerów
+ * z dopiskiem „-N” nie widziało: trzecia umowa w miesiącu dostawała znów „-2”,
+ * baza odrzucała duplikat i tworzenie umowy kończyło się błędem 500.
  */
 export async function generateContractNumber(
   type: ContractType,
   date: Date = new Date(),
 ): Promise<string> {
-  const month = date.getMonth() + 1
-  const year = date.getFullYear()
-  const letter = CONTRACT_TYPE_LETTER[type]
-
-  // Find all contracts for this month/year/type by parsing number field
-  const suffix = `/${year}/${letter}`
-  const prefix = `${month}/${year}/${letter}`
+  const { year, month } = warsawYearMonth(date)
+  const prefix = `${month}/${year}/${CONTRACT_TYPE_LETTER[type]}`
 
   const existing = await prisma.contract.findMany({
-    where: { number: { endsWith: suffix } },
+    where: { number: { startsWith: prefix } },
     select: { number: true },
   })
+  const taken = new Set(existing.map((c) => c.number))
 
-  // Count how many match "M/YYYY/L" ignoring any extra ordinal suffix. We use plain M/YYYY/L.
-  const sameMonth = existing.filter((c) => c.number.startsWith(`${month}/${year}/${letter}`))
-  const nextOrdinal = sameMonth.length + 1
+  let maxOrdinal = 0
+  for (const n of taken) {
+    if (n === prefix) maxOrdinal = Math.max(maxOrdinal, 1)
+    else {
+      const m = n.slice(prefix.length).match(/^-(\d+)$/)
+      if (m) maxOrdinal = Math.max(maxOrdinal, parseInt(m[1], 10))
+    }
+  }
+  if (maxOrdinal === 0 && !taken.has(prefix)) return prefix
 
-  // If there's already a contract with that exact number, add ordinal suffix
-  if (sameMonth.length === 0) return prefix
+  let next = maxOrdinal + 1
+  while (taken.has(`${prefix}-${next}`)) next++
+  return `${prefix}-${next}`
+}
 
-  // Format: M/YYYY/L-N for subsequent contracts in same month
-  return `${prefix}-${nextOrdinal}`
+/**
+ * Numer umowy tworzonej z oferty: „UR/RRRR/MM/NNN”. Licznik = najwyższy numer
+ * w miesiącu + 1 (nie „ostatnio utworzona”), z pominięciem zajętych.
+ */
+export async function generateOfferContractNumber(date: Date = new Date()): Promise<string> {
+  const { year, month } = warsawYearMonth(date)
+  const prefix = `UR/${year}/${String(month).padStart(2, '0')}/`
+  const existing = await prisma.contract.findMany({
+    where: { number: { startsWith: prefix } },
+    select: { number: true },
+  })
+  const taken = new Set(existing.map((c) => c.number))
+  let max = 0
+  for (const n of taken) {
+    const m = n.slice(prefix.length).match(/^(\d+)$/)
+    if (m) max = Math.max(max, parseInt(m[1], 10))
+  }
+  let next = max + 1
+  while (taken.has(`${prefix}${String(next).padStart(3, '0')}`)) next++
+  return `${prefix}${String(next).padStart(3, '0')}`
+}
+
+/** Czy błąd to kolizja unikalności numeru umowy (np. dwie osoby tworzą umowę w tej samej chwili). */
+export function isContractNumberCollision(e: unknown): boolean {
+  const err = e as { code?: string; meta?: { target?: string[] | string } } | null
+  if (!err || err.code !== 'P2002') return false
+  const target = err.meta?.target
+  if (Array.isArray(target)) return target.includes('number')
+  if (typeof target === 'string') return target.includes('number')
+  return true
+}
+
+/**
+ * Tworzy umowę ze świeżym numerem; przy kolizji numeru (wyścig) losuje kolejny
+ * i ponawia. Inne błędy przepuszcza — wywołujący zamienia je na czytelny JSON.
+ */
+export async function createWithFreshNumber<T>(
+  generate: () => Promise<string>,
+  create: (number: string) => Promise<T>,
+  attempts = 5,
+): Promise<T> {
+  let lastError: unknown
+  for (let i = 0; i < attempts; i++) {
+    const number = await generate()
+    try {
+      return await create(number)
+    } catch (e) {
+      if (!isContractNumberCollision(e)) throw e
+      lastError = e
+    }
+  }
+  throw lastError
+}
+
+/** Krótki, bezpieczny do pokazania opis błędu tworzenia umowy. */
+export function contractCreateErrorMessage(e: unknown): string {
+  if (isContractNumberCollision(e)) return 'nie udało się nadać wolnego numeru umowy — spróbuj ponownie'
+  const err = e as { code?: string; message?: string } | null
+  if (err?.code === 'P2003') return 'jeden z lokali lub klient nie istnieje (odśwież stronę)'
+  if (err?.code === 'P2002') return 'taki wpis już istnieje (duplikat)'
+  if (err?.code) return `błąd bazy danych (${err.code})`
+  return 'błąd serwera'
 }
 
 export type UnitStageState = {

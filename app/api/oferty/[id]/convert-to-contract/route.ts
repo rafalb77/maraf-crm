@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { computeReservationFee, findClientUnitConflict } from '@/lib/contract-pricing'
+import { contractCreateErrorMessage, createWithFreshNumber, generateOfferContractNumber } from '@/lib/contracts'
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions)
@@ -22,19 +23,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: 'Oferta nie zawiera lokali z bazy (tylko niestandardowe pozycje)' }, { status: 400 })
   }
 
-  // Ustal numer umowy: UR/RRRR/MM/NNN
-  const now = new Date()
-  const yearMonth = `${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, '0')}`
-  const lastThisMonth = await prisma.contract.findFirst({
-    where: { number: { startsWith: `UR/${yearMonth}/` } },
-    orderBy: { createdAt: 'desc' },
-  })
-  let seq = 1
-  if (lastThisMonth?.number) {
-    const last = parseInt(lastThisMonth.number.split('/').pop() || '0', 10)
-    seq = (isNaN(last) ? 0 : last) + 1
-  }
-  const number = `UR/${yearMonth}/${String(seq).padStart(3, '0')}`
+  // Numer umowy UR/RRRR/MM/NNN nadaje generateOfferContractNumber (najwyższy w miesiącu + 1).
 
   // Settings — nazwa inwestycji
   const inv = await prisma.settings.findUnique({ where: { key: 'investmentName' } })
@@ -63,26 +52,37 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   // Utwórz umowę + powiązania + zarezerwuj lokale.
   // Bez wpisu contractClients dla głównego klienta — to on jest contract.client;
   // współrezerwujący doda się osobno (oferta ma jednego klienta).
-  const contract = await prisma.contract.create({
-    data: {
-      number,
-      type: 'REZERWACYJNA',
-      status: 'W_PRZYGOTOWANIU',
-      investmentName,
-      clientId: offer.clientId,
-      valueNet: offer.totalNet,
-      valueGross: offer.totalGross,
-      discount: offer.totalDiscountGross || null,
-      reservationFee,
-      reservationFeeDays: 7,
-      notes: `Utworzono na podstawie oferty ${offer.number}.${offer.notes ? '\n\n' + offer.notes : ''}`,
-      contractUnits: { create: contractUnitsData },
-      stages: { create: { stage: 'REZERWACYJNA', status: 'W_PRZYGOTOWANIU' } },
-      history: {
-        create: [{ event: 'UTWORZONA', details: `Z oferty ${offer.number}` }],
-      },
-    },
-  })
+  const clientId = offer.clientId
+  let contract
+  try {
+    contract = await createWithFreshNumber(
+      () => generateOfferContractNumber(),
+      (number) =>
+        prisma.contract.create({
+          data: {
+            number,
+            type: 'REZERWACYJNA',
+            status: 'W_PRZYGOTOWANIU',
+            investmentName,
+            clientId,
+            valueNet: offer.totalNet,
+            valueGross: offer.totalGross,
+            discount: offer.totalDiscountGross || null,
+            reservationFee,
+            reservationFeeDays: 7,
+            notes: `Utworzono na podstawie oferty ${offer.number}.${offer.notes ? '\n\n' + offer.notes : ''}`,
+            contractUnits: { create: contractUnitsData },
+            stages: { create: { stage: 'REZERWACYJNA', status: 'W_PRZYGOTOWANIU' } },
+            history: {
+              create: [{ event: 'UTWORZONA', details: `Z oferty ${offer.number}` }],
+            },
+          },
+        }),
+    )
+  } catch (e) {
+    console.error('[POST /api/oferty/[id]/convert-to-contract] tworzenie umowy nieudane:', e)
+    return NextResponse.json({ error: `Nie udało się utworzyć umowy: ${contractCreateErrorMessage(e)}.` }, { status: 500 })
+  }
 
   // Lokale → status ZAREZERWOWANY
   await prisma.unit.updateMany({
