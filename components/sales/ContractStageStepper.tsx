@@ -37,6 +37,7 @@ export function ContractStageStepper({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [editStage, setEditStage] = useState<ContractType | null>(null)
+  const [advanceOpen, setAdvanceOpen] = useState(false)
 
   const currentIdx = CONTRACT_STAGE_ORDER.indexOf(currentStage)
   const next = nextContractStage(currentStage)
@@ -60,13 +61,9 @@ export function ContractStageStepper({
     }
   }
 
-  const advance = () =>
-    next &&
-    move(
-      'advance',
-      `Przejść do etapu: ${CONTRACT_TYPE_LABELS[next]}?\nBieżący etap zostanie zachowany w osi.`,
-      'Nie udało się przejść do kolejnego etapu',
-    )
+  // Przejście dalej = podpisanie kończonego etapu: okno z datą i numerem aktu
+  // (zamiast samego potwierdzenia, po którym etap zostawał „bez daty podpisania”).
+  const advance = () => next && setAdvanceOpen(true)
 
   const revert = () =>
     prev &&
@@ -159,6 +156,129 @@ export function ContractStageStepper({
           onClose={() => setEditStage(null)}
         />
       )}
+      {advanceOpen && next && (
+        <AdvanceStageDialog
+          contractId={contractId}
+          current={currentStage}
+          next={next}
+          currentRow={stages.find((s) => s.stage === currentStage) || null}
+          onClose={() => setAdvanceOpen(false)}
+        />
+      )}
+    </div>
+  )
+}
+
+function todayIso(): string {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+/**
+ * Przejście do kolejnego etapu = zamknięcie bieżącego podpisem: data podpisania
+ * (wymagana), numer aktu/repertorium, opcjonalnie planowany termin podpisania
+ * następnego etapu. Endpoint zapisuje podpisanie w osi etapów ze skutkami jak
+ * „Oznacz jako podpisaną” i dopiero potem przesuwa deal.
+ */
+function AdvanceStageDialog({
+  contractId,
+  current,
+  next,
+  currentRow,
+  onClose,
+}: {
+  contractId: string
+  current: ContractType
+  next: ContractType
+  currentRow: StageRow | null
+  onClose: () => void
+}) {
+  const router = useRouter()
+  const [signedAt, setSignedAt] = useState(currentRow?.signedAt ? currentRow.signedAt.slice(0, 10) : todayIso())
+  const [number, setNumber] = useState(currentRow?.number || '')
+  const [nextPlanned, setNextPlanned] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const alreadySigned = currentRow?.status === 'PODPISANA' && !!currentRow.signedAt
+  const sellsUnits = next === 'DEWELOPERSKA' || next === 'PRZENIESIENIA'
+  const isNotarial = current !== 'REZERWACYJNA'
+
+  async function submit() {
+    if (!signedAt) { setError('Podaj datę podpisania'); return }
+    if (signedAt > todayIso()) { setError('Data podpisania nie może być z przyszłości'); return }
+    setBusy(true)
+    setError(null)
+    try {
+      const res = await fetch(`/api/contracts/${contractId}/advance`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ signedAt, number, nextPlannedSignDate: nextPlanned || undefined }),
+      })
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}))
+        throw new Error(d.error || 'Nie udało się przejść do kolejnego etapu')
+      }
+      onClose()
+      router.refresh()
+    } catch (e: any) {
+      setError(e.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => !busy && onClose()}>
+      <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 max-h-[90dvh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <h2 className="text-lg font-semibold text-gray-900 mb-1">Przejdź do etapu: {CONTRACT_TYPE_LABELS[next]}</h2>
+        <p className="text-xs text-gray-500 mb-4">
+          Zamykasz etap <strong>{CONTRACT_TYPE_LABELS[current]}</strong>
+          {alreadySigned ? ' (już podpisany — potwierdź lub popraw datę)' : ' — podaj datę jego podpisania'}
+          {isNotarial ? ' i numer aktu notarialnego' : ''}.
+          {sellsUnits ? ' Lokale umowy zostaną oznaczone jako sprzedane.' : ''}
+        </p>
+        <div className="space-y-3">
+          <div>
+            <label className="block text-xs text-gray-600 mb-1">Data podpisania: {CONTRACT_TYPE_LABELS[current]} *</label>
+            <input
+              type="date"
+              value={signedAt}
+              max={todayIso()}
+              onChange={(e) => setSignedAt(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-gray-600 mb-1">{isNotarial ? 'Numer aktu / repertorium' : 'Numer umowy / aktu (opcjonalnie)'}</label>
+            <input
+              value={number}
+              onChange={(e) => setNumber(e.target.value)}
+              placeholder={isNotarial ? 'np. Rep. A 1234/2026' : 'np. UR/2026/09/001'}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-gray-600 mb-1">Planowana data podpisania: {CONTRACT_TYPE_LABELS[next]} (opcjonalnie)</label>
+            <input
+              type="date"
+              value={nextPlanned}
+              onChange={(e) => setNextPlanned(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <p className="text-[11px] text-gray-400 mt-1">Pojawi się na karcie jako „Termin zawarcia umowy” nowego etapu.</p>
+          </div>
+        </div>
+        {error && <p className="text-sm text-red-600 mt-3">{error}</p>}
+        <div className="flex justify-end gap-2 mt-4 pt-4 border-t border-gray-100">
+          <button onClick={onClose} disabled={busy} className="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50">
+            Anuluj
+          </button>
+          <button onClick={submit} disabled={busy} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white rounded-lg text-sm font-medium">
+            {busy ? 'Przechodzę...' : `Podpisz i przejdź →`}
+          </button>
+        </div>
+      </div>
     </div>
   )
 }
