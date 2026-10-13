@@ -72,28 +72,30 @@ export default async function PrzychodyPage({ searchParams }: { searchParams: Se
           <option value="NONE">— bez kategorii —</option>
         </select>
         <div className="flex gap-2 justify-end">
-          {hasFilters && <Link href="/finanse/przychody" className="px-3 py-2 text-sm text-gray-600 hover:text-gray-900">Wyczyść</Link>}
+          {hasFilters && <Link href="/finanse/przychody" className="px-2 py-1.5 text-sm text-gray-600 hover:text-gray-900">Wyczyść</Link>}
           <button type="submit" className="bg-gray-900 hover:bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-medium">Filtruj</button>
         </div>
       </form>
 
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm min-w-[1080px] lg:min-w-0">
+          {/* text-xs + ciasne paddingi — 12 kolumn musi miescic sie na laptopie
+              bez poziomego scrolla (zgloszenie: "nie widac wszystkich kolumn"). */}
+          <table className="w-full text-xs min-w-[920px] lg:min-w-0">
             <thead className="bg-gray-50 border-b border-gray-200 text-left">
               <tr>
-                <th className="px-3 py-3 font-medium text-gray-700">Odbiorca</th>
-                <th className="px-3 py-3 font-medium text-gray-700">Nr FV</th>
-                <th className="px-3 py-3 font-medium text-gray-700">Wyst.</th>
-                <th className="px-3 py-3 font-medium text-gray-700">Termin</th>
-                <th className="px-3 py-3 font-medium text-gray-700 text-right">Netto</th>
-                <th className="px-3 py-3 font-medium text-gray-700 text-right">VAT</th>
-                <th className="px-3 py-3 font-medium text-gray-700 text-right">Brutto</th>
-                <th className="px-3 py-3 font-medium text-gray-700 text-right">Wpłacono</th>
-                <th className="px-3 py-3 font-medium text-gray-700 text-right">Pozostało</th>
-                <th className="px-3 py-3 font-medium text-gray-700">Status</th>
-                <th className="px-3 py-3 font-medium text-gray-700" title="Kategoria przychodu: Tynki (podwykonawstwo) / Inwestycja (nasza budowa)">Kategoria</th>
-                <th className="px-3 py-3 font-medium text-gray-700">Wpłata</th>
+                <th className="px-2 py-2.5 font-medium text-gray-700">Odbiorca</th>
+                <th className="px-2 py-2.5 font-medium text-gray-700">Nr FV</th>
+                <th className="px-2 py-2.5 font-medium text-gray-700">Wyst.</th>
+                <th className="px-2 py-2.5 font-medium text-gray-700">Termin</th>
+                <th className="px-2 py-2.5 font-medium text-gray-700 text-right">Netto</th>
+                <th className="px-2 py-2.5 font-medium text-gray-700 text-right">VAT</th>
+                <th className="px-2 py-2.5 font-medium text-gray-700 text-right">Brutto</th>
+                <th className="px-2 py-2.5 font-medium text-gray-700 text-right">Wpłacono</th>
+                <th className="px-2 py-2.5 font-medium text-gray-700 text-right">Pozostało</th>
+                <th className="px-2 py-2.5 font-medium text-gray-700">Status</th>
+                <th className="px-2 py-2.5 font-medium text-gray-700" title="Kategoria przychodu: Tynki (podwykonawstwo) / Inwestycja (nasza budowa)">Kategoria</th>
+                <th className="px-2 py-2.5 font-medium text-gray-700">Wpłata</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -107,7 +109,7 @@ export default async function PrzychodyPage({ searchParams }: { searchParams: Se
                 const overdue = isOverdue(inv.dueDate, inv.status === 'OPLACONA' ? 'OPLACONA' : 'WYSTAWIONA')
                 return (
                   <tr key={inv.id} className="hover:bg-gray-50">
-                    <td className="px-3 py-2">
+                    <td className="px-2 py-1.5">
                       <div className="font-medium text-gray-900 flex items-center gap-1.5">
                         {inv.recipientName}
                         {inv.recipientCompany && <span className="text-[10px] bg-purple-100 text-purple-700 px-1 rounded">{COMPANY_SHORT[inv.recipientCompany as Company] || inv.recipientCompany}</span>}
@@ -115,25 +117,25 @@ export default async function PrzychodyPage({ searchParams }: { searchParams: Se
                       </div>
                       <div className="text-xs text-gray-400">{COMPANY_SHORT[inv.company as Company] || inv.company}</div>
                     </td>
-                    <td className="px-3 py-2">
+                    <td className="px-2 py-1.5">
                       <Link href={`/finanse/przychody/${inv.id}`} className="text-blue-600 hover:underline font-mono text-xs">{inv.number}</Link>
                     </td>
-                    <td className="px-3 py-2 text-gray-600 tabular-nums whitespace-nowrap">{fmtDate(inv.issueDate)}</td>
-                    <td className={`px-3 py-2 tabular-nums whitespace-nowrap ${overdue ? 'text-red-600 font-semibold' : 'text-gray-600'}`}>{fmtDate(inv.dueDate)}{overdue && ' ⚠'}</td>
-                    <td className="px-3 py-2 text-right tabular-nums text-gray-700">{fmtMoney(inv.amountNet)}</td>
-                    <td className="px-3 py-2 text-right tabular-nums text-gray-700">{fmtMoney(inv.amountVat)}</td>
-                    <td className="px-3 py-2 text-right tabular-nums font-semibold text-gray-900">{fmtMoney(inv.amountGross)}</td>
-                    <td className="px-3 py-2 text-right tabular-nums text-gray-600">{paid > 0 ? fmtMoney(paid) : '—'}</td>
-                    <td className={`px-3 py-2 text-right tabular-nums font-semibold ${left > 0.01 ? 'text-red-600' : 'text-gray-400'}`}>{left > 0.01 ? fmtMoney(left) : '—'}</td>
-                    <td className="px-3 py-2">
+                    <td className="px-2 py-1.5 text-gray-600 tabular-nums whitespace-nowrap">{fmtDate(inv.issueDate)}</td>
+                    <td className={`px-2 py-1.5 tabular-nums whitespace-nowrap ${overdue ? 'text-red-600 font-semibold' : 'text-gray-600'}`}>{fmtDate(inv.dueDate)}{overdue && ' ⚠'}</td>
+                    <td className="px-2 py-1.5 text-right tabular-nums text-gray-700">{fmtMoney(inv.amountNet)}</td>
+                    <td className="px-2 py-1.5 text-right tabular-nums text-gray-700">{fmtMoney(inv.amountVat)}</td>
+                    <td className="px-2 py-1.5 text-right tabular-nums font-semibold text-gray-900">{fmtMoney(inv.amountGross)}</td>
+                    <td className="px-2 py-1.5 text-right tabular-nums text-gray-600">{paid > 0 ? fmtMoney(paid) : '—'}</td>
+                    <td className={`px-2 py-1.5 text-right tabular-nums font-semibold ${left > 0.01 ? 'text-red-600' : 'text-gray-400'}`}>{left > 0.01 ? fmtMoney(left) : '—'}</td>
+                    <td className="px-2 py-1.5">
                       <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${SALES_INVOICE_STATUS_COLORS[inv.status as SalesInvoiceStatus] || 'bg-gray-100 text-gray-700'}`}>
                         {SALES_INVOICE_STATUS_LABELS[inv.status as SalesInvoiceStatus] || inv.status}
                       </span>
                     </td>
-                    <td className="px-3 py-2">
+                    <td className="px-2 py-1.5">
                       <SalesCategoryCell invoiceId={inv.id} category={inv.category} />
                     </td>
-                    <td className="px-3 py-2">
+                    <td className="px-2 py-1.5">
                       <QuickPaymentCell
                         invoiceId={inv.id}
                         remaining={Math.round(left * 100) / 100}
@@ -148,10 +150,10 @@ export default async function PrzychodyPage({ searchParams }: { searchParams: Se
             {invoices.length > 0 && (
               <tfoot className="bg-gray-50 border-t-2 border-gray-300 font-semibold text-gray-900">
                 <tr>
-                  <td colSpan={4} className="px-3 py-3">Razem ({invoices.length})</td>
-                  <td className="px-3 py-3 text-right tabular-nums">{fmtMoney(sums._sum.amountNet || 0)}</td>
-                  <td className="px-3 py-3 text-right tabular-nums">{fmtMoney(sums._sum.amountVat || 0)}</td>
-                  <td className="px-3 py-3 text-right tabular-nums">{fmtMoney(sums._sum.amountGross || 0)}</td>
+                  <td colSpan={4} className="px-2 py-2.5">Razem ({invoices.length})</td>
+                  <td className="px-2 py-2.5 text-right tabular-nums">{fmtMoney(sums._sum.amountNet || 0)}</td>
+                  <td className="px-2 py-2.5 text-right tabular-nums">{fmtMoney(sums._sum.amountVat || 0)}</td>
+                  <td className="px-2 py-2.5 text-right tabular-nums">{fmtMoney(sums._sum.amountGross || 0)}</td>
                   <td colSpan={5}></td>
                 </tr>
               </tfoot>

@@ -14,12 +14,16 @@ type Props = {
   status: string
   kind: 'purchase' | 'sales' // kosztowa (płatność) vs przychodowa (wpłata)
   buttonLabel?: string // wlasna etykieta przycisku (default "+ płatność"/"+ wpłata")
+  // 'stack' (default): edytor pionowy — do waskich kolumn tabel.
+  // 'row': edytor w JEDNEJ linii — do list typu kolejka platnosci, gdzie
+  // pionowe rozwiniecie rozpychalo wiersz i caly widok "przeskakiwal".
+  layout?: 'stack' | 'row'
 }
 
 // Szybkie dodanie platnosci/wplaty z poziomu wiersza tabeli faktur.
 // Zwiniete: przycisk "+ płatność"/"+ wpłata". Rozwiniete: kwota (prefill
 // pozostalej) + data + zapis. Pelny formularz (tytul, notatka) — w szczegolach FV.
-export function QuickPaymentCell({ invoiceId, remaining, status, kind, buttonLabel }: Props) {
+export function QuickPaymentCell({ invoiceId, remaining, status, kind, buttonLabel, layout = 'stack' }: Props) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [amount, setAmount] = useState('')
@@ -80,6 +84,45 @@ export function QuickPaymentCell({ invoiceId, remaining, status, kind, buttonLab
       >
         {buttonLabel || `+ ${label}`}
       </button>
+    )
+  }
+
+  // Wariant poziomy: formularz jako NAKLADKA (absolute) nad wierszem —
+  // niewidzialny przycisk trzyma dokladnie te same wymiary komorki, wiec
+  // wiersz NIE zmienia wysokosci/szerokosci (lista nie "przeskakuje").
+  if (layout === 'row') {
+    return (
+      <div className="relative inline-block">
+        <button className="invisible inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium whitespace-nowrap" aria-hidden tabIndex={-1}>
+          {buttonLabel || `+ ${label}`}
+        </button>
+        <div className="absolute right-0 top-1/2 -translate-y-1/2 z-20 flex items-center gap-1.5 flex-nowrap bg-white border border-blue-300 rounded-lg shadow-md px-2 py-1.5">
+          <input
+            autoFocus
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') save(); if (e.key === 'Escape') setOpen(false) }}
+            className="px-2 py-1 border border-blue-300 rounded text-xs tabular-nums w-24"
+            placeholder="kwota"
+            title={`Pozostało: ${fmtMoney(remaining)}`}
+          />
+          <input
+            type="date"
+            value={paidAt}
+            onChange={(e) => setPaidAt(e.target.value)}
+            className="px-1.5 py-1 border border-blue-300 rounded text-xs w-[124px]"
+          />
+          <button
+            onClick={save}
+            disabled={saving || !amount || !paidAt}
+            className="bg-blue-600 hover:bg-blue-700 text-white rounded px-2.5 py-1 text-xs font-medium disabled:opacity-40 whitespace-nowrap"
+          >
+            {saving ? '…' : 'Zapisz'}
+          </button>
+          <button onClick={() => setOpen(false)} className="text-gray-400 hover:text-gray-600 text-sm px-0.5" title="Anuluj">✗</button>
+          {error && <span className="text-[11px] text-red-600" title={error}>⚠</span>}
+        </div>
+      </div>
     )
   }
 

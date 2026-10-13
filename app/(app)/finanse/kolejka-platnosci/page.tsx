@@ -64,7 +64,9 @@ export default async function KolejkaPlatnosciPage({ searchParams }: { searchPar
   const overdueOnly = searchParams.overdue === '1'
 
   // --- where ---
-  const filters: any[] = [{ company }, { status: { in: PAYABLE_STATUSES } }]
+  // amountGross > 0: KOREKTY (faktury ujemne z KSeF) nie sa platnosciami —
+  // nie maja czego "czekac" w kolejce; rozliczaja sie na fakturze pierwotnej.
+  const filters: any[] = [{ company }, { status: { in: PAYABLE_STATUSES } }, { amountGross: { gt: 0 } }]
   // Horyzont: termin <= dzis+N lub bez terminu. Przeterminowane (< dzis) zawsze
   // sie mieszcza. 'all' = bez ograniczenia terminu.
   if (horizonDate) filters.push({ OR: [{ dueDate: { lte: horizonDate } }, { dueDate: null }] })
@@ -88,7 +90,7 @@ export default async function KolejkaPlatnosciPage({ searchParams }: { searchPar
     filters.push({ category: searchParams.category })
   }
 
-  const [invoices, vendors] = await Promise.all([
+  const [invoicesRaw, vendors] = await Promise.all([
     prisma.purchaseInvoice.findMany({
       where: { AND: filters },
       include: { vendor: { select: { id: true, name: true } }, payments: { select: { amount: true } } },
@@ -96,8 +98,11 @@ export default async function KolejkaPlatnosciPage({ searchParams }: { searchPar
     prisma.vendor.findMany({ where: { isActive: true }, select: { id: true, name: true }, orderBy: { name: 'asc' } }),
   ])
 
-  type Row = (typeof invoices)[number]
+  type Row = (typeof invoicesRaw)[number]
   const remaining = (inv: Row) => Math.round((payableAmount(inv) - inv.payments.reduce((s, p) => s + p.amount, 0)) * 100) / 100
+  // Do kolejki tylko pozycje z REALNA kwota do zaplaty — faktury w pelni
+  // pokryte potraceniami (kaucja/KB/prad = 100%) lub nadplacone wypadaja.
+  const invoices = invoicesRaw.filter((i) => remaining(i) > 0.01)
 
   // --- sortowanie (w JS — obejmuje kwote liczona z payableAmount) ---
   const dAsc = (d: Date | null) => (d ? d.getTime() : Infinity)   // null na koniec
@@ -358,6 +363,7 @@ export default async function KolejkaPlatnosciPage({ searchParams }: { searchPar
                         status={inv.status}
                         kind="purchase"
                         buttonLabel="✓ Oznacz opłacone"
+                        layout="row"
                       />
                     </div>
                   )
