@@ -219,7 +219,7 @@ const WORKSPACES: Workspace[] = [
           { href: '/finanse/przychody', label: 'Faktury przychodowe', icon: ICONS.offers },
           { href: '/finanse/tynki', label: 'Przychody z tynków', icon: ICONS.stats },
           { href: '/finanse/podatki', label: 'Podatki (CIT/VAT)', icon: ICONS.dashboard },
-          { href: '/finanse/kaucje', label: 'Kaucje gwarancyjne', icon: ICONS.units },
+          { href: '/finanse/obciazenia', label: 'Obciążenia kontrahentów', icon: ICONS.units },
           { href: '/finanse/finansowanie', label: 'Finansowanie inwestycji', icon: ICONS.offers },
           { href: '/finanse/powiernicze', label: 'Rozliczenia powiernicze', icon: ICONS.sales },
           { href: '/finanse/kontrahenci', label: 'Kontrahenci', icon: ICONS.contractors },

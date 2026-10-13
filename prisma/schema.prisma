@@ -1096,6 +1096,30 @@ model Vendor {
 // wiersze per budowa (nazwa budowy jako identyfikator — do czasu modelu
 // Inwestycji). Sentinel '' zamiast null, bo unique z NULL w Postgres
 // nie wymusza unikalności (NULL != NULL).
+// Reczne obciazenie kontrahenta (modul Obciazenia kontrahentow) — glownie KARY
+// umowne. Kaucje/KB/prad pochodza z pol faktur (deposit/buildingCosts/
+// electricity); ten model trzyma pozycje bez faktury zrodlowej.
+// Grupowanie po vendorLabel = efektywny kontrahent (etykieta podwykonawcy
+// spod parasola STAFFA albo nazwa vendora) — spojnie z reszta finansow.
+model VendorCharge {
+  id             String    @id @default(cuid())
+  company        String    @default("MARAF")
+  vendorLabel    String    // efektywna nazwa kontrahenta (klucz grupowania)
+  vendorId       String?   // id vendora jesli istnieje (klucz miekki, bez relacji)
+  type           String    @default("KARA") // KARA | INNE (rezerwa)
+  title          String    // np. "Kara umowna — opoznienie etapu II"
+  amountNet      Float     // kwota NETTO obciazenia
+  chargedAt      DateTime  // data nalozenia
+  invoiceNumber  String?   // opcjonalna referencja (nr noty/FV)
+  notes          String?
+  settledAt      DateTime? // rozliczona (potracona/zaplacona); null = aktywna
+  createdByEmail String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([company, vendorLabel])
+}
+
 model VendorTerms {
   id                  String   @id @default(cuid())
   vendorId            String

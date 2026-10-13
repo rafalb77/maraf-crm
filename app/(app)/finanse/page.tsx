@@ -166,7 +166,7 @@ export default async function FinanseHomePage() {
 
       {(depositActive._count > 0) && (
         <Link
-          href="/finanse/kaucje"
+          href="/finanse/obciazenia"
           className="block bg-white rounded-xl border border-gray-200 hover:border-gray-300 p-5 mb-6 transition-colors"
         >
           <div className="flex items-center justify-between flex-wrap gap-2">
