@@ -48,5 +48,11 @@ export type VendorCharges = {
   netPrad: number
   netKary: number
   netTotal: number
+  // Sumy BRUTTO (kwoty potracen z platnosci); kary: brutto = netto (nota)
+  grossKaucje: number
+  grossKb: number
+  grossPrad: number
+  grossKary: number
+  grossTotal: number
   overdueReturns: number // kaucje po terminie zwrotu
 }

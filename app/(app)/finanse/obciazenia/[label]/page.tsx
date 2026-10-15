@@ -18,7 +18,7 @@ export default async function ObciazeniaKontrahentPage({ params }: { params: { l
   // Dopasowanie case-insensitive — etykiety bywaja roznie wpisane.
   const bucket = map.get(label)
     || [...map.values()].find((b) => b.label.toLowerCase() === label.toLowerCase())
-    || { label, umbrella: null, items: [], netKaucje: 0, netKb: 0, netPrad: 0, netKary: 0, netTotal: 0, overdueReturns: 0 }
+    || { label, umbrella: null, items: [], netKaucje: 0, netKb: 0, netPrad: 0, netKary: 0, netTotal: 0, grossKaucje: 0, grossKb: 0, grossPrad: 0, grossKary: 0, grossTotal: 0, overdueReturns: 0 }
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-6xl">
@@ -35,6 +35,9 @@ export default async function ObciazeniaKontrahentPage({ params }: { params: { l
         netPrad={bucket.netPrad}
         netKary={bucket.netKary}
         netTotal={bucket.netTotal}
+        grossKaucje={bucket.grossKaucje}
+        grossKb={bucket.grossKb}
+        grossTotal={bucket.grossTotal}
         overdueReturns={bucket.overdueReturns}
         isAdmin={isAdmin(session?.user?.email)}
       />

@@ -54,6 +54,10 @@ export default async function KontrahentPage({ params }: { params: { id: string 
   const totalAll = inv.reduce((s, i) => s + i.amountGross, 0)
   const total12 = inv.filter((i) => i.issueDate >= m12).reduce((s, i) => s + i.amountGross, 0)
   const ksefCount = inv.filter((i) => i.ksefNumber).length
+  // Odrzucone — pokazywane osobno w kafelku zakupow (nadal wliczone w obrot,
+  // bo kafelek to "calosc"; ich kaucje NIE wchodza do sumy kaucji ponizej).
+  const rejected = inv.filter((i) => i.status === 'ODRZUCONA')
+  const rejectedSum = rejected.reduce((s, i) => s + i.amountGross, 0)
 
   // --- Pozostalo do zaplaty (po potraceniach) ---
   const remaining = inv.filter((i) => UNPAID_STATUSES.has(i.status)).reduce((s, i) => {
@@ -61,13 +65,14 @@ export default async function KontrahentPage({ params }: { params: { id: string 
     return s + Math.max(0, i.amountGross - (i.deposit || 0) - (i.buildingCosts || 0) - (i.electricity || 0) - paid)
   }, 0)
 
-  // --- Kaucje ---
-  const heldDeposits = inv.filter((i) => (i.deposit || 0) > 0 && !i.depositReturnedAt)
+  // --- Kaucje --- (FV ODRZUCONE nie wchodza do sum kaucji — sporna faktura
+  // nie jest realnym zobowiazaniem zwrotu)
+  const heldDeposits = inv.filter((i) => (i.deposit || 0) > 0 && !i.depositReturnedAt && i.status !== 'ODRZUCONA')
   const heldSum = heldDeposits.reduce((s, i) => s + (i.deposit || 0), 0)
   const nextReturn = heldDeposits
     .filter((i) => i.depositReturnDate)
     .sort((a, b) => a.depositReturnDate!.getTime() - b.depositReturnDate!.getTime())[0]?.depositReturnDate ?? null
-  const returnedSum = inv.filter((i) => i.depositReturnedAt).reduce((s, i) => s + (i.deposit || 0), 0)
+  const returnedSum = inv.filter((i) => i.depositReturnedAt && i.status !== 'ODRZUCONA').reduce((s, i) => s + (i.deposit || 0), 0)
 
   // --- KB naliczone ---
   const kbSum = inv.reduce((s, i) => s + (i.buildingCosts || 0), 0)
@@ -158,7 +163,11 @@ export default async function KontrahentPage({ params }: { params: { id: string 
       {/* KPI */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <Kpi label="Zakupy — 12 mies." value={fmtMoney(total12)} />
-        <Kpi label="Zakupy — całość" value={fmtMoney(totalAll)} sub={`${inv.length} faktur`} />
+        <Kpi
+          label="Zakupy — całość"
+          value={fmtMoney(totalAll)}
+          sub={`${inv.length} FV${rejected.length ? ` (odrzuconych: ${rejected.length} szt • ${fmtMoneyShort(rejectedSum)})` : ''}`}
+        />
         <Kpi label="Pozostało do zapłaty" value={remaining > 0.01 ? fmtMoney(remaining) : '—'} tone={remaining > 0.01 ? 'red' : undefined} />
         <Kpi
           label="Kaucje zatrzymane"

@@ -86,7 +86,11 @@ export default async function FakturyListPage({
     }
   }
   if (searchParams.status) filters.push({ status: searchParams.status })
-  if (searchParams.category && (PURCHASE_INVOICE_CATEGORIES as readonly string[]).includes(searchParams.category)) {
+  if (searchParams.category === 'KOREKTY') {
+    // Zakladka "Korekty": faktury ujemne (korygujace z KSeF). To nie reczna
+    // kategoria — filtr po kwocie. Checkboxy w tabeli sumuja zaznaczone.
+    filters.push({ amountGross: { lt: 0 } })
+  } else if (searchParams.category && (PURCHASE_INVOICE_CATEGORIES as readonly string[]).includes(searchParams.category)) {
     // Zakladka kategorii: reczna kategoria FV LUB — dla FV bez recznej
     // kategorii — dziedziczona z grupy kontrahenta (foldery z Excela:
     // parasol STAFFA, sekcja STALE/INNE). Reczna kategoria WYGRYWA: FV od
@@ -247,6 +251,12 @@ export default async function FakturyListPage({
             active={searchParams.category === c}
           />
         ))}
+        {/* Korekty = faktury ujemne (korygujace) — filtr po kwocie, nie kategoria */}
+        <FolderTab
+          label="Korekty"
+          href={`/finanse/faktury${qs({ category: 'KOREKTY', folder: undefined, page: undefined })}`}
+          active={searchParams.category === 'KOREKTY'}
+        />
       </div>
 
       <form method="get" className="bg-white rounded-xl border border-gray-200 p-4 mb-4 grid grid-cols-1 md:grid-cols-6 gap-3">

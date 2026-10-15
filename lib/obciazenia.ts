@@ -44,7 +44,7 @@ export async function loadObciazenia(company: Company): Promise<Map<string, Vend
   const bucket = (label: string, umbrella: string | null): VendorCharges => {
     const k = label.trim()
     if (!map.has(k)) {
-      map.set(k, { label: k, umbrella, items: [], netKaucje: 0, netKb: 0, netPrad: 0, netKary: 0, netTotal: 0, overdueReturns: 0 })
+      map.set(k, { label: k, umbrella, items: [], netKaucje: 0, netKb: 0, netPrad: 0, netKary: 0, netTotal: 0, grossKaucje: 0, grossKb: 0, grossPrad: 0, grossKary: 0, grossTotal: 0, overdueReturns: 0 })
     }
     const b = map.get(k)!
     if (!b.umbrella && umbrella) b.umbrella = umbrella
@@ -79,7 +79,7 @@ export async function loadObciazenia(company: Company): Promise<Map<string, Vend
         returnDate: inv.depositReturnDate ? inv.depositReturnDate.toISOString() : null,
         returnedAt: inv.depositReturnedAt ? inv.depositReturnedAt.toISOString() : null,
       })
-      if (!returned) b.netKaucje = r2(b.netKaucje + net)
+      if (!returned) { b.netKaucje = r2(b.netKaucje + net); b.grossKaucje = r2(b.grossKaucje + inv.deposit) }
       if (overdue) b.overdueReturns++
     }
     if (inv.buildingCosts && inv.buildingCosts > 0) {
@@ -96,6 +96,7 @@ export async function loadObciazenia(company: Company): Promise<Map<string, Vend
         returnedAt: null,
       })
       b.netKb = r2(b.netKb + net)
+      b.grossKb = r2(b.grossKb + inv.buildingCosts)
     }
     if (inv.electricity && inv.electricity > 0) {
       const net = netOf(inv.electricity, inv.vatRate)
@@ -111,6 +112,7 @@ export async function loadObciazenia(company: Company): Promise<Map<string, Vend
         returnedAt: null,
       })
       b.netPrad = r2(b.netPrad + net)
+      b.grossPrad = r2(b.grossPrad + inv.electricity)
     }
   }
 
@@ -133,11 +135,12 @@ export async function loadObciazenia(company: Company): Promise<Map<string, Vend
       settledAt: c.settledAt ? c.settledAt.toISOString() : null,
       notes: c.notes,
     })
-    if (!c.settledAt) b.netKary = r2(b.netKary + c.amountNet)
+    if (!c.settledAt) { b.netKary = r2(b.netKary + c.amountNet); b.grossKary = r2(b.grossKary + c.amountNet) }
   }
 
   for (const b of map.values()) {
     b.netTotal = r2(b.netKaucje + b.netKb + b.netPrad + b.netKary)
+    b.grossTotal = r2(b.grossKaucje + b.grossKb + b.grossPrad + b.grossKary)
     b.items.sort((a, x) => x.date.localeCompare(a.date))
   }
   return map

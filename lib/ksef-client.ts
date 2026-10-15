@@ -814,6 +814,12 @@ export async function syncCompanyFromKsef(
       // Nowa faktura z KSeF: domyslnie POBRANA (pobrana automatycznie).
       // ING Leasing = platnosc automatyczna (polecenie zaplaty) -> OPLACONA.
       let out = ksefPaymentOutcome(parsed, 'POBRANA')
+      // KOREKTY (ujemne) nie czekaja na akceptacje — od razu ZATWIERDZONA.
+      // Nie sa platnoscia (kolejka je pomija), a maja byc widoczne w zakladce
+      // "Korekty" bez recznego klikania.
+      if (parsed.amountGross < 0) {
+        out = { status: 'ZATWIERDZONA', paidTotal: 0, paidAt: parsed.paidDate || parsed.issueDate }
+      }
       if (out.status !== 'OPLACONA' && out.status !== 'CZESCIOWO_OPLACONA' && parsed.amountGross > 0 && isIngLeasing(vendor!.name)) {
         out = { status: 'OPLACONA', paidTotal: parsed.amountGross, paidAt: parsed.paidDate || parsed.dueDate || parsed.issueDate }
       }

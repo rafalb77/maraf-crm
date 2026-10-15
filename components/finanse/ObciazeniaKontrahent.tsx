@@ -14,6 +14,9 @@ type Props = {
   netPrad: number
   netKary: number
   netTotal: number
+  grossKaucje: number
+  grossKb: number
+  grossTotal: number
   overdueReturns: number
   isAdmin: boolean
 }
@@ -71,9 +74,14 @@ export function ObciazeniaKontrahent(p: Props) {
     <div>
       {/* KPI */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-3">
-        <Kpi label="Razem obciążenia netto" value={fmtMoney(p.netTotal)} bold />
-        <Kpi label="Kaucje (trzymane)" value={fmtMoney(p.netKaucje)} sub={p.overdueReturns > 0 ? `⚠ ${p.overdueReturns} po terminie zwrotu` : undefined} warn={p.overdueReturns > 0} />
-        <Kpi label="Koszty budowy" value={fmtMoney(p.netKb)} />
+        <Kpi label="Razem obciążenia netto" value={fmtMoney(p.netTotal)} sub={`brutto: ${fmtMoney(p.grossTotal)}`} bold />
+        <Kpi
+          label="Kaucje (trzymane)"
+          value={fmtMoney(p.netKaucje)}
+          sub={p.overdueReturns > 0 ? `brutto: ${fmtMoney(p.grossKaucje)} • ⚠ ${p.overdueReturns} po terminie zwrotu` : `brutto: ${fmtMoney(p.grossKaucje)}`}
+          warn={p.overdueReturns > 0}
+        />
+        <Kpi label="Koszty budowy" value={fmtMoney(p.netKb)} sub={`brutto: ${fmtMoney(p.grossKb)}`} />
         <Kpi label="Kary (aktywne)" value={fmtMoney(p.netKary)} />
         <Kpi label="Prąd" value={fmtMoney(p.netPrad)} />
       </div>

@@ -430,20 +430,33 @@ function StatusCell({ invoiceId, status }: { invoiceId: string; status: string }
     }
   }
 
+  const badge = (
+    <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
+      PURCHASE_INVOICE_STATUS_COLORS[status as PurchaseInvoiceStatus] || 'bg-gray-100 text-gray-700'
+    }`}>
+      {PURCHASE_INVOICE_STATUS_LABELS[status as PurchaseInvoiceStatus] || status}
+    </span>
+  )
+
   if (editing) {
+    // Select jako NAKLADKA nad komorka (niewidzialny badge trzyma wymiary) —
+    // wiersz nie zmienia wysokosci i lista nie "przeskakuje" przy edycji.
     return (
-      <select
-        autoFocus
-        defaultValue={status}
-        disabled={saving}
-        onChange={(e) => save(e.target.value)}
-        onBlur={() => setEditing(false)}
-        onKeyDown={(e) => { if (e.key === 'Escape') setEditing(false) }}
-        className="w-full px-1 py-0.5 border border-blue-300 rounded text-xs disabled:opacity-50"
-      >
-        {ALL_STATUSES.map((s) => <option key={s} value={s}>{PURCHASE_INVOICE_STATUS_LABELS[s]}</option>)}
-        {!ALL_STATUSES.includes(status as PurchaseInvoiceStatus) && <option value={status}>{status}</option>}
-      </select>
+      <div className="relative inline-block">
+        <span className="invisible">{badge}</span>
+        <select
+          autoFocus
+          defaultValue={status}
+          disabled={saving}
+          onChange={(e) => save(e.target.value)}
+          onBlur={() => setEditing(false)}
+          onKeyDown={(e) => { if (e.key === 'Escape') setEditing(false) }}
+          className="absolute left-0 top-1/2 -translate-y-1/2 z-20 w-44 px-1.5 py-1 border border-blue-300 rounded-lg bg-white shadow-md text-xs disabled:opacity-50"
+        >
+          {ALL_STATUSES.map((s) => <option key={s} value={s}>{PURCHASE_INVOICE_STATUS_LABELS[s]}</option>)}
+          {!ALL_STATUSES.includes(status as PurchaseInvoiceStatus) && <option value={status}>{status}</option>}
+        </select>
+      </div>
     )
   }
 
@@ -454,11 +467,7 @@ function StatusCell({ invoiceId, status }: { invoiceId: string; status: string }
       className="block text-left"
       title="Kliknij aby zmienić status"
     >
-      <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
-        PURCHASE_INVOICE_STATUS_COLORS[status as PurchaseInvoiceStatus] || 'bg-gray-100 text-gray-700'
-      }`}>
-        {PURCHASE_INVOICE_STATUS_LABELS[status as PurchaseInvoiceStatus] || status}
-      </span>
+      {badge}
     </button>
   )
 }
@@ -490,21 +499,27 @@ function CategoryCell({ invoiceId, category, company }: { invoiceId: string; cat
   }
 
   if (editing) {
+    // Nakladka jak w StatusCell — zero zmiany wymiarow wiersza.
     return (
-      <select
-        autoFocus
-        defaultValue={category || ''}
-        disabled={saving}
-        onChange={(e) => save(e.target.value)}
-        onBlur={() => setEditing(false)}
-        onKeyDown={(e) => { if (e.key === 'Escape') setEditing(false) }}
-        className="w-full px-1 py-0.5 border border-blue-300 rounded text-xs disabled:opacity-50"
-      >
-        <option value="">— brak —</option>
-        {purchaseCategoriesFor(company).map((c) => (
-          <option key={c} value={c}>{PURCHASE_INVOICE_CATEGORY_LABELS[c]}</option>
-        ))}
-      </select>
+      <div className="relative inline-block">
+        <span className="invisible inline-block px-2 py-0.5 text-xs font-medium">
+          {category ? (PURCHASE_INVOICE_CATEGORY_LABELS[category as PurchaseInvoiceCategory] || category) : '+ ustaw'}
+        </span>
+        <select
+          autoFocus
+          defaultValue={category || ''}
+          disabled={saving}
+          onChange={(e) => save(e.target.value)}
+          onBlur={() => setEditing(false)}
+          onKeyDown={(e) => { if (e.key === 'Escape') setEditing(false) }}
+          className="absolute left-0 top-1/2 -translate-y-1/2 z-20 w-40 px-1.5 py-1 border border-blue-300 rounded-lg bg-white shadow-md text-xs disabled:opacity-50"
+        >
+          <option value="">— brak —</option>
+          {purchaseCategoriesFor(company).map((c) => (
+            <option key={c} value={c}>{PURCHASE_INVOICE_CATEGORY_LABELS[c]}</option>
+          ))}
+        </select>
+      </div>
     )
   }
 

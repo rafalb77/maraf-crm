@@ -26,6 +26,9 @@ export default async function ObciazeniaPage({ searchParams }: { searchParams: S
   const sumKary = r2(rows.reduce((s, b) => s + b.netKary, 0))
   const sumPrad = r2(rows.reduce((s, b) => s + b.netPrad, 0))
   const sumTotal = r2(sumKaucje + sumKb + sumKary + sumPrad)
+  const sumKaucjeGr = r2(rows.reduce((s, b) => s + b.grossKaucje, 0))
+  const sumKbGr = r2(rows.reduce((s, b) => s + b.grossKb, 0))
+  const sumTotalGr = r2(rows.reduce((s, b) => s + b.grossTotal, 0))
   const overdue = rows.reduce((s, b) => s + b.overdueReturns, 0)
 
   return (
@@ -40,9 +43,9 @@ export default async function ObciazeniaPage({ searchParams }: { searchParams: S
 
       {/* Sumy globalne */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-5">
-        <Kpi label="Razem obciążenia" value={fmtMoney(sumTotal)} bold />
-        <Kpi label="Kaucje (trzymane)" value={fmtMoney(sumKaucje)} tone="amber" />
-        <Kpi label="Koszty budowy" value={fmtMoney(sumKb)} tone="blue" />
+        <Kpi label="Razem obciążenia" value={fmtMoney(sumTotal)} sub={`brutto: ${fmtMoney(sumTotalGr)}`} bold />
+        <Kpi label="Kaucje (trzymane)" value={fmtMoney(sumKaucje)} sub={`brutto: ${fmtMoney(sumKaucjeGr)}`} tone="amber" />
+        <Kpi label="Koszty budowy" value={fmtMoney(sumKb)} sub={`brutto: ${fmtMoney(sumKbGr)}`} tone="blue" />
         <Kpi label="Kary (aktywne)" value={fmtMoney(sumKary)} tone="rose" />
         <Kpi label="Prąd" value={fmtMoney(sumPrad)} tone="sky" />
       </div>
@@ -92,8 +95,8 @@ export default async function ObciazeniaPage({ searchParams }: { searchParams: S
                       <div className="text-xs text-red-600">⚠ {b.overdueReturns} {b.overdueReturns === 1 ? 'kaucja po terminie' : 'kaucji po terminie'}</div>
                     )}
                   </td>
-                  <Num v={b.netKaucje} />
-                  <Num v={b.netKb} />
+                  <NumGr net={b.netKaucje} gross={b.grossKaucje} />
+                  <NumGr net={b.netKb} gross={b.grossKb} />
                   <Num v={b.netKary} tone={b.netKary > 0 ? 'rose' : undefined} />
                   <Num v={b.netPrad} />
                   <td className="px-4 py-2.5 text-right tabular-nums font-semibold text-gray-900">{fmtMoney(b.netTotal)}</td>
@@ -105,11 +108,11 @@ export default async function ObciazeniaPage({ searchParams }: { searchParams: S
               <tfoot className="bg-gray-50 border-t-2 border-gray-300 font-semibold text-gray-900">
                 <tr>
                   <td className="px-4 py-3">Razem ({rows.length})</td>
-                  <td className="px-4 py-3 text-right tabular-nums">{fmtMoney(sumKaucje)}</td>
-                  <td className="px-4 py-3 text-right tabular-nums">{fmtMoney(sumKb)}</td>
+                  <td className="px-4 py-3 text-right tabular-nums">{fmtMoney(sumKaucje)}<div className="text-[10px] text-gray-400 font-normal">br. {fmtMoney(sumKaucjeGr)}</div></td>
+                  <td className="px-4 py-3 text-right tabular-nums">{fmtMoney(sumKb)}<div className="text-[10px] text-gray-400 font-normal">br. {fmtMoney(sumKbGr)}</div></td>
                   <td className="px-4 py-3 text-right tabular-nums">{fmtMoney(sumKary)}</td>
                   <td className="px-4 py-3 text-right tabular-nums">{fmtMoney(sumPrad)}</td>
-                  <td className="px-4 py-3 text-right tabular-nums">{fmtMoney(sumTotal)}</td>
+                  <td className="px-4 py-3 text-right tabular-nums">{fmtMoney(sumTotal)}<div className="text-[10px] text-gray-400 font-normal">br. {fmtMoney(sumTotalGr)}</div></td>
                   <td></td>
                 </tr>
               </tfoot>
@@ -126,7 +129,7 @@ export default async function ObciazeniaPage({ searchParams }: { searchParams: S
   )
 }
 
-function Kpi({ label, value, bold, tone }: { label: string; value: string; bold?: boolean; tone?: 'amber' | 'blue' | 'rose' | 'sky' }) {
+function Kpi({ label, value, sub, bold, tone }: { label: string; value: string; sub?: string; bold?: boolean; tone?: 'amber' | 'blue' | 'rose' | 'sky' }) {
   const tones = {
     amber: 'text-amber-700', blue: 'text-blue-700', rose: 'text-rose-700', sky: 'text-sky-700',
   }
@@ -134,7 +137,24 @@ function Kpi({ label, value, bold, tone }: { label: string; value: string; bold?
     <div className="bg-white rounded-xl border border-gray-200 p-4">
       <p className="text-xs text-gray-500 uppercase font-semibold">{label}</p>
       <p className={`tabular-nums mt-1 ${bold ? 'text-xl font-bold text-gray-900' : `text-lg font-semibold ${tone ? tones[tone] : 'text-gray-900'}`}`}>{value}</p>
+      {sub && <p className="text-[11px] text-gray-400 mt-0.5 tabular-nums">{sub}</p>}
     </div>
+  )
+}
+
+// Netto + brutto (mala linia) — dla kaucji i KB.
+function NumGr({ net, gross }: { net: number; gross: number }) {
+  return (
+    <td className="px-4 py-2.5 text-right tabular-nums">
+      {net > 0.004 ? (
+        <>
+          <span className="text-gray-700">{fmtMoney(net)}</span>
+          <div className="text-[10px] text-gray-400">br. {fmtMoney(gross)}</div>
+        </>
+      ) : (
+        <span className="text-gray-300">—</span>
+      )}
+    </td>
   )
 }
 
