@@ -115,7 +115,8 @@ export default async function KolejkaPlatnosciPage({ searchParams }: { searchPar
     'vendor-asc': (a, b) => a.vendor.name.localeCompare(b.vendor.name, 'pl', { sensitivity: 'base' }),
     'issueDate-asc': (a, b) => a.issueDate.getTime() - b.issueDate.getTime(),
   }
-  const sortRows = (rows: Row[]) => [...rows].sort(comparators[sort])
+  // Fallback id: deterministyczna kolejnosc przy remisach (ta sama data/kwota)
+  const sortRows = (rows: Row[]) => [...rows].sort((a, b) => comparators[sort](a, b) || a.id.localeCompare(b.id))
 
   const totalRemaining = invoices.reduce((s, r) => s + remaining(r), 0)
   const overdueRows = invoices.filter((i) => isOverdue(i.dueDate, i.status))

@@ -39,7 +39,9 @@ export default async function PrzychodyPage({ searchParams }: { searchParams: Se
   const [invoices, sums] = await Promise.all([
     prisma.salesInvoice.findMany({
       where,
-      orderBy: { issueDate: 'desc' },
+      // id = tiebreaker: stabilna kolejnosc przy tej samej dacie (bez niego
+      // UPDATE wiersza przestawial fakture w obrebie grupy dat)
+      orderBy: [{ issueDate: 'desc' }, { id: 'asc' }],
       include: { payments: { select: { amount: true } } },
       take: 300,
     }),

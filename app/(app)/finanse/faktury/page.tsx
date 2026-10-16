@@ -135,7 +135,10 @@ export default async function FakturyListPage({
   const [invoices, total, vendors, statusCountsRaw, sums, paymentsSum] = await Promise.all([
     prisma.purchaseInvoice.findMany({
       where,
-      orderBy: sortDef.orderBy,
+      // Tiebreaker id: przy remisie (np. ta sama data wystawienia) kolejnosc
+      // musi byc DETERMINISTYCZNA — bez tego Postgres po UPDATE (np. zmianie
+      // statusu) przestawial fakture na koniec grupy ("ucieka na dol listy").
+      orderBy: [...(Array.isArray(sortDef.orderBy) ? sortDef.orderBy : [sortDef.orderBy]), { id: 'asc' }],
       include: {
         vendor: { select: { name: true } },
         payments: { select: { amount: true } },
