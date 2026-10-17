@@ -12,6 +12,10 @@
  *   [B] lokal jest na umowie W_PRZYGOTOWANIU, która ma w osi etapów datę
  *       podpisania (ołówek przy etapie) — umowa wygląda na podpisaną, ale
  *       formalnie nie jest: trzeba „Oznacz jako podpisaną" na karcie umowy.
+ *   [E] lokal jest na umowie W_PRZYGOTOWANIU bez żadnej daty podpisania —
+ *       w systemie umowa nie jest podpisana (choć papier może być): „Oznacz
+ *       jako podpisaną" na karcie umowy. Miękka po terminie nie wygasa sama,
+ *       bo strażnik w lib/reservations.ts chroni lokale na aktywnych umowach.
  *   [C] klient ma aktywną umowę, ale TEN lokal nie jest jej składnikiem —
  *       osobna rezerwacja miękka (np. dodatkowe miejsce postojowe); zwykle
  *       zamierzona, do decyzji.
@@ -122,11 +126,13 @@ async function main() {
       ? client.contracts.filter((c) => !c.contractUnits.some((cu) => cu.unitId === u.id))
       : []
 
+    const prepNoDate = onContracts.filter((c) => c.status === 'W_PRZYGOTOWANIU' && !prepWithSignedStage.includes(c))
     let cat = 'D'
     if (signedOn.length) cat = 'A'
     else if (prepWithSignedStage.length) cat = 'B'
+    else if (prepNoDate.length) cat = 'E'
     else if (clientContractsElsewhere.length) cat = 'C'
-    counts[cat]++
+    counts[cat] = (counts[cat] || 0) + 1
 
     console.log(`[${cat}] ${u.number.padEnd(10)} ${u.type.padEnd(10)} status=${u.status.padEnd(13)} miękka do ${fmtD(u.reservationExpiresAt)}${expired ? ' (PO TERMINIE)' : ''}  klient: ${clientName}${client ? ` [${client.status}]` : ''}  (zmiana lokalu ${fmtDT(u.updatedAt)})`)
     for (const c of onContracts) {
@@ -147,13 +153,17 @@ async function main() {
       toFix.push({ unit: u, contract: c, target })
     } else if (cat === 'B') {
       console.log(`       → umowa ${prepWithSignedStage[0].number} ma datę podpisania w osi etapów, ale status W_PRZYGOTOWANIU — na karcie umowy użyj „Oznacz jako podpisaną” (ustawi lokal i status klienta)`)
+    } else if (cat === 'E') {
+      console.log(`       → umowa ${prepNoDate[0].number} jest W PRZYGOTOWANIU bez żadnej daty podpisania: w systemie NIE jest podpisana. Jeśli papier jest podpisany — na karcie umowy „Oznacz jako podpisaną” z datą (lokal stanie się rezerwacją twardą, klient → Umowa). Miękka po terminie nie wygasa sama, bo lokal jest na aktywnej umowie.`)
     } else if (cat === 'C') {
       console.log(`       → ten lokal nie jest na umowie klienta — osobna rezerwacja miękka (dodać do umowy przez „Edytuj składniki” albo zwolnić)`)
     }
     console.log('')
   }
 
-  console.log(`Podsumowanie: [A] na podpisanej umowie: ${counts.A}, [B] umowa z datą w osi, ale W_PRZYGOTOWANIU: ${counts.B}, [C] lokal poza umową klienta: ${counts.C}, [D] zwykłe miękkie: ${counts.D}.`)
+  console.log(
+    `Podsumowanie: [A] na podpisanej umowie: ${counts.A}, [B] umowa z datą w osi, ale W_PRZYGOTOWANIU: ${counts.B}, [E] umowa W_PRZYGOTOWANIU bez daty: ${counts.E || 0}, [C] lokal poza umową klienta: ${counts.C}, [D] zwykłe miękkie bez umowy: ${counts.D}.`,
+  )
 
   if (toFix.length && apply) {
     for (const { unit, contract, target } of toFix) {
