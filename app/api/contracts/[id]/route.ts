@@ -111,6 +111,16 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       })
       historyEvents[historyEvents.length - 1].details =
         `${contract.status} → PODPISANA (data podpisania ${signedDate.toLocaleDateString('pl-PL', { timeZone: 'Europe/Warsaw', day: '2-digit', month: '2-digit', year: 'numeric' })}${stageNumber ? `, akt ${stageNumber}` : ''})`
+    } else if (newStatus === 'W_PRZYGOTOWANIU' && contract.status === 'PODPISANA') {
+      // Cofnięcie podpisania: etap w osi wraca do „w przygotowaniu" bez daty —
+      // inaczej karta pokazywała „Podpisana <data>" przy statusie W przygotowaniu,
+      // a zestawienie dla banku liczyło taki etap jako podpisany. Ponowne
+      // podpisanie i tak wymaga podania daty. Lokali nie ruszamy.
+      data.signedAt = null
+      await prisma.contractStage.updateMany({
+        where: { contractId: contract.id, stage: contract.type },
+        data: { status: 'W_PRZYGOTOWANIU', signedAt: null },
+      })
     } else if (newStatus === 'ROZWIAZANA' || newStatus === 'ANULOWANA') {
       // Release units
       const unitIds = contract.contractUnits.map((cu) => cu.unitId)
