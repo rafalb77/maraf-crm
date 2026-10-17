@@ -69,7 +69,20 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     })
 
     if (newStatus === 'PODPISANA') {
-      data.signedAt = body.signedAt ? new Date(body.signedAt) : new Date()
+      // Umowa jest podpisana dopiero po podaniu daty podpisania (10.2026) —
+      // wcześniej brak daty = „dziś", co fałszowało daty wpisywane z opóźnieniem.
+      const signedRaw = typeof body.signedAt === 'string' ? body.signedAt.trim() : ''
+      if (!signedRaw) {
+        return NextResponse.json({ error: 'Podaj datę podpisania — bez niej umowa nie zostanie oznaczona jako podpisana.' }, { status: 400 })
+      }
+      const signedDate = new Date(signedRaw)
+      if (isNaN(signedDate.getTime())) return NextResponse.json({ error: 'Nieprawidłowa data podpisania.' }, { status: 400 })
+      if (signedDate > new Date(Date.now() + 24 * 3600 * 1000)) {
+        return NextResponse.json({ error: 'Data podpisania nie może być z przyszłości.' }, { status: 400 })
+      }
+      data.signedAt = signedDate
+      const stageNumber: string | undefined =
+        typeof body.stageNumber === 'string' && body.stageNumber.trim() ? body.stageNumber.trim() : undefined
 
       // Podpisanie umowy ustawia lokale wg etapu: rezerwacyjna → ZAREZERWOWANY,
       // deweloperska/przeniesienia (wiążąca sprzedaż) → SPRZEDANY.
@@ -93,9 +106,11 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       // Zapisz podpisanie BIEŻĄCEGO etapu w osi etapów (data + status).
       await prisma.contractStage.upsert({
         where: { contractId_stage: { contractId: contract.id, stage: contract.type } },
-        create: { contractId: contract.id, stage: contract.type, status: 'PODPISANA', signedAt: data.signedAt },
-        update: { status: 'PODPISANA', signedAt: data.signedAt },
+        create: { contractId: contract.id, stage: contract.type, status: 'PODPISANA', signedAt: data.signedAt, number: stageNumber ?? null },
+        update: { status: 'PODPISANA', signedAt: data.signedAt, ...(stageNumber ? { number: stageNumber } : {}) },
       })
+      historyEvents[historyEvents.length - 1].details =
+        `${contract.status} → PODPISANA (data podpisania ${signedDate.toLocaleDateString('pl-PL', { timeZone: 'Europe/Warsaw', day: '2-digit', month: '2-digit', year: 'numeric' })}${stageNumber ? `, akt ${stageNumber}` : ''})`
     } else if (newStatus === 'ROZWIAZANA' || newStatus === 'ANULOWANA') {
       // Release units
       const unitIds = contract.contractUnits.map((cu) => cu.unitId)

@@ -217,8 +217,8 @@ export default async function ContractDetailPage({ params }: { params: { id: str
             clientEmail={contract.client.email}
             isReservation={contract.type === 'REZERWACYJNA'}
           />
-          {contract.status !== 'PODPISANA' && <MarkSignedButton contractId={contract.id} />}
-          <ContractStatusChanger contractId={contract.id} currentStatus={contract.status as ContractStatus} />
+          {contract.status !== 'PODPISANA' && <MarkSignedButton contractId={contract.id} contractType={contract.type} />}
+          <ContractStatusChanger contractId={contract.id} currentStatus={contract.status as ContractStatus} contractType={contract.type} />
           <DeleteContractButton id={contract.id} number={contract.number} />
         </div>
       </div>
