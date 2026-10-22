@@ -138,14 +138,29 @@ export default async function ProtokolPage({ params, searchParams }: { params: {
       </table>
       <p className="mt-2">Wykonawca robót zobowiązuje się usunąć usterki wymienione w załączniku w podanych terminach i zgłosić je do ponownego odbioru. Stwierdzone usterki nieistotne nie wstrzymują odbioru; ich usunięcie zostanie potwierdzone protokołem ponownego odbioru. Załącznik nr 1 (rzut z zaznaczeniem usterek, legenda i szczegółowa lista wad) stanowi integralną część protokołu.</p>
 
-      <div className="mt-8 grid grid-cols-2 gap-8">
-        {signers.slice(0, 6).map((a) => (
-          <div key={a.id} className="pt-8 text-center">
-            <div className="border-t border-black pt-1">{a.name}{a.company ? `, ${a.company}` : ''}</div>
-            <div className="text-[10px] text-gray-600">{ATTENDEE_ROLE_LABELS[a.role as AttendeeRole] || 'podpis'}</div>
-          </div>
-        ))}
+      <div className="mt-6 grid grid-cols-2 gap-8">
+        {signers.slice(0, 6).map((a) => {
+          const sig = 'signatureUrl' in a ? (a as { signatureUrl: string | null; signedAt: Date | null }) : null
+          return (
+            <div key={a.id} className="avoid-break text-center">
+              <div className="flex h-[22mm] items-end justify-center">
+                {sig?.signatureUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={sig.signatureUrl} alt="podpis" className="max-h-[22mm] max-w-[60mm] object-contain" />
+                ) : null}
+              </div>
+              <div className="border-t border-black pt-1">{a.name}{a.company ? `, ${a.company}` : ''}</div>
+              <div className="text-[10px] text-gray-600">
+                {ATTENDEE_ROLE_LABELS[a.role as AttendeeRole] || 'podpis'}
+                {sig?.signedAt ? ` · podpis elektroniczny ${formatDateTimePl(sig.signedAt)}` : ''}
+              </div>
+            </div>
+          )
+        })}
       </div>
+      {present.some((a) => a.signatureUrl) && (
+        <p className="mt-3 text-[9px] text-gray-600">Podpisy złożone odręcznie na urządzeniu mobilnym generalnego wykonawcy w dniu odbioru; czas złożenia, konto użytkownika i urządzenie zapisane w rejestrze systemu CRM MARAF (forma dokumentowa, art. 77² Kodeksu cywilnego).</p>
+      )}
 
       {/* ===== ZAŁĄCZNIK: RZUT NA CAŁĄ STRONĘ ===== */}
       <div className="page-break">

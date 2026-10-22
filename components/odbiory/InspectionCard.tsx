@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Tablet, CheckSquare, Printer, Send, Copy, ExternalLink, Users, ListChecks, FileText, Flag, Pencil, Trash2, X, Check } from 'lucide-react'
+import { Tablet, CheckSquare, Printer, Send, Copy, ExternalLink, Users, ListChecks, FileText, Flag, Pencil, Trash2, X, Check, PenLine } from 'lucide-react'
 import {
   ATTENDEE_ROLES,
   ATTENDEE_ROLE_LABELS,
@@ -28,6 +28,7 @@ import {
 import { formatDatePl, formatDateTimePl, unitShortLabel } from '@/lib/odbiory/codes'
 import type { SnapshotDefect } from '@/lib/odbiory/types'
 import { isSessionExpired } from '@/lib/api-client'
+import { SignaturePadModal } from './SignaturePadModal'
 
 export type InspectionDetail = {
   id: string
@@ -66,6 +67,8 @@ type Attendee = {
   email: string | null
   phone: string | null
   present: boolean
+  signatureUrl?: string | null
+  signedAt?: string | null
 }
 
 type Sub = { id: string; name: string; email: string | null }
@@ -800,15 +803,90 @@ function ProtocolTab({ insp, subcontractors, readOnly, busy, onPatch }: { insp: 
 
   const openCount = insp.defects.filter((d) => d.status === 'DO_POPRAWY' || d.status === 'POPRAWIONA' || d.status === 'SPORNA').length
 
-  async function saveAttendees() {
+  const [signing, setSigning] = useState<{ index: number; id: string; name: string; role: string } | null>(null)
+  const [signBusy, setSignBusy] = useState(false)
+
+  /** Zapis obecnych; zwraca zapisaną listę (z id z bazy) albo null przy błędzie. */
+  async function saveAttendees(): Promise<Attendee[] | null> {
     setErr(null)
     const res = await fetch(`/api/odbiory/inspections/${insp.id}/attendees`, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ attendees }) })
-    if (isSessionExpired(res)) return
+    if (isSessionExpired(res)) return null
+    const j = await res.json().catch(() => null)
     if (!res.ok) {
-      setErr((await res.json().catch(() => ({})))?.error || 'Błąd zapisu obecnych')
+      setErr(j?.error || 'Błąd zapisu obecnych')
+      return null
+    }
+    const savedList: Attendee[] = (j as any[]).map((a) => ({
+      id: a.id,
+      role: a.role,
+      name: a.name,
+      company: a.company,
+      userId: a.userId,
+      subcontractorId: a.subcontractorId,
+      email: a.email,
+      phone: a.phone,
+      present: a.present,
+      signatureUrl: a.signatureUrl,
+      signedAt: a.signedAt,
+    }))
+    setAttendees(savedList)
+    setSaved('Obecni zapisani')
+    router.refresh()
+    return savedList
+  }
+
+  /** „Podpisz” — najpierw zapisuje listę (żeby wiersz miał id), potem otwiera pole podpisu. */
+  async function startSigning(index: number) {
+    const a = attendees[index]
+    if (!a.name.trim()) {
+      setErr('Wpisz imię i nazwisko osoby przed podpisem')
       return
     }
-    setSaved('Obecni zapisani')
+    if (!a.present) {
+      setErr('Osoba oznaczona jako nieobecna nie podpisuje protokołu')
+      return
+    }
+    const list = a.id ? attendees : await saveAttendees()
+    if (!list) return
+    const row = list[index]
+    if (!row?.id) {
+      setErr('Nie udało się zapisać osoby przed podpisem')
+      return
+    }
+    setSigning({ index, id: row.id, name: row.name, role: row.role })
+  }
+
+  async function submitSignature(dataUrl: string) {
+    if (!signing) return
+    setSignBusy(true)
+    setErr(null)
+    try {
+      const res = await fetch(`/api/odbiory/inspections/${insp.id}/attendees/${signing.id}/signature`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ dataUrl }) })
+      if (isSessionExpired(res)) return
+      const j = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(j?.error || 'Nie udało się zapisać podpisu')
+      setAttendees((l) => l.map((x) => (x.id === signing.id ? { ...x, signatureUrl: j.signatureUrl, signedAt: j.signedAt } : x)))
+      setSigning(null)
+      setSaved(`Podpis zapisany: ${signing.name}`)
+      router.refresh()
+    } catch (e: any) {
+      setErr(e?.message)
+    } finally {
+      setSignBusy(false)
+    }
+  }
+
+  async function removeSignature(a: Attendee) {
+    if (!a.id || !confirm(`Usunąć podpis osoby ${a.name}? Będzie trzeba podpisać ponownie.`)) return
+    setErr(null)
+    const res = await fetch(`/api/odbiory/inspections/${insp.id}/attendees/${a.id}/signature`, { method: 'DELETE' })
+    if (isSessionExpired(res)) return
+    const j = await res.json().catch(() => ({}))
+    if (!res.ok) {
+      setErr(j?.error || 'Nie udało się usunąć podpisu')
+      return
+    }
+    setAttendees((l) => l.map((x) => (x.id === a.id ? { ...x, signatureUrl: null, signedAt: null } : x)))
     router.refresh()
   }
 
@@ -859,37 +937,80 @@ function ProtocolTab({ insp, subcontractors, readOnly, busy, onPatch }: { insp: 
             ))}
           </datalist>
           <div className="space-y-2">
-            {attendees.map((a, i) => (
-              <div key={i} className="grid grid-cols-12 items-center gap-2">
-                <select value={a.role} onChange={(e) => setAttendees((l) => l.map((x, j) => (j === i ? { ...x, role: e.target.value } : x)))} className="col-span-12 rounded-md border border-gray-300 px-2 py-1.5 text-sm sm:col-span-3">
-                  {ATTENDEE_ROLES.map((r) => (
-                    <option key={r} value={r}>{ATTENDEE_ROLE_LABELS[r]}</option>
-                  ))}
-                </select>
-                <input
-                  list="attendee-names"
-                  value={a.name}
-                  onChange={(e) => {
-                    const v = e.target.value
-                    const s = suggestions.find((x) => x.name === v)
-                    setAttendees((l) => l.map((x, j) => (j === i ? { ...x, name: v, company: s ? s.company : x.company, role: s && x.role === 'INNY' ? s.role : x.role, userId: s?.userId ?? null, subcontractorId: s?.subcontractorId ?? null } : x)))
-                  }}
-                  placeholder="Imię i nazwisko"
-                  className="col-span-12 rounded-md border border-gray-300 px-2 py-1.5 text-sm sm:col-span-4"
-                />
-                <input value={a.company || ''} onChange={(e) => setAttendees((l) => l.map((x, j) => (j === i ? { ...x, company: e.target.value } : x)))} placeholder="Firma" className="col-span-8 rounded-md border border-gray-300 px-2 py-1.5 text-sm sm:col-span-3" />
-                <label className={`col-span-3 flex items-center gap-1 text-xs sm:col-span-1 ${a.present ? 'text-gray-700' : 'text-red-600'}`}>
-                  <input type="checkbox" checked={a.present} onChange={(e) => setAttendees((l) => l.map((x, j) => (j === i ? { ...x, present: e.target.checked } : x)))} /> {a.present ? 'obecny' : 'nie stawił się'}
-                </label>
-                <button type="button" onClick={() => setAttendees((l) => l.filter((_, j) => j !== i))} className="col-span-1 text-gray-400 hover:text-red-600" title="Usuń">×</button>
-              </div>
-            ))}
+            {attendees.map((a, i) => {
+              const signed = !!a.signatureUrl
+              const locked = signed || readOnly
+              return (
+                <div key={a.id || `new-${i}`} className={`grid grid-cols-12 items-center gap-2 ${signed ? 'rounded-lg bg-green-50 p-2' : ''}`}>
+                  <select value={a.role} disabled={locked} onChange={(e) => setAttendees((l) => l.map((x, j) => (j === i ? { ...x, role: e.target.value } : x)))} className="col-span-12 rounded-md border border-gray-300 px-2 py-1.5 text-sm disabled:bg-gray-100 sm:col-span-3">
+                    {ATTENDEE_ROLES.map((r) => (
+                      <option key={r} value={r}>{ATTENDEE_ROLE_LABELS[r]}</option>
+                    ))}
+                  </select>
+                  <input
+                    list="attendee-names"
+                    value={a.name}
+                    disabled={locked}
+                    onChange={(e) => {
+                      const v = e.target.value
+                      const s = suggestions.find((x) => x.name === v)
+                      setAttendees((l) => l.map((x, j) => (j === i ? { ...x, name: v, company: s ? s.company : x.company, role: s && x.role === 'INNY' ? s.role : x.role, userId: s?.userId ?? null, subcontractorId: s?.subcontractorId ?? null } : x)))
+                    }}
+                    placeholder="Imię i nazwisko"
+                    className="col-span-12 rounded-md border border-gray-300 px-2 py-1.5 text-sm disabled:bg-gray-100 sm:col-span-3"
+                  />
+                  <input value={a.company || ''} disabled={locked} onChange={(e) => setAttendees((l) => l.map((x, j) => (j === i ? { ...x, company: e.target.value } : x)))} placeholder="Firma" className="col-span-7 rounded-md border border-gray-300 px-2 py-1.5 text-sm disabled:bg-gray-100 sm:col-span-2" />
+                  <label className={`col-span-4 flex items-center gap-1 text-xs sm:col-span-1 ${a.present ? 'text-gray-700' : 'text-red-600'}`}>
+                    <input type="checkbox" checked={a.present} disabled={signed} onChange={(e) => setAttendees((l) => l.map((x, j) => (j === i ? { ...x, present: e.target.checked } : x)))} /> {a.present ? 'obecny' : 'nie stawił się'}
+                  </label>
+                  <div className="col-span-12 flex items-center justify-end gap-2 sm:col-span-3">
+                    {signed ? (
+                      <>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={a.signatureUrl!} alt="podpis" className="h-9 w-24 rounded border border-green-200 bg-white object-contain" />
+                        <span className="text-[11px] leading-tight text-green-700">
+                          podpisano
+                          <br />
+                          {a.signedAt ? formatDateTimePl(a.signedAt) : ''}
+                        </span>
+                        {!readOnly && (
+                          <button type="button" onClick={() => removeSignature(a)} className="text-gray-400 hover:text-red-600" title="Usuń podpis">×</button>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        {!readOnly && a.present && (
+                          <button type="button" onClick={() => startSigning(i)} className="flex items-center gap-1 rounded-md border border-gray-900 bg-white px-3 py-1.5 text-sm font-medium text-gray-900 hover:bg-gray-100">
+                            <PenLine className="h-4 w-4" /> Podpisz
+                          </button>
+                        )}
+                        {!readOnly && (
+                          <button type="button" onClick={() => setAttendees((l) => l.filter((_, j) => j !== i))} className="text-gray-400 hover:text-red-600" title="Usuń">×</button>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
           </div>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <button type="button" onClick={() => setAttendees((l) => [...l, { role: 'WYKONAWCA', name: '', company: insp.subcontractor?.name || '', userId: null, subcontractorId: insp.subcontractor?.id || null, email: null, phone: null, present: true }])} className="rounded-md border border-gray-300 px-3 py-1.5 text-sm">+ Dodaj osobę</button>
-            <button type="button" onClick={saveAttendees} className="rounded-md bg-gray-900 px-3 py-1.5 text-sm font-medium text-white">Zapisz obecnych</button>
-          </div>
+          {!readOnly && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button type="button" onClick={() => setAttendees((l) => [...l, { role: 'WYKONAWCA', name: '', company: insp.subcontractor?.name || '', userId: null, subcontractorId: insp.subcontractor?.id || null, email: null, phone: null, present: true }])} className="rounded-md border border-gray-300 px-3 py-1.5 text-sm">+ Dodaj osobę</button>
+              <button type="button" onClick={() => void saveAttendees()} className="rounded-md bg-gray-900 px-3 py-1.5 text-sm font-medium text-white">Zapisz obecnych</button>
+              <span className="self-center text-xs text-gray-500">Podpis palcem lub rysikiem: „Podpisz” przy osobie. Podpisany wiersz jest zablokowany; żeby go poprawić, usuń podpis.</span>
+            </div>
+          )}
         </div>
+        {signing && (
+          <SignaturePadModal
+            title={signing.name}
+            subtitle={`${ATTENDEE_ROLE_LABELS[signing.role as keyof typeof ATTENDEE_ROLE_LABELS] || signing.role} · protokół ${insp.number} · ${insp.scopeName}`}
+            busy={signBusy}
+            onCancel={() => setSigning(null)}
+            onAccept={submitSignature}
+          />
+        )}
 
         <div className="rounded-xl border border-gray-200 bg-white p-4">
           <div className="mb-2 flex items-center gap-2 text-base font-semibold text-gray-900"><Flag className="h-4 w-4" /> Wynik i uwagi</div>

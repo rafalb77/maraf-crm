@@ -53,6 +53,8 @@ export default async function OdbiorPage({ params }: { params: { id: string } })
       email: a.email,
       phone: a.phone,
       present: a.present,
+      signatureUrl: a.signatureUrl,
+      signedAt: a.signedAt ? a.signedAt.toISOString() : null,
     })),
     defects: r.defects.map(toSnapshotDefect),
   }

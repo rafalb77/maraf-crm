@@ -176,6 +176,18 @@ branża = jawna → z typu → dotychczasowa → `tradeFromStage(Inspection.stag
 „Stan surowy" → MURY, „Tynki" → TYNKI). W edytorze typ z własnym domyślnym wykonawcą nadpisuje
 wykonawcę z odbioru; typ bez domyślnego go zostawia.
 
+### Podpisy na tablecie (22.10.2026)
+Decyzja Rafała: podpisy tylko na urządzeniu MARAF Development (bez podpisu zdalnego wykonawcy).
+`components/odbiory/SignaturePadModal.tsx` (signature_pad 5, canvas skalowany do DPR, pełny ekran)
+→ `POST /api/odbiory/inspections/[id]/attendees/[attendeeId]/signature` (PNG data URL →
+`public/uploads/odbiory/<id>/sig-<attendeeId>-<ts>.png`, `signedAt`, AuditLog z IP/UA; `DELETE`
+usuwa podpis tylko gdy odbiór W_TOKU). PUT obecnych NIE kasuje już wierszy: aktualizuje po `id`
+(podpisany wiersz zmienia tylko kolejność/obecność; usunięcie podpisanej osoby = błąd).
+UI: „Podpisz" przy obecnym (najpierw zapis listy, żeby wiersz miał id), podpisany wiersz
+zablokowany z miniaturą i czasem, „×" usuwa podpis. Wydruk: obraz podpisu nad nazwiskiem +
+„podpis elektroniczny DD.MM.RRRR HH:MM" + nota o formie dokumentowej (art. 77² KC).
+Brak: podpis offline (kolejka), suma kontrolna PDF, podpis wykonawcy przez link.
+
 ## Deploy (checklista)
 1. `git push` → Coolify build (zmienione: `next.config.js` — nagłówek Permissions-Policy
    `camera=(self), microphone=(self)`; nowe zależności `react-zoom-pan-pinch`, `idb`).
