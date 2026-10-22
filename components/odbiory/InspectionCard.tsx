@@ -1075,11 +1075,19 @@ function ProtocolTab({ insp, subcontractors, readOnly, busy, onPatch }: { insp: 
             <div className="flex justify-between"><dt className="text-gray-500">Obecnych</dt><dd>{attendees.filter((a) => a.present && a.name).length} / nieobecnych {attendees.filter((a) => !a.present && a.name).length}</dd></div>
           </dl>
           <div className="mt-3 flex flex-col gap-2">
-            <a href={`/odbiory/${insp.id}/protokol`} target="_blank" rel="noreferrer" className="flex items-center justify-center gap-1.5 rounded-md border border-gray-300 px-3 py-2 font-medium text-gray-800"><Printer className="h-4 w-4" /> Protokół (PDF / druk)</a>
-            <a href={`/odbiory/${insp.id}/protokol?zdjecia=1`} target="_blank" rel="noreferrer" className="flex items-center justify-center gap-1.5 rounded-md border border-gray-300 px-3 py-2 font-medium text-gray-800"><Printer className="h-4 w-4" /> Załącznik: rzut, legenda i zdjęcia</a>
+            <a href={`/api/odbiory/inspections/${insp.id}/protocol/pdf`} className="flex items-center justify-center gap-1.5 rounded-md bg-gray-900 px-3 py-2 font-semibold text-white"><Printer className="h-4 w-4" /> Pobierz protokół PDF</a>
+            <a href={`/api/odbiory/inspections/${insp.id}/protocol/pdf?zdjecia=1`} className="flex items-center justify-center gap-1.5 rounded-md border border-gray-300 px-3 py-2 font-medium text-gray-800"><Printer className="h-4 w-4" /> PDF ze zdjęciami</a>
+            <a href={`/odbiory/${insp.id}/protokol`} target="_blank" rel="noreferrer" className="text-center text-xs text-blue-700 underline">podgląd do druku w przeglądarce</a>
           </div>
-          <p className="mt-2 text-[11px] text-gray-500">Otwiera widok do druku; „Zapisz jako PDF” w przeglądarce. Pinezki na rzucie w kolorach statusów lub czarno-białe (opcja w widoku).</p>
+          <p className="mt-2 text-[11px] text-gray-500">PDF ma rzut na całą stronę, legendę i zestawienie wykonawców. Podpisy nie są wymagane: bez podpisu zostaje linia do podpisu odręcznego.</p>
         </div>
+
+        <ProtocolEmailBox insp={insp} />
+        {insp.protocolUrl && (
+          <p className="-mt-2 text-xs text-gray-500">
+            Ostatnio wysłany PDF: <a href={insp.protocolUrl} target="_blank" rel="noreferrer" className="text-blue-700 underline">otwórz</a>
+          </p>
+        )}
         {insp.children.length > 0 && (
           <div className="rounded-xl border border-gray-200 bg-white p-4 text-sm">
             <div className="mb-2 font-semibold text-gray-900">Kolejne odbiory</div>
@@ -1098,6 +1106,69 @@ function ProtocolTab({ insp, subcontractors, readOnly, busy, onPatch }: { insp: 
           </button>
         </div>
       </div>
+    </div>
+  )
+}
+
+/**
+ * Wysyłka protokołu (PDF) do wykonawcy mailem. Wykonawca nie ma dostępu do aplikacji —
+ * dostaje gotowy dokument; podpisy na tablecie są opcjonalne (bez nich linie do podpisu).
+ */
+function ProtocolEmailBox({ insp }: { insp: InspectionDetail }) {
+  const router = useRouter()
+  const [to, setTo] = useState(insp.subcontractor?.email || '')
+  const [message, setMessage] = useState('')
+  const [withPhotos, setWithPhotos] = useState(false)
+  const [ccMe, setCcMe] = useState(true)
+  const [busy, setBusy] = useState(false)
+  const [info, setInfo] = useState<string | null>(null)
+  const [err, setErr] = useState<string | null>(null)
+
+  async function send() {
+    if (!to.trim()) {
+      setErr('Wpisz adres e-mail wykonawcy')
+      return
+    }
+    if (!confirm(`Wysłać protokół ${insp.number} jako PDF na: ${to}?`)) return
+    setBusy(true)
+    setErr(null)
+    setInfo(null)
+    try {
+      const res = await fetch(`/api/odbiory/inspections/${insp.id}/protocol/email`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ to, message, withPhotos, ccMe }),
+      })
+      if (isSessionExpired(res)) return
+      const j = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(j?.error || 'Nie udało się wysłać')
+      setInfo(`Wysłano na ${(j.to as string[]).join(', ')} · ${formatDateTimePl(j.sentAt)} · PDF ${(j.bytes / 1024 / 1024).toFixed(1)} MB`)
+      setMessage('')
+      router.refresh()
+    } catch (e: any) {
+      setErr(e?.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="rounded-xl border border-gray-200 bg-white p-4 text-sm">
+      <div className="mb-2 flex items-center gap-2 font-semibold text-gray-900"><Send className="h-4 w-4" /> Wyślij protokół wykonawcy</div>
+      <label className="block text-xs font-semibold uppercase tracking-wide text-gray-500">E-mail wykonawcy (kilka po przecinku)</label>
+      <input value={to} onChange={(e) => setTo(e.target.value)} placeholder="biuro@wykonawca.pl" className="mt-1 w-full rounded-md border border-gray-300 px-2 py-2 text-sm" inputMode="email" />
+      <label className="mt-2 block text-xs font-semibold uppercase tracking-wide text-gray-500">Wiadomość (opcjonalnie)</label>
+      <textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={3} className="mt-1 w-full rounded-md border border-gray-300 px-2 py-2 text-sm" placeholder="np. Proszę o potwierdzenie terminu usunięcia usterek." />
+      <div className="mt-2 flex flex-wrap gap-3 text-xs text-gray-700">
+        <label className="flex items-center gap-1"><input type="checkbox" checked={withPhotos} onChange={(e) => setWithPhotos(e.target.checked)} /> dołącz zdjęcia usterek</label>
+        <label className="flex items-center gap-1"><input type="checkbox" checked={ccMe} onChange={(e) => setCcMe(e.target.checked)} /> kopia do mnie</label>
+      </div>
+      <button type="button" onClick={send} disabled={busy} className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-md bg-blue-700 px-3 py-2 font-semibold text-white disabled:opacity-50">
+        <Send className="h-4 w-4" /> {busy ? 'Generuję PDF i wysyłam…' : 'Wyślij protokół (PDF)'}
+      </button>
+      {info && <p className="mt-2 text-xs text-green-700">{info}</p>}
+      {err && <p className="mt-2 text-xs text-red-600">{err}</p>}
+      <p className="mt-2 text-[11px] text-gray-500">Wysyłka zapisuje PDF w systemie i wpis w rejestrze (data, adresaci) jako dowód doręczenia. Można wysłać przed zakończeniem odbioru i bez podpisów.</p>
     </div>
   )
 }

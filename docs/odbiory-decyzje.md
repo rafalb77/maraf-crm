@@ -188,6 +188,25 @@ zablokowany z miniaturą i czasem, „×" usuwa podpis. Wydruk: obraz podpisu na
 „podpis elektroniczny DD.MM.RRRR HH:MM" + nota o formie dokumentowej (art. 77² KC).
 Brak: podpis offline (kolejka), suma kontrolna PDF, podpis wykonawcy przez link.
 
+### Protokół PDF na serwerze i wysyłka do wykonawcy (22.10.2026)
+Decyzja Rafała: protokół wypełnia MARAF Development, podwykonawcy nie mają dostępu do aplikacji
+(podpisują na podanym tablecie), więc wykonawca dostaje gotowy PDF mailem; podpisy NIE są
+wymagane do zakończenia ani wysyłki (brak podpisu = linia do podpisu odręcznego).
+- `lib/odbiory/protocol-html.ts` — JEDNO źródło HTML protokołu (własne klasy `pr-*`, bez Tailwinda)
+  dla widoku do druku `(print)/odbiory/[id]/protokol` (assets jako URL) i PDF (assets base64).
+- `lib/odbiory/protocol-pdf.ts` — puppeteer-core + Chrome (flagi Docker/legacy headless tylko na
+  Linuksie; na Windows minimalne + headless new, inaczej Chrome nie startuje); rzut WebP jest
+  przerysowywany w Chrome do JPEG ≤2600 px (`page.evaluate`), bo inaczej PDF miał 13 MB — teraz ~1 MB.
+- `GET /api/odbiory/inspections/[id]/protocol/pdf?zdjecia=1&kolor=0` — pobranie PDF.
+- `POST …/protocol/email` `{to, message, withPhotos, ccMe}` — PDF jako załącznik (limit 18 MB),
+  kopia do wysyłającego przez dopisanie do `to`, PDF zapisany w `uploads/odbiory/<id>/` i
+  `Inspection.protocolUrl`, AuditLog `NOTIFY_EMAIL` (adresaci, czas, rozmiar) = dowód wysyłki.
+- Karta → Protokół: „Pobierz protokół PDF", „PDF ze zdjęciami", box „Wyślij protokół wykonawcy"
+  (e-mail z rejestru wykonawcy, wiadomość, zdjęcia, kopia do mnie), link do ostatnio wysłanego PDF.
+- Lokalny dev: PostgreSQL scoop po `pg_ctl start` z Bash zostaje w stanie „could not reserve shared
+  memory region (487)" — startować przez `Start-Process` (odłączony) i restartować, gdy psql
+  zwraca „server closed the connection unexpectedly".
+
 ## Deploy (checklista)
 1. `git push` → Coolify build (zmienione: `next.config.js` — nagłówek Permissions-Policy
    `camera=(self), microphone=(self)`; nowe zależności `react-zoom-pan-pinch`, `idb`).
