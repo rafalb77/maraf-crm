@@ -10,7 +10,7 @@ import { formatCurrency, formatDate } from '@/lib/utils'
 import type { PortfolioRow, PortfolioSums } from '@/lib/client-portfolio'
 import { AssignUnitModal } from './AssignUnitModal'
 import { UnassignUnitButton } from './UnassignUnitButton'
-import { SwapButton } from '@/components/reservations/ReservationActions'
+import { ExtendButton, SwapButton } from '@/components/reservations/ReservationActions'
 
 function fmtPct(pct: number): string {
   return new Intl.NumberFormat('pl-PL', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(pct)
@@ -118,6 +118,7 @@ export function ClientUnitsPanel({
                       </td>
                       <td className="px-4 py-3 text-right">
                         <div className="inline-flex items-center gap-1">
+                          {isSoft && <ExtendButton unitId={r.unitId} />}
                           {isSoft && <SwapButton unitId={r.unitId} unitNumber={r.number} unitType={r.unitType} />}
                           {r.reservationType !== 'REZERWACJA' && r.assignedAtISO && (
                             <UnassignUnitButton clientId={clientId} unitId={r.unitId} />
@@ -191,6 +192,7 @@ export function ClientUnitsPanel({
                         wygrywa hit-test, a z-10 tworzyłby stacking context więżący
                         modal SwapButton (fixed z-50) pod TopBarem (z-20). */}
                     <span className="relative inline-flex items-center gap-1 flex-shrink-0">
+                      {isSoft && <ExtendButton unitId={r.unitId} />}
                       {isSoft && <SwapButton unitId={r.unitId} unitNumber={r.number} unitType={r.unitType} />}
                       {r.reservationType !== 'REZERWACJA' && r.assignedAtISO && (
                         <UnassignUnitButton clientId={clientId} unitId={r.unitId} />
