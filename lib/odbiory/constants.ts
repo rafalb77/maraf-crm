@@ -70,13 +70,30 @@ export const TRADE_LABELS: Record<Trade, string> = {
   OGOLNE: 'Ogólne / porządkowe',
 }
 
-export const INSPECTION_KINDS = ['ROBOTY', 'TECHNICZNY', 'Z_NABYWCA', 'PRZEGLAD'] as const
+export const INSPECTION_KINDS = ['ROBOTY', 'TECHNICZNY', 'Z_NABYWCA', 'PRZEGLAD', 'PONOWNY'] as const
 export type InspectionKind = (typeof INSPECTION_KINDS)[number]
 export const INSPECTION_KIND_LABELS: Record<InspectionKind, string> = {
   ROBOTY: 'Odbiór robót od wykonawcy',
   TECHNICZNY: 'Odbiór techniczny lokalu',
   Z_NABYWCA: 'Odbiór lokalu z nabywcą',
   PRZEGLAD: 'Przegląd (gwarancyjny / kontrolny)',
+  PONOWNY: 'Ponowny odbiór (sprawdzenie usunięcia usterek)',
+}
+
+/**
+ * Ponowny odbiór = osobny protokół (własna komisja, data, wynik, PDF) podpięty do pierwotnego
+ * przez `parentId`. Usterki, pinezki i pakiety wykonawców są wspólne z pierwotnym odbiorem;
+ * „w tym odbiorze odebrana / nie odebrana" wynika ze zdarzeń usterek w oknie czasu ponownego odbioru.
+ */
+export const REINSPECTION_RESULT_LABELS: Record<InspectionResult, string> = {
+  ODEBRANO: 'Usterki usunięte — odebrano',
+  ODEBRANO_Z_UWAGAMI: 'Usunięte częściowo — pozostałe usterki do poprawy',
+  NIE_ODEBRANO: 'Nie odebrano — usterki nieusunięte',
+}
+export function resultLabel(kind: string | null | undefined, result: string | null | undefined): string {
+  if (!result) return ''
+  const map = kind === 'PONOWNY' ? REINSPECTION_RESULT_LABELS : INSPECTION_RESULT_LABELS
+  return map[result as InspectionResult] || result
 }
 
 export const INSPECTION_STATUSES = ['W_TOKU', 'ZAKONCZONY', 'ANULOWANY'] as const

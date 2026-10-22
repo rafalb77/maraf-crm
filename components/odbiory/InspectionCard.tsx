@@ -17,6 +17,8 @@ import {
   INSPECTION_KIND_LABELS,
   INSPECTION_RESULTS,
   INSPECTION_RESULT_LABELS,
+  REINSPECTION_RESULT_LABELS,
+  resultLabel,
   INSPECTION_STATUS_BADGE,
   INSPECTION_STATUS_LABELS,
   TRADE_LABELS,
@@ -51,8 +53,13 @@ export type InspectionDetail = {
   investment: { id: string; name: string; code: string | null }
   subcontractor: { id: string; name: string; email: string | null } | null
   sheet: { id: string; name: string; imageUrl: string; width: number; height: number } | null
-  parent: { id: string; number: string } | null
-  children: { id: string; number: string; startedAt: string }[]
+  parent: { id: string; number: string; startedAt: string } | null
+  children: { id: string; number: string; startedAt: string; status: string; result: string | null }[]
+  /** Ponowny odbiór: usterki/pinezki/pakiety są na odbiorze pierwotnym (defectsOwnerId). */
+  isReinspection: boolean
+  defectsOwnerId: string
+  defectsOwnerStatus: string
+  verifiedInThis: { accepted: number; rejected: number } | null
   attendees: Attendee[]
   defects: SnapshotDefect[]
 }
@@ -128,6 +135,23 @@ export function InspectionCard({ initial, subcontractors }: { initial: Inspectio
     }
   }
 
+  async function createReinspection() {
+    if (!confirm(`Założyć ponowny odbiór do ${insp.number}?\n\nPowstanie osobny protokół z własną komisją (skopiowaną z tego odbioru do edycji), datą i wynikiem. Usterki i pinezki pozostają wspólne.`)) return
+    setBusy(true)
+    setError(null)
+    try {
+      const res = await fetch(`/api/odbiory/inspections/${insp.id}/reinspection`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' })
+      if (isSessionExpired(res)) return
+      const j = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(j?.error || 'Nie udało się założyć ponownego odbioru')
+      router.push(`/odbiory/${j.id}`)
+    } catch (e: any) {
+      setError(e?.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
   return (
     <div className="p-4 sm:p-6 lg:p-8">
       {/* Nagłówek */}
@@ -138,7 +162,7 @@ export function InspectionCard({ initial, subcontractors }: { initial: Inspectio
             <span>/</span>
             <span className="font-mono">{insp.number}</span>
             <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${INSPECTION_STATUS_BADGE[insp.status as InspectionStatus] || ''}`}>{INSPECTION_STATUS_LABELS[insp.status as InspectionStatus] || insp.status}</span>
-            {insp.result && <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-semibold text-gray-700">{INSPECTION_RESULT_LABELS[insp.result as InspectionResult] || insp.result}</span>}
+            {insp.result && <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-semibold text-gray-700">{resultLabel(insp.kind, insp.result)}</span>}
           </div>
           <h1 className="mt-1 text-2xl font-bold text-gray-900">{insp.scopeName}</h1>
           <p className="mt-1 text-sm text-gray-500">
@@ -148,18 +172,25 @@ export function InspectionCard({ initial, subcontractors }: { initial: Inspectio
             {insp.fixDueAt ? ` · termin usunięcia ${formatDatePl(insp.fixDueAt)}` : ''}
           </p>
           {insp.parent && (
-            <p className="mt-1 text-xs text-gray-500">
-              Ponowny odbiór po <Link href={`/odbiory/${insp.parent.id}`} className="text-blue-700 underline">{insp.parent.number}</Link>
+            <p className="mt-1 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-900">
+              Protokół ponownego odbioru do <Link href={`/odbiory/${insp.parent.id}`} className="font-semibold underline">{insp.parent.number}</Link> z {formatDatePl(insp.parent.startedAt)}. Usterki, pinezki i pakiety wykonawców są wspólne z odbiorem pierwotnym; tutaj ustalasz komisję, datę, wynik i generujesz protokół.
+              {insp.verifiedInThis ? ` W tym odbiorze: odebrano ${insp.verifiedInThis.accepted}, nie odebrano ${insp.verifiedInThis.rejected}.` : ''}
             </p>
           )}
         </div>
         <div className="flex flex-wrap gap-2">
-          <Link href={`/odbiory/teren/${insp.id}`} className="flex items-center gap-1.5 rounded-lg bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800">
+          <Link href={`/odbiory/teren/${insp.defectsOwnerId}`} className="flex items-center gap-1.5 rounded-lg bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800">
             <Tablet className="h-4 w-4" /> Rzut i pinezki
           </Link>
-          <Link href={`/odbiory/teren/${insp.id}?tryb=weryfikacja`} className="flex items-center gap-1.5 rounded-lg border border-green-600 bg-white px-4 py-2 text-sm font-semibold text-green-700 hover:bg-green-50">
-            <CheckSquare className="h-4 w-4" /> Ponowny odbiór
-          </Link>
+          {insp.isReinspection ? (
+            <Link href={`/odbiory/teren/${insp.defectsOwnerId}?tryb=weryfikacja`} className="flex items-center gap-1.5 rounded-lg border border-green-600 bg-white px-4 py-2 text-sm font-semibold text-green-700 hover:bg-green-50">
+              <CheckSquare className="h-4 w-4" /> Sprawdź usterki na rzucie
+            </Link>
+          ) : (
+            <button type="button" onClick={createReinspection} disabled={busy} className="flex items-center gap-1.5 rounded-lg border border-green-600 bg-white px-4 py-2 text-sm font-semibold text-green-700 hover:bg-green-50 disabled:opacity-50">
+              <CheckSquare className="h-4 w-4" /> Ponowny odbiór (nowy protokół)
+            </button>
+          )}
           <a href={`/odbiory/${insp.id}/protokol`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
             <Printer className="h-4 w-4" /> Protokół
           </a>
@@ -167,7 +198,9 @@ export function InspectionCard({ initial, subcontractors }: { initial: Inspectio
       </div>
 
       {/* KPI */}
-      <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-5">
+      <div className={`mb-5 grid grid-cols-2 gap-3 ${insp.verifiedInThis ? 'sm:grid-cols-4 lg:grid-cols-7' : 'sm:grid-cols-5'}`}>
+        {insp.verifiedInThis && <Kpi label="Odebrane w tym odbiorze" value={insp.verifiedInThis.accepted} color={DEFECT_STATUS_RING.ODEBRANA} />}
+        {insp.verifiedInThis && <Kpi label="Nie odebrane w tym odbiorze" value={insp.verifiedInThis.rejected} color={DEFECT_STATUS_RING.DO_POPRAWY} />}
         <Kpi label="Usterek" value={insp.defects.length} />
         <Kpi label="Do poprawy" value={counts.DO_POPRAWY || 0} color={DEFECT_STATUS_RING.DO_POPRAWY} />
         <Kpi label="Do odbioru" value={counts.POPRAWIONA || 0} color={DEFECT_STATUS_RING.POPRAWIONA} />
@@ -177,7 +210,7 @@ export function InspectionCard({ initial, subcontractors }: { initial: Inspectio
 
       {/* Zakładki */}
       <div className="mb-4 flex flex-wrap gap-2 border-b border-gray-200">
-        {TABS.map((t) => (
+        {TABS.filter((t) => !(insp.isReinspection && t.key === 'contractors')).map((t) => (
           <button key={t.key} type="button" onClick={() => setTab(t.key)} className={`-mb-px flex items-center gap-1.5 border-b-2 px-3 py-2 text-sm font-medium ${tab === t.key ? 'border-gray-900 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-800'}`}>
             {t.icon} {t.label}
           </button>
@@ -185,7 +218,7 @@ export function InspectionCard({ initial, subcontractors }: { initial: Inspectio
       </div>
       {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
 
-      {tab === 'defects' && <DefectsTab insp={insp} counts={counts} subcontractors={subcontractors} readOnly={readOnly} onChange={setDefects} onError={setError} />}
+      {tab === 'defects' && <DefectsTab insp={insp} counts={counts} subcontractors={subcontractors} readOnly={insp.defectsOwnerStatus !== 'W_TOKU'} onChange={setDefects} onError={setError} />}
 
       {tab === 'contractors' && <ContractorsTab insp={insp} subcontractors={subcontractors} />}
 
@@ -546,7 +579,7 @@ function DefectsTab({
         </div>
       )}
       {bulkInfo && <p className="mb-2 text-sm text-green-700">{bulkInfo}</p>}
-      {readOnly && <p className="mb-2 text-xs text-gray-500">Odbiór zakończony — edycja usterek zablokowana (zakładka „Protokół” → „Wznów odbiór”).</p>}
+      {readOnly && <p className="mb-2 text-xs text-gray-500">{insp.isReinspection ? 'Odbiór pierwotny jest zakończony — edycja usterek zablokowana (wznów go na jego karcie); sprawdzanie usterek na rzucie działa.' : 'Odbiór zakończony — edycja usterek zablokowana (zakładka „Protokół” → „Wznów odbiór”).'}</p>}
 
       <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white">
         <table className="w-full min-w-[960px] text-sm lg:min-w-0">
@@ -573,7 +606,7 @@ function DefectsTab({
                 <DefectRow
                   key={d.id}
                   d={d}
-                  inspId={insp.id}
+                  inspId={insp.defectsOwnerId}
                   editing={editing}
                   readOnly={readOnly}
                   busy={busy}
@@ -1037,7 +1070,7 @@ function ProtocolTab({ insp, subcontractors, readOnly, busy, onPatch }: { insp: 
               <select value={result} onChange={(e) => setResult(e.target.value)} disabled={readOnly} className="mt-1 w-full rounded-md border border-gray-300 px-2 py-2 text-sm">
                 <option value="">— wybierz —</option>
                 {INSPECTION_RESULTS.map((r) => (
-                  <option key={r} value={r}>{INSPECTION_RESULT_LABELS[r]}</option>
+                  <option key={r} value={r}>{insp.kind === 'PONOWNY' ? REINSPECTION_RESULT_LABELS[r] : INSPECTION_RESULT_LABELS[r]}</option>
                 ))}
               </select>
             </div>
@@ -1066,6 +1099,7 @@ function ProtocolTab({ insp, subcontractors, readOnly, busy, onPatch }: { insp: 
           <div className="mb-2 font-semibold text-gray-900">Protokół wypełnia się sam</div>
           <dl className="space-y-1 text-gray-700">
             <div className="flex justify-between"><dt className="text-gray-500">Data</dt><dd>{formatDatePl(insp.finishedAt || insp.startedAt)}</dd></div>
+            {insp.parent && <div className="flex justify-between"><dt className="text-gray-500">Dotyczy protokołu</dt><dd>{insp.parent.number} z {formatDatePl(insp.parent.startedAt)}</dd></div>}
             <div className="flex justify-between"><dt className="text-gray-500">Inwestycja</dt><dd>{insp.investment.name}</dd></div>
             <div className="flex justify-between"><dt className="text-gray-500">Zakres</dt><dd className="text-right">{insp.scopeName}</dd></div>
             <div className="flex justify-between"><dt className="text-gray-500">Generalny wykonawca</dt><dd>{PROTOCOL_PARTIES.generalContractor.name}</dd></div>
@@ -1093,7 +1127,7 @@ function ProtocolTab({ insp, subcontractors, readOnly, busy, onPatch }: { insp: 
             <div className="mb-2 font-semibold text-gray-900">Kolejne odbiory</div>
             <ul className="space-y-1">
               {insp.children.map((c) => (
-                <li key={c.id}><Link href={`/odbiory/${c.id}`} className="text-blue-700 underline">{c.number}</Link> · {formatDatePl(c.startedAt)}</li>
+                <li key={c.id}><Link href={`/odbiory/${c.id}`} className="text-blue-700 underline">{c.number}</Link> · {formatDatePl(c.startedAt)} · {INSPECTION_STATUS_LABELS[c.status as InspectionStatus] || c.status}{c.result ? ` · ${resultLabel('PONOWNY', c.result)}` : ''}</li>
               ))}
             </ul>
           </div>

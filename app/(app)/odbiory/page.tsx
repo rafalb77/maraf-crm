@@ -23,6 +23,7 @@ export default async function OdbioryPage({ searchParams }: { searchParams?: { s
     include: {
       subcontractor: { select: { id: true, name: true } },
       defects: { select: { status: true } },
+      parent: { select: { id: true, number: true, defects: { select: { status: true } } } },
     },
   })
   const totalOpen = rows.filter((r) => r.status === 'W_TOKU').length
@@ -72,7 +73,7 @@ export default async function OdbioryPage({ searchParams }: { searchParams?: { s
           {/* mobile: karty */}
           <ul className="space-y-3 md:hidden">
             {rows.map((r) => {
-              const c = countBy(r.defects)
+              const c = countBy(r.parent ? r.parent.defects : r.defects)
               return (
                 <li key={r.id} className="relative rounded-xl border border-gray-200 bg-white p-4">
                   <Link href={`/odbiory/${r.id}`} className="absolute inset-0" aria-label={r.number} />
@@ -82,7 +83,7 @@ export default async function OdbioryPage({ searchParams }: { searchParams?: { s
                   </div>
                   <div className="mt-1 font-semibold text-gray-900">{r.scopeName}</div>
                   <div className="text-sm text-gray-500">
-                    {INSPECTION_KIND_LABELS[r.kind as InspectionKind] || r.kind}
+                    {INSPECTION_KIND_LABELS[r.kind as InspectionKind] || r.kind}{r.parent ? ` · do ${r.parent.number}` : ''}
                     {r.subcontractor ? ` · ${r.subcontractor.name}` : ''} · {formatDatePl(r.startedAt)}
                   </div>
                   <Counters c={c} />
@@ -107,7 +108,7 @@ export default async function OdbioryPage({ searchParams }: { searchParams?: { s
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {rows.map((r) => {
-                  const c = countBy(r.defects)
+                  const c = countBy(r.parent ? r.parent.defects : r.defects)
                   return (
                     <tr key={r.id} className="hover:bg-gray-50">
                       <td className="px-4 py-3 font-mono text-xs text-gray-600">
@@ -117,7 +118,7 @@ export default async function OdbioryPage({ searchParams }: { searchParams?: { s
                         <Link href={`/odbiory/${r.id}`} className="hover:underline">{r.scopeName}</Link>
                       </td>
                       <td className="px-4 py-3 text-gray-600">
-                        {INSPECTION_KIND_LABELS[r.kind as InspectionKind] || r.kind}
+                        {INSPECTION_KIND_LABELS[r.kind as InspectionKind] || r.kind}{r.parent ? ` · do ${r.parent.number}` : ''}
                         {r.subcontractor ? <div className="text-xs text-gray-500">{r.subcontractor.name}</div> : null}
                       </td>
                       <td className="px-4 py-3 text-gray-600">{r.inspectorName || '—'}</td>

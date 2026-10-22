@@ -207,6 +207,24 @@ wymagane do zakończenia ani wysyłki (brak podpisu = linia do podpisu odręczne
   memory region (487)" — startować przez `Start-Process` (odłączony) i restartować, gdy psql
   zwraca „server closed the connection unexpectedly".
 
+### Ponowny odbiór jako osobny protokół (22.10.2026)
+Uwaga Rafała: w ponownym odbiorze uczestniczyły inne osoby niż w pierwotnym, a komisji nie dało się
+zmienić (tryb weryfikacji działał na pierwotnym protokole, zablokowanym po zakończeniu).
+- `POST /api/odbiory/inspections/[id]/reinspection` → nowy `Inspection` kind `PONOWNY`,
+  `parentId` = ODBIÓR PIERWOTNY (root; także gdy wywołany z ponownego), kopia zakresu/arkusza/
+  wykonawcy i obecnych (bez podpisów, do edycji), numer `ODB/…`, scopeName „Ponowny odbiór N · …".
+- Usterki, pinezki i pakiety wykonawców zostają na pierwotnym (bez zmian schematu). Karta
+  ponownego (`/odbiory/[id]`) pokazuje usterki rodzica (`defectsOwnerId`), bez zakładki pakietów,
+  z banerem i kaflami „odebrane / nie odebrane w tym odbiorze" = ostatnie zdarzenia ODEBRANA /
+  NIE_ODEBRANA usterek rodzica w oknie `startedAt…finishedAt` ponownego odbioru.
+- Przyciski: na pierwotnym „Ponowny odbiór (nowy protokół)" (tworzy i otwiera kartę), na ponownym
+  „Sprawdź usterki na rzucie" (`/odbiory/teren/<rootId>?tryb=weryfikacja`).
+- Protokół (HTML/PDF/mail): tytuł „Protokół ponownego odbioru robót", wiersz „Dotyczy protokołu",
+  ustalenia z liczbami z tego odbioru i stanem po nim, kolumna „Ten odbiór" w legendzie, inne
+  oświadczenie; wyniki z `REINSPECTION_RESULT_LABELS` (`resultLabel(kind, result)`).
+- Lista `/odbiory`: „· do ODB/…" przy rodzaju, liczniki usterek z rodzica.
+- Edycja usterek z karty ponownego podlega statusowi rodzica (zakończony rodzic = tylko weryfikacja).
+
 ## Deploy (checklista)
 1. `git push` → Coolify build (zmienione: `next.config.js` — nagłówek Permissions-Policy
    `camera=(self), microphone=(self)`; nowe zależności `react-zoom-pan-pinch`, `idb`).

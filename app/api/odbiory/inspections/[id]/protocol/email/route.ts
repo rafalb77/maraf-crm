@@ -4,7 +4,7 @@ import { audit } from '@/lib/audit-log'
 import { sendEmail, toFriendlyMailError } from '@/lib/mailer'
 import { generateProtocolPdf, storeProtocolPdf } from '@/lib/odbiory/protocol-pdf'
 import { formatDatePl } from '@/lib/odbiory/codes'
-import { INSPECTION_RESULT_LABELS, type InspectionResult } from '@/lib/odbiory/constants'
+import { resultLabel } from '@/lib/odbiory/constants'
 import { json, jsonError, requireUser } from '@/lib/odbiory/server'
 
 export const runtime = 'nodejs'
@@ -58,27 +58,29 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     return jsonError(`PDF ma ${(pdf.length / 1024 / 1024).toFixed(1)} MB — za duży na załącznik. Wyślij bez zdjęć.`)
   }
   const r = data.r
+  const defects = data.defects
+  const isRe = !!r.parent
   const sig = await prisma.settings.findFirst({ where: { key: 'emailSignature' } })
   const signature = sig?.value || ''
-  const open = r.defects.filter((d) => d.status === 'DO_POPRAWY' || d.status === 'POPRAWIONA' || d.status === 'SPORNA').length
-  const dueDates = r.defects.map((d) => d.dueAt).filter((d): d is Date => !!d)
+  const open = defects.filter((d) => d.status === 'DO_POPRAWY' || d.status === 'POPRAWIONA' || d.status === 'SPORNA').length
+  const dueDates = defects.map((d) => d.dueAt).filter((d): d is Date => !!d)
   const dueAt = r.fixDueAt || (dueDates.length ? new Date(Math.max(...dueDates.map((d) => d.getTime()))) : null)
-  const subject = `Protokół odbioru ${r.number} — ${r.scopeName}`
+  const subject = `${isRe ? 'Protokół ponownego odbioru' : 'Protokół odbioru'} ${r.number} — ${r.scopeName}`
 
   const html = `<div style="font-family:Arial,sans-serif;font-size:14px;color:#1f2937;max-width:760px">
   <p>Dzień dobry,</p>
-  <p>w załączeniu protokół odbioru robót <b>${esc(r.number)}</b> (${esc(r.scopeName)}) z dnia ${formatDatePl(r.finishedAt || r.startedAt)}${r.subcontractor ? ` dla firmy ${esc(r.subcontractor.name)}` : ''}.</p>
+  <p>w załączeniu ${isRe ? `protokół ponownego odbioru robót (sprawdzenie usunięcia usterek z protokołu ${esc(r.parent?.number || '')})` : 'protokół odbioru robót'} <b>${esc(r.number)}</b> (${esc(r.scopeName)}) z dnia ${formatDatePl(r.finishedAt || r.startedAt)}${r.subcontractor ? ` dla firmy ${esc(r.subcontractor.name)}` : ''}.</p>
   ${message ? `<p style="white-space:pre-wrap">${esc(message)}</p>` : ''}
   <table style="border-collapse:collapse;font-size:13px">
-    <tr><td style="padding:2px 10px 2px 0;color:#6b7280">Wynik</td><td>${esc(r.result ? INSPECTION_RESULT_LABELS[r.result as InspectionResult] : 'w toku')}</td></tr>
-    <tr><td style="padding:2px 10px 2px 0;color:#6b7280">Usterki</td><td>${r.defects.length}, otwarte ${open}, pilne ${r.defects.filter((d) => d.priority === 'PILNY').length}</td></tr>
+    <tr><td style="padding:2px 10px 2px 0;color:#6b7280">Wynik</td><td>${esc(r.result ? resultLabel(r.kind, r.result) : 'w toku')}</td></tr>
+    <tr><td style="padding:2px 10px 2px 0;color:#6b7280">Usterki</td><td>${defects.length}, otwarte ${open}, pilne ${defects.filter((d) => d.priority === 'PILNY').length}</td></tr>
     <tr><td style="padding:2px 10px 2px 0;color:#6b7280">Termin usunięcia</td><td>${dueAt ? formatDatePl(dueAt) : 'wg pozycji w załączniku'}</td></tr>
     <tr><td style="padding:2px 10px 2px 0;color:#6b7280">Prowadzący odbiór</td><td>${esc(r.inspectorName || '—')}</td></tr>
   </table>
   <p>Załącznik nr 1 (rzut z numerami usterek, legenda i lista wad) jest częścią protokołu. Prosimy o usunięcie usterek w terminie i zgłoszenie ich do ponownego odbioru.</p>
   ${signature ? `<div style="margin-top:24px;padding-top:14px;border-top:1px solid #e5e7eb;color:#6b7280;font-size:12px;white-space:pre-wrap">${esc(signature)}</div>` : ''}
 </div>`
-  const text = `Protokół odbioru ${r.number} (${r.scopeName}) z dnia ${formatDatePl(r.finishedAt || r.startedAt)} w załączeniu.\n${message ? message + '\n' : ''}Usterki: ${r.defects.length}, otwarte ${open}. Termin usunięcia: ${dueAt ? formatDatePl(dueAt) : 'wg pozycji w załączniku'}.${signature ? '\n\n' + signature : ''}`
+  const text = `${isRe ? 'Protokół ponownego odbioru' : 'Protokół odbioru'} ${r.number} (${r.scopeName}) z dnia ${formatDatePl(r.finishedAt || r.startedAt)} w załączeniu.\n${message ? message + '\n' : ''}Usterki: ${defects.length}, otwarte ${open}. Termin usunięcia: ${dueAt ? formatDatePl(dueAt) : 'wg pozycji w załączniku'}.${signature ? '\n\n' + signature : ''}`
 
   let info: any
   try {

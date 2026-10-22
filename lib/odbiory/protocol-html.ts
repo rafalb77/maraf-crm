@@ -13,13 +13,12 @@ import {
   DEFECT_STATUS_RING,
   DEFECT_PRIORITY_LABELS,
   INSPECTION_KIND_LABELS,
-  INSPECTION_RESULT_LABELS,
   PROTOCOL_PARTIES,
+  resultLabel,
   TRADE_LABELS,
   type AttendeeRole,
   type DefectStatus,
   type InspectionKind,
-  type InspectionResult,
 } from './constants'
 import { formatDatePl, formatDateTimePl, unitShortLabel } from './codes'
 
@@ -70,13 +69,40 @@ export async function loadProtocolData(inspectionId: string) {
         orderBy: { seq: 'asc' },
       },
       investment: true,
+      parent: {
+        include: {
+          defects: {
+            where: { status: { not: 'ANULOWANA' } },
+            include: { photos: { orderBy: { createdAt: 'asc' } }, subcontractor: { select: { name: true } } },
+            orderBy: { seq: 'asc' },
+          },
+        },
+      },
     },
   })
   if (!r) return null
+  // Ponowny odbiór: usterki z odbioru pierwotnego; „w tym odbiorze" = ostatnia decyzja
+  // odebrano / nie odebrano w oknie czasu ponownego odbioru (zdarzenia usterek).
+  const defects = r.parent ? r.parent.defects : r.defects
+  const verified = new Map<string, 'ODEBRANA' | 'NIE_ODEBRANA'>()
+  if (r.parent) {
+    const events = await prisma.defectEvent.findMany({
+      where: {
+        defect: { inspectionId: r.parent.id },
+        event: { in: ['ODEBRANA', 'NIE_ODEBRANA'] },
+        createdAt: { gte: r.startedAt, ...(r.finishedAt ? { lte: r.finishedAt } : {}) },
+      },
+      orderBy: { createdAt: 'asc' },
+      select: { defectId: true, event: true },
+    })
+    for (const e of events) verified.set(e.defectId, e.event as 'ODEBRANA' | 'NIE_ODEBRANA')
+  }
   const settings = await prisma.settings.findMany({ where: { key: { in: ['companyName', 'companyAddress', 'odbiory.gcName', 'odbiory.gcAddress', 'odbiory.investorName', 'odbiory.investorAddress'] } } })
   const setting = (k: string) => settings.find((s) => s.key === k)?.value || ''
   return {
     r,
+    defects,
+    verified,
     investorName: setting('odbiory.investorName') || setting('companyName') || PROTOCOL_PARTIES.investor.name,
     investorAddress: setting('odbiory.investorAddress') || setting('companyAddress'),
     gcName: setting('odbiory.gcName') || PROTOCOL_PARTIES.generalContractor.name,
@@ -118,20 +144,21 @@ export const PROTOCOL_CSS = `
 
 /** HTML protokołu (bez <html>/<body>); dla PDF opakuj w pełny dokument (patrz protocol-pdf.ts). */
 export async function renderProtocolHtml(data: ProtocolData, opts: ProtocolOptions): Promise<string> {
-  const { r, investorName, investorAddress, gcName, gcAddress } = data
+  const { r, defects, verified, investorName, investorAddress, gcName, gcAddress } = data
+  const isRe = !!r.parent
   const withPhotos = !!opts.withPhotos
   const mono = !!opts.mono
   const asset = async (u: string | null | undefined) => (opts.assets === 'embed' ? await embedAsset(u) : u || null)
 
   const present = r.attendees.filter((a) => a.present)
   const absent = r.attendees.filter((a) => !a.present)
-  const open = r.defects.filter((d) => d.status === 'DO_POPRAWY' || d.status === 'POPRAWIONA' || d.status === 'SPORNA')
-  const byContractor = new Map<string, typeof r.defects>()
-  for (const d of r.defects) {
+  const open = defects.filter((d) => d.status === 'DO_POPRAWY' || d.status === 'POPRAWIONA' || d.status === 'SPORNA')
+  const byContractor = new Map<string, typeof defects>()
+  for (const d of defects) {
     const k = d.subcontractor?.name || 'Nieprzypisane'
     byContractor.set(k, [...(byContractor.get(k) || []), d])
   }
-  const dueDates = r.defects.map((d) => d.dueAt).filter((d): d is Date => !!d)
+  const dueDates = defects.map((d) => d.dueAt).filter((d): d is Date => !!d)
   const dueAt = r.fixDueAt || (dueDates.length ? new Date(Math.max(...dueDates.map((d) => d.getTime()))) : null)
   const ring = (status: string) => (mono ? '#111' : DEFECT_STATUS_RING[status as DefectStatus] || '#dc2626')
   const isRoboty = r.kind === 'ROBOTY'
@@ -162,7 +189,9 @@ export async function renderProtocolHtml(data: ProtocolData, opts: ProtocolOptio
     </div>`)
   }
 
-  const kindTitle = isRoboty
+  const kindTitle = isRe
+    ? 'Protokół ponownego odbioru robót'
+    : isRoboty
     ? 'Protokół odbioru robót'
     : `Protokół ${(INSPECTION_KIND_LABELS[r.kind as InspectionKind] || 'odbiór').toLowerCase().replace('odbiór ', 'odbioru ')}`
 
@@ -175,7 +204,7 @@ export async function renderProtocolHtml(data: ProtocolData, opts: ProtocolOptio
         .join('')
     : '<tr><td colspan="5" class="pr-xs">Nie wpisano obecnych.</td></tr>'
 
-  const pins = r.defects
+  const pins = defects
     .map(
       (d) =>
         `<g><circle cx="${d.x}" cy="${d.y}" r="${pinR}" fill="#fff" stroke="${ring(d.status)}" stroke-width="${Math.max(2, pinR / 4)}"/><text x="${d.x}" y="${d.y + pinR * 0.38}" text-anchor="middle" font-size="${pinR * 1.05}" font-weight="700" font-family="Arial, sans-serif" fill="#111">${d.seq}</text></g>`,
@@ -186,7 +215,7 @@ export async function renderProtocolHtml(data: ProtocolData, opts: ProtocolOptio
     ? `width:${planLong}mm;height:${planShort}mm;transform-origin:0 0;transform:translate(${planShort}mm,0) rotate(90deg);display:block`
     : `width:${planLong}mm;height:${planShort}mm;display:block`
 
-  const legendRows = r.defects
+  const legendRows = defects
     .map(
       (d) => `<tr class="pr-avoid">
         <td class="pr-center pr-b">${d.seq}</td>
@@ -198,6 +227,7 @@ export async function renderProtocolHtml(data: ProtocolData, opts: ProtocolOptio
         <td>${d.dueAt ? formatDatePl(d.dueAt) : ''}</td>
         <td>${esc(DEFECT_PRIORITY_LABELS[d.priority as keyof typeof DEFECT_PRIORITY_LABELS] || d.priority)}</td>
         <td>${esc(DEFECT_STATUS_LABELS[d.status as DefectStatus] || d.status)}</td>
+        ${isRe ? `<td class="pr-b">${verified.get(d.id) === 'ODEBRANA' ? 'odebrana' : verified.get(d.id) === 'NIE_ODEBRANA' ? 'nie odebrana' : '—'}</td>` : ''}
       </tr>`,
     )
     .join('')
@@ -210,9 +240,9 @@ export async function renderProtocolHtml(data: ProtocolData, opts: ProtocolOptio
     .join('')
 
   let photosHtml = ''
-  if (withPhotos && r.defects.some((d) => d.photos.length)) {
+  if (withPhotos && defects.some((d) => d.photos.length)) {
     const blocks: string[] = []
-    for (const d of r.defects) {
+    for (const d of defects) {
       if (!d.photos.length) continue
       const imgs: string[] = []
       for (const p of d.photos) {
@@ -243,6 +273,7 @@ export async function renderProtocolHtml(data: ProtocolData, opts: ProtocolOptio
       <tr><th>Inwestor</th><td>${esc(investorName)}${investorAddress ? `, ${esc(investorAddress)}` : ''}, NIP ${PROTOCOL_PARTIES.investor.nip}</td></tr>
       <tr><th>Generalny wykonawca (zamawiający roboty)</th><td>${esc(gcName)}${gcAddress ? `, ${esc(gcAddress)}` : ''}, NIP ${PROTOCOL_PARTIES.generalContractor.nip}</td></tr>
       <tr><th>Wykonawca robót</th><td>${r.subcontractor ? `${esc(r.subcontractor.name)}${r.subcontractor.address ? `, ${esc(r.subcontractor.address)}` : ''}${r.subcontractor.nip ? `, NIP ${esc(r.subcontractor.nip)}` : ''}` : '—'}</td></tr>
+      ${isRe && r.parent ? `<tr><th>Dotyczy protokołu</th><td>${esc(r.parent.number)} z dnia ${formatDatePl(r.parent.finishedAt || r.parent.startedAt)} — sprawdzenie usunięcia usterek</td></tr>` : ''}
       <tr><th>Przedmiot odbioru</th><td>${esc(r.stage || INSPECTION_KIND_LABELS[r.kind as InspectionKind])} — ${esc([r.building, r.staircase ? `klatka ${r.staircase}` : null, r.sheet?.name].filter(Boolean).join(', '))}</td></tr>
       <tr><th>Data i miejsce</th><td>${formatDateTimePl(r.startedAt)}${r.finishedAt ? ` – ${formatDateTimePl(r.finishedAt)}` : ''}, ${esc(r.investment.address || r.investment.name)}</td></tr>
       <tr><th>Prowadzący odbiór</th><td>${esc(r.inspectorName || '—')} (przedstawiciel generalnego wykonawcy)</td></tr>
@@ -259,13 +290,13 @@ export async function renderProtocolHtml(data: ProtocolData, opts: ProtocolOptio
   <div class="pr-sec">2. Ustalenia</div>
   <table class="pr-mt">
     <tbody>
-      <tr><th style="width:32%">Wynik odbioru</th><td class="pr-b">${r.result ? esc(INSPECTION_RESULT_LABELS[r.result as InspectionResult]) : 'odbiór w toku — wynik nie został jeszcze ustalony'}</td></tr>
-      <tr><th>Liczba stwierdzonych usterek</th><td>${r.defects.length}, w tym pilnych ${r.defects.filter((d) => d.priority === 'PILNY').length}; otwartych ${open.length}, odebranych ${r.defects.filter((d) => d.status === 'ODEBRANA').length}</td></tr>
+      <tr><th style="width:32%">Wynik odbioru</th><td class="pr-b">${r.result ? esc(resultLabel(r.kind, r.result)) : 'odbiór w toku — wynik nie został jeszcze ustalony'}</td></tr>
+      ${isRe ? `<tr><th>Usterki objęte sprawdzeniem</th><td>${defects.length} z protokołu ${esc(r.parent?.number || '')}; w tym odbiorze odebrano ${[...verified.values()].filter((v) => v === 'ODEBRANA').length}, nie odebrano ${[...verified.values()].filter((v) => v === 'NIE_ODEBRANA').length}</td></tr><tr><th>Stan po tym odbiorze</th><td>odebrane łącznie ${defects.filter((d) => d.status === 'ODEBRANA').length}, nadal do poprawy ${defects.filter((d) => d.status === 'DO_POPRAWY').length}, zgłoszone jako poprawione (do sprawdzenia) ${defects.filter((d) => d.status === 'POPRAWIONA').length}, sporne ${defects.filter((d) => d.status === 'SPORNA').length}</td></tr>` : `<tr><th>Liczba stwierdzonych usterek</th><td>${defects.length}, w tym pilnych ${defects.filter((d) => d.priority === 'PILNY').length}; otwartych ${open.length}, odebranych ${defects.filter((d) => d.status === 'ODEBRANA').length}</td></tr>`}
       <tr><th>Termin usunięcia usterek</th><td>${dueAt ? formatDatePl(dueAt) : 'wg terminów przy poszczególnych pozycjach w załączniku'}</td></tr>
       <tr><th>Uwagi</th><td style="white-space:pre-wrap">${esc(r.notes || '—')}</td></tr>
     </tbody>
   </table>
-  <p style="margin-top:8px">Wykonawca robót zobowiązuje się usunąć usterki wymienione w załączniku w podanych terminach i zgłosić je do ponownego odbioru. Stwierdzone usterki nieistotne nie wstrzymują odbioru; ich usunięcie zostanie potwierdzone protokołem ponownego odbioru. Załącznik nr 1 (rzut z zaznaczeniem usterek, legenda i szczegółowa lista wad) stanowi integralną część protokołu.</p>
+  <p style="margin-top:8px">${isRe ? `Komisja sprawdziła usunięcie usterek stwierdzonych w protokole ${esc(r.parent?.number || '')}. Usterki oznaczone jako odebrane uznaje się za usunięte. Usterki pozostające w statusie „do poprawy" wykonawca robót usunie w podanych terminach i ponownie zgłosi do odbioru. Załącznik nr 1 (rzut ze stanem usterek, legenda i lista wad z wynikiem sprawdzenia) stanowi integralną część protokołu.` : `Wykonawca robót zobowiązuje się usunąć usterki wymienione w załączniku w podanych terminach i zgłosić je do ponownego odbioru. Stwierdzone usterki nieistotne nie wstrzymują odbioru; ich usunięcie zostanie potwierdzone protokołem ponownego odbioru. Załącznik nr 1 (rzut z zaznaczeniem usterek, legenda i szczegółowa lista wad) stanowi integralną część protokołu.`}</p>
 
   <div class="pr-sig">${signerBlocks.join('')}</div>
   ${present.some((a) => a.signatureUrl) ? `<p class="pr-note">Podpisy złożone odręcznie na urządzeniu mobilnym generalnego wykonawcy w dniu odbioru; czas złożenia, konto użytkownika i urządzenie zapisane w rejestrze systemu CRM MARAF (forma dokumentowa, art. 77² Kodeksu cywilnego).</p>` : ''}
@@ -281,9 +312,9 @@ export async function renderProtocolHtml(data: ProtocolData, opts: ProtocolOptio
   </div>
 
   <div class="pr-page">
-    <div class="pr-b">Legenda usterek (${r.defects.length}) — ${esc(r.number)}</div>
+    <div class="pr-b">Legenda usterek (${defects.length}) — ${esc(r.number)}</div>
     <table class="pr-mt pr-small">
-      <thead><tr><th style="width:8mm">Nr</th><th>Kod</th><th>Lokal / pom.</th><th>Usterka</th><th>Branża</th><th>Wykonawca</th><th style="width:20mm">Termin</th><th style="width:16mm">Prior.</th><th style="width:24mm">Status</th></tr></thead>
+      <thead><tr><th style="width:8mm">Nr</th><th>Kod</th><th>Lokal / pom.</th><th>Usterka</th><th>Branża</th><th>Wykonawca</th><th style="width:20mm">Termin</th><th style="width:16mm">Prior.</th><th style="width:24mm">Status</th>${isRe ? '<th style="width:22mm">Ten odbiór</th>' : ''}</tr></thead>
       <tbody>${legendRows}</tbody>
     </table>
     <div class="pr-sec">Zestawienie wg wykonawców</div>
