@@ -2,7 +2,7 @@
 import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Car, Home, Loader2, Package, Plus, Store, Warehouse, X, type LucideIcon } from 'lucide-react'
+import { Car, FileText, Home, Loader2, Package, Plus, Store, Warehouse, X, type LucideIcon } from 'lucide-react'
 import { UNIT_TYPE_LABELS, type UnitType } from '@/lib/types'
 import { formatArea, formatCurrency } from '@/lib/utils'
 import { isSessionExpired, SESSION_EXPIRED_HINT } from '@/lib/api-client'
@@ -323,10 +323,14 @@ export function ContractUnitsEditor({
     setAddId('')
   }
 
-  async function save() {
+  /** Prospekt informacyjny mieszkania z ceną z umowy (po rabacie) — po zapisie składników. */
+  const prospektUrl = (unitId: string) => `/api/contracts/${contractId}/prospekt?unitId=${unitId}`
+  const apartmentRows = rows.filter((r) => r.type === 'MIESZKALNY')
+
+  async function save(thenProspektUnitId?: string): Promise<boolean> {
     if (rows.length === 0) {
       setError('Umowa musi zawierać co najmniej jeden lokal.')
-      return
+      return false
     }
     setBusy(true)
     setError(null)
@@ -343,15 +347,19 @@ export function ContractUnitsEditor({
         // Wygasła sesja (8h): komunikat ratujący zmiany, formularz zostaje otwarty.
         if (isSessionExpired(res)) {
           setError(SESSION_EXPIRED_HINT)
-          return
+          return false
         }
         const d = await res.json().catch(() => ({}))
         throw new Error(d.error || 'Nie udało się zapisać składników')
       }
       setEditing(false)
       router.refresh()
+      // Rabat zapisany → prospekt z końcową ceną za m² (nowa karta; strona zostaje).
+      if (thenProspektUnitId) window.open(prospektUrl(thenProspektUnitId), '_blank', 'noopener')
+      return true
     } catch (e: any) {
       setError(e.message)
+      return false
     } finally {
       setBusy(false)
     }
@@ -381,13 +389,24 @@ export function ContractUnitsEditor({
                 Anuluj
               </button>
               <button
-                onClick={save}
+                onClick={() => save()}
                 disabled={busy || rows.length === 0}
                 className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white rounded-lg text-sm font-medium inline-flex items-center gap-1.5"
               >
                 {busy && <Loader2 className="w-4 h-4 animate-spin" />}
                 Zapisz
               </button>
+              {apartmentRows.length > 0 && (
+                <button
+                  onClick={() => save(apartmentRows[0].unitId)}
+                  disabled={busy || rows.length === 0}
+                  title="Zapisuje rabat i od razu generuje prospekt informacyjny z końcową ceną za m²"
+                  className="px-3 py-1.5 border border-blue-300 text-blue-700 hover:bg-blue-50 disabled:opacity-50 rounded-lg text-sm font-medium inline-flex items-center gap-1.5"
+                >
+                  <FileText className="w-4 h-4" />
+                  Zapisz i generuj prospekt{apartmentRows.length > 1 ? ` (${apartmentRows[0].number})` : ''}
+                </button>
+              )}
             </div>
           ))}
       </div>
@@ -417,6 +436,18 @@ export function ContractUnitsEditor({
                           {u.number}
                         </Link>
                         <p className="text-xs text-gray-500">{UNIT_TYPE_LABELS[u.type as UnitType] ?? u.type}</p>
+                        {u.type === 'MIESZKALNY' && (
+                          <a
+                            href={prospektUrl(u.unitId)}
+                            target="_blank"
+                            rel="noopener"
+                            title="Prospekt informacyjny (.docx) z ceną z umowy — po rabacie, z przeliczoną ceną za m²"
+                            className="mt-1 inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700"
+                          >
+                            <FileText className="w-3.5 h-3.5" />
+                            Prospekt
+                          </a>
+                        )}
                       </div>
                     </div>
                     <dl className="sm:w-72 space-y-0.5 text-xs">

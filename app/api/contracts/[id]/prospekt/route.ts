@@ -4,11 +4,12 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { generateProspektDocx } from '@/lib/prospekt-generator'
 
-// GET /api/contracts/[id]/prospekt — prospekt informacyjny .docx dla
+// GET /api/contracts/[id]/prospekt[?unitId=…] — prospekt informacyjny .docx dla
 // mieszkania z umowy, z ceną ZE SNAPSHOTU umowy (po rabacie); cena za m²
-// przeliczona z ceny umownej. Mieszkanie = pierwszy składnik MIESZKALNY
-// (ta sama konwencja co generator umowy).
-export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
+// przeliczona z ceny umownej. Mieszkanie = wskazany `unitId` (przycisk przy
+// lokalu w składnikach umowy) albo pierwszy składnik MIESZKALNY (ta sama
+// konwencja co generator umowy).
+export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
@@ -18,9 +19,15 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   })
   if (!contract) return NextResponse.json({ error: 'Nie znaleziono umowy' }, { status: 404 })
 
-  const cu = contract.contractUnits.find((x) => x.unit.type === 'MIESZKALNY')
+  const wantedUnitId = req.nextUrl.searchParams.get('unitId')
+  const cu = wantedUnitId
+    ? contract.contractUnits.find((x) => x.unitId === wantedUnitId && x.unit.type === 'MIESZKALNY')
+    : contract.contractUnits.find((x) => x.unit.type === 'MIESZKALNY')
   if (!cu) {
-    return NextResponse.json({ error: 'Umowa nie zawiera lokalu mieszkalnego.' }, { status: 400 })
+    return NextResponse.json(
+      { error: wantedUnitId ? 'Wskazany lokal nie jest mieszkaniem z tej umowy.' : 'Umowa nie zawiera lokalu mieszkalnego.' },
+      { status: 400 },
+    )
   }
 
   try {

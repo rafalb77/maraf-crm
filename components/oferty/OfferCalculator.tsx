@@ -392,13 +392,27 @@ export function OfferCalculator({
                         )}
                       </td>
                       <td className="px-2 py-2">
-                        <button
-                          onClick={() => removeItem(it.key)}
-                          className="text-red-500 hover:text-red-700 text-xs"
-                          title="Usuń pozycję"
-                        >
-                          ✕
-                        </button>
+                        <div className="flex items-center gap-2 justify-end">
+                          {it.unitId && it.unitType === 'MIESZKALNY' && fGross > 0 && (
+                            // Prospekt informacyjny z ceną PO RABACIE z tej oferty (cena za m² przeliczona z niej).
+                            <a
+                              href={`/api/units/${it.unitId}/prospekt?priceGross=${fGross.toFixed(2)}`}
+                              target="_blank"
+                              rel="noopener"
+                              title={`Prospekt informacyjny (.docx) z ceną po rabacie: ${fmt(fGross)} zł${it.area > 0 ? ` (${fmt(fGross / it.area)} zł/m²)` : ''}`}
+                              className="text-xs text-blue-600 hover:text-blue-700 whitespace-nowrap"
+                            >
+                              Prospekt
+                            </a>
+                          )}
+                          <button
+                            onClick={() => removeItem(it.key)}
+                            className="text-red-500 hover:text-red-700 text-xs"
+                            title="Usuń pozycję"
+                          >
+                            ✕
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   )
