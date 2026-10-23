@@ -50,13 +50,13 @@ export function ClientUnitsPanel({
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-100 text-xs uppercase" style={{ background: 'var(--surface-alt)', color: 'var(--text-muted)' }}>
-                  <th className="px-4 py-2.5 text-left font-semibold">Lokal</th>
-                  <th className="px-4 py-2.5 text-left font-semibold">Status</th>
-                  <th className="px-4 py-2.5 text-right font-semibold">Cennik</th>
-                  <th className="px-4 py-2.5 text-right font-semibold">Cena zakupu</th>
-                  <th className="px-4 py-2.5 text-right font-semibold">Rabat</th>
-                  <th className="px-4 py-2.5 text-left font-semibold">Umowa</th>
-                  <th className="px-4 py-2.5 text-right font-semibold"></th>
+                  <th className="px-3 py-2.5 text-left font-semibold">Lokal</th>
+                  <th className="px-3 py-2.5 text-left font-semibold">Status</th>
+                  <th className="px-3 py-2.5 text-right font-semibold">Cennik</th>
+                  <th className="px-3 py-2.5 text-right font-semibold">Zakup</th>
+                  <th className="px-3 py-2.5 text-right font-semibold">Rabat</th>
+                  <th className="px-3 py-2.5 text-left font-semibold">Umowa</th>
+                  <th className="px-3 py-2.5 text-right font-semibold"></th>
                 </tr>
               </thead>
               <tbody>
@@ -66,14 +66,14 @@ export function ClientUnitsPanel({
                   const softSoon = softExp ? softExp.getTime() - now <= 2 * 86_400_000 : false
                   return (
                     <tr key={r.unitId} className="border-b border-gray-50">
-                      <td className="px-4 py-3">
+                      <td className="px-3 py-3 whitespace-nowrap">
                         <Link href={`/units/${r.unitId}`} prefetch={false} className="font-semibold text-gray-900 hover:text-blue-600">
                           {r.number}
                         </Link>
                         <p className="text-xs text-gray-500">{UNIT_TYPE_LABELS[r.unitType as UnitType] ?? r.unitType}</p>
                       </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-1.5 flex-wrap">
+                      <td className="px-3 py-3">
+                        <div className="flex items-center gap-1 flex-wrap">
                           <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${UNIT_STATUS_COLORS[r.status as UnitStatus]}`}>
                             {UNIT_STATUS_LABELS[r.status as UnitStatus] ?? r.status}
                           </span>
@@ -90,36 +90,39 @@ export function ClientUnitsPanel({
                           </p>
                         )}
                       </td>
-                      <td className={`px-4 py-3 text-right tabular-nums ${r.discount > 0 ? 'line-through text-gray-400' : 'text-gray-600'}`}>
+                      <td className={`px-3 py-3 text-right tabular-nums whitespace-nowrap ${r.discount > 0 ? 'line-through text-gray-400' : 'text-gray-600'}`}>
                         {formatCurrency(r.cennik)}
                       </td>
-                      <td className="px-4 py-3 text-right tabular-nums font-medium text-gray-900">
+                      <td className="px-3 py-3 text-right tabular-nums whitespace-nowrap font-medium text-gray-900">
                         {r.purchase != null ? formatCurrency(r.purchase) : <span className="text-gray-400 font-normal">—</span>}
                       </td>
-                      <td className="px-4 py-3 text-right tabular-nums" title="Rabat vs cennik z dnia umowy">
+                      <td className="px-3 py-3 text-right tabular-nums whitespace-nowrap" title="Rabat vs cennik z dnia umowy">
                         {r.discount > 0 ? (
-                          <span className="text-green-700">−{formatCurrency(r.discount)} · −{fmtPct(r.discountPct)}%</span>
+                          <span className="text-green-700">
+                            −{formatCurrency(r.discount)}
+                            <span className="block text-xs">−{fmtPct(r.discountPct)}%</span>
+                          </span>
                         ) : (
                           <span className="text-gray-400">—</span>
                         )}
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-3 py-3">
                         {r.contract ? (
                           <Link href={`/sales/${r.contract.id}`} prefetch={false} className="text-blue-600 hover:text-blue-700 font-medium">
                             {r.contract.number}
                           </Link>
                         ) : isSoft ? (
-                          <span className="text-gray-500">Rezerwacja miękka</span>
+                          <span className="text-gray-500 text-xs">rezerwacja miękka</span>
                         ) : r.assignedAtISO ? (
-                          <span className="text-gray-500">Przypisany {formatDate(new Date(r.assignedAtISO))}</span>
+                          <span className="text-gray-500 text-xs">przypisany {formatDate(new Date(r.assignedAtISO))}</span>
                         ) : (
                           <span className="text-gray-400">—</span>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-right">
+                      <td className="px-3 py-3 text-right whitespace-nowrap">
                         <div className="inline-flex items-center gap-1">
-                          {isSoft && <ExtendButton unitId={r.unitId} />}
-                          {isSoft && <SwapButton unitId={r.unitId} unitNumber={r.number} unitType={r.unitType} />}
+                          {isSoft && <ExtendButton unitId={r.unitId} compact />}
+                          {isSoft && <SwapButton unitId={r.unitId} unitNumber={r.number} unitType={r.unitType} compact />}
                           {r.reservationType !== 'REZERWACJA' && r.assignedAtISO && (
                             <UnassignUnitButton clientId={clientId} unitId={r.unitId} />
                           )}
@@ -131,19 +134,22 @@ export function ClientUnitsPanel({
               </tbody>
               <tfoot>
                 <tr className="border-t-2 border-gray-200 font-semibold text-gray-900" style={{ background: 'var(--surface-alt)' }}>
-                  <td className="px-4 py-3" colSpan={2}>Razem ({rows.length})</td>
-                  <td className="px-4 py-3 text-right tabular-nums">{formatCurrency(sums.cennik)}</td>
-                  <td className="px-4 py-3 text-right tabular-nums">
+                  <td className="px-3 py-3" colSpan={2}>Razem ({rows.length})</td>
+                  <td className="px-3 py-3 text-right tabular-nums whitespace-nowrap">{formatCurrency(sums.cennik)}</td>
+                  <td className="px-3 py-3 text-right tabular-nums whitespace-nowrap">
                     {rows.some((r) => r.purchase != null) ? formatCurrency(sums.purchase) : <span className="text-gray-400 font-normal">—</span>}
                   </td>
-                  <td className="px-4 py-3 text-right tabular-nums">
+                  <td className="px-3 py-3 text-right tabular-nums whitespace-nowrap">
                     {sums.discount > 0 ? (
-                      <span className="text-green-700">−{formatCurrency(sums.discount)} · −{fmtPct(sums.discountPct)}%</span>
+                      <span className="text-green-700">
+                        −{formatCurrency(sums.discount)}
+                        <span className="block text-xs">−{fmtPct(sums.discountPct)}%</span>
+                      </span>
                     ) : (
                       '—'
                     )}
                   </td>
-                  <td className="px-4 py-3" colSpan={2}></td>
+                  <td className="px-3 py-3" colSpan={2}></td>
                 </tr>
               </tfoot>
             </table>

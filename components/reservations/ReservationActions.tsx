@@ -56,7 +56,8 @@ export function MuteAlertsButton({ unitId, muted }: { unitId: string; muted: boo
   )
 }
 
-export function ExtendButton({ unitId, defaultDays = 7 }: { unitId: string; defaultDays?: number }) {
+/** `compact` = sama ikona z podpowiedzią (ciasne tabele, np. portfel lokali na karcie klienta). */
+export function ExtendButton({ unitId, defaultDays = 7, compact = false }: { unitId: string; defaultDays?: number; compact?: boolean }) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [days, setDays] = useState(defaultDays)
@@ -81,10 +82,12 @@ export function ExtendButton({ unitId, defaultDays = 7 }: { unitId: string; defa
     <>
       <button
         onClick={() => setOpen(true)}
-        className="px-2.5 py-1 text-xs font-medium text-blue-700 border border-blue-300 rounded hover:bg-blue-50 inline-flex items-center gap-1"
+        title="Przedłuż rezerwację miękką"
+        aria-label="Przedłuż rezerwację"
+        className={`text-xs font-medium text-blue-700 border border-blue-300 rounded hover:bg-blue-50 inline-flex items-center gap-1 ${compact ? 'p-1.5' : 'px-2.5 py-1'}`}
       >
         <Clock className="w-3.5 h-3.5" />
-        Przedłuż
+        {!compact && 'Przedłuż'}
       </button>
       {open && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => !busy && setOpen(false)}>
@@ -117,7 +120,18 @@ export function ExtendButton({ unitId, defaultDays = 7 }: { unitId: string; defa
 
 type FreeUnit = { id: string; number: string; type: string; area: number; priceGross: number }
 
-export function SwapButton({ unitId, unitNumber, unitType }: { unitId: string; unitNumber: string; unitType: string }) {
+export function SwapButton({
+  unitId,
+  unitNumber,
+  unitType,
+  compact = false,
+}: {
+  unitId: string
+  unitNumber: string
+  unitType: string
+  /** Sama ikona z podpowiedzią (ciasne tabele). */
+  compact?: boolean
+}) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [units, setUnits] = useState<FreeUnit[]>([])
@@ -160,10 +174,12 @@ export function SwapButton({ unitId, unitNumber, unitType }: { unitId: string; u
     <>
       <button
         onClick={openDialog}
-        className="px-2.5 py-1 text-xs font-medium text-amber-700 border border-amber-300 rounded hover:bg-amber-50 inline-flex items-center gap-1"
+        title={`Zamień lokal ${unitNumber} na inny wolny`}
+        aria-label="Zamień lokal"
+        className={`text-xs font-medium text-amber-700 border border-amber-300 rounded hover:bg-amber-50 inline-flex items-center gap-1 ${compact ? 'p-1.5' : 'px-2.5 py-1'}`}
       >
         <ArrowLeftRight className="w-3.5 h-3.5" />
-        Zamień
+        {!compact && 'Zamień'}
       </button>
       {open && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => !busy && setOpen(false)}>
