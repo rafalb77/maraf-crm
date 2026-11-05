@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { describeRelease, releaseContractUnits, unitStateForStage } from '@/lib/contracts'
+import { describeRelease, findUnavailableUnits, releaseContractUnits, unavailableUnitsMessage, unitStateForStage } from '@/lib/contracts'
 import type { ContractStatus, ContractType } from '@/lib/types'
 import { audit, extractRequestMeta } from '@/lib/audit-log'
 
@@ -84,9 +84,24 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       const stageNumber: string | undefined =
         typeof body.stageNumber === 'string' && body.stageNumber.trim() ? body.stageNumber.trim() : undefined
 
+      // Lokal na aktywnej umowie INNEGO klienta: podpisanie przepisałoby go po cichu
+      // (dwie umowy różnych klientów na jeden lokal — MP.21). Blokada z komunikatem.
+      const unitIds = contract.contractUnits.map((cu) => cu.unitId)
+      const party = Array.from(new Set([contract.clientId, ...contract.contractClients.map((cc) => cc.clientId)]))
+      const unavailable = await findUnavailableUnits(unitIds, party, { excludeContractId: contract.id })
+      if (unavailable.length) {
+        return NextResponse.json(
+          {
+            error:
+              'Nie można oznaczyć umowy jako podpisanej. ' +
+              unavailableUnitsMessage(unavailable, 'Usuń go ze składników („Edytuj składniki") albo najpierw rozwiąż/anuluj tamtą umowę.'),
+          },
+          { status: 409 },
+        )
+      }
+
       // Podpisanie umowy ustawia lokale wg etapu: rezerwacyjna → ZAREZERWOWANY,
       // deweloperska/przeniesienia (wiążąca sprzedaż) → SPRZEDANY.
-      const unitIds = contract.contractUnits.map((cu) => cu.unitId)
       await prisma.unit.updateMany({
         where: { id: { in: unitIds } },
         data: unitStateForStage(contract.type as ContractType, contract.clientId),

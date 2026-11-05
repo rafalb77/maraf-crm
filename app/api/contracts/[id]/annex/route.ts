@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { unitStateForStage } from '@/lib/contracts'
+import { findUnavailableUnits, unavailableUnitsMessage, unitStateForStage } from '@/lib/contracts'
 import { findClientUnitConflict } from '@/lib/contract-pricing'
 import type { ContractType } from '@/lib/types'
 
@@ -25,6 +25,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       id: true, type: true, status: true, clientId: true,
       valueNet: true, valueGross: true,
       contractUnits: { select: { unitId: true } },
+      contractClients: { select: { clientId: true } },
     },
   })
   if (!contract) return NextResponse.json({ error: 'Nie znaleziono umowy' }, { status: 404 })
@@ -61,16 +62,12 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     return NextResponse.json({ error: 'Nie znaleziono wszystkich lokali' }, { status: 400 })
   }
 
-  // Dostępność dokładanych lokali.
-  const blocked = units.find(
-    (u) =>
-      u.status === 'SPRZEDANY' ||
-      u.status === 'NIEDOSTEPNY' ||
-      (u.reservationType === 'REZERWACJA' && u.reservedById != null && u.reservedById !== contract.clientId),
-  )
-  if (blocked) {
+  // Dostępność dokładanych lokali (flagi + aktywna umowa INNEGO klienta).
+  const party = [contract.clientId, ...contract.contractClients.map((cc) => cc.clientId)]
+  const unavailable = await findUnavailableUnits(unitIds, party, { excludeContractId: contract.id, checkFlags: true })
+  if (unavailable.length) {
     return NextResponse.json(
-      { error: 'Któryś z lokali jest niedostępny (sprzedany lub zarezerwowany przez innego klienta).' },
+      { error: unavailableUnitsMessage(unavailable, 'Wybierz inny lokal albo najpierw rozwiąż/anuluj tamtą umowę.') },
       { status: 409 },
     )
   }

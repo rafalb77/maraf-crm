@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { nextContractStage, CONTRACT_TYPE_LABELS } from '@/lib/types'
-import { unitStateForStage } from '@/lib/contracts'
+import { findUnavailableUnits, unavailableUnitsMessage, unitStateForStage } from '@/lib/contracts'
 import type { ContractType } from '@/lib/types'
 
 /**
@@ -73,6 +73,20 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   if (body.nextPlannedSignDate) {
     nextPlanned = new Date(String(body.nextPlannedSignDate))
     if (isNaN(nextPlanned.getTime())) return NextResponse.json({ error: 'Nieprawidłowa planowana data podpisania' }, { status: 400 })
+  }
+
+  // Lokal na aktywnej umowie INNEGO klienta — awans (→ SPRZEDANY) przepisałby go po cichu.
+  const party = Array.from(new Set([contract.clientId, ...contract.contractClients.map((cc) => cc.clientId)]))
+  const unavailable = await findUnavailableUnits(contract.contractUnits.map((cu) => cu.unitId), party, { excludeContractId: contract.id })
+  if (unavailable.length) {
+    return NextResponse.json(
+      {
+        error:
+          'Nie można przejść do kolejnego etapu. ' +
+          unavailableUnitsMessage(unavailable, 'Usuń go ze składników (umowę trzeba cofnąć do „w przygotowaniu") albo najpierw rozwiąż/anuluj tamtą umowę.'),
+      },
+      { status: 409 },
+    )
   }
 
   const currentRow = contract.stages.find((s) => s.stage === current)

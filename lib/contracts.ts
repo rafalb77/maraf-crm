@@ -207,3 +207,120 @@ export function validateContractUnits(
   }
   return null
 }
+
+
+// ---------------------------------------------------------------------------
+// Dostępność lokali dla umowy — zapora przed „dwiema umowami różnych klientów na
+// jeden lokal" (MP.21, 11.2026: rezerwacyjna Czwondy na miejscu sprzedanym aktem
+// Rataj; lokal wszedł do umowy z zalegającego wpisu w portfelu klienta).
+// ---------------------------------------------------------------------------
+
+export type UnitAvailabilityIssue = {
+  unitId: string
+  unitNumber: string
+  /** Powód po polsku, w formie „jest na aktywnej umowie X (Jan Kowalski)". */
+  reason: string
+  /** Umowa innego klienta, na której lokal już jest (gdy to jest powód). */
+  contract?: { id: string; number: string }
+}
+
+const personName = (c: { firstName: string; lastName: string } | null | undefined) =>
+  c ? `${c.firstName} ${c.lastName}`.trim() : 'inny klient'
+
+/**
+ * Lokale, których nie wolno dołożyć do umowy stron `partyClientIds` (klient główny
+ * + współkupujący) ani na niej podpisać:
+ *  - lokal jest składnikiem AKTYWNEJ umowy innego klienta — prawda z bazy,
+ *    niezależna od flag lokalu (flagi potrafią kłamać po imporcie / podpisaniu
+ *    drugiej umowy, która je nadpisała);
+ *  - przy `checkFlags` dodatkowo: lokal oznaczony jako sprzedany/niedostępny bez
+ *    aktywnej umowy stron, albo z twardą rezerwacją innego klienta.
+ * `excludeContractId` — umowa, dla której sprawdzamy (jej własne składniki to nie
+ * konflikt). Podpisanie i awans etapu sprawdzają tylko umowy (flagi mogły ustawić
+ * poprzednie etapy tej samej umowy); dokładanie składników — także flagi.
+ */
+export async function findUnavailableUnits(
+  unitIds: string[],
+  partyClientIds: string[],
+  opts: { excludeContractId?: string; checkFlags?: boolean } = {},
+): Promise<UnitAvailabilityIssue[]> {
+  if (unitIds.length === 0) return []
+  const party = new Set(partyClientIds)
+  const units = await prisma.unit.findMany({
+    where: { id: { in: unitIds } },
+    select: {
+      id: true,
+      number: true,
+      status: true,
+      reservationType: true,
+      reservedById: true,
+      contractUnits: {
+        where: {
+          contract: {
+            status: { notIn: ['ROZWIAZANA', 'ANULOWANA'] },
+            ...(opts.excludeContractId ? { id: { not: opts.excludeContractId } } : {}),
+          },
+        },
+        select: {
+          contract: {
+            select: {
+              id: true,
+              number: true,
+              clientId: true,
+              client: { select: { firstName: true, lastName: true } },
+              contractClients: { select: { clientId: true } },
+            },
+          },
+        },
+        orderBy: { contract: { createdAt: 'asc' } },
+      },
+    },
+  })
+
+  // Nazwy klientów trzymających twardą rezerwację (Unit.reservedById to goły string, bez relacji).
+  const holderIds = opts.checkFlags
+    ? Array.from(new Set(units.map((u) => u.reservedById).filter((x): x is string => !!x && !party.has(x))))
+    : []
+  const holders = new Map<string, { firstName: string; lastName: string }>()
+  if (holderIds.length) {
+    const rows = await prisma.client.findMany({ where: { id: { in: holderIds } }, select: { id: true, firstName: true, lastName: true } })
+    for (const r of rows) holders.set(r.id, r)
+  }
+
+  const isParty = (c: { clientId: string; contractClients: { clientId: string }[] }) =>
+    party.has(c.clientId) || c.contractClients.some((cc) => party.has(cc.clientId))
+
+  const issues: UnitAvailabilityIssue[] = []
+  for (const u of units) {
+    const foreign = u.contractUnits.map((cu) => cu.contract).find((c) => !isParty(c))
+    if (foreign) {
+      issues.push({
+        unitId: u.id,
+        unitNumber: u.number,
+        reason: `jest na aktywnej umowie ${foreign.number} (${personName(foreign.client)})`,
+        contract: { id: foreign.id, number: foreign.number },
+      })
+      continue
+    }
+    if (!opts.checkFlags) continue
+    const ownActive = u.contractUnits.length > 0
+    if (u.status === 'SPRZEDANY' && !ownActive) {
+      issues.push({ unitId: u.id, unitNumber: u.number, reason: 'jest oznaczony jako sprzedany (bez aktywnej umowy w systemie)' })
+    } else if (u.status === 'NIEDOSTEPNY') {
+      issues.push({ unitId: u.id, unitNumber: u.number, reason: 'jest oznaczony jako niedostępny' })
+    } else if (u.reservationType === 'REZERWACJA' && u.reservedById && !party.has(u.reservedById)) {
+      issues.push({
+        unitId: u.id,
+        unitNumber: u.number,
+        reason: `ma twardą rezerwację innego klienta (${personName(holders.get(u.reservedById))})`,
+      })
+    }
+  }
+  return issues
+}
+
+/** Komunikat 409 dla findUnavailableUnits; `hint` mówi, co zrobić (zależy od miejsca). */
+export function unavailableUnitsMessage(issues: UnitAvailabilityIssue[], hint: string): string {
+  if (issues.length === 1) return `Lokal ${issues[0].unitNumber} ${issues[0].reason}. ${hint}`
+  return `Lokale: ${issues.map((i) => `${i.unitNumber} – ${i.reason}`).join('; ')}. ${hint}`
+}

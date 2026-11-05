@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { validateContractUnits, unitStateForStage } from '@/lib/contracts'
+import { findUnavailableUnits, unavailableUnitsMessage, unitStateForStage, validateContractUnits } from '@/lib/contracts'
 import { computeReservationFee, findClientUnitConflict } from '@/lib/contract-pricing'
 import type { ContractType, UnitType } from '@/lib/types'
 
@@ -27,6 +27,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     select: {
       id: true, type: true, status: true, clientId: true, updatedAt: true,
       contractUnits: { select: { unitId: true, priceNet: true, priceGross: true } },
+      contractClients: { select: { clientId: true } },
     },
   })
   if (!contract) return NextResponse.json({ error: 'Nie znaleziono umowy' }, { status: 404 })
@@ -102,17 +103,13 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
   }
 
   // Re-walidacja dostępności DOKŁADANYCH lokali po stronie serwera (nie ufamy
-  // filtrowi z dropdownu — lokal mógł zostać sprzedany/zarezerwowany w międzyczasie).
-  const blocked = units.find(
-    (u) =>
-      addedUnitIds.includes(u.id) &&
-      (u.status === 'SPRZEDANY' ||
-        u.status === 'NIEDOSTEPNY' ||
-        (u.reservationType === 'REZERWACJA' && u.reservedById != null && u.reservedById !== contract.clientId)),
-  )
-  if (blocked) {
+  // filtrowi z dropdownu — lokal mógł zostać sprzedany/zarezerwowany w międzyczasie),
+  // w tym lokal na aktywnej umowie INNEGO klienta — niezależnie od flag lokalu.
+  const party = [contract.clientId, ...contract.contractClients.map((cc) => cc.clientId)]
+  const unavailable = await findUnavailableUnits(addedUnitIds, party, { excludeContractId: contract.id, checkFlags: true })
+  if (unavailable.length) {
     return NextResponse.json(
-      { error: 'Któryś z dokładanych lokali jest niedostępny (sprzedany lub zarezerwowany przez innego klienta).' },
+      { error: unavailableUnitsMessage(unavailable, 'Usuń go ze składników albo najpierw rozwiąż/anuluj tamtą umowę.') },
       { status: 409 },
     )
   }

@@ -30,6 +30,14 @@
  *     widzą dwie umowy deweloperskie. Naprawa (tylko z --stages): usunięcie
  *     etapów niezgodnych z rolą rekordu + wpis w historii.
  *
+ *  5. REKORD …/R AWANSOWANY ETAPEM: rekord …/R ma type DEWELOPERSKA/PRZENIESIENIA,
+ *     choć umowa deweloperska tej transakcji to rekord …/D (Filipiak 6/R, 11.2026:
+ *     „Podpisz i przejdź" na rekordzie rezerwacyjnym). Klient wychodzi z dwiema
+ *     umowami deweloperskimi (lista Sprzedaż, eksport dla banku). Naprawa (tylko
+ *     z --revert-r): type=REZERWACYJNA, usunięcie etapów innych niż REZERWACYJNA,
+ *     etap REZERWACYJNA ze statusem/datą rekordu + wpis w historii. Datę
+ *     podpisania rekordu …/R sprawdź potem na jego karcie.
+ *
  * Uruchomienie (Coolify Terminal w kontenerze CRM):
  *   node scripts/fix-contract-pairs.js                    # dry-run (podgląd)
  *   node scripts/fix-contract-pairs.js --apply            # naprawa typów
@@ -37,6 +45,7 @@
  *   node scripts/fix-contract-pairs.js --apply --escrow   # + toEscrow=true, gdy ŻADNA rata umowy nie ma flagi (krok 3)
  *   node scripts/fix-contract-pairs.js --apply --escrow-all # + toEscrow=true na WSZYSTKICH ratach umów deweloperskich
  *   node scripts/fix-contract-pairs.js --apply --stages   # + usunięcie zbędnych etapów (krok 4)
+ *   node scripts/fix-contract-pairs.js --apply --revert-r # + cofnięcie awansowanego rekordu …/R do typu rezerwacyjna (krok 5)
  */
 const { PrismaClient } = require('@prisma/client')
 const prisma = new PrismaClient()
@@ -46,6 +55,7 @@ const dedupe = process.argv.includes('--dedupe')
 const escrowAll = process.argv.includes('--escrow-all')
 const escrow = process.argv.includes('--escrow') || escrowAll
 const stagesFix = process.argv.includes('--stages')
+const revertR = process.argv.includes('--revert-r')
 const money = (n) => (Number(n) || 0).toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' zł'
 
 async function main() {
@@ -68,6 +78,7 @@ async function main() {
 
   let swapped = 0
   let duplicates = 0
+  let advancedR = 0
   for (const [prefix, pair] of pairs) {
     if (!pair.R || !pair.D) continue
     const client = pair.D.client ? `${pair.D.client.lastName} ${pair.D.client.firstName}` : '—'
@@ -109,6 +120,50 @@ async function main() {
           }
         })
         console.log('   zapisano.')
+      }
+    }
+
+    // --- 5. rekord …/R awansowany etapem (typ ≠ REZERWACYJNA, a …/D jest deweloperski) ---
+    if (pair.R.type !== 'REZERWACYJNA' && pair.D.type !== 'REZERWACYJNA') {
+      advancedR++
+      const wrongStages = pair.R.stages.filter((s) => s.stage !== 'REZERWACYJNA')
+      const dateOf = (d) => (d ? d.toISOString().slice(0, 10) : null)
+      console.log(
+        `\n[AWANS-R] ${prefix} (${client}): ${pair.R.number} ma type=${pair.R.type} (${pair.R.status}${dateOf(pair.R.signedAt) ? ', podpisana ' + dateOf(pair.R.signedAt) : ''}), ` +
+          `a umowa deweloperska tej transakcji to ${pair.D.number} → cofnięcie do REZERWACYJNA` +
+          (wrongStages.length ? ` + usunięcie etapów: ${wrongStages.map((s) => s.stage).join(', ')}` : ''),
+      )
+      if (apply && revertR) {
+        await prisma.$transaction(async (tx) => {
+          await tx.contract.update({ where: { id: pair.R.id }, data: { type: 'REZERWACYJNA' } })
+          for (const s of wrongStages) await tx.contractStage.delete({ where: { id: s.id } })
+          // Etap REZERWACYJNA: istniejącej daty podpisania nie ruszamy (data na rekordzie
+          // mogła zostać wpisana przy omyłkowym awansie — np. 10.10.2026 u Filipiaka).
+          const resRow = pair.R.stages.find((s) => s.stage === 'REZERWACYJNA')
+          if (resRow) {
+            await tx.contractStage.update({
+              where: { id: resRow.id },
+              data: { status: pair.R.status, ...(resRow.signedAt ? {} : { signedAt: pair.R.signedAt ?? null }) },
+            })
+          } else {
+            await tx.contractStage.create({
+              data: { contractId: pair.R.id, stage: 'REZERWACYJNA', status: pair.R.status, signedAt: pair.R.signedAt ?? null },
+            })
+          }
+          await tx.contractHistory.create({
+            data: {
+              contractId: pair.R.id,
+              event: 'KOREKTA',
+              details: `Typ umowy ${pair.R.type} → REZERWACYJNA (skrypt fix-contract-pairs: rekord …/R pary z importu został awansowany etapem; umowa deweloperska tej transakcji to ${pair.D.number})`,
+            },
+          })
+        })
+        // Stan w pamięci dla kroku 4 (etapy) w tym samym przebiegu.
+        pair.R.type = 'REZERWACYJNA'
+        pair.R.stages = pair.R.stages.filter((s) => s.stage === 'REZERWACYJNA')
+        console.log(`   zapisano. Sprawdź datę podpisania rekordu ${pair.R.number} na jego karcie${dateOf(pair.R.signedAt) ? ` (teraz: ${dateOf(pair.R.signedAt)})` : ''}.`)
+      } else if (apply) {
+        console.log('   (bez --revert-r nie zmieniam)')
       }
     }
 
@@ -216,9 +271,10 @@ async function main() {
 
   console.log(
     `\nPar …/R + …/D: ${[...pairs.values()].filter((p) => p.R && p.D).length}; skrzyżowane typy: ${swapped}; zdublowane harmonogramy: ${duplicates}; ` +
-      `umowy deweloperskie z ratami bez escrow ${escrowAll ? '(wszystkie przypadki)' : '(tylko całe harmonogramy)'}: ${escrowFixed} (${escrowRatsTotal} rat); pary ze zbędnymi etapami: ${stagesFixed}.`,
+      `umowy deweloperskie z ratami bez escrow ${escrowAll ? '(wszystkie przypadki)' : '(tylko całe harmonogramy)'}: ${escrowFixed} (${escrowRatsTotal} rat); pary ze zbędnymi etapami: ${stagesFixed}; ` +
+      `rekordy …/R awansowane etapem: ${advancedR}.`,
   )
-  if (!apply) console.log('DRY-RUN. Uruchom z --apply (i ewentualnie --dedupe / --escrow / --escrow-all / --stages), aby zapisać zmiany.')
+  if (!apply) console.log('DRY-RUN. Uruchom z --apply (i ewentualnie --dedupe / --escrow / --escrow-all / --stages / --revert-r), aby zapisać zmiany.')
 }
 
 main()

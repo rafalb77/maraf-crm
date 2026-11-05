@@ -2,7 +2,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { contractCreateErrorMessage, createWithFreshNumber, generateContractNumber, validateContractUnits } from '@/lib/contracts'
+import {
+  contractCreateErrorMessage,
+  createWithFreshNumber,
+  findUnavailableUnits,
+  generateContractNumber,
+  unavailableUnitsMessage,
+  validateContractUnits,
+} from '@/lib/contracts'
 import { resolveUnitPricesForClient, computeReservationFee, findClientUnitConflict } from '@/lib/contract-pricing'
 import type { ContractType, UnitType } from '@/lib/types'
 
@@ -57,6 +64,18 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         error: `Klient ma już aktywną umowę ${conflict.number} z lokalem ${conflict.units.join(', ')}. Otwórz istniejącą zamiast tworzyć nową.`,
         conflictContractId: conflict.id,
       },
+      { status: 409 },
+    )
+  }
+
+  // Lokal zajęty przez INNEGO klienta (aktywna umowa / twarda rezerwacja / sprzedany)
+  // nie wchodzi do umowy. Portfel klienta bierzemy w całości, a zalegający w nim wpis
+  // (lokal w międzyczasie przejęty przez kogoś innego) tworzył dwie umowy różnych
+  // klientów na jeden lokal (MP.21, 11.2026).
+  const unavailable = await findUnavailableUnits(unitIds, [params.id], { checkFlags: true })
+  if (unavailable.length) {
+    return NextResponse.json(
+      { error: unavailableUnitsMessage(unavailable, 'Usuń go z portfela klienta (×) albo najpierw rozwiąż/anuluj tamtą umowę.') },
       { status: 409 },
     )
   }

@@ -62,28 +62,55 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
   const unitId = searchParams.get('unitId')
   if (!unitId) return NextResponse.json({ error: 'Missing unitId' }, { status: 400 })
 
-  const unit = await prisma.unit.findUnique({ where: { id: unitId } })
-  if (unit?.reservationType === 'REZERWACJA') {
+  const unit = await prisma.unit.findUnique({
+    where: { id: unitId },
+    select: { id: true, status: true, reservationType: true, reservedById: true },
+  })
+  if (!unit) return NextResponse.json({ error: 'Unit not found' }, { status: 404 })
+
+  // Składnik aktywnej umowy tego klienta zdejmuje się na umowie, nie w portfelu.
+  const onContract = await prisma.contractUnit.findFirst({
+    where: {
+      unitId,
+      contract: {
+        status: { notIn: ['ROZWIAZANA', 'ANULOWANA'] },
+        OR: [{ clientId: params.id }, { contractClients: { some: { clientId: params.id } } }],
+      },
+    },
+    select: { contract: { select: { number: true } } },
+  })
+  if (onContract) {
+    return NextResponse.json(
+      { error: `Lokal jest składnikiem aktywnej umowy ${onContract.contract.number} — usuń go ze składników umowy albo ją rozwiąż/anuluj.` },
+      { status: 409 },
+    )
+  }
+  if (unit.reservationType === 'REZERWACJA' && (!unit.reservedById || unit.reservedById === params.id)) {
     return NextResponse.json(
       { error: 'Lokal ma twardą rezerwację — anuluj najpierw umowę' },
       { status: 409 },
     )
   }
 
+  // Lokal wraca do WOLNY tylko, gdy to rezerwacja TEGO klienta (miękka / bez
+  // wskazanego posiadacza). Zalegający wpis w portfelu — lokal w międzyczasie
+  // sprzedany lub zarezerwowany przez innego klienta — tylko znika z portfela;
+  // wcześniej jego skasowanie (×) zwalniało cudzy lokal do puli.
+  const ownReservation =
+    unit.status !== 'SPRZEDANY' &&
+    unit.reservationType !== 'REZERWACJA' &&
+    (!unit.reservedById || unit.reservedById === params.id)
   await prisma.$transaction([
-    prisma.clientUnit.deleteMany({
-      where: { clientId: params.id, unitId },
-    }),
-    prisma.unit.update({
-      where: { id: unitId },
-      data: {
-        status: 'WOLNY',
-        reservationType: null,
-        reservationExpiresAt: null,
-        reservedById: null,
-      },
-    }),
+    prisma.clientUnit.deleteMany({ where: { clientId: params.id, unitId } }),
+    ...(ownReservation
+      ? [
+          prisma.unit.update({
+            where: { id: unitId },
+            data: { status: 'WOLNY', reservationType: null, reservationExpiresAt: null, reservedById: null },
+          }),
+        ]
+      : []),
   ])
 
-  return NextResponse.json({ success: true })
+  return NextResponse.json({ success: true, released: ownReservation })
 }
