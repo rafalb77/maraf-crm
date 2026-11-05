@@ -80,7 +80,10 @@ export function ContractStageStepper({
           const row = stages.find((s) => s.stage === stage)
           const isCurrent = idx === currentIdx
           const isPast = idx < currentIdx
-          const signed = !!row?.signedAt
+          // „Podpisana" tylko gdy etap ma status PODPISANA — sama data (np. z importu
+          // przy statusie W przygotowaniu) to niespójność, którą pokazujemy wprost.
+          const signed = row?.status === 'PODPISANA' && !!row?.signedAt
+          const dateOnly = !signed && !!row?.signedAt
           const tone = isCurrent
             ? 'border-blue-400 bg-blue-50'
             : isPast
@@ -112,7 +115,19 @@ export function ContractStageStepper({
                 )}
               </div>
               <div className="mt-1 text-[11px] text-gray-500 leading-tight">
-                {row?.signedAt ? `Podpisana ${formatDate(new Date(row.signedAt))}` : isCurrent ? 'Etap bieżący' : isPast ? 'Bez daty podpisania' : '—'}
+                {signed ? (
+                  `Podpisana ${formatDate(new Date(row!.signedAt!))}`
+                ) : dateOnly ? (
+                  <span className="text-amber-700" title="Etap ma wpisaną datę, ale nie został oznaczony jako podpisany — użyj „Oznacz jako podpisaną”">
+                    Data {formatDate(new Date(row!.signedAt!))} · niepodpisana
+                  </span>
+                ) : isCurrent ? (
+                  'Etap bieżący'
+                ) : isPast ? (
+                  'Bez daty podpisania'
+                ) : (
+                  '—'
+                )}
                 {row?.number ? <div className="truncate">Akt: {row.number}</div> : null}
               </div>
             </div>

@@ -158,6 +158,62 @@ function matchType(raw: string): ContractType | null {
   return null
 }
 
+// ---------------------------------------------------------------------
+// Duplikaty: nowy wiersz dla klienta, który ma już AKTYWNĄ umowę z tym samym
+// lokalem (inny numer). Tak powstał np. rekord MD/UF/2025/1/R obok umowy
+// 5/2026/R założonej w CRM — import łączył tylko po numerze umowy.
+// Porównanie klienta po nazwisku i imieniu (import i tak dopasowuje po nazwach).
+// ---------------------------------------------------------------------
+
+export type ActiveContractRef = { number: string; clientName: string }
+export type ActiveContractsByUnit = Map<string, ActiveContractRef[]>
+
+function normClientName(s: string): string {
+  return s.toLowerCase().replace(/\s+/g, ' ').trim()
+}
+
+export async function loadActiveContractsByUnit(): Promise<ActiveContractsByUnit> {
+  const rows = await prisma.contract.findMany({
+    where: { status: { notIn: ['ROZWIAZANA', 'ANULOWANA'] } },
+    select: {
+      number: true,
+      client: { select: { firstName: true, lastName: true } },
+      contractUnits: { select: { unit: { select: { number: true } } } },
+    },
+  })
+  const map: ActiveContractsByUnit = new Map()
+  for (const c of rows) {
+    const clientName = normClientName(`${c.client.firstName} ${c.client.lastName}`)
+    for (const cu of c.contractUnits) {
+      const list = map.get(cu.unit.number) ?? []
+      list.push({ number: c.number, clientName })
+      map.set(cu.unit.number, list)
+    }
+  }
+  return map
+}
+
+/** Aktywna umowa tego samego klienta (po nazwie) z którymś z lokali wiersza — albo null. */
+export function findDuplicateActiveContract(
+  map: ActiveContractsByUnit,
+  primaryClientName: string,
+  unitNumbers: string[],
+): { contractNumber: string; unitNumber: string } | null {
+  const wanted = normClientName(primaryClientName)
+  // Import zapisuje nazwy jako „Imię Nazwisko" lub „Nazwisko Imię" — porównujemy też odwrotnie.
+  const reversed = wanted.split(' ').reverse().join(' ')
+  for (const un of unitNumbers) {
+    for (const ref of map.get(un) ?? []) {
+      if (ref.clientName === wanted || ref.clientName === reversed) return { contractNumber: ref.number, unitNumber: un }
+    }
+  }
+  return null
+}
+
+export function duplicateReason(primaryClientName: string, dup: { contractNumber: string; unitNumber: string }): string {
+  return `Klient „${primaryClientName}” ma już aktywną umowę ${dup.contractNumber} z lokalem ${dup.unitNumber} — wiersz pominięty jako duplikat (jeśli to inna umowa, zmień numer lokalu lub anuluj starą umowę w CRM)`
+}
+
 function matchStatus(raw: string, hasSignedAt: boolean): ContractStatus {
   const s = raw.toLowerCase()
   if (s.includes('podpis')) return 'PODPISANA'
@@ -308,10 +364,11 @@ export async function buildContractsDiff(
     valid.push(p)
   }
 
-  const [existingContracts, allClients, allUnits] = await Promise.all([
+  const [existingContracts, allClients, allUnits, activeByUnit] = await Promise.all([
     prisma.contract.findMany({ select: { number: true } }),
     prisma.client.findMany({ select: { id: true, firstName: true, lastName: true, email: true } }),
     prisma.unit.findMany({ select: { number: true } }),
+    loadActiveContractsByUnit(),
   ])
   const existingNumbers = new Set(existingContracts.map((c) => c.number))
   const unitNumberSet = new Set(allUnits.map((u) => u.number))
@@ -352,6 +409,16 @@ export async function buildContractsDiff(
     for (const un of d.unitNumbers) {
       if (unitNumberSet.has(un)) unitsMatched.push(un)
       else { unitsMissing.push(un); missingUnits.add(un) }
+    }
+
+    // Nowy rekord dla klienta, który ma już aktywną umowę z tym lokalem → duplikat
+    // (tak powstały pary MD/UF…/R obok umów założonych w CRM). Pomijamy wiersz.
+    if (!existingNumbers.has(d.number)) {
+      const dup = findDuplicateActiveContract(activeByUnit, primary, d.unitNumbers)
+      if (dup) {
+        errors.push({ rowIndex: v.rowIndex, number: d.number, reason: duplicateReason(primary, dup) })
+        continue
+      }
     }
 
     rows.push({
@@ -405,6 +472,7 @@ export async function commitContractsImport(
   let clientsCreated = 0
   let unitsLinked = 0
   const missingUnits = new Set<string>()
+  const activeByUnit = await loadActiveContractsByUnit()
   let willCreateClients = 0
   const previewRows: PreviewRow[] = []
 
@@ -480,6 +548,14 @@ export async function commitContractsImport(
       }
 
       const existing = await tx.contract.findUnique({ where: { number: d.number }, select: { id: true } })
+      if (!existing) {
+        // Nowy numer, ale klient ma już aktywną umowę z tym lokalem → duplikat, pomijamy.
+        const dup = findDuplicateActiveContract(activeByUnit, d.clientNames[0], d.unitNumbers)
+        if (dup) {
+          errors.push({ rowIndex: v.rowIndex, number: d.number, reason: duplicateReason(d.clientNames[0], dup) })
+          continue
+        }
+      }
       let contractId: string
       if (existing) {
         await tx.contract.update({

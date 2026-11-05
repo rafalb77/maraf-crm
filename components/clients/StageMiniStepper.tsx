@@ -28,7 +28,9 @@ export function StageMiniStepper({
         const row = stages.find((s) => s.stage === stage)
         const isCurrent = idx === currentIdx
         const isPast = idx < currentIdx
-        const signed = !!row?.signedAt
+        // „Podpisana" tylko przy statusie PODPISANA; sama data (np. z importu) = niespójność pokazana wprost.
+        const signed = row?.status === 'PODPISANA' && !!row?.signedAt
+        const dateOnly = !signed && !!row?.signedAt
         const tone = isCurrent
           ? 'border-blue-400 bg-blue-50'
           : isPast
@@ -49,7 +51,19 @@ export function StageMiniStepper({
               </span>
             </div>
             <div className="mt-1 text-[11px] text-gray-500 leading-tight">
-              {row?.signedAt ? `Podpisana ${formatDate(new Date(row.signedAt))}` : isCurrent ? 'Etap bieżący' : isPast ? 'Bez daty podpisania' : '—'}
+              {signed ? (
+                `Podpisana ${formatDate(new Date(row!.signedAt!))}`
+              ) : dateOnly ? (
+                <span className="text-amber-700" title="Etap ma datę, ale nie został oznaczony jako podpisany">
+                  Data {formatDate(new Date(row!.signedAt!))} · niepodpisana
+                </span>
+              ) : isCurrent ? (
+                'Etap bieżący'
+              ) : isPast ? (
+                'Bez daty podpisania'
+              ) : (
+                '—'
+              )}
               {row?.number ? <div className="truncate">Akt: {row.number}</div> : null}
               {isCurrent && daysInStage != null && (
                 <div className="text-blue-700/70">{daysInStage === 1 ? '1 dzień w etapie' : `${daysInStage} dni w etapie`}</div>

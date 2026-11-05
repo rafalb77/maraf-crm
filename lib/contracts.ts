@@ -129,6 +129,61 @@ export function unitStateForStage(stage: ContractType, clientId: string): UnitSt
   return { status: 'ZAREZERWOWANY', reservationType: 'REZERWACJA', reservationExpiresAt: null, reservedById: clientId }
 }
 
+export type ReleaseUnitsResult = {
+  released: string[] // numery lokali zwolnionych (WOLNY)
+  kept: { unitNumber: string; contractNumber: string }[] // lokale zostawione pod inną aktywną umową
+}
+
+/**
+ * Zwalnia lokale umowy przy jej rozwiązaniu/anulowaniu/usunięciu — ale lokal,
+ * który jest też składnikiem INNEJ aktywnej umowy (duplikat rekordu, para z
+ * importu), nie wraca do puli: dostaje stan wg etapu tamtej umowy. Bez tego
+ * anulowanie zdublowanej rezerwacji zwalniało mieszkanie spod prawdziwej umowy.
+ * Powiązania ClientUnit kasowane tylko dla lokali faktycznie zwolnionych.
+ */
+export async function releaseContractUnits(contractId: string, unitIds: string[]): Promise<ReleaseUnitsResult> {
+  const result: ReleaseUnitsResult = { released: [], kept: [] }
+  if (unitIds.length === 0) return result
+  const units = await prisma.unit.findMany({
+    where: { id: { in: unitIds } },
+    select: {
+      id: true,
+      number: true,
+      contractUnits: {
+        where: { contract: { id: { not: contractId }, status: { notIn: ['ROZWIAZANA', 'ANULOWANA'] } } },
+        select: { contract: { select: { number: true, type: true, clientId: true, status: true } } },
+        orderBy: { contract: { createdAt: 'desc' } },
+      },
+    },
+  })
+  const toRelease: string[] = []
+  for (const u of units) {
+    const other = u.contractUnits[0]?.contract
+    if (other) {
+      await prisma.unit.update({ where: { id: u.id }, data: unitStateForStage(other.type as ContractType, other.clientId) })
+      result.kept.push({ unitNumber: u.number, contractNumber: other.number })
+    } else {
+      toRelease.push(u.id)
+      result.released.push(u.number)
+    }
+  }
+  if (toRelease.length) {
+    await prisma.unit.updateMany({
+      where: { id: { in: toRelease } },
+      data: { status: 'WOLNY', reservationType: null, reservationExpiresAt: null, reservedById: null },
+    })
+    await prisma.clientUnit.deleteMany({ where: { unitId: { in: toRelease } } })
+  }
+  return result
+}
+
+export function describeRelease(r: ReleaseUnitsResult): string {
+  const parts: string[] = []
+  if (r.released.length) parts.push(`zwolniono: ${r.released.join(', ')}`)
+  if (r.kept.length) parts.push(`zostały pod inną umową: ${r.kept.map((k) => `${k.unitNumber} (${k.contractNumber})`).join(', ')}`)
+  return parts.join('; ')
+}
+
 /**
  * Validate that the unit composition matches the constraints for a given contract type.
  * Reservation contract (REZERWACYJNA): max 1 MIESZKALNY + 2 PARKING + 2 GARAZ + 1 KOMORKA.

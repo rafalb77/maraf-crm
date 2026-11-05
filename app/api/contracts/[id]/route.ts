@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { unitStateForStage } from '@/lib/contracts'
+import { describeRelease, releaseContractUnits, unitStateForStage } from '@/lib/contracts'
 import type { ContractStatus, ContractType } from '@/lib/types'
 import { audit, extractRequestMeta } from '@/lib/audit-log'
 
@@ -122,18 +122,10 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
         data: { status: 'W_PRZYGOTOWANIU', signedAt: null },
       })
     } else if (newStatus === 'ROZWIAZANA' || newStatus === 'ANULOWANA') {
-      // Release units
-      const unitIds = contract.contractUnits.map((cu) => cu.unitId)
-      await prisma.unit.updateMany({
-        where: { id: { in: unitIds } },
-        data: {
-          status: 'WOLNY',
-          reservationType: null,
-          reservationExpiresAt: null,
-          reservedById: null,
-        },
-      })
-      await prisma.clientUnit.deleteMany({ where: { unitId: { in: unitIds } } })
+      // Zwolnij lokale — poza tymi, które są też na innej aktywnej umowie (duplikat rekordu).
+      const release = await releaseContractUnits(contract.id, contract.contractUnits.map((cu) => cu.unitId))
+      const desc = describeRelease(release)
+      if (desc) historyEvents[historyEvents.length - 1].details = `${contract.status} → ${newStatus} (${desc})`
     }
   } else if (body.signedAt !== undefined) {
     data.signedAt = body.signedAt ? new Date(body.signedAt) : null
@@ -165,7 +157,7 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
   const contract = await prisma.contract.findUnique({
     where: { id: params.id },
     include: {
-      contractUnits: { include: { unit: { select: { number: true } } } },
+      contractUnits: { include: { unit: { select: { number: true, reservationType: true } } } },
       payments: { select: { title: true, type: true, plannedAmount: true, plannedDate: true, status: true } },
       client: { select: { firstName: true, lastName: true } },
     },
@@ -202,19 +194,10 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
     },
   })
 
-  // Release units on delete
-  const unitIds = contract.contractUnits.map((cu) => cu.unitId)
-  if (unitIds.length) {
-    await prisma.unit.updateMany({
-      where: { id: { in: unitIds }, reservationType: 'REZERWACJA' },
-      data: {
-        status: 'WOLNY',
-        reservationType: null,
-        reservationExpiresAt: null,
-        reservedById: null,
-      },
-    })
-  }
+  // Zwolnij lokale (jak dotąd tylko twardo zarezerwowane; sprzedanych nie ruszamy) —
+  // poza tymi, które są też na innej aktywnej umowie (duplikat rekordu).
+  const reservedIds = contract.contractUnits.filter((cu) => cu.unit?.reservationType === 'REZERWACJA').map((cu) => cu.unitId)
+  if (reservedIds.length) await releaseContractUnits(contract.id, reservedIds)
 
   await prisma.contract.delete({ where: { id: params.id } })
   return NextResponse.json({ success: true })
