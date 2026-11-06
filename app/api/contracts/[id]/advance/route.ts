@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { nextContractStage, CONTRACT_TYPE_LABELS } from '@/lib/types'
-import { findUnavailableUnits, unavailableUnitsMessage, unitStateForStage } from '@/lib/contracts'
+import { findUnavailableUnits, pruneStaleClientUnits, unavailableUnitsMessage, unitStateForStage } from '@/lib/contracts'
 import type { ContractType } from '@/lib/types'
 
 /**
@@ -149,6 +149,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       where: { id: { in: unitIds } },
       data: unitStateForStage(next, updated.clientId),
     })
+    // Lokale mają stronę — zalegające wpisy portfela innych klientów znikają.
+    await pruneStaleClientUnits(unitIds)
   }
 
   return NextResponse.json(updated)

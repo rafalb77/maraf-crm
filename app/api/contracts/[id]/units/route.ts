@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { findUnavailableUnits, unavailableUnitsMessage, unitStateForStage, validateContractUnits } from '@/lib/contracts'
+import { findUnavailableUnits, pruneStaleClientUnits, unavailableUnitsMessage, unitStateForStage, validateContractUnits } from '@/lib/contracts'
 import { computeReservationFee, findClientUnitConflict } from '@/lib/contract-pricing'
 import type { ContractType, UnitType } from '@/lib/types'
 
@@ -199,6 +199,10 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
       },
     })
   })
+
+  // Porządek w portfelach: przy dołożonych lokalach znikają zalegające wpisy innych
+  // klientów, przy zdjętych zostawionych pod inną umową — wpis tego klienta.
+  await pruneStaleClientUnits([...addedUnitIds, ...removedUnitIds])
 
   return NextResponse.json({ success: true })
 }

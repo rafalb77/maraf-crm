@@ -2,7 +2,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { describeRelease, findUnavailableUnits, releaseContractUnits, unavailableUnitsMessage, unitStateForStage } from '@/lib/contracts'
+import {
+  describeRelease,
+  findUnavailableUnits,
+  pruneStaleClientUnits,
+  releaseContractUnits,
+  unavailableUnitsMessage,
+  unitStateForStage,
+} from '@/lib/contracts'
 import type { ContractStatus, ContractType } from '@/lib/types'
 import { audit, extractRequestMeta } from '@/lib/audit-log'
 
@@ -106,6 +113,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
         where: { id: { in: unitIds } },
         data: unitStateForStage(contract.type as ContractType, contract.clientId),
       })
+      // Lokale mają teraz stronę — zalegające wpisy portfela innych klientów znikają.
+      await pruneStaleClientUnits(unitIds)
 
       // Podpisanie umowy podnosi status klienta (głównego + współrezerwujących)
       // na UMOWA — spójnie z importem (contracts-import.ts). Nie cofamy klientów

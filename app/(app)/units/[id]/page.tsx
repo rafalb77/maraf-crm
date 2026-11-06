@@ -2,12 +2,12 @@ import { prisma } from '@/lib/prisma'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
-import { formatCurrency, formatArea, formatDateTime } from '@/lib/utils'
+import { formatCurrency, formatArea, formatDate, formatDateTime } from '@/lib/utils'
 import {
   UNIT_TYPE_LABELS, UNIT_STATUS_LABELS, UNIT_STATUS_COLORS,
   SERVICE_STATUS_LABELS, SERVICE_STATUS_COLORS, SERVICE_PRIORITY_LABELS,
-  canGenerateCreative,
-  type UnitType, type UnitStatus, type ServiceStatus, type ServicePriority
+  CONTRACT_TYPE_LABELS, canGenerateCreative,
+  type UnitType, type UnitStatus, type ServiceStatus, type ServicePriority, type ContractType
 } from '@/lib/types'
 import { FloorPlanUpload } from '@/components/units/FloorPlanUpload'
 import { UnitImageGallery } from '@/components/units/UnitImageGallery'
@@ -21,12 +21,60 @@ export default async function UnitDetailPage({ params }: { params: { id: string 
     where: { id: params.id },
     include: {
       clientUnits: { include: { client: true } },
+      contractUnits: {
+        where: { contract: { status: { notIn: ['ROZWIAZANA', 'ANULOWANA'] } } },
+        select: {
+          contract: {
+            select: {
+              id: true, number: true, type: true, status: true,
+              client: { select: { id: true, firstName: true, lastName: true, phone: true, email: true } },
+              contractClients: {
+                select: { client: { select: { id: true, firstName: true, lastName: true, phone: true, email: true } } },
+                orderBy: { position: 'asc' },
+              },
+            },
+          },
+        },
+        orderBy: { contract: { createdAt: 'asc' } },
+      },
       serviceRequests: { include: { client: true }, orderBy: { createdAt: 'desc' } },
       images: { orderBy: [{ position: 'asc' }, { createdAt: 'asc' }] },
     },
   })
 
   if (!unit) notFound()
+
+  // „Przypisani klienci": najpierw strony aktywnych umów z tym lokalem (umowa =
+  // prawda o tym, czyj jest lokal), potem wpisy portfela (rezerwacja miękka / samo
+  // przypisanie). Wpis klienta, który nie jest stroną żadnej z tych umów ani nie
+  // trzyma rezerwacji, to zalegający ślad po lokalu, który przeszedł do kogoś innego
+  // — oznaczamy go, zamiast pokazywać jak właściciela (MP.21 u Czwondy, 11.2026).
+  type Holder = { id: string; firstName: string; lastName: string; phone: string | null; email: string | null }
+  const holders: { client: Holder; note: string; contract: { id: string; number: string } | null; stale: boolean }[] = []
+  const seen = new Set<string>()
+  for (const cu of unit.contractUnits) {
+    const c = cu.contract
+    const note = `${CONTRACT_TYPE_LABELS[c.type as ContractType] ?? c.type}${c.status === 'PODPISANA' ? '' : ' (w przygotowaniu)'}`
+    for (const cl of [c.client, ...c.contractClients.map((cc) => cc.client)]) {
+      if (seen.has(cl.id)) continue
+      seen.add(cl.id)
+      holders.push({ client: cl, note, contract: { id: c.id, number: c.number }, stale: false })
+    }
+  }
+  const claimed = seen.size > 0 || !!unit.reservedById
+  for (const cu of unit.clientUnits) {
+    if (seen.has(cu.clientId)) continue
+    seen.add(cu.clientId)
+    const isHolder = unit.reservedById === cu.clientId
+    const note = isHolder
+      ? unit.reservationType === 'MIEKKA'
+        ? `rezerwacja miękka${unit.reservationExpiresAt ? ` do ${formatDate(unit.reservationExpiresAt)}` : ''}`
+        : 'rezerwacja'
+      : claimed
+        ? 'zalegający wpis portfela — lokal ma innego klienta; usuń go (×) na karcie klienta'
+        : `przypisany ${formatDate(cu.assignedAt)}`
+    holders.push({ client: cu.client, note, contract: null, stale: claimed && !isHolder })
+  }
 
   // Lista klientów do szybkiej rezerwacji z poziomu lokalu (gdy WOLNY).
   const clientsForReserve = unit.status === 'WOLNY'
@@ -201,21 +249,33 @@ export default async function UnitDetailPage({ params }: { params: { id: string 
         <div className="space-y-5">
           <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6">
             <h2 className="font-semibold text-gray-900 mb-4">Przypisani klienci</h2>
-            {unit.clientUnits.length === 0 ? (
+            {holders.length === 0 ? (
               <p className="text-gray-400 text-sm">Brak przypisanych klientów</p>
             ) : (
               <div className="space-y-2">
-                {unit.clientUnits.map((cu) => (
-                  <Link key={cu.clientId} href={`/clients/${cu.clientId}`}
-                    className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 transition-colors">
-                    <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-medium text-sm">
-                      {cu.client.firstName[0]}{cu.client.lastName[0]}
+                {holders.map((h) => (
+                  <div key={h.client.id} className={`flex items-center gap-3 p-2 rounded-lg ${h.stale ? 'opacity-70' : ''}`}>
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center font-medium text-sm ${h.stale ? 'bg-gray-100 text-gray-500' : 'bg-blue-100 text-blue-600'}`}>
+                      {h.client.firstName[0]}{h.client.lastName[0]}
                     </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">{cu.client.firstName} {cu.client.lastName}</p>
-                      <p className="text-xs text-gray-500">{cu.client.phone || cu.client.email || '—'}</p>
+                    <div className="min-w-0">
+                      <Link href={`/clients/${h.client.id}`} className="text-sm font-medium text-gray-900 hover:text-blue-600">
+                        {h.client.firstName} {h.client.lastName}
+                      </Link>
+                      <p className="text-xs text-gray-500">{h.client.phone || h.client.email || '—'}</p>
+                      <p className={`text-xs ${h.stale ? 'text-amber-700' : 'text-gray-600'}`}>
+                        {h.note}
+                        {h.contract && (
+                          <>
+                            {' '}
+                            <Link href={`/sales/${h.contract.id}`} className="text-blue-600 hover:text-blue-700 font-medium">
+                              {h.contract.number}
+                            </Link>
+                          </>
+                        )}
+                      </p>
                     </div>
-                  </Link>
+                  </div>
                 ))}
               </div>
             )}

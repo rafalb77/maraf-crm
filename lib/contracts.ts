@@ -174,6 +174,10 @@ export async function releaseContractUnits(contractId: string, unitIds: string[]
     })
     await prisma.clientUnit.deleteMany({ where: { unitId: { in: toRelease } } })
   }
+  // Lokale zostawione pod inną umową: wpis portfela klienta tej (anulowanej) umowy
+  // jest już tylko śladem — lokal ma inną stronę — więc znika z jego portfela.
+  const keptIds = units.filter((u) => u.contractUnits[0]).map((u) => u.id)
+  if (keptIds.length) await pruneStaleClientUnits(keptIds, { excludeContractId: contractId })
   return result
 }
 
@@ -323,4 +327,56 @@ export async function findUnavailableUnits(
 export function unavailableUnitsMessage(issues: UnitAvailabilityIssue[], hint: string): string {
   if (issues.length === 1) return `Lokal ${issues[0].unitNumber} ${issues[0].reason}. ${hint}`
   return `Lokale: ${issues.map((i) => `${i.unitNumber} – ${i.reason}`).join('; ')}. ${hint}`
+}
+
+/**
+ * Usuwa zalegające wpisy portfela (ClientUnit) dla lokali, które mają już stronę:
+ * są na aktywnej umowie albo mają rezerwację konkretnego klienta (Unit.reservedById).
+ * Wpis zostaje, gdy klient jest stroną aktywnej umowy z tym lokalem (klient główny
+ * lub współkupujący) albo trzyma jego rezerwację. Lokal bez znanej strony (wolny,
+ * sprzedany bez umowy w systemie) nie jest ruszany. Wołane po podpisaniu / awansie
+ * etapu, edycji składników, aneksie i zwolnieniu lokali — bez tego karta lokalu
+ * pokazywała w „Przypisani klienci" klienta, który lokal dawno stracił (MP.21 u
+ * Czwondy po zdjęciu z umowy, 11.2026), a karta klienta trzymała go w portfelu.
+ */
+export async function pruneStaleClientUnits(
+  unitIds: string[],
+  opts: { excludeContractId?: string } = {},
+): Promise<{ unitNumber: string; clientId: string }[]> {
+  if (unitIds.length === 0) return []
+  const units = await prisma.unit.findMany({
+    where: { id: { in: unitIds } },
+    select: {
+      id: true,
+      number: true,
+      reservedById: true,
+      clientUnits: { select: { clientId: true } },
+      contractUnits: {
+        // excludeContractId: umowa właśnie anulowana / kasowana — jej status zmienia się
+        // dopiero po zwolnieniu lokali, więc nie może liczyć się jako strona.
+        where: {
+          contract: {
+            status: { notIn: ['ROZWIAZANA', 'ANULOWANA'] },
+            ...(opts.excludeContractId ? { id: { not: opts.excludeContractId } } : {}),
+          },
+        },
+        select: { contract: { select: { clientId: true, contractClients: { select: { clientId: true } } } } },
+      },
+    },
+  })
+  const removed: { unitNumber: string; clientId: string }[] = []
+  for (const u of units) {
+    const party = new Set<string>()
+    for (const cu of u.contractUnits) {
+      party.add(cu.contract.clientId)
+      for (const cc of cu.contract.contractClients) party.add(cc.clientId)
+    }
+    if (u.reservedById) party.add(u.reservedById)
+    if (party.size === 0) continue
+    const stale = u.clientUnits.map((c) => c.clientId).filter((id) => !party.has(id))
+    if (stale.length === 0) continue
+    await prisma.clientUnit.deleteMany({ where: { unitId: u.id, clientId: { in: stale } } })
+    for (const clientId of stale) removed.push({ unitNumber: u.number, clientId })
+  }
+  return removed
 }
